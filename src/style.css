@@ -1,0 +1,297 @@
+/* BlockVerse UI styles */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --slot-size: 44px;
+  --ui-bg: #c6c6c6;
+  --ui-bg-dark: #8b8b8b;
+  --ui-border-light: #ffffff;
+  --ui-border-dark: #555555;
+  --font: 600 14px/1.4 'Segoe UI', system-ui, sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  font: var(--font);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app { position: relative; width: 100%; height: 100%; }
+
+#game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.hidden { display: none !important; }
+
+.pixelated { image-rendering: pixelated; }
+
+/* ---------- HUD ---------- */
+
+#hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+
+#crosshair {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 22px; font-weight: 400;
+  text-shadow: 0 0 2px rgba(0,0,0,0.6);
+  mix-blend-mode: difference;
+}
+
+#hotbar {
+  position: absolute; left: 50%; bottom: 8px;
+  transform: translateX(-50%);
+  display: flex; gap: 2px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+}
+
+.slot {
+  width: var(--slot-size); height: var(--slot-size);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(0, 0, 0, 0.45);
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.slot img { width: 80%; height: 80%; image-rendering: pixelated; pointer-events: none; }
+
+.slot .count {
+  position: absolute; right: 2px; bottom: 0;
+  color: #fff; font-size: 13px; font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+}
+
+.slot .durability {
+  position: absolute; left: 3px; right: 3px; bottom: 3px;
+  height: 3px; background: #333;
+}
+.slot .durability > div { height: 100%; background: #4caf50; }
+
+#hotbar .slot.selected { border-color: #fff; box-shadow: 0 0 0 2px #fff inset; }
+
+#held-item-label {
+  position: absolute; left: 50%; bottom: 70px;
+  transform: translateX(-50%);
+  color: #fff; text-shadow: 1px 1px 2px #000;
+  font-size: 15px;
+  transition: opacity 0.5s;
+  opacity: 0;
+}
+
+#status-bars {
+  position: absolute; left: 50%; bottom: 62px;
+  transform: translateX(-50%);
+  width: 424px;
+  display: flex; flex-direction: column; gap: 3px;
+  pointer-events: none;
+}
+
+.stat-bar { display: flex; gap: 1px; }
+#health-bar { justify-content: flex-start; }
+#hunger-bar { justify-content: flex-end; }
+#air-bar { justify-content: flex-end; }
+
+.stat-icon {
+  width: 18px; height: 18px;
+  display: inline-block;
+  font-size: 15px; line-height: 18px; text-align: center;
+  text-shadow: 1px 1px 1px #000;
+}
+
+/* ---------- debug overlay ---------- */
+
+#debug-overlay {
+  position: absolute; left: 8px; top: 8px;
+  color: #fff; font: 13px/1.5 Consolas, monospace;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px 10px;
+  white-space: pre;
+  border-radius: 3px;
+}
+
+/* ---------- chat / commands ---------- */
+
+#chat-log {
+  position: absolute; left: 8px; bottom: 90px;
+  width: 460px; max-height: 260px;
+  overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  color: #fff; font-size: 14px;
+  text-shadow: 1px 1px 1px #000;
+}
+#chat-log .msg {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px; margin-top: 2px;
+  border-radius: 2px;
+  transition: opacity 1s;
+}
+
+#chat-input-row {
+  position: absolute; left: 8px; right: 8px; bottom: 62px;
+  pointer-events: auto;
+}
+#chat-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff; font: var(--font);
+  padding: 6px 8px;
+  outline: none;
+}
+
+/* ---------- full-screen UI (menus, inventory) ---------- */
+
+#ui-root { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+#ui-root > * { pointer-events: auto; }
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+  color: #eee;
+}
+
+.screen.dim { background: rgba(0, 0, 0, 0.55); }
+
+.screen.menu-bg {
+  background:
+    linear-gradient(rgba(12, 16, 28, 0.82), rgba(12, 16, 28, 0.88)),
+    repeating-conic-gradient(#3a5a2e 0% 25%, #2e4a24 0% 50%) 0 0 / 64px 64px;
+}
+
+.title {
+  font-size: 52px; font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 3px 3px 0 #2a2a2a, 6px 6px 12px rgba(0,0,0,0.7);
+  margin-bottom: 10px;
+}
+
+.subtitle { color: #ffd83d; font-size: 15px; margin-top: -14px; transform: rotate(-3deg); text-shadow: 1px 1px 0 #000; }
+
+.btn {
+  min-width: 320px;
+  padding: 11px 24px;
+  background: linear-gradient(#7d7d7d, #5e5e5e);
+  border: 2px solid #000;
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,0.35), inset -2px -2px 0 rgba(0,0,0,0.35);
+  color: #fff; font: inherit; font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+  cursor: pointer;
+  text-align: center;
+}
+.btn:hover { background: linear-gradient(#8f8fb0, #68688a); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.small { min-width: 120px; padding: 8px 14px; font-size: 13px; }
+.btn.danger:hover { background: linear-gradient(#b06868, #8a4848); }
+
+.field { display: flex; flex-direction: column; gap: 4px; width: 320px; }
+.field label { font-size: 13px; color: #bbb; }
+.field input, .field select {
+  padding: 9px 10px;
+  background: #111;
+  border: 2px solid #555;
+  color: #fff; font: inherit;
+  outline: none;
+}
+.field input:focus { border-color: #999; }
+
+.world-list {
+  width: 420px; max-height: 300px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 4px;
+  background: rgba(0,0,0,0.35);
+  border: 2px solid #444;
+}
+.world-entry {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 10px 12px;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.world-entry:hover, .world-entry.selected { border-color: #aaa; }
+.world-entry .w-name { font-weight: 700; }
+.world-entry .w-info { font-size: 12px; color: #aaa; }
+
+.row { display: flex; gap: 10px; align-items: center; }
+
+/* ---------- inventory / crafting / furnace ---------- */
+
+.inv-window {
+  background: var(--ui-bg);
+  border: 3px solid;
+  border-color: var(--ui-border-light) var(--ui-border-dark) var(--ui-border-dark) var(--ui-border-light);
+  border-radius: 3px;
+  padding: 14px;
+  color: #3b3b3b;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+
+.inv-window h3 { font-size: 14px; color: #3b3b3b; margin-bottom: 8px; }
+
+.inv-grid { display: grid; gap: 3px; }
+.inv-grid.cols-9 { grid-template-columns: repeat(9, var(--slot-size)); }
+.inv-grid.cols-3 { grid-template-columns: repeat(3, var(--slot-size)); }
+.inv-grid.cols-2 { grid-template-columns: repeat(2, var(--slot-size)); }
+
+.inv-window .slot {
+  background: var(--ui-bg-dark);
+  border: 2px solid;
+  border-color: #373737 #fff #fff #373737;
+  cursor: pointer;
+}
+.inv-window .slot:hover { background: #a0a0a0; }
+
+.arrow { font-size: 26px; color: #3b3b3b; align-self: center; padding: 0 8px; }
+
+.furnace-flame { font-size: 20px; text-align: center; }
+.progress-track { width: 40px; height: 6px; background: #777; margin: 4px 0; }
+.progress-track > div { height: 100%; background: #e8862c; }
+
+#cursor-stack {
+  position: fixed;
+  width: 36px; height: 36px;
+  pointer-events: none;
+  z-index: 100;
+  display: none;
+}
+#cursor-stack img { width: 100%; height: 100%; image-rendering: pixelated; }
+#cursor-stack .count {
+  position: absolute; right: 0; bottom: -2px;
+  color: #fff; font-size: 13px; font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.tooltip {
+  position: fixed;
+  background: rgba(16, 0, 32, 0.92);
+  border: 1px solid #6a3a9a;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 101;
+  border-radius: 2px;
+}
+
+/* death screen */
+.death-title { font-size: 40px; color: #ff5555; text-shadow: 2px 2px 0 #500; }
+
+/* settings sliders */
+.setting-row { display: flex; align-items: center; gap: 12px; width: 380px; }
+.setting-row label { flex: 1; font-size: 14px; }
+.setting-row input[type=range] { flex: 1.2; }
+.setting-row .val { width: 46px; text-align: right; font-size: 13px; color: #ccc; }
+
+/* loading */
+.loading-bar-track { width: 320px; height: 10px; background: #222; border: 2px solid #666; }
+.loading-bar-track > div { height: 100%; background: #6fbf4a; width: 0%; transition: width 0.2s; }

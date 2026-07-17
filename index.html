@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlockVerse — Voxel Sandbox</title>
+  <meta name="description" content="BlockVerse: an open-source voxel sandbox game in the browser. Explore, mine, craft, survive." />
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+    <!-- HUD (crosshair, hotbar, status bars, debug) -->
+    <div id="hud" class="hidden">
+      <div id="crosshair">+</div>
+      <div id="status-bars">
+        <div id="health-bar" class="stat-bar"></div>
+        <div id="air-bar" class="stat-bar"></div>
+        <div id="hunger-bar" class="stat-bar"></div>
+      </div>
+      <div id="hotbar"></div>
+      <div id="held-item-label"></div>
+      <div id="debug-overlay" class="hidden"></div>
+      <div id="chat-log"></div>
+      <div id="chat-input-row" class="hidden"><input id="chat-input" autocomplete="off" spellcheck="false" maxlength="256" /></div>
+    </div>
+    <!-- Full-screen UI layers -->
+    <div id="ui-root"></div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

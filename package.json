@@ -1,0 +1,24 @@
+{
+  "name": "blockverse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "An open-source voxel sandbox game for the browser. Original code, procedurally generated textures and synthesized audio.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/appleweiping/blockverse.git"
+  },
+  "homepage": "https://appleweiping.github.io/blockverse/",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

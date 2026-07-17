@@ -1,0 +1,41 @@
+// Non-block item IDs. Leaf module (no imports) so both blocks.js and items.js
+// can reference these without circular dependencies.
+// IDs are part of the save format — never renumber, only append.
+
+export const I = {
+  STICK: 256,
+  COAL: 257,
+  IRON_INGOT: 258,
+  GOLD_INGOT: 259,
+  DIAMOND: 260,
+  REDSTONE_DUST: 261,
+  PORKCHOP_RAW: 262,
+  PORKCHOP_COOKED: 263,
+  APPLE: 264,
+  ROTTEN_FLESH: 265,
+  MUTTON_RAW: 266,
+  MUTTON_COOKED: 267,
+  BRICK_ITEM: 268,
+  CLAY_BALL: 269,
+
+  WOOD_PICKAXE: 270,
+  WOOD_AXE: 271,
+  WOOD_SHOVEL: 272,
+  WOOD_SWORD: 273,
+  STONE_PICKAXE: 274,
+  STONE_AXE: 275,
+  STONE_SHOVEL: 276,
+  STONE_SWORD: 277,
+  IRON_PICKAXE: 278,
+  IRON_AXE: 279,
+  IRON_SHOVEL: 280,
+  IRON_SWORD: 281,
+  GOLD_PICKAXE: 282,
+  GOLD_AXE: 283,
+  GOLD_SHOVEL: 284,
+  GOLD_SWORD: 285,
+  DIAMOND_PICKAXE: 286,
+  DIAMOND_AXE: 287,
+  DIAMOND_SHOVEL: 288,
+  DIAMOND_SWORD: 289,
+};
