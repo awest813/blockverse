@@ -330,7 +330,7 @@ export class Mob {
     if (!this.ambientSound) return;
     this.ambientTimer = (this.ambientTimer ?? 3 + Math.random() * 8) - dt;
     if (this.ambientTimer > 0) return;
-    this.ambientTimer = 7 + Math.random() * 10;
+    this.ambientTimer = this.hostile ? 7 + Math.random() * 10 : 14 + Math.random() * 20;
     const d = this.dist3(player);
     if (d < 16) this.fx?.sound(this.ambientSound, { vol: 1 - d / 16 });
   }

@@ -93,6 +93,7 @@ shaped(B.STONE_BRICKS, 4, ['XX', 'XX'], { X: [B.STONE] });
 shaped(B.SANDSTONE, 1, ['XX', 'XX'], { X: [B.SAND] });
 shaped(B.CHISELED_SANDSTONE, 1, ['X', 'X'], { X: [B.SANDSTONE] });
 shapeless(B.MOSSY_STONE_BRICKS, 2, [[B.STONE_BRICKS], [B.MOSSY_COBBLE]]);
+shaped(I.SHEARS, 1, ['.X', 'X.'], { X: [I.IRON_INGOT] });
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });

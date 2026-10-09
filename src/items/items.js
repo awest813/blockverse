@@ -95,6 +95,7 @@ item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
 item(I.PAPER, 'paper', 'Paper');
 item(I.BOOK, 'book', 'Book');
 item(I.BOWL, 'bowl', 'Bowl', { burnTime: 5 });
+item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
 item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, heal: 8 });
 item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, stack: 1, returns: I.BOWL });
 

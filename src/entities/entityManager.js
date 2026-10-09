@@ -2,6 +2,7 @@
 
 import { ItemDrop } from './itemDrop.js';
 import { Arrow } from './projectile.js';
+import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken } from './animals.js';
 
@@ -69,6 +70,7 @@ export class EntityManager {
 
     for (const m of this.mobs) m.update(dt, player);
     this.mobs = this.mobs.filter((m) => !m.dead);
+    this.separate(dt, player);
 
     // bring kept animals back once the player is near them again
     this.stashTimer -= dt;
@@ -85,6 +87,46 @@ export class EntityManager {
 
     for (const a of this.projectiles) a.update(dt, player, this.mobs, this.onPickup);
     this.projectiles = this.projectiles.filter((a) => !a.dead);
+  }
+
+  // Mobs gently push each other (and are shoved by the player) instead of
+  // merging into one blob. Pushes are small displacements run through the
+  // physics step, so walls still win.
+  separate(dt, player) {
+    const live = this.mobs.filter((m) => m.dying === undefined && !m.dead &&
+      Math.abs(m.x - player.x) < 32 && Math.abs(m.z - player.z) < 32);
+    const shove = new Map();   // mob -> [dx, dz]
+    const add = (m, dx, dz) => { const v = shove.get(m) ?? [0, 0]; v[0] += dx; v[1] += dz; shove.set(m, v); };
+    const overlap = (a, bx, by, bz, bw, bh) => {
+      const dx = a.x - bx, dz = a.z - bz;
+      const reach = (a.w + bw) / 2;
+      if (Math.abs(dx) >= reach || Math.abs(dz) >= reach) return null;
+      if (a.y >= by + bh || by >= a.y + a.h) return null;   // no vertical overlap
+      const d = Math.hypot(dx, dz);
+      if (d >= reach) return null;
+      const nx = d > 1e-4 ? dx / d : Math.random() - 0.5, nz = d > 1e-4 ? dz / d : Math.random() - 0.5;
+      const k = Math.min(1, 6 * dt) * (reach - d);
+      return [nx * k, nz * k];
+    };
+    for (let i = 0; i < live.length; i++) {
+      const a = live[i];
+      for (let j = i + 1; j < live.length; j++) {
+        const b = live[j];
+        const o = overlap(a, b.x, b.y, b.z, b.w, b.h);
+        if (o) { add(a, o[0] / 2, o[1] / 2); add(b, -o[0] / 2, -o[1] / 2); }
+      }
+      // the player shoves animals out of the way (and gets nudged a little)
+      if (!player.dead && !player.flying) {
+        const o = overlap(a, player.x, player.y, player.z, 0.6, 1.8);
+        if (o) { add(a, o[0], o[1]); player.vx -= o[0] * 4; player.vz -= o[1] * 4; }
+      }
+    }
+    for (const [m, [dx, dz]] of shove) {
+      const vx = m.vx, vy = m.vy, vz = m.vz;
+      m.vx = dx; m.vy = 0; m.vz = dz;
+      moveEntity(this.world, m, 1);
+      m.vx = vx; m.vy = vy; m.vz = vz;
+    }
   }
 
   mobsNear(x, y, z, r) {
@@ -109,7 +151,7 @@ export class EntityManager {
 // ---- kept animals ----
 
 export function serializeAnimal(m) {
-  return { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0 };
+  return { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared };
 }
 
 export function restoreAnimal(scene, world, a) {
@@ -120,6 +162,7 @@ export function restoreAnimal(scene, world, a) {
   mob.health = a.health ?? mob.health;
   mob.breedCooldown = a.breedCooldown ?? 0;
   if (a.baby) mob.setBaby(true, a.grow || 300);
+  if (a.sheared) mob.setSheared?.(true);
   return mob;
 }
 

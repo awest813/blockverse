@@ -28,6 +28,8 @@ export function entityContents(st) {
   return [];
 }
 
+const SHEARABLE = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.TALL_GRASS, B.DEAD_BUSH]);
+
 export class Interaction {
   constructor(world, player, callbacks) {
     this.world = world;
@@ -161,7 +163,9 @@ export class Interaction {
     }
 
     if (!creative) {
-      if (this.breakCanHarvest) this.spawnBlockDrops(t.x, t.y, t.z, info, true);
+      // shears snip leaves, grass and bushes off whole
+      if (p.heldStack()?.id === I.SHEARS && SHEARABLE.has(t.id)) this.cb.spawnDrops(t.x + 0.5, t.y + 0.3, t.z + 0.5, [{ id: t.id, count: 1 }]);
+      else if (this.breakCanHarvest) this.spawnBlockDrops(t.x, t.y, t.z, info, true);
       p.damageHeldTool(1);
       p.addExhaustion(0.03);
     }

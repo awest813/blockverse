@@ -48,6 +48,7 @@ export class Cow extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
     this.w = 0.9; this.h = 1.3; this.health = 10; this.speed = 1.2; this.kind = 'cow';
+    this.ambientSound = 'cow';
     this.breedItem = I.WHEAT;
   }
 
@@ -77,6 +78,7 @@ export class Chicken extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
     this.w = 0.45; this.h = 0.75; this.health = 4; this.speed = 1.1; this.fleeSpeed = 2.6; this.kind = 'chicken';
+    this.ambientSound = 'chicken';
     this.breedItem = I.WHEAT_SEEDS;
   }
 
@@ -304,6 +306,7 @@ export class Whale extends Swimmer {
     this.w = 2.2; this.h = 1.6; this.health = 60; this.speed = 1.1; this.fleeSpeed = 1.8;
     this.minDepth = 2;
     this.kind = 'whale';
+    this.ambientSound = 'whale';
   }
 
   buildModel() {
@@ -332,6 +335,7 @@ export class Dolphin extends Swimmer {
     this.w = 0.9; this.h = 0.6; this.health = 10; this.speed = 2.6; this.fleeSpeed = 4.5;
     this.minDepth = 1;
     this.kind = 'dolphin';
+    this.ambientSound = 'dolphin';
     this.leapTime = 0;
     this.escort = 0;    // seconds left following a player who fed it
   }
@@ -537,6 +541,7 @@ export class Dog extends Pet {
     this.tameItem = I.BONE;
     this.angry = 0;
     this.kind = 'dog';
+    this.ambientSound = 'dog';
   }
 
   buildModel() {
@@ -600,6 +605,7 @@ export class Cat extends Pet {
     this.speed = 1.3; this.fleeSpeed = 4;
     this.tameItem = I.FISH_RAW;
     this.kind = 'cat';
+    this.ambientSound = 'cat';
   }
 
   buildModel() {

@@ -28,8 +28,9 @@ function smoothstep(a, b, x) {
 
 // Generator versions: 1 = the original terrain (kept so existing worlds don't
 // grow seams); 2 = full-range climate, rolling terrain and rivers;
-// 3 = surface structures (temples, shrines).
-export const LATEST_GEN = 3;
+// 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
+// (river-bank trees, cane by any water, boulders, sparse tundra spruce).
+export const LATEST_GEN = 4;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -298,6 +299,96 @@ export class WorldGen {
   }
 
   chunkFeatures(cx, cz) {
+    return this.version >= 4 ? this.chunkFeaturesV4(cx, cz) : this.chunkFeaturesV1(cx, cz);
+  }
+
+  // Generator 4+: decoration decided per 8x8 quadrant (by that quadrant's own
+  // biome) and every feature checks the biome under it, so river banks get
+  // trees and grass, and beaches/rivers don't sprout flowers.
+  chunkFeaturesV4(cx, cz) {
+    const rng = coordRng(this.seed, cx, cz, 778);
+    const features = [];
+    const LUSH = new Set([BIOME.PLAINS, BIOME.FOREST, BIOME.BIRCH_FOREST, BIOME.SWAMP, BIOME.MOUNTAINS, BIOME.SNOWY, BIOME.SNOWY_FOREST]);
+    const count = (n) => Math.floor(n / 4 + rng());   // a quarter of a chunk's worth, stochastically rounded
+    for (let q = 0; q < 4; q++) {
+      const qx = cx * CHUNK_X + (q & 1) * 8, qz = cz * CHUNK_Z + (q >> 1) * 8;
+      const biome = this.biomeAt(qx + 4, qz + 4);
+      // a column in this quadrant with ground of the right biome, or null
+      const spot = (ok) => {
+        const wx = qx + ((rng() * 8) | 0), wz = qz + ((rng() * 8) | 0);
+        const col = this.columnAt(wx, wz);
+        const h = Math.floor(col.h);
+        if (h <= SEA_LEVEL || !ok(this.biomeOf(col)) || !this.groundOk(wx, h, wz)) return null;
+        return { wx, wz, h };
+      };
+
+      let trees = 0, treeKind = 'oak';
+      switch (biome) {
+        case BIOME.FOREST: trees = count(7.5); break;
+        case BIOME.BIRCH_FOREST: trees = count(6.5); treeKind = 'birch'; break;
+        case BIOME.SNOWY_FOREST: trees = count(5); treeKind = 'spruce'; break;
+        case BIOME.PLAINS: trees = count(0.3); break;
+        case BIOME.SWAMP: trees = count(2.5); break;
+        case BIOME.MOUNTAINS: trees = count(1.2); treeKind = 'spruce'; break;
+        case BIOME.SNOWY: trees = count(0.35); treeKind = 'spruce'; break;
+        case BIOME.RIVER: case BIOME.BEACH: trees = count(0.6); break;   // the odd tree on the bank
+      }
+      for (let i = 0; i < trees; i++) {
+        const s = spot((b) => LUSH.has(b));
+        if (!s) continue;
+        const kind = treeKind === 'oak' && rng() < 0.12 ? 'birch' : treeKind;
+        features.push({ type: 'tree', kind, wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.seed, s.wx, s.wz, 555) });
+      }
+
+      if (biome === BIOME.DESERT) {
+        for (let i = count(4); i > 0; i--) {
+          const s = spot((b) => b === BIOME.DESERT);
+          if (s) features.push({ type: 'cactus', wx: s.wx, wy: s.h + 1, wz: s.wz, size: 1 + ((rng() * 3) | 0) });
+        }
+        for (let i = count(2); i > 0; i--) {
+          const s = spot((b) => b === BIOME.DESERT);
+          if (s) features.push({ type: 'plant', block: B.DEAD_BUSH, wx: s.wx, wy: s.h + 1, wz: s.wz });
+        }
+      }
+
+      // grass and flowers: only on grassy biomes
+      const grass = { [BIOME.PLAINS]: 24, [BIOME.FOREST]: 12, [BIOME.BIRCH_FOREST]: 12, [BIOME.SWAMP]: 10, [BIOME.RIVER]: 8, [BIOME.MOUNTAINS]: 4 }[biome] ?? 0;
+      const GRASSY = new Set([BIOME.PLAINS, BIOME.FOREST, BIOME.BIRCH_FOREST, BIOME.SWAMP, BIOME.MOUNTAINS]);
+      for (let i = count(grass); i > 0; i--) {
+        const s = spot((b) => GRASSY.has(b));
+        if (!s) continue;
+        const r = rng();
+        features.push({ type: 'plant', block: r < 0.08 ? B.DANDELION : r < 0.16 ? B.POPPY : B.TALL_GRASS, wx: s.wx, wy: s.h + 1, wz: s.wz });
+      }
+      if (biome === BIOME.SWAMP) {
+        for (let i = count(4); i > 0; i--) {
+          const s = spot((b) => b === BIOME.SWAMP);
+          if (s) features.push({ type: 'plant', block: rng() < 0.5 ? B.MUSHROOM_BROWN : B.MUSHROOM_RED, wx: s.wx, wy: s.h + 1, wz: s.wz });
+        }
+      }
+      if ((biome === BIOME.PLAINS || biome === BIOME.FOREST) && rng() < 0.015) {
+        const s = spot((b) => b === BIOME.PLAINS || b === BIOME.FOREST);
+        if (s) features.push({ type: 'plant', block: B.PUMPKIN, wx: s.wx, wy: s.h + 1, wz: s.wz });
+      }
+      // mossy boulders on mountains, tundra and the odd plain
+      const boulders = { [BIOME.MOUNTAINS]: 0.5, [BIOME.SNOWY]: 0.35, [BIOME.PLAINS]: 0.05, [BIOME.SNOWY_FOREST]: 0.15 }[biome] ?? 0;
+      if (rng() < boulders) {
+        const s = spot((b) => b !== BIOME.RIVER && b !== BIOME.BEACH && b !== BIOME.OCEAN);
+        if (s) features.push({ type: 'boulder', wx: s.wx, wy: s.h, wz: s.wz, size: rng() < 0.3 ? 2 : 1, rng: coordRng(this.seed, s.wx, s.wz, 556) });
+      }
+      // sugar cane wherever low ground touches water: rivers, swamps, beaches, lakes
+      for (let i = count(biome === BIOME.RIVER || biome === BIOME.SWAMP ? 24 : biome === BIOME.BEACH || biome === BIOME.PLAINS ? 10 : 0); i > 0; i--) {
+        const wx = qx + ((rng() * 8) | 0), wz = qz + ((rng() * 8) | 0);
+        const h = Math.floor(this.columnAt(wx, wz).h);
+        if (h < SEA_LEVEL || h > SEA_LEVEL + 2 || !this.groundOk(wx, h, wz)) continue;
+        const wet = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => this.columnAt(wx + dx, wz + dz).h < SEA_LEVEL);
+        if (wet) features.push({ type: 'cane', wx, wy: h + 1, wz, size: 2 + ((rng() * 2) | 0) });
+      }
+    }
+    return features;
+  }
+
+  chunkFeaturesV1(cx, cz) {
     const rng = coordRng(this.seed, cx, cz, 777);
     const features = [];
     const baseX = cx * CHUNK_X;
@@ -385,7 +476,7 @@ export class WorldGen {
   }
 
   applyFeature(blocks, cx, cz, f) {
-    if (nearStructure(this, f.wx, f.wz, f.type === 'tree' ? 3 : 0)) return;
+    if (nearStructure(this, f.wx, f.wz, f.type === 'tree' || f.type === 'boulder' ? 3 : 0)) return;
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X;
       const z = wz - cz * CHUNK_Z;
@@ -406,6 +497,15 @@ export class WorldGen {
       case 'plant':
         put(f.wx, f.wy, f.wz, f.block);
         break;
+      case 'boulder': {
+        // a lumpy ball of (mossy) cobblestone half sunk into the ground
+        const r = f.size;
+        for (let dx = -r; dx <= r; dx++) for (let dy = -1; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+          if (dx * dx + dy * dy + dz * dz > r * r + 0.6 + f.rng() * 0.8) continue;
+          put(f.wx + dx, f.wy + dy, f.wz + dz, f.rng() < 0.45 ? B.MOSSY_COBBLE : B.COBBLESTONE, false);
+        }
+        break;
+      }
     }
   }
 

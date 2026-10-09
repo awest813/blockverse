@@ -33,9 +33,10 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Ice can be collected
 - [x] Bone meal on grass grows tall grass and flowers
 - [ ] Unobtainable: obsidian (no lava), snow block (no snowballs)
-- [ ] Shears (wool without killing, collect grass/dead bush), bucket, flint & steel, fishing rod
+- [x] Shears: shear sheep (fleece regrows), snip leaves / tall grass / dead bushes whole
+- [ ] Bucket, flint & steel, fishing rod
 - [ ] Ladders, doors, fences, slabs/stairs, glass panes, signs
-- [ ] Sugar cane and cactus never grow
+- [x] Sugar cane and cactus grow (up to 3 tall) near the player
 - [ ] Tool repair in the crafting grid
 
 ## Mobs & animals
@@ -46,9 +47,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Land mobs climb out of water at banks instead of bobbing forever
 - [x] Swimmers and birds turn away from walls
 - [x] Melee hits pets only while sneaking
-- [ ] Passive mob sounds; birds roost at night; whales drop nothing
-- [ ] Mob–mob / player–mob collision (mobs overlap)
-- [ ] Sheep shearing / wool regrowth, milk, eggs
+- [x] Passive animals make (quiet) sounds; dolphins click, whales sing
+- [ ] Birds roost at night; whales drop nothing
+- [x] Mobs push each other apart, and the player shoves through them
+- [x] Sheep shearing / wool regrowth
+- [ ] Milk, eggs
 
 ## Hostile mobs
 - [x] No melee hits through block corners (line of sight required)
@@ -75,12 +78,14 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Sneak to dive faster; hop out at ledges
 - [x] Sneak edge-guard no longer applies underwater
 - [x] Dolphin's grace speed boost
-- [ ] Underwater bubbles, depth darkening, muffled ambience
+- [x] Bubbles rise while underwater; water darkens with depth and at night
+- [ ] Muffled underwater ambience
 
 ## Biomes & world generation
 (new decoration needs a generator version bump so existing worlds don't seam)
-- [ ] Decoration uses one biome sample per chunk → bare strips by rivers, flowers on beach sand
+- [x] (gen v4) Decoration per 8×8 quadrant with per-feature biome checks: trees and grass along rivers, no flowers on sand
 - [ ] Oceans are empty (kelp/seagrass, sand/gravel patches, shipwrecks)
-- [ ] Rivers never get sugar cane
-- [ ] Snowy tundra featureless; mountains bland; swamps have no standing water / lily pads
+- [x] (gen v4) Sugar cane grows wherever low ground touches water
+- [x] (gen v4) Sparse spruce on the tundra, mossy boulders on mountains/tundra, more mountain spruce, more desert dead bushes
+- [ ] Swamps have no standing water / lily pads
 - [ ] Desert wells/fossils; lava pools + obsidian in deep caves

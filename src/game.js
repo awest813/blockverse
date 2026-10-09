@@ -17,6 +17,7 @@ import { tickFurnaces } from './items/furnace.js';
 import { tickSaplings } from './world/saplings.js';
 import { tickCampfires } from './items/campfire.js';
 import { tickSpawners } from './entities/spawners.js';
+import { tickRandomGrowth } from './world/randomTicks.js';
 import { CampfireFx } from './render/campfireFx.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I } from './items/items.js';
@@ -29,6 +30,24 @@ import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
 import { B } from './blocks/blocks.js';
+
+const WATER_SHALLOW = new THREE.Color(0x1a4faa);
+const WATER_DEEP = new THREE.Color(0x061633);
+const UNDERWATER = new THREE.Color();
+
+function bubbleTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(220, 240, 255, 0.9)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(8, 8, 5.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.fillRect(5, 4, 2, 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  return tex;
+}
 
 export class Game {
   constructor({ canvas, atlas, worldMeta, store = null, sfx = null, onExit = null }) {
@@ -724,6 +743,7 @@ export class Game {
     this.highlight.update(this.interaction.target, this.interaction.breakProgress);
     this.updateBlasts(dt);
     this.updateSparks(dt);
+    this.updateBubbles(dt);
     this.sinceAttack += dt;
     if (!this.chargeEl) { this.chargeEl = document.getElementById('attack-charge'); this.chargeBar = this.chargeEl?.firstElementChild; }
     if (this.chargeEl) {
@@ -812,10 +832,49 @@ export class Game {
       this._forceSkyRefresh = true;
     }
     if (under) {
+      // deeper (and at night) the water gets darker and murkier
+      const p = this.player;
+      let depth = 0;
+      while (depth < 24 && this.world.getBlockW(Math.floor(p.x), Math.floor(p.eyeY) + depth + 1, Math.floor(p.z)) === B.WATER) depth++;
+      const dark = Math.min(1, depth / 22) * 0.7 + (1 - this.dayFactor()) * 0.5;
       const u = this.world.materials.uniforms;
-      u.uFogNear.value = 4;
-      u.uFogFar.value = 24;
+      UNDERWATER.copy(WATER_SHALLOW).lerp(WATER_DEEP, Math.min(1, dark));
+      u.uFogColor.value.copy(UNDERWATER);
+      this.scene.background.copy(UNDERWATER);
+      u.uFogNear.value = 3;
+      u.uFogFar.value = 24 - Math.min(1, dark) * 8;
     }
+  }
+
+  // bubbles drift up from the player while their head is underwater
+  updateBubbles(dt) {
+    const p = this.player;
+    this.bubbles ??= [];
+    if (p.headInWater && !p.dead) {
+      this._bubbleTimer = (this._bubbleTimer ?? 0) - dt;
+      if (this._bubbleTimer <= 0) {
+        this._bubbleTimer = 0.5 + Math.random() * 0.9;
+        this.bubbleTex ??= bubbleTexture();
+        const dir = p.lookDir();
+        for (let i = 0; i < 1 + ((Math.random() * 3) | 0); i++) {
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.bubbleTex, transparent: true, depthWrite: false }));
+          sprite.scale.setScalar(0.08 + Math.random() * 0.08);
+          sprite.position.set(p.x + dir.x * 0.6 + (Math.random() - 0.5) * 0.3, p.eyeY - 0.15, p.z + dir.z * 0.6 + (Math.random() - 0.5) * 0.3);
+          this.scene.add(sprite);
+          this.bubbles.push({ sprite, t: 0, phase: Math.random() * 6 });
+        }
+      }
+    }
+    for (const b of this.bubbles) {
+      b.t += dt;
+      const pos = b.sprite.position;
+      pos.y += dt * (1.2 + b.t * 0.6);
+      pos.x += Math.sin(b.t * 6 + b.phase) * dt * 0.25;
+      // pop at the surface (or after a while)
+      if (b.t > 3 || this.world.getBlockW(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)) !== B.WATER) b.t = 99;
+      if (b.t >= 99) { this.scene.remove(b.sprite); b.sprite.material.dispose(); }
+    }
+    this.bubbles = this.bubbles.filter((b) => b.t < 99);
   }
 
   tickBlockEntities(dt) {
@@ -823,6 +882,7 @@ export class Game {
     tickSaplings(this.world, dt);
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
     tickSpawners(this, dt);
+    tickRandomGrowth(this.world, this.player, dt);
     this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;

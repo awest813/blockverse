@@ -15,6 +15,7 @@ export class Pig extends Mob {
     this.h = 0.9;
     this.health = 10;
     this.kind = 'pig';
+    this.ambientSound = 'pig';
     this.breedItem = I.APPLE;
   }
 
@@ -57,14 +58,19 @@ export class Sheep extends Mob {
     this.health = 8;
     this.speed = 1.3;
     this.kind = 'sheep';
+    this.ambientSound = 'sheep';
     this.breedItem = I.WHEAT;
   }
 
   buildModel() {
     const wool = 0xe8e6e0, skin = 0xcfae94, legC = 0xbfa088;
-    this.part(1.0, 0.7, 0.65, wool, 0, 0.75, 0);              // woolly body
+    this.fleece = [
+      this.part(1.0, 0.7, 0.65, wool, 0, 0.75, 0),            // woolly body
+      this.part(0.46, 0.28, 0.2, wool, 0, 1.14, -0.52),       // wool cap
+    ];
+    this.shorn = this.part(0.8, 0.5, 0.5, skin, 0, 0.75, 0);  // body once sheared
+    this.shorn.visible = false;
     this.part(0.42, 0.4, 0.4, skin, 0, 1.0, -0.6);            // head
-    this.part(0.46, 0.28, 0.2, wool, 0, 1.14, -0.52);         // wool cap
     this.part(0.07, 0.07, 0.02, 0x2a2a2a, -0.11, 1.06, -0.81);
     this.part(0.07, 0.07, 0.02, 0x2a2a2a, 0.11, 1.06, -0.81);
     this.legs = [
@@ -83,9 +89,32 @@ export class Sheep extends Mob {
     return leg;
   }
 
+  // shears: 1-3 wool, and the fleece grows back after a few minutes
+  interact(player, held) {
+    if (held?.id !== I.SHEARS) return super.interact(player, held);
+    if (this.sheared || this.baby) return true;
+    this.setSheared(true);
+    this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
+    player.damageHeldTool(1);
+    this.fx?.sound('place', { block: 'cloth' });
+    return true;
+  }
+
+  setSheared(on) {
+    this.sheared = on;
+    this.regrow = on ? 120 + Math.random() * 120 : 0;
+    for (const f of this.fleece) f.visible = !on;
+    this.shorn.visible = on;
+  }
+
+  think(dt, player, playerDist) {
+    if (this.sheared && (this.regrow -= dt) <= 0) this.setSheared(false);
+    super.think(dt, player, playerDist);
+  }
+
   onDeath() {
     this.dropFn?.([
-      { id: B.WOOL, count: 1 },
+      { id: B.WOOL, count: this.sheared ? 0 : 1 },
       { id: I.MUTTON_RAW, count: 1 + ((Math.random() * 2) | 0) },
     ]);
   }

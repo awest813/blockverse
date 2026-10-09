@@ -28,6 +28,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
 - **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)
 - Structures keep their distance from each other, and trees grow around them rather than through them
+- Decoration follows the biome under every tree and flower: river banks are wooded and grassy, sugar cane lines any water's edge, and mossy boulders dot mountains and tundra
 - Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
 - Trees (oak, birch, spruce), cacti, sugar cane, flowers, tall grass, pumpkins, mushrooms — features generate seamlessly across chunk borders
@@ -54,7 +55,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Chests** (27 slots) for storage; containers spill their contents when broken
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
-- **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal
+- **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
+- **Shears** (two iron ingots): shear sheep for 1–3 wool (the fleece grows back) and snip leaves, tall grass and dead bushes to collect them whole
 - **Weapons with weight**: every weapon recovers between swings (a meter under the crosshair shows it) and spamming only taps. Falling blows land **critical hits**, swords **sweep** mobs beside the target, axes hit hardest but slowest, and **spears** (all five materials) reach further and knock foes back
 - **Ancient Blade**: a rare temple-only sword stronger than diamond; **golden apples** (crafted from gold and an apple, or found in temples) restore hunger and four hearts
 - **Bow and arrows**: draw to charge, release to fire; arrows are crafted from flint (from gravel), sticks and feathers, and can be picked back up
@@ -66,6 +68,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🐷 Mobs
 - **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food
 - **Breeding**: feed two animals their favourite food (wheat for cows and sheep, seeds for chickens, apples for pigs) and they'll have a baby that grows up in a few minutes; animals you've fed are kept and saved with your world instead of wandering off
+- Mobs jostle each other and get shoved aside instead of stacking up inside one another
 - **Dolphins** play in the open ocean in pods: they swim over to you, leap from the waves and give swimmers near them a burst of speed (feed one a fish and it escorts you). Gentle **manatees** graze in warm rivers, swamps and shallow coasts, drifting up to breathe
 - **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean
 - **Pets**: tame dogs with bones and cats with raw fish. Pets follow you, sit on command, are saved with your world, and catch up if you leave them behind. Dogs fight monsters near you; creepers flee from cats
@@ -79,7 +82,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🌗 Living environment
 - Full **day/night cycle** (20 min) with sunrise/sunset color grading, a sun and a moon, drifting blocky clouds, and a starfield at night
-- Distance fog that follows your render-distance setting; underwater fog and tint when you dive
+- Distance fog that follows your render-distance setting; underwater the view tints blue, darkens with depth and at night, and bubbles rise from you
 
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete

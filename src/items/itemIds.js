@@ -94,4 +94,5 @@ export const I = {
   DIAMOND_SPEAR: 338,
   ANCIENT_SWORD: 339,
   GOLDEN_APPLE: 340,
+  SHEARS: 341,
 };

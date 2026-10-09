@@ -151,6 +151,37 @@ export class Sfx {
       case 'spider':   // hiss
         this.noise({ freq: 5200 * detune, q: 1.5, dur: 0.35, gain: 0.12 * vol, type: 'bandpass' });
         break;
+      // passive animals: quiet, so a field of them isn't a racket
+      case 'pig':      // two short grunts
+        for (let i = 0; i < 2; i++) setTimeout(() => {
+          this.tone({ freq: 210 * detune, endFreq: 150, dur: 0.11, gain: 0.07 * vol, type: 'square' });
+          this.noise({ freq: 400, q: 1, dur: 0.1, gain: 0.05 * vol, type: 'lowpass' });
+        }, i * 140);
+        break;
+      case 'cow':      // a long low moo
+        this.tone({ freq: 150 * detune, endFreq: 105, dur: 0.9, gain: 0.08 * vol, type: 'sawtooth' });
+        break;
+      case 'sheep':    // a wavering baa
+        for (let i = 0; i < 4; i++) setTimeout(() => this.tone({ freq: (380 - i * 12) * detune, dur: 0.09, gain: 0.05 * vol, type: 'sawtooth' }), i * 70);
+        break;
+      case 'chicken':  // clucks
+        for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) setTimeout(() => this.tone({ freq: 950 * detune, endFreq: 700, dur: 0.06, gain: 0.05 * vol, type: 'triangle' }), i * 110);
+        break;
+      case 'dog':      // woof
+        this.tone({ freq: 260 * detune, endFreq: 150, dur: 0.13, gain: 0.09 * vol, type: 'square' });
+        this.noise({ freq: 700, q: 0.8, dur: 0.1, gain: 0.06 * vol });
+        break;
+      case 'cat':      // meow: up, then down
+        this.tone({ freq: 520 * detune, endFreq: 820, dur: 0.18, gain: 0.05 * vol, type: 'triangle' });
+        setTimeout(() => this.tone({ freq: 820 * detune, endFreq: 460, dur: 0.25, gain: 0.05 * vol, type: 'triangle' }), 170);
+        break;
+      case 'dolphin':  // clicks and a whistle
+        for (let i = 0; i < 5; i++) setTimeout(() => this.noise({ freq: 3800, q: 6, dur: 0.02, gain: 0.08 * vol }), i * 45);
+        setTimeout(() => this.tone({ freq: 1800 * detune, endFreq: 2700, dur: 0.3, gain: 0.04 * vol, type: 'sine' }), 260);
+        break;
+      case 'whale':    // a slow rising song
+        this.tone({ freq: 90 * detune, endFreq: 170, dur: 1.6, gain: 0.08 * vol, type: 'sine' });
+        break;
       case 'mobhurt':
         this.tone({ freq: 340 * detune, endFreq: 220, dur: 0.1, gain: 0.12 * vol, type: 'square' });
         break;
