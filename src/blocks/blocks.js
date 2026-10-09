@@ -92,6 +92,7 @@ export const B = {
   OAK_FENCE_GATE: 86,
   FIRE: 87,
   OAK_SIGN: 88,
+  BONE_BLOCK: 89,
 };
 
 // Tool classes
@@ -351,6 +352,9 @@ reg(def(B.FIRE, 'fire', 'Fire', { solid: false, render: R_CROSS, opacity: 0, lig
 // signs: meta bits 0-1 = which way the text faces, bit 2 = hung on a wall
 reg(def(B.OAK_SIGN, 'oak_sign', 'Oak Sign', {
   solid: false, render: R_SHAPE, shape: 'sign', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'oak_sign_item',
+}));
+reg(def(B.BONE_BLOCK, 'bone_block', 'Bone Block', {
+  hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: { top: 'bone_block_top', bottom: 'bone_block_top', side: 'bone_block' },
 }));
 reg(def(B.MOSSY_STONE_BRICKS, 'mossy_stone_bricks', 'Mossy Stone Bricks', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1 }));
 

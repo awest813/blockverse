@@ -19,7 +19,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Focus rings for creative tabs, recipes, slots; reduced motion covers pulses and toasts
 - [x] Furnace flame is a pixel icon (touch glyphs still ▦ / …)
 - [x] Volume sliders for blocks / creatures / player & menus, brightness, view bobbing, F2 screenshots
-- [ ] Crosshair options
+- [x] Crosshair options (plus, big plus, dot, off)
 - [x] World list search and sort, duplicate, export/import (.json), copy seed
 - [x] Chat: Tab completes commands, items and mobs (with hints); /summon; a Send button on touch
 - [x] Loading screen: Cancel button, and a note when it's taking a while
@@ -52,7 +52,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Melee hits pets only while sneaking
 - [x] Passive animals make (quiet) sounds; dolphins click, whales sing
 - [x] Birds roost on the ground at night
-- [ ] Whales drop nothing (intentional for now)
+- [ ] Whales drop nothing — deliberate: they're gentle giants, not a food source
 - [x] Mobs push each other apart, and the player shoves through them
 - [x] Sheep shearing / wool regrowth
 - [x] Milk
@@ -93,10 +93,10 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] (gen v4) Decoration per 8×8 quadrant with per-feature biome checks: trees and grass along rivers, no flowers on sand
 - [x] (gen v5) Kelp forests and seagrass in oceans and rivers
 - [x] (gen v6) Shipwrecks with cargo chests
-- [ ] Ocean ruins
+- [x] (gen v6) Ocean ruins: broken stone-brick walls with a chest
 - [x] (gen v4) Sugar cane grows wherever low ground touches water
 - [x] (gen v4) Sparse spruce on the tundra, mossy boulders on mountains/tundra, more mountain spruce, more desert dead bushes
 - [x] (gen v5) Shallow swamp pools with lily pads and seagrass
 - [x] (gen v5) Lava floods the deepest caves; snow layers on the tundra, snowfields on high peaks
 - [x] (gen v6) Desert wells
-- [ ] Fossils
+- [x] (gen v6) Fossils of bone blocks buried under deserts and swamps (bone blocks craft from bone meal)

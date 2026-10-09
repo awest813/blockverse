@@ -706,6 +706,21 @@ export class Screens {
         (i) => { s.guiScale = GUI_SCALES[i]; }, false);
       toggle('Show FPS', !!s.showFps, (v) => { s.showFps = v; });
       toggle('View bobbing', s.viewBobbing !== false, (v) => { s.viewBobbing = v; });
+      // crosshair: cycle through the styles
+      const CROSS = [['plus', 'Plus'], ['big', 'Big plus'], ['dot', 'Dot'], ['off', 'Off']];
+      const cb = document.createElement('button');
+      cb.type = 'button';
+      cb.className = 'toggle';
+      const paintCross = () => { cb.textContent = (CROSS.find(([k]) => k === s.crosshair) ?? CROSS[0])[1]; };
+      paintCross();
+      cb.addEventListener('click', () => {
+        const i = CROSS.findIndex(([k]) => k === s.crosshair);
+        s.crosshair = CROSS[(i + 1) % CROSS.length][0];
+        paintCross();
+        this.sfx?.play('click');
+        this.applySettings();
+      });
+      row('Crosshair', cb);
       if (fullscreenSupported()) toggle('Fullscreen', isFullscreen(), (v) => setFullscreen(v));
     } else {
       first = slider('Mouse sensitivity', 0.2, 2.5, 0.05, s.sensitivity, (v) => `${(+v).toFixed(2)}×`, (v) => { s.sensitivity = v; });

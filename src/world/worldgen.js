@@ -5,7 +5,7 @@ import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/consta
 import { Noise } from '../core/noise.js';
 import { coordRng } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
-import { placeDungeon, structurePlan, nearStructure, buildStructure } from './structures.js';
+import { placeDungeon, structurePlan, nearStructure, buildStructure, placeFossil } from './structures.js';
 
 export const BIOME = {
   OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, BIRCH_FOREST: 4,
@@ -31,7 +31,7 @@ function smoothstep(a, b, x) {
 // 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
 // (river-bank trees, cane by any water, boulders, sparse tundra spruce);
 // 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
-// 6 = desert wells and shipwrecks.
+// 6 = desert wells, shipwrecks, ocean ruins and fossils.
 export const LATEST_GEN = 6;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
@@ -229,6 +229,7 @@ export class WorldGen {
 
     this.placeOres(blocks, cx, cz, heightMap);
     this.decorateCaves(blocks, cx, cz, heightMap);
+    placeFossil(this, blocks, cx, cz, heightMap, biomeMap[8 * CHUNK_Z + 8]);
     const plan = structurePlan(this, cx, cz);
     const entities = plan ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
     this.decorate(blocks, cx, cz);

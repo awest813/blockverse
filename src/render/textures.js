@@ -1080,6 +1080,14 @@ tile('oak_sign_item', (ctx) => {
   for (const y of [4, 6]) rect(ctx, 3, y, 10, 1, d);
   rect(ctx, 7, 10, 2, 6, P.barkOak);
 });
+tile('bone_block', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[226, 222, 204], 6], [[212, 206, 186], 3], [[238, 236, 222], 2]]);
+  for (let x = 0; x < 16; x += 4) rect(ctx, x, 0, 1, 16, [196, 190, 168]);
+});
+tile('bone_block_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[226, 222, 204], 6], [[212, 206, 186], 3]]);
+  rect(ctx, 5, 5, 6, 6, [196, 190, 168]); rect(ctx, 6, 6, 4, 4, [176, 168, 140]);
+});
 tile('oak_gate_item', (ctx) => {
   const w = P.woodOak, d = P.woodOakD, l = P.woodOakL;
   rect(ctx, 1, 2, 3, 13, w); rect(ctx, 12, 2, 3, 13, w);

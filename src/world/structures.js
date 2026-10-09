@@ -149,7 +149,7 @@ const GROUND = new Set([
   B.SNOW_BLOCK, B.SNOWY_GRASS, B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE, B.REDSTONE_ORE,
 ]);
 
-const SIZES = { desert_temple: 13, forest_temple: 11, shrine: 7, well: 5, shipwreck: 13 };
+const SIZES = { desert_temple: 13, forest_temple: 11, shrine: 7, well: 5, shipwreck: 13, ocean_ruin: 7 };
 const SHRINE_BIOMES = new Set([2, 3, 4, 5, 6, 7, 8, 9]);   // land biomes (see BIOME)
 
 // What surface structure (if any) this chunk holds: {type, x0, z0, size, y, rot, biome}.
@@ -195,6 +195,7 @@ function makePlan(gen, cx, cz) {
   if (gen.version >= 6 && !type) {
     if (biome === 5 && roll > 0.8) type = 'well';
     else if (biome === 0 && roll < 0.05) type = 'shipwreck';
+    else if (biome === 0 && roll < 0.1) type = 'ocean_ruin';
   }
   if (!type) return null;
   const size = SIZES[type];
@@ -209,7 +210,7 @@ function makePlan(gen, cx, cz) {
     }
   }
   let y = Math.round(sum / n);
-  if (type === 'shipwreck') {
+  if (type === 'shipwreck' || type === 'ocean_ruin') {
     // resting on the sea floor, well under the surface
     if (hi > SEA_LEVEL - 5 || hi - lo > 4) return null;
     y = lo + 1;
@@ -282,6 +283,7 @@ export function buildStructure(gen, blocks, cx, cz) {
   else if (plan.type === 'forest_temple') forestTemple(b, plan, rng);
   else if (plan.type === 'well') well(b, plan);
   else if (plan.type === 'shipwreck') shipwreck(b, plan, rng);
+  else if (plan.type === 'ocean_ruin') oceanRuin(b, plan, rng);
   else shrine(b, plan, rng);
   return out;
 }
@@ -455,4 +457,50 @@ function shipwreck(b, { y }, rng) {
   b.entity(b.set(6, y + 1, 9, B.CHEST), chest(rng, SHIPWRECK_LOOT));
 }
 
-export const STRUCTURE_NAMES = { desert_temple: 'Desert Temple', forest_temple: 'Forest Temple', shrine: 'Shrine', well: 'Well', shipwreck: 'Shipwreck' };
+const RUIN_LOOT = [
+  [I.COAL, 2, 6, 0.5], [I.GOLD_INGOT, 1, 3, 0.4], [I.IRON_INGOT, 1, 3, 0.4], [I.ROTTEN_FLESH, 1, 4, 0.4],
+  [I.FISH_RAW, 1, 3, 0.3], [I.BOOK, 1, 1, 0.2], [I.GOLDEN_APPLE, 1, 1, 0.05], [I.STONE_SPEAR, 1, 1, 0.2], [I.EGG, 1, 2, 0.15],
+];
+
+// The tumbledown walls of a stone building, half buried on the sea floor.
+function oceanRuin(b, { y }, rng) {
+  const S = 7;
+  const stone = () => [B.STONE_BRICKS, B.MOSSY_STONE_BRICKS, B.MOSSY_COBBLE, B.COBBLESTONE][(rng() * 4) | 0];
+  for (let dx = 0; dx < S; dx++) for (let dz = 0; dz < S; dz++) for (let dy = 0; dy <= 6; dy++) b.set(dx, y + dy, dz, y + dy <= SEA_LEVEL ? B.WATER : B.AIR);
+  for (let dx = 0; dx < S; dx++) {
+    for (let dz = 0; dz < S; dz++) {
+      b.set(dx, y - 1, dz, rng() < 0.3 ? B.GRAVEL : stone());
+      const edge = dx === 0 || dz === 0 || dx === S - 1 || dz === S - 1;
+      if (!edge) continue;
+      const h = 1 + ((rng() * 3.2) | 0);   // broken off at different heights
+      for (let dy = 0; dy < h; dy++) if (rng() > 0.12) b.set(dx, y + dy, dz, stone());
+    }
+  }
+  b.entity(b.set(1 + ((rng() * 5) | 0), y, 1 + ((rng() * 5) | 0), B.CHEST), chest(rng, RUIN_LOOT));
+}
+
+// Buried bones: a fossil spine with arched ribs, deep under deserts and swamps.
+export function placeFossil(gen, blocks, cx, cz, heightMap, biome) {
+  if (gen.version < 6 || (biome !== 5 && biome !== 8)) return;
+  const rng = coordRng(gen.seed, cx, cz, 7171);
+  if (rng() > 0.12) return;
+  let minTop = CHUNK_Y;
+  for (let x = 2; x < 14; x++) for (let z = 2; z < 14; z++) minTop = Math.min(minTop, heightMap[x * CHUNK_Z + z]);
+  const y0 = 14 + ((rng() * Math.max(1, minTop - 28)) | 0);
+  if (y0 + 5 >= minTop - 4) return;
+  const alongX = rng() < 0.5;
+  const len = 7 + ((rng() * 3) | 0);
+  const put = (a, y, c) => {
+    const x = alongX ? 3 + a : 7 + c, z = alongX ? 7 + c : 3 + a;
+    if (x >= 0 && x < CHUNK_X && z >= 0 && z < CHUNK_Z) blocks[blockIndex(x, y, z)] = B.BONE_BLOCK;
+  };
+  for (let a = 0; a < len; a++) {
+    put(a, y0 + 3, 0);                                   // the spine
+    if (a % 2 === 1 && a < len - 1) {                    // a pair of ribs arching down
+      for (const s of [-1, 1]) { put(a, y0 + 3, s); put(a, y0 + 2, 2 * s); put(a, y0 + 1, 2 * s); put(a, y0, s * 2); }
+    }
+  }
+  put(len, y0 + 3, 0); put(len, y0 + 4, 0);              // a skull-ish end
+}
+
+export const STRUCTURE_NAMES = { desert_temple: 'Desert Temple', forest_temple: 'Forest Temple', shrine: 'Shrine', well: 'Well', shipwreck: 'Shipwreck', ocean_ruin: 'Ocean Ruin' };

@@ -1013,6 +1013,8 @@ export class Game {
     this.sfx?.setVolume(s.volume);
     this.world.materials.uniforms.uBrightness.value = s.brightness ?? 0.3;
     this.viewModel.bobbing = s.viewBobbing !== false;
+    const ch = document.getElementById('crosshair');
+    if (ch) ch.dataset.style = s.crosshair ?? 'plus';
   }
 
   pause() {

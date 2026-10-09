@@ -753,3 +753,8 @@ html, body {
 
 .loading-slow { max-width: 420px; text-align: center; color: #cfd6ff; font-size: 13px; }
 .loading-slow.hidden { display: none; }
+
+/* crosshair styles (settings) */
+#crosshair[data-style="big"] { font-size: 34px; }
+#crosshair[data-style="dot"] { font-size: 0; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); }
+#crosshair[data-style="off"] { display: none; }

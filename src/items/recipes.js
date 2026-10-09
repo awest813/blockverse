@@ -83,6 +83,8 @@ export const CAMPFIRE_TIME = 20;   // seconds per item (furnace: SMELT_TIME, but
 shaped(I.BOWL, 4, ['P.P', '.P.'], { P: ANY_PLANKS });
 shapeless(I.MUSHROOM_STEW, 1, [[I.BOWL], [B.MUSHROOM_BROWN], [B.MUSHROOM_RED]]);
 shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
+shaped(B.BONE_BLOCK, 1, ['XXX', 'XXX', 'XXX'], { X: [I.BONE_MEAL] });
+shapeless(I.BONE_MEAL, 9, [[B.BONE_BLOCK]]);
 shaped(I.BOW, 1, ['.SX', 'S.X', '.SX'], { S: [I.STICK], X: [I.STRING] });
 shaped(I.ARROW, 4, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
 shaped(B.WOOL, 1, ['SS', 'SS'], { S: [I.STRING] });

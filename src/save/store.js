@@ -182,6 +182,7 @@ export const DEFAULT_SETTINGS = {
   uiVolume: 1,
   brightness: 0.3,
   viewBobbing: true,
+  crosshair: 'plus',   // 'plus' | 'big' | 'dot' | 'off'
   invertY: false,
   showFps: false,
   guiScale: 0,       // 0 = auto (fit the window), otherwise a multiplier
