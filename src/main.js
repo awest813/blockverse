@@ -3,6 +3,7 @@
 import { Atlas } from './render/atlas.js';
 import { Game } from './game.js';
 import { SaveStore, loadSettings } from './save/store.js';
+import { acquireWorldLock } from './save/worldLock.js';
 import { Screens } from './ui/screens.js';
 import { Sfx } from './audio/sfx.js';
 import { applyGuiScale } from './ui/display.js';
@@ -26,6 +27,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 let screens = null;
 let store = null;
+let releaseWorld = null;   // the open world's tab lock
 
 async function boot() {
   store = await SaveStore.open();
@@ -53,10 +55,29 @@ async function boot() {
   new GamepadController({ getGame: () => game, uiRoot });
 }
 
+let starting = false;
 async function startWorld(id) {
-  if (game) return; // guard against double-clicks starting two worlds
-  const meta = await store.loadWorld(id);
-  if (!meta || game) return;
+  if (game || starting) return; // guard against double-clicks starting two worlds
+  starting = true;
+  try { await openWorld(id); } finally { starting = false; }
+}
+
+async function openWorld(id) {
+  const release = await acquireWorldLock(id);
+  if (!release) {
+    screens.showConfirm('That world is already open', 'It\u2019s being played in another tab or window. Close it there first \u2014 two copies would save over each other.', 'OK', () => screens.showMain(id), () => screens.showMain(id));
+    return;
+  }
+  let meta;
+  try { meta = await store.loadWorld(id); } catch { meta = null; }
+  if (!meta || game) {
+    release();
+    if (!meta) screens.showConfirm('Couldn\u2019t open that world', 'Its save couldn\u2019t be read.', 'OK', () => screens.showMain(), () => screens.showMain());
+    return;
+  }
+  releaseWorld = release;
+  // ask the browser to keep our saves even when space runs low
+  navigator.storage?.persist?.().catch(() => {});
   screens.onCancelLoading = () => { screens._cancelEarly = true; };
   screens.showLoading(`Loading "${meta.name}"…`);
 
@@ -147,13 +168,24 @@ function respawn() {
   game.input.requestLock();
 }
 
-function quitToTitle({ save = true } = {}) {
-  if (game) {
-    game.stop({ save });
-    game = null;
-  }
+async function quitToTitle({ save = true } = {}) {
+  const g = game;
+  game = null;
   hudEl.classList.add('hidden');
-  screens.showMain();
+  if (g) {
+    // wait for the save to land before the world list (and the tab lock) move on
+    const saving = g.stop({ save });
+    if (saving) screens.showLoading('Saving world\u2026');
+    try {
+      await saving;
+    } catch (err) {
+      releaseWorld?.(); releaseWorld = null;
+      screens.showConfirm('Couldn\u2019t save the world', `${err?.message ?? err} \u2014 the browser may be out of storage space.`, 'OK', () => screens.showMain(g.worldMeta.id), () => screens.showMain(g.worldMeta.id));
+      return;
+    }
+  }
+  releaseWorld?.(); releaseWorld = null;
+  screens.showMain(g?.worldMeta.id);
 }
 
 boot();

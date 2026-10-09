@@ -96,7 +96,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
-- **Saving is automatic** (IndexedDB): modified chunks, player state, inventory, time of day, and furnace contents all persist
+- **Saving is automatic** (IndexedDB) every 20 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces and campfires, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
+- A world can only be open in one tab at a time (two copies would save over each other); damaged chunks are regenerated rather than crashing the world, and the browser is asked to keep the saves even when space runs low
 - Pause menu with a controls cheat sheet, settings (render distance, FOV, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
 - **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
@@ -183,7 +184,7 @@ src/
 ├── entities/          item drops, mobs (pig/sheep/zombie), AI, spawner
 ├── ui/                HUD, container screens, chat/commands, menu screens
 ├── audio/             WebAudio sound synthesis
-└── save/              IndexedDB world/chunk/player persistence, settings
+└── save/              IndexedDB world/chunk/player persistence, settings, one-tab world lock
 ```
 
 Key design points (full write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):

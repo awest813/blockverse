@@ -1,6 +1,9 @@
 // Persistence: worlds and chunks in IndexedDB, settings in localStorage.
 
 import { LATEST_GEN } from '../world/worldgen.js';
+import { CHUNK_VOLUME } from '../core/constants.js';
+
+const CHUNK_SUFFIX = /^-?\d+,-?\d+$/;
 
 const DB_NAME = 'blockverse';
 const DB_VERSION = 1;
@@ -174,11 +177,22 @@ export class SaveStore {
     const m = data.meta;
     if (typeof m.name !== 'string' || m.seed === undefined || !Array.isArray(data.chunks)) throw new Error('The world file is damaged or incomplete');
     const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
-    const chunks = data.chunks.map(([suffix, v]) => [suffix, {
-      blocks: new Uint16Array(fromB64(v.blocks).buffer),
-      meta: v.meta ? fromB64(v.meta) : null,
-      blockEntities: v.blockEntities ?? [],
-    }]);
+    const damaged = () => new Error('The world file is damaged or incomplete');
+    const chunks = data.chunks.map((entry) => {
+      const [suffix, v] = Array.isArray(entry) ? entry : [];
+      if (typeof suffix !== 'string' || !CHUNK_SUFFIX.test(suffix) || typeof v?.blocks !== 'string') throw damaged();
+      let blocks, cmeta;
+      try {
+        blocks = fromB64(v.blocks);
+        cmeta = v.meta ? fromB64(v.meta) : null;
+      } catch { throw damaged(); }
+      if (blocks.length !== CHUNK_VOLUME * 2 || (cmeta && cmeta.length !== CHUNK_VOLUME)) throw damaged();
+      return [suffix, {
+        blocks: new Uint16Array(blocks.buffer),
+        meta: cmeta,
+        blockEntities: Array.isArray(v.blockEntities) ? v.blockEntities : [],
+      }];
+    });
     await this.putWorld(meta, chunks);
     return meta;
   }
@@ -187,23 +201,23 @@ export class SaveStore {
     return `${worldId}:${cx},${cz}`;
   }
 
-  async saveChunk(worldId, chunk) {
-    const value = {
-      blocks: chunk.blocks,
-      meta: chunk.meta ?? null,
-      blockEntities: [...chunk.blockEntities.entries()],
-    };
-    await req(this.tx('chunks', 'readwrite').put(value, this.chunkKey(worldId, chunk.cx, chunk.cz)));
-  }
-
   async loadChunk(worldId, cx, cz) {
-    const v = await req(this.tx('chunks').get(this.chunkKey(worldId, cx, cz)));
+    let v;
+    try {
+      v = await req(this.tx('chunks').get(this.chunkKey(worldId, cx, cz)));
+    } catch (err) {
+      console.warn(`chunk ${cx},${cz}: couldn't read the save`, err);
+      return null;
+    }
     if (!v) return null;
-    return {
-      blocks: v.blocks instanceof Uint16Array ? v.blocks : new Uint16Array(v.blocks),
-      meta: v.meta ? (v.meta instanceof Uint8Array ? v.meta : new Uint8Array(v.meta)) : null,
-      blockEntities: v.blockEntities ?? [],
-    };
+    const blocks = v.blocks instanceof Uint16Array ? v.blocks : new Uint16Array(v.blocks ?? 0);
+    const meta = v.meta ? (v.meta instanceof Uint8Array ? v.meta : new Uint8Array(v.meta)) : null;
+    // a damaged chunk is generated afresh rather than crashing the world
+    if (blocks.length !== CHUNK_VOLUME || (meta && meta.length !== CHUNK_VOLUME)) {
+      console.warn(`chunk ${cx},${cz}: saved data is damaged; regenerating it`);
+      return null;
+    }
+    return { blocks, meta, blockEntities: Array.isArray(v.blockEntities) ? v.blockEntities : [] };
   }
 }
 

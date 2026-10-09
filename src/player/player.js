@@ -494,11 +494,15 @@ export class Player {
       x: d.x, y: d.y, z: d.z, yaw: d.yaw ?? 0, pitch: d.pitch ?? 0,
       health: d.health ?? 20, hunger: d.hunger ?? 20, saturation: d.saturation ?? 5,
       air: d.air ?? 20, mode: d.mode ?? GAMEMODE_SURVIVAL, flying: d.flying ?? false,
-      selected: d.selected ?? 0,
+      selected: Number.isInteger(d.selected) && d.selected >= 0 && d.selected < 9 ? d.selected : 0,
     });
-    if (Array.isArray(d.inventory)) this.inventory = d.inventory.map((s) => (s ? { ...s } : null));
-    this.extraStacks = d.extra ?? [];   // carried stacks that didn't fit: dropped at your feet on load
-    if (Array.isArray(d.armor)) this.armor = d.armor.map((s) => (s ? { ...s } : null));
+    // a stack the game no longer knows (or a damaged one) is dropped, not kept as a ghost
+    const stack = (s) => (s && Number.isInteger(s.id) && s.count > 0 && itemInfo(s.id) ? { ...s, count: Math.min(s.count, maxStack(s.id)) } : null);
+    if (Array.isArray(d.inventory)) {
+      this.inventory = Array.from({ length: this.inventory.length }, (_, i) => stack(d.inventory[i]));
+    }
+    this.extraStacks = (d.extra ?? []).map(stack).filter(Boolean);   // carried stacks that didn't fit: dropped at your feet on load
+    if (Array.isArray(d.armor)) this.armor = Array.from({ length: this.armor.length }, (_, i) => stack(d.armor[i]));
     if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
     // saves from before beds: the spawn point was always the world spawn
     this.worldSpawn = { ...(d.worldSpawn ?? this.spawnPoint) };

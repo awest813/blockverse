@@ -264,7 +264,9 @@ export class World {
       chunk.setData(blocks, heightMap, biomeMap);
       if (saved?.meta) chunk.meta = saved.meta;
       for (const [idx, data] of saved?.blockEntities ?? generated ?? []) chunk.blockEntities.set(idx, data);
-      if (saved) chunk.modified = true; // keep persisting on evict
+      // only data that never reached the store (an evicted chunk still waiting
+      // for a save) needs writing again; the rest is already on disk
+      chunk.modified = !!saved?.dirty;
       this.chunks.set(key, chunk);
       this.lightQueue.push(chunk);
       // neighbors may now be meshable / need border remesh
@@ -282,7 +284,7 @@ export class World {
   evictFar(pcx, pcz, maxDist) {
     for (const [key, c] of this.chunks) {
       if (Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) > maxDist) {
-        if (c.modified && this.onChunkEvicted) this.onChunkEvicted(c);
+        this.onChunkEvicted?.(c);
         this.disposeChunkMesh(c);
         this.chunks.delete(key);
         this.dirtyMeshes.delete(key);

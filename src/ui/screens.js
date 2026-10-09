@@ -7,6 +7,7 @@ import { loadSettings, saveSettings } from '../save/store.js';
 import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
 import { PAD_LAYOUT } from '../core/gamepad.js';
 import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale } from './display.js';
+import { worldOpenElsewhere } from '../save/worldLock.js';
 
 const GUI_SCALES = [0, 0.75, 1, 1.25, 1.5, 2];   // 0 = auto
 
@@ -192,15 +193,23 @@ export class Screens {
     list.setAttribute('aria-label', 'Worlds');
 
     const playBtn = this.btn('Play', () => { if (selected) this.onPlay(selected); });
-    const deleteBtn = this.btn('Delete…', () => {
+    // a world being played in another tab would just be saved back
+    const busyElsewhere = async (w) => {
+      if (!(await worldOpenElsewhere(w.id))) return false;
+      this.showConfirm(`"${w.name}" is open in another tab`, 'Close it there first, then try again.', 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+      return true;
+    };
+    const deleteBtn = this.btn('Delete…', async () => {
       const w = worlds.find((x) => x.id === selected);
+      if (w && await busyElsewhere(w)) return;
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
         await this.store.deleteWorld(w.id);
         this.showMain();
       }, () => this.showMain(w.id));
     }, 'btn small danger');
-    const renameBtn = this.btn('Rename…', () => {
+    const renameBtn = this.btn('Rename…', async () => {
       const w = worlds.find((x) => x.id === selected);
+      if (w && await busyElsewhere(w)) return;
       if (w) this.showRename(w);
     }, 'btn small');
     const dupBtn = this.btn('Duplicate', async () => {
@@ -217,7 +226,13 @@ export class Screens {
     const exportBtn = this.btn('Export', async () => {
       const w = worlds.find((x) => x.id === selected);
       if (!w) return;
-      const data = await this.store.exportWorld(w.id);
+      let data;
+      try {
+        data = await this.store.exportWorld(w.id);
+      } catch (err) {
+        this.showConfirm('Couldn\u2019t export that world', String(err.message ?? err), 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+        return;
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
       a.download = `${w.name.replace(/[^\w -]+/g, '').trim() || 'world'}.blockverse.json`;

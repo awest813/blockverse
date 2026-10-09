@@ -45,6 +45,16 @@ html, body {
   color: #fff; font: 12px/1.5 Consolas, monospace;
 }
 
+/* a quiet note in the corner while the world saves */
+#save-indicator {
+  position: absolute; right: 8px; top: 36px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.45); border-radius: 3px;
+  color: rgba(255, 255, 255, 0.85); font: 12px/1.5 Consolas, monospace;
+  opacity: 0; transition: opacity 0.4s; pointer-events: none;
+}
+#save-indicator.on { opacity: 1; transition: none; }
+
 #crosshair {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);

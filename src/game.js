@@ -54,6 +54,15 @@ function bubbleTexture() {
 }
 
 const RENDERERS = new WeakMap();
+
+// Block entities that change on their own every tick (growth, fire, smelting,
+// cooking): their chunk is written with every save so progress isn't lost.
+const TICKING = new Set(['sapling', 'crop', 'fire', 'furnace', 'campfire']);
+function needsSaving(c) {
+  if (c.modified) return true;
+  for (const st of c.blockEntities.values()) if (TICKING.has(st.kind)) return true;
+  return false;
+}
 const BLAST_GEO = new THREE.SphereGeometry(1, 16, 12);   // shared by every explosion flash
 
 export class Game {
@@ -62,6 +71,7 @@ export class Game {
     this.atlas = atlas;
     this.worldMeta = worldMeta;
     this.store = store;
+    this.unsaved = new Map();   // "cx,cz" -> evicted chunk waiting for the next save
     this.sfx = sfx;
     this.onExit = onExit;
 
@@ -88,8 +98,20 @@ export class Game {
       genVersion: worldMeta.genVersion ?? 1,   // worlds from before versioning keep their terrain
       atlas,
       renderDistance: worldMeta.renderDistance ?? 8,
-      loadChunk: store ? (cx, cz) => store.loadChunk(worldMeta.id, cx, cz) : null,
-      onChunkEvicted: store ? (c) => { store.saveChunk(worldMeta.id, c); c.modified = false; } : null,
+      // a chunk that left memory before its save landed is read back from here
+      loadChunk: store ? (cx, cz) => {
+        const c = this.unsaved.get(`${cx},${cz}`);
+        if (c) {
+          this.unsaved.delete(`${cx},${cz}`);
+          return { blocks: c.blocks, meta: c.meta, blockEntities: [...c.blockEntities.entries()], dirty: true };
+        }
+        return store.loadChunk(worldMeta.id, cx, cz);
+      } : null,
+      onChunkEvicted: store ? (c) => {
+        if (!needsSaving(c)) return;
+        this.unsaved.set(`${c.cx},${c.cz}`, c);
+        this.autosaveTimer = Math.max(this.autosaveTimer, 15);   // written within a few seconds
+      } : null,
     });
     this.scene.add(this.world.group);
     this.campfireFx = new CampfireFx(this.scene, this.world, atlas);
@@ -221,10 +243,14 @@ export class Game {
   setupSpawn() {
     const saved = this.worldMeta.playerData;
     if (saved) {
-      this.player.deserialize(saved);
+      const p = this.player;
+      p.deserialize(saved);
       // saved on the death screen: wake up at the spawn point
-      if (this.player.dead) this.player.respawn();
-      return;
+      if (p.dead) p.respawn();
+      const ok = (q) => q && [q.x, q.y, q.z].every(Number.isFinite);
+      if (ok(p) && p.y > -8) return;
+      // a damaged position: back to the spawn point (or find one afresh)
+      if (ok(p.spawnPoint)) { p.x = p.spawnPoint.x; p.y = p.spawnPoint.y; p.z = p.spawnPoint.z; p.vx = p.vy = p.vz = 0; return; }
     }
     // find a dry spawn column near origin
     const gen = this.world.gen;
@@ -923,7 +949,8 @@ export class Game {
       this.autosaveTimer += dt;
       if (this.autosaveTimer > 20) {
         this.autosaveTimer = 0;
-        this.save();
+        const saving = this.save();
+        if (saving) this.hud.showSaving(saving);
       }
     }
 
@@ -1100,8 +1127,9 @@ export class Game {
     if (!this.store) return;
     // chunks and the world entry go in one transaction: all of it lands or
     // none does (a chest and your inventory can't disagree after a crash)
-    const dirty = [...this.world.modifiedChunks()];
-    for (const c of dirty) c.modified = false;
+    const loaded = [...this.world.chunks.values()].filter(needsSaving);
+    const evicted = [...this.unsaved.values()];
+    for (const c of loaded) c.modified = false;
     // the world entry is already in memory: update it and write it straight
     // out (no read first), so a save made while the tab closes still lands
     Object.assign(this.worldMeta, {
@@ -1117,19 +1145,23 @@ export class Game {
       drops: this.entities.savedDrops(),
       lastPlayed: Date.now(),
     });
-    this.store.saveWorld(this.worldMeta, dirty).catch((err) => {
-      for (const c of dirty) c.modified = true;   // try again next time
+    const done = this.store.saveWorld(this.worldMeta, [...loaded, ...evicted]).then(() => {
+      for (const c of evicted) if (this.unsaved.get(`${c.cx},${c.cz}`) === c) this.unsaved.delete(`${c.cx},${c.cz}`);
+      this._saveWarned = false;
+    }, (err) => {
+      for (const c of loaded) c.modified = true;   // try again next time (evicted ones stay queued)
       if (!this._saveWarned) {
         this._saveWarned = true;
         this.hud?.showLabel?.(`Couldn't save the world (${err?.name ?? 'error'}) — is storage full?`, true);
       }
     });
+    return done;
   }
 
   stop({ save = true } = {}) {
     this.running = false;
     this.sfx?.setUnderwater(false);
-    if (this.store && save) this.save();
+    const saving = this.store && save ? this.save() : null;
     this.ticker.terminate();
     // drop every document/window listener so a later world doesn't inherit them
     this.input.dispose();
@@ -1149,5 +1181,6 @@ export class Game {
     for (const s of [...this.sparkList, ...(this.bubbles ?? [])]) { s.sprite.removeFromParent(); s.sprite.material.dispose(); }
     this.bubbleTex?.dispose();
     this.renderer.renderLists.dispose();
+    return saving;
   }
 }

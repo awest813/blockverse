@@ -126,3 +126,8 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] A hidden tab keeps the world ticking but stops drawing
 - [x] Natural cane/cactus growth no longer makes untouched chunks save
 - [x] Doors and gates won't shut on you; ladders, signs and torches fall with their support (and in explosions)
+- [x] Only changed chunks (and ones with growing/burning/smelting things) are written each save — loaded saved chunks used to be rewritten every 20 s
+- [x] Chunks unloaded before they were saved wait in memory and go out with the next save (it used to be a separate, unchecked write)
+- [x] Save & Quit waits for the save ("Saving world…") and reports a failure; a "Saving…" note shows during autosaves
+- [x] One tab per world (Web Locks); rename/delete refuse while it's open elsewhere
+- [x] Damaged chunks regenerate, unknown or broken item stacks are dropped, a bad saved position falls back to the spawn point; imports are checked chunk by chunk; export errors are reported

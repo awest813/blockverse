@@ -55,6 +55,7 @@ export class Hud {
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
     this.fpsEl = document.getElementById('fps-counter');
+    this.saveEl = document.getElementById('save-indicator');
     this.toastsEl = document.getElementById('toasts');
     this.toastsEl.innerHTML = '';
     this.invHintEl = document.getElementById('inventory-hint');
@@ -116,6 +117,15 @@ export class Hud {
       this._lastSelected = p.selected;
       this.showLabel();
     }
+  }
+
+  // a brief "Saving…" in the corner (held for at least a moment so it can be read)
+  showSaving(promise) {
+    if (!this.saveEl) return;
+    this.saveEl.classList.add('on');
+    const t0 = performance.now();
+    const off = () => setTimeout(() => this.saveEl.classList.remove('on'), Math.max(0, 600 - (performance.now() - t0)));
+    promise.then(off, off);
   }
 
   // text defaults to the held item's name
