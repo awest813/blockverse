@@ -12,15 +12,16 @@ import { buildChunkGeometry } from '../render/mesher.js';
 import { createChunkMaterials } from '../render/chunkMaterial.js';
 
 export class World {
-  constructor({ seed, atlas, renderDistance = 8, loadChunk = null, onChunkEvicted = null }) {
+  // genVersion: terrain generator version the world was created with (see worldgen.js)
+  constructor({ seed, genVersion = 1, atlas, renderDistance = 8, loadChunk = null, onChunkEvicted = null }) {
     this.seed = seed;
     this.atlas = atlas;
     this.renderDistance = renderDistance;
     this.loadChunk = loadChunk;           // async (cx, cz) => {blocks, meta, blockEntities}|null
     this.onChunkEvicted = onChunkEvicted; // (chunk) => void  (save hook)
 
-    this.gen = new WorldGen(seed);        // main-thread copy for queries (spawn, biome)
-    this.pool = new GenPool(seed);
+    this.gen = new WorldGen(seed, genVersion);   // main-thread copy for queries (spawn, biome)
+    this.pool = new GenPool(seed, genVersion);
     this.chunks = new Map();
     this.pendingGen = new Set();
     this.lightQueue = [];                 // chunks with blocks, awaiting light
@@ -209,7 +210,7 @@ export class World {
       let saved = null;
       if (this.loadChunk) saved = await this.loadChunk(cx, cz);
 
-      let blocks, heightMap, biomeMap;
+      let blocks, heightMap, biomeMap, generated = null;
       if (saved) {
         blocks = saved.blocks;
         heightMap = new Uint8Array(CHUNK_X * CHUNK_Z);
@@ -217,24 +218,25 @@ export class World {
         for (let x = 0; x < CHUNK_X; x++) {
           for (let z = 0; z < CHUNK_Z; z++) {
             const wx = cx * CHUNK_X + x, wz = cz * CHUNK_Z + z;
-            heightMap[x * CHUNK_Z + z] = Math.floor(this.gen.heightAt(wx, wz));
-            biomeMap[x * CHUNK_Z + z] = this.gen.biomeAt(wx, wz);
+            const col = this.gen.columnAt(wx, wz);
+            heightMap[x * CHUNK_Z + z] = Math.floor(col.h);
+            biomeMap[x * CHUNK_Z + z] = this.gen.biomeOf(col);
           }
         }
       } else {
         const res = await this.pool.generate(cx, cz);
+        if (!res) return;   // pruned: the player moved away
         blocks = res.blocks;
         heightMap = res.heightMap;
         biomeMap = res.biomeMap;
+        generated = res.entities;   // e.g. dungeon chests
       }
 
       if (!this.pendingGen.has(key)) return; // world disposed meanwhile
       const chunk = new Chunk(cx, cz);
       chunk.setData(blocks, heightMap, biomeMap);
       if (saved?.meta) chunk.meta = saved.meta;
-      if (saved?.blockEntities) {
-        for (const [idx, data] of saved.blockEntities) chunk.blockEntities.set(idx, data);
-      }
+      for (const [idx, data] of saved?.blockEntities ?? generated ?? []) chunk.blockEntities.set(idx, data);
       if (saved) chunk.modified = true; // keep persisting on evict
       this.chunks.set(key, chunk);
       this.lightQueue.push(chunk);
@@ -265,8 +267,9 @@ export class World {
     this.disposeChunkMesh(chunk);
     const { opaqueGeo, waterGeo } = buildChunkGeometry(this, chunk, this.atlas);
     const mesh = { opaque: null, water: null };
+    // geometry bounds are local: the mesh itself sits at the chunk origin
     const sphere = new THREE.Sphere(
-      new THREE.Vector3(chunk.cx * CHUNK_X + 8, CHUNK_Y / 2, chunk.cz * CHUNK_Z + 8),
+      new THREE.Vector3(CHUNK_X / 2, CHUNK_Y / 2, CHUNK_Z / 2),
       Math.sqrt(8 * 8 + (CHUNK_Y / 2) * (CHUNK_Y / 2) + 8 * 8) + 1);
     if (opaqueGeo) {
       opaqueGeo.boundingSphere = sphere.clone();

@@ -50,6 +50,7 @@ export class Game {
 
     this.world = new World({
       seed: worldMeta.seed,
+      genVersion: worldMeta.genVersion ?? 1,   // worlds from before versioning keep their terrain
       atlas,
       renderDistance: worldMeta.renderDistance ?? 8,
       loadChunk: store ? (cx, cz) => store.loadChunk(worldMeta.id, cx, cz) : null,
@@ -176,7 +177,9 @@ export class Game {
     for (let r = 0; r < 40; r++) {
       const x = 8 + ((r * 13) % 160) - 80;
       const z = 8 + ((r * 29) % 160) - 80;
-      if (gen.heightAt(x, z) > SEA_LEVEL + 1) { sx = x; sz = z; break; }
+      const h = Math.floor(gen.heightAt(x, z));
+      // dry land that isn't a cave mouth
+      if (h > SEA_LEVEL + 1 && gen.groundOk(x, h, z)) { sx = x; sz = z; break; }
     }
     const sy = Math.floor(gen.heightAt(sx, sz)) + 2;
     this.player.x = sx + 0.5; this.player.y = sy; this.player.z = sz + 0.5;

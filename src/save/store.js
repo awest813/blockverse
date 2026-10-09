@@ -1,5 +1,7 @@
 // Persistence: worlds and chunks in IndexedDB, settings in localStorage.
 
+import { LATEST_GEN } from '../world/worldgen.js';
+
 const DB_NAME = 'blockverse';
 const DB_VERSION = 1;
 
@@ -45,6 +47,7 @@ export class SaveStore {
       renderDistance,
       keepInventory,
       difficulty,
+      genVersion: LATEST_GEN,
       created: Date.now(),
       lastPlayed: Date.now(),
       timeOfDay: 0.05,

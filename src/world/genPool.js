@@ -1,7 +1,7 @@
 // Pool of terrain-generation workers with a job queue.
 
 export class GenPool {
-  constructor(seed, size = Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) - 2))) {
+  constructor(seed, version, size = Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) - 2))) {
     this.workers = [];
     this.queue = [];          // [{cx, cz, resolve}]
     this.pending = new Map(); // jobId -> {resolve, worker}
@@ -10,7 +10,7 @@ export class GenPool {
 
     for (let i = 0; i < size; i++) {
       const w = new Worker(new URL('../workers/genWorker.js', import.meta.url), { type: 'module' });
-      w.postMessage({ type: 'init', seed });
+      w.postMessage({ type: 'init', seed, version });
       w.onmessage = (e) => this.onResult(w, e.data);
       w.onerror = (e) => console.error('[genWorker] error:', e.message, e.filename, e.lineno);
       w.onmessageerror = (e) => console.error('[genWorker] message error', e);
@@ -19,7 +19,8 @@ export class GenPool {
     }
   }
 
-  // Returns a promise resolving to {blocks, heightMap, biomeMap}.
+  // Returns a promise resolving to {blocks, heightMap, biomeMap, entities},
+  // or null if the job was pruned before it ran.
   generate(cx, cz) {
     return new Promise((resolve) => {
       this.queue.push({ cx, cz, resolve });
@@ -43,12 +44,19 @@ export class GenPool {
     this.pending.delete(msg.jobId);
     this.idle.push(worker);
     this.pump();
-    if (p) p.resolve({ blocks: msg.blocks, heightMap: msg.heightMap, biomeMap: msg.biomeMap });
+    if (p) p.resolve({ blocks: msg.blocks, heightMap: msg.heightMap, biomeMap: msg.biomeMap, entities: msg.entities });
   }
 
   // Drop queued jobs that are no longer wanted (e.g. player moved away).
+  // Dropped jobs resolve to null so their callers can forget the chunk and
+  // request it again later.
   prune(keepFn) {
-    this.queue = this.queue.filter((j) => keepFn(j.cx, j.cz));
+    const keep = [];
+    for (const j of this.queue) {
+      if (keepFn(j.cx, j.cz)) keep.push(j);
+      else j.resolve(null);
+    }
+    this.queue = keep;
   }
 
   dispose() {

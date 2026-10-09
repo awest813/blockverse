@@ -20,9 +20,11 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🌍 Infinite procedural world
 - Seed-driven, fully deterministic terrain — the same seed always produces the same world
-- **9 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean (plus beaches)
-- Multi-octave gradient-noise terrain with regional mountain ranges, erosion-controlled roughness, and flattened swamps
-- **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths
+- **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), with dithered borders; cold water freezes over and cold mountain ranges are snowbound
+- Multi-octave gradient-noise terrain with rolling hills, regional mountain ranges with snow caps, erosion-controlled roughness, and flattened swamps
+- **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths, mushrooms and mossy patches; tunnels narrow near the surface so hillsides stay intact and never breach the seabed
+- **Dungeons**: rare mossy-cobblestone rooms deep underground, each with a chest of loot (food, ingots, iron gear, a bow, even diamonds)
+- Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
 - Trees (oak, birch, spruce), cacti, sugar cane, flowers, tall grass, pumpkins, mushrooms — features generate seamlessly across chunk borders
 - Chunks (16×128×16) stream in and out around the player; terrain generation runs in a **Web Worker pool** so the main thread never stutters
@@ -181,7 +183,7 @@ Ideas that would fit the engine as it stands:
 
 - Flowing water & lava simulation
 - Redstone-style logic circuits
-- More structures (villages, dungeons) via the deterministic feature system
+- More structures (villages, strongholds) via the deterministic feature system
 - Multiplayer over WebRTC
 - Height-4096 worlds with cubic chunks
 
