@@ -46,7 +46,7 @@ function creativeItems(tab) {
     creativeIdsCache = [];
     for (const b of BLOCKS) {
       // skip technical states: lit furnace, water, growing wheat
-      if (b && b.id !== 0 && b.id !== B.FURNACE_LIT && b.id !== B.WATER && !(b.id >= B.WHEAT_0 && b.id <= B.WHEAT_3) && b.id !== B.CAMPFIRE_OFF) creativeIdsCache.push(b.id);
+      if (b && b.id !== 0 && b.id !== B.FURNACE_LIT && b.id !== B.WATER && !(b.id >= B.WHEAT_0 && b.id <= B.WHEAT_3) && b.id !== B.CAMPFIRE_OFF && b.id !== B.LAVA && b.id !== B.OAK_DOOR_TOP) creativeIdsCache.push(b.id);
     }
     for (const id of Object.values(I)) creativeIdsCache.push(id);
   }
@@ -327,7 +327,6 @@ export class Containers {
     closeBtn.title = 'Close';
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.addEventListener('click', () => this.close());
-    win.appendChild(closeBtn);
     screen.appendChild(row);
     this.root.appendChild(screen);
 
@@ -358,6 +357,8 @@ export class Containers {
           ? `Left-click: stack · Right-click: one · ✕ slot: destroy · ${closeKey}: close`
           : `Right-click: split · Shift-click: move · Click outside: drop · ${closeKey}: close`;
     win.appendChild(hint);
+    // last in the DOM so keyboard/gamepad focus starts on the slots, not here
+    win.appendChild(closeBtn);
     this.renderCursor();
   }
 

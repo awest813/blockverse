@@ -29,7 +29,7 @@ import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
-import { B } from './blocks/blocks.js';
+import { B, isWater } from './blocks/blocks.js';
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -740,11 +740,13 @@ export class Game {
       if (!wasInWater && this.player.inWater && this.player.vy < -3) this.sfx?.play('splash');
     }
 
-    this.highlight.update(this.interaction.target, this.interaction.breakProgress);
+    this.highlight.update(this.interaction.target, this.interaction.breakProgress, this.world);
     this.updateBlasts(dt);
     this.updateSparks(dt);
     this.updateBubbles(dt);
     this.sinceAttack += dt;
+    if (!this.fireEl) this.fireEl = document.getElementById('fire-overlay');
+    this.fireEl?.classList.toggle('on', this.player.fireTime > 0 && !this.player.dead);
     if (!this.chargeEl) { this.chargeEl = document.getElementById('attack-charge'); this.chargeBar = this.chargeEl?.firstElementChild; }
     if (this.chargeEl) {
       const c = this.attackCharge();
@@ -810,6 +812,7 @@ export class Game {
     this.viewModel.update(paused ? 0 : dt, {
       held: p.heldStack()?.id ?? 0,
       draw: this.interaction.bowCharge,
+      eating: this.interaction.eating ? this.interaction.eating.t / this.interaction.eating.need : 0,
       mining: !paused && !!this.interaction.breakTarget && this.input.mouseDown(0),
       speed: Math.hypot(p.vx, p.vz),
       onGround: p.onGround && !p.flying,
@@ -835,7 +838,7 @@ export class Game {
       // deeper (and at night) the water gets darker and murkier
       const p = this.player;
       let depth = 0;
-      while (depth < 24 && this.world.getBlockW(Math.floor(p.x), Math.floor(p.eyeY) + depth + 1, Math.floor(p.z)) === B.WATER) depth++;
+      while (depth < 24 && isWater(this.world.getBlockW(Math.floor(p.x), Math.floor(p.eyeY) + depth + 1, Math.floor(p.z)))) depth++;
       const dark = Math.min(1, depth / 22) * 0.7 + (1 - this.dayFactor()) * 0.5;
       const u = this.world.materials.uniforms;
       UNDERWATER.copy(WATER_SHALLOW).lerp(WATER_DEEP, Math.min(1, dark));
@@ -858,8 +861,8 @@ export class Game {
         const dir = p.lookDir();
         for (let i = 0; i < 1 + ((Math.random() * 3) | 0); i++) {
           const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.bubbleTex, transparent: true, depthWrite: false }));
-          sprite.scale.setScalar(0.08 + Math.random() * 0.08);
-          sprite.position.set(p.x + dir.x * 0.6 + (Math.random() - 0.5) * 0.3, p.eyeY - 0.15, p.z + dir.z * 0.6 + (Math.random() - 0.5) * 0.3);
+          sprite.scale.setScalar(0.04 + Math.random() * 0.05);
+          sprite.position.set(p.x + dir.x * 1.1 + (Math.random() - 0.5) * 0.4, p.eyeY - 0.3, p.z + dir.z * 1.1 + (Math.random() - 0.5) * 0.4);
           this.scene.add(sprite);
           this.bubbles.push({ sprite, t: 0, phase: Math.random() * 6 });
         }

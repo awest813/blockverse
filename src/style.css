@@ -428,8 +428,8 @@ html, body {
 /* #ui-root is zoomed by --gui: keep the close button a real 44px thumb target */
 #hud.touch ~ #ui-root .inv-close { width: calc(44px / var(--gui)); height: calc(44px / var(--gui)); font-size: calc(18px / var(--gui)); }
 /* keep window headers (titles, guide toggles) clear of the close button */
-.inv-close + * { margin-right: 30px; }
-#hud.touch ~ #ui-root .inv-close + * { margin-right: calc(50px / var(--gui)); }
+.inv-window > :first-child { margin-right: 30px; }
+#hud.touch ~ #ui-root .inv-window > :first-child { margin-right: calc(50px / var(--gui)); }
 
 .inv-grid { display: grid; gap: 3px; }
 .inv-grid.cols-9 { grid-template-columns: repeat(9, var(--slot-size)); }
@@ -697,3 +697,18 @@ html, body {
 /* keyboard / gamepad focus on in-game panels */
 .creative-tab:focus-visible, .book-toggle:focus-visible, .recipe:focus-visible,
 .slot:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* on fire: flames licking up from the bottom of the screen */
+#fire-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 45%;
+  pointer-events: none; opacity: 0; transition: opacity 0.25s;
+  background:
+    radial-gradient(ellipse 30% 70% at 20% 110%, rgba(255, 200, 60, 0.85), transparent 70%),
+    radial-gradient(ellipse 28% 80% at 55% 115%, rgba(255, 150, 30, 0.8), transparent 70%),
+    radial-gradient(ellipse 32% 65% at 85% 110%, rgba(255, 190, 50, 0.85), transparent 70%),
+    linear-gradient(to top, rgba(255, 90, 0, 0.55), transparent);
+  mix-blend-mode: screen;
+}
+#fire-overlay.on { opacity: 1; animation: flicker 0.18s steps(2) infinite alternate; }
+@keyframes flicker { from { transform: scaleY(1); filter: brightness(1); } to { transform: scaleY(1.08); filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) { #fire-overlay.on { animation: none; } }

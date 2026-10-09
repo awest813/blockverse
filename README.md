@@ -28,6 +28,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
 - **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)
 - Structures keep their distance from each other, and trees grow around them rather than through them
+- Kelp forests and seagrass under the sea, lily pads on shallow swamp pools, snow blankets on the tundra, and lava pooling in the deepest caves
 - Decoration follows the biome under every tree and flower: river banks are wooded and grassy, sugar cane lines any water's edge, and mossy boulders dot mountains and tundra
 - Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
@@ -56,6 +57,10 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
+- **Building shapes**: ladders you can climb, two-high oak doors that open and shut, fences that link up (too tall to jump), and oak, cobblestone and stone-brick slabs you can walk up (two make a full block)
+- **Buckets**: scoop up and pour water and lava (lava meeting water turns to obsidian) and milk cows
+- **Fire**: lava sets you alight; jump in water (or drink milk) to put it out. Burning mobs show flames
+- **Eating takes a moment**: hold use to eat or drink (you slow down while you do); dried kelp is a quick snack
 - **Shears** (two iron ingots): shear sheep for 1–3 wool (the fleece grows back) and snip leaves, tall grass and dead bushes to collect them whole
 - **Weapons with weight**: every weapon recovers between swings (a meter under the crosshair shows it) and spamming only taps. Falling blows land **critical hits**, swords **sweep** mobs beside the target, axes hit hardest but slowest, and **spears** (all five materials) reach further and knock foes back
 - **Ancient Blade**: a rare temple-only sword stronger than diamond; **golden apples** (crafted from gold and an apple, or found in temples) restore hunger and four hearts
@@ -75,6 +80,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Zombies** spawn in darkness, chase you, hit hard, and burn in the morning sun
 - **Skeletons** keep their distance and shoot arrows (and burn in daylight); they drop bones
 - **Spiders** are fast and climb walls; they only hunt in the dark unless provoked, and drop string
+- **Husks** stalk the desert unburnt by the sun, **drowned** rise from the water at night, and the odd fast **baby zombie** turns up
 - **Creepers** sneak up, hiss and explode, blasting holes in the terrain; they drop gunpowder
 - Monsters need to see you (they remember you for a few seconds round a corner), ignore creative players, knock you back when they hit, work their way around walls, haunt dark caves at any hour, and groan, rattle or hiss as they approach
 - **Difficulty** per world — Peaceful, Easy, Normal or Hard — changeable any time with `/difficulty`

@@ -1,6 +1,6 @@
 // Runtime mob spawning and despawning around the player.
 
-import { Pig, Sheep, Zombie, Skeleton, Spider, Creeper } from './mobs.js';
+import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper } from './mobs.js';
 import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee } from './animals.js';
 
 // night spawn mix: [class, weight]
@@ -10,7 +10,7 @@ function pickHostile() {
   for (const [cls, w] of HOSTILE_TABLE) if ((r -= w) < 0) return cls;
   return Zombie;
 }
-import { B, isSolid } from '../blocks/blocks.js';
+import { B, isSolid, isWater } from '../blocks/blocks.js';
 import { BIOME } from '../world/worldgen.js';
 
 const PASSIVE_CAP = 12;
@@ -18,6 +18,7 @@ const HOSTILE_CAP = 8;
 const BIRD_CAP = 4;
 const FISH_CAP = 6;
 const WHALE_CAP = 1;
+const DROWNED_CAP = 3;
 const DOLPHIN_CAP = 4;
 const MANATEE_CAP = 2;
 
@@ -72,6 +73,8 @@ export class MobSpawner {
     if (count(mobs, Whale) < WHALE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Whale, 7);
     if (count(mobs, Dolphin) < DOLPHIN_CAP && Math.random() < 0.2) this.trySpawnWater(player, Dolphin, 4);
     if (count(mobs, Manatee) < MANATEE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Manatee, 2);
+    // drowned rise from oceans and rivers at night
+    if (this.difficulty > 0 && dayFactor < 0.4 && count(mobs, Drowned) < DROWNED_CAP && Math.random() < 0.25) this.trySpawnWater(player, Drowned, 3);
   }
 
   // a random column 20-44 blocks away
@@ -105,6 +108,7 @@ export class MobSpawner {
       const [wx, wz] = col;
       const biome = this.world.biomeAt(wx, wz);
       if ((Cls === Whale || Cls === Dolphin) && biome !== BIOME.OCEAN) continue;
+      if (Cls === Drowned && biome !== BIOME.OCEAN && biome !== BIOME.RIVER) continue;
       // manatees like warm, calm water: rivers, swamps and warm coasts
       if (Cls === Manatee) {
         const t = this.world.gen.columnAt(wx, wz).t;
@@ -112,7 +116,7 @@ export class MobSpawner {
       }
       const floor = this.world.surfaceHeight(wx, wz) + 1;
       let depth = 0;
-      while (depth < 20 && this.world.getBlockW(wx, floor + depth, wz) === B.WATER) depth++;
+      while (depth < 20 && isWater(this.world.getBlockW(wx, floor + depth, wz))) depth++;
       if (depth < minDepth) continue;
       const y = floor + Math.max(0, depth / 2 - 1);
       this.spawnMob(Cls, wx + 0.5, y, wz + 0.5);
@@ -147,7 +151,7 @@ export class MobSpawner {
         if (!this.world.isLoaded(wx, wz)) continue;
         const y = this.caveSpot(wx, wz, player);
         if (y === null) continue;
-        this.spawnMob(pickHostile(), wx + 0.5, y, wz + 0.5);
+        this.spawnHostile(pickHostile(), wx + 0.5, y, wz + 0.5);
         return;
       }
       if (dayFactor >= 0.4) return;
@@ -174,7 +178,10 @@ export class MobSpawner {
         const bl = this.world.getBlockLightW(wx, y, wz);
         const light = Math.max((sky / 15) * dayFactor * 15, bl);
         if (light > 7) continue;
-        this.spawnMob(pickHostile(), wx + 0.5, y, wz + 0.5);
+        // deserts breed husks instead of zombies
+        let Cls = pickHostile();
+        if (Cls === Zombie && this.world.biomeAt(wx, wz) === BIOME.DESERT && Math.random() < 0.8) Cls = Husk;
+        this.spawnHostile(Cls, wx + 0.5, y, wz + 0.5);
         return;
       }
 
@@ -185,6 +192,13 @@ export class MobSpawner {
       this.spawnMob(weighted(table), wx + 0.5, y, wz + 0.5);
       return;
     }
+  }
+
+  // zombies of any kind are sometimes babies
+  spawnHostile(Cls, x, y, z) {
+    const mob = this.spawnMob(Cls, x, y, z);
+    if (mob instanceof Zombie && Math.random() < 0.06) mob.makeBaby();
+    return mob;
   }
 
   spawnMob(Cls, x, y, z) {

@@ -5,12 +5,12 @@ import {
   WALK_SPEED, SPRINT_SPEED, SNEAK_SPEED, FLY_SPEED, SWIM_SPEED,
   GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE, CHUNK_Y,
 } from '../core/constants.js';
-import { moveEntity, entityInBlock, pointInWater } from '../core/physics.js';
+import { moveEntity, entityInBlock, entityInWater, pointInWater } from '../core/physics.js';
 import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
-const MOB_DAMAGE = new Set(['zombie', 'skeleton', 'spider', 'dog']);   // (explosions hurt at any difficulty)
+const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire']);
 
 export class Player {
@@ -42,6 +42,7 @@ export class Player {
     this.regenTimer = 0;
     this.starveTimer = 0;
     this.airTimer = 0;
+    this.fireTime = 0;     // seconds left burning
     this.exhaustion = 0;
 
     // inventory: 36 slots (0-8 hotbar), stacks are {id, count, dur?} | null
@@ -94,7 +95,9 @@ export class Player {
       this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
     }
 
-    this.inWater = entityInBlock(this.world, this, B.WATER);
+    this.inWater = entityInWater(this.world, this);
+    this.inLava = entityInBlock(this.world, this, B.LAVA);
+    this.onLadder = entityInBlock(this.world, this, B.LADDER);
     this.headInWater = pointInWater(this.world, this.x, this.eyeY, this.z);
 
     // movement intent
@@ -124,6 +127,7 @@ export class Player {
     this.swimming = !this.flying && this.inWater && this.headInWater && this.sprinting && fwd > 0;
     let speed = this.flying ? FLY_SPEED :
       this.swimming ? SWIM_SPEED * 2 * grace :
+      this.inLava ? SWIM_SPEED * 0.45 :
       this.inWater ? SWIM_SPEED * grace :
       this.sneaking ? SNEAK_SPEED :
       this.sprinting ? SPRINT_SPEED : WALK_SPEED;
@@ -137,6 +141,7 @@ export class Player {
     const throttle = Math.min(1, Math.hypot(fwd, strafe));
     if (len > 0) { dvx = (dvx / len) * speed * throttle; dvz = (dvz / len) * speed * throttle; }
     if (this.swimming) { const c = Math.cos(this.pitch); dvx *= c; dvz *= c; }
+    if (this.usingItem) { dvx *= 0.35; dvz *= 0.35; }   // eating slows you down
 
     // acceleration: snappy on ground, floatier in air/water
     const accel = this.flying ? 24 : this.onGround ? 40 : this.inWater ? 12 : 8;
@@ -154,6 +159,17 @@ export class Player {
       this.vy += (want - this.vy) * Math.min(1, 10 * dt);
       if (!paused && input.action('jump')) this.vy = Math.min(this.vy + 24 * dt, 3.2);
       this.addExhaustion(0.6 * dt);
+    } else if (this.inLava) {
+      // thick and slow: sink gently, struggle up
+      this.vy -= GRAVITY * 0.15 * dt;
+      this.vy = Math.max(this.vy, -1.5);
+      if (!paused && input.action('jump')) this.vy = Math.min(this.vy + 14 * dt, 1.8);
+    } else if (this.onLadder) {
+      // climb by pushing into the ladder (or holding jump); sneak to hold on
+      const climb = !paused && (input.action('jump') || (fwd > 0 && this.hitWall));
+      if (climb) this.vy = 2.4;
+      else if (!paused && this.sneaking) this.vy = 0;
+      else this.vy = Math.max(this.vy - GRAVITY * dt, -2.2);
     } else if (this.inWater) {
       this.vy -= GRAVITY * 0.25 * dt;
       this.vy = Math.max(this.vy, this.sneaking ? -5 : -3.5);
@@ -185,7 +201,8 @@ export class Player {
 
     // fall damage tracking
     if (!creative && !this.flying) {
-      if (!this.onGround && !this.inWater && this.vy < 0) {
+      if (this.onLadder || this.inLava) this.fallStart = null;   // ladders and lava break a fall
+      else if (!this.onGround && !this.inWater && this.vy < 0) {
         if (this.fallStart === null) this.fallStart = this.y + Math.abs(this.vy * dt); // approx
         // fallStart records highest point; keep max
         this.fallStart = Math.max(this.fallStart, this.y - this.vy * dt);
@@ -227,6 +244,19 @@ export class Player {
   }
 
   updateSurvival(dt) {
+    // fire: lava sets you alight; water puts you out
+    if (this.inLava) {
+      this.fireTime = Math.max(this.fireTime ?? 0, 8);
+      this.lavaTimer = (this.lavaTimer ?? 0) - dt;
+      if (this.lavaTimer <= 0) { this.lavaTimer = 0.5; this.damage(4, 'lava'); }
+    }
+    if (this.inWater && this.fireTime > 0) { this.fireTime = 0; this.events.dispatchEvent(new CustomEvent('extinguish')); }
+    if (this.fireTime > 0) {
+      this.fireTime -= dt;
+      this.burnTimer = (this.burnTimer ?? 0) - dt;
+      if (this.burnTimer <= 0) { this.burnTimer = 1; this.damage(1, 'fire'); }
+    }
+
     // exhaustion -> saturation -> hunger
     while (this.exhaustion >= 4) {
       this.exhaustion -= 4;
@@ -342,6 +372,7 @@ export class Player {
     this.regenTimer = 0;
     this.airTimer = 0;
     this.graceTime = 0;
+    this.fireTime = 0;
   }
 
   // ---- inventory helpers ----

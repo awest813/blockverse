@@ -1,7 +1,8 @@
 // DDA voxel raycast (Amanatides & Woo). Returns the first targetable block
 // hit within maxDist, with the face normal, or null.
 
-import { BLOCKS, B } from '../blocks/blocks.js';
+import { BLOCKS, B, R_SHAPE } from '../blocks/blocks.js';
+import { worldBoxes } from '../blocks/shapes.js';
 
 export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false) {
   let x = Math.floor(origin.x);
@@ -28,7 +29,13 @@ export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false) {
     const id = world.getBlockW(x, y, z);
     const info = BLOCKS[id];
     if (id !== B.AIR && info && (!info.fluid || hitFluids)) {
-      return { x, y, z, id, nx, ny, nz, dist: t };
+      if (info.render === R_SHAPE) {
+        // part-blocks: hit the actual boxes (or pass through the gaps)
+        const hit = rayBoxes(origin, dir, x, y, z, worldBoxes(world, x, y, z, id), maxDist);
+        if (hit) return { x, y, z, id, ...hit, point: at(origin, dir, hit.dist) };
+      } else {
+        return { x, y, z, id, nx, ny, nz, dist: t, point: at(origin, dir, t) };
+      }
     }
     if (tMaxX < tMaxY && tMaxX < tMaxZ) {
       x += stepX; t = tMaxX; tMaxX += tDeltaX;
@@ -42,4 +49,28 @@ export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false) {
     }
   }
   return null;
+}
+
+const at = (o, d, t) => ({ x: o.x + d.x * t, y: o.y + d.y * t, z: o.z + d.z * t });
+
+// nearest entry into any of the boxes of block (x, y, z): {dist, nx, ny, nz}
+function rayBoxes(o, d, x, y, z, boxes, maxDist) {
+  let best = null;
+  for (const b of boxes) {
+    let tmin = 0, tmax = maxDist, n = [0, 0, 0];
+    const lo = [x + b[0], y + b[1], z + b[2]], hi = [x + b[3], y + b[4], z + b[5]];
+    const oo = [o.x, o.y, o.z], dd = [d.x, d.y, d.z];
+    let ok = true;
+    for (let a = 0; a < 3 && ok; a++) {
+      if (Math.abs(dd[a]) < 1e-9) { if (oo[a] < lo[a] || oo[a] > hi[a]) ok = false; continue; }
+      let t1 = (lo[a] - oo[a]) / dd[a], t2 = (hi[a] - oo[a]) / dd[a];
+      let sign = -1;
+      if (t1 > t2) { [t1, t2] = [t2, t1]; sign = 1; }
+      if (t1 > tmin) { tmin = t1; n = [0, 0, 0]; n[a] = sign; }
+      tmax = Math.min(tmax, t2);
+      if (tmin > tmax) ok = false;
+    }
+    if (ok && (!best || tmin < best.dist)) best = { dist: tmin, nx: n[0], ny: n[1], nz: n[2] };
+  }
+  return best;
 }

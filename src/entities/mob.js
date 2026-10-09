@@ -2,7 +2,7 @@
 // Models are assembled from shaded colored boxes (all original designs).
 
 import * as THREE from 'three';
-import { moveEntity, entityInBlock } from '../core/physics.js';
+import { moveEntity, entityInBlock, entityInWater } from '../core/physics.js';
 import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
@@ -24,6 +24,24 @@ function shadedBox(w, h, d) {
   }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return g;
+}
+
+let flameTex = null;
+function makeFlameTexture() {
+  const c = document.createElement('canvas');
+  c.width = 16; c.height = 24;
+  const ctx = c.getContext('2d');
+  for (let x = 0; x < 16; x++) {
+    const h = 10 + Math.sin(x * 1.7) * 4 + (x % 3) * 2;
+    for (let y = 0; y < h; y++) {
+      const k = y / h;
+      ctx.fillStyle = k < 0.4 ? 'rgba(255,230,120,0.9)' : k < 0.75 ? 'rgba(255,150,40,0.85)' : 'rgba(220,70,20,0.7)';
+      ctx.fillRect(x, 23 - y, 1, 1);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  return tex;
 }
 
 export class Mob {
@@ -162,6 +180,8 @@ export class Mob {
 
     this.think(dt, player, Math.sqrt(playerDistSq));
     if (this.dead || this.dying !== undefined) return;
+    this.updateFire(dt);
+    if (this.dead || this.dying !== undefined) return;
     if (this.breedItem) this.breedTick(dt);
     this.avoidHazards(dt);
     this.ambient(dt, player);
@@ -170,7 +190,7 @@ export class Mob {
     let dyaw = ((this.targetYaw - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     this.yaw += Math.max(-3 * dt, Math.min(3 * dt, dyaw));
 
-    const inWater = entityInBlock(this.world, this, B.WATER);
+    const inWater = entityInWater(this.world, this);
     const speed = this.state === 'flee' || this.state === 'chase' ? this.fleeSpeed : this.speed;
     let dvx = 0, dvz = 0;
     if (this.moving) {
@@ -317,8 +337,12 @@ export class Mob {
     const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.6));
     const y = Math.floor(this.y);
     let drop = 0;
-    while (drop < 4 && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) drop++;
-    if (drop >= 4 || this.world.getBlockW(ax, y - 1, az) === B.WATER) {
+    let lava = this.world.getBlockW(ax, y, az) === B.LAVA;
+    while (drop < 4 && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) {
+      if (this.world.getBlockW(ax, y - 1 - drop, az) === B.LAVA) lava = true;
+      drop++;
+    }
+    if (drop >= 4 || lava || this.world.getBlockW(ax, y - 1, az) === B.WATER) {
       this.targetYaw = this.yaw + Math.PI;
       this.yaw += Math.PI;   // turn on the spot rather than step off
       this.vx = this.vz = 0;
@@ -347,15 +371,45 @@ export class Mob {
   burnInDaylight(dt) {
     const day = this.world.materials.uniforms.uDay.value;
     const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + this.h - 0.3), Math.floor(this.z));
-    if (day <= 0.8 || sky < 14 || this.inWater) return false;
-    this.burnTimer = (this.burnTimer ?? 0) + dt;
-    this.flashTime = 0.1;
-    if (this.burnTimer > 1) {
-      this.burnTimer = 0;
-      this.hurtCooldown = 0;
-      this.damage(2, null);
-    }
+    if (day <= 0.8 || sky < 14 || this.inWater || this.fireproofSun) return false;
+    this.fireTime = Math.max(this.fireTime ?? 0, 2);   // the burning tick does the damage
     return this.dead;
+  }
+
+  // On fire (sun, lava, campfires): 1 damage a second (2 for undead in the
+  // sun), flames on the model; water puts it out.
+  updateFire(dt) {
+    const inLava = entityInBlock(this.world, this, B.LAVA);
+    if (inLava) {
+      this.fireTime = Math.max(this.fireTime ?? 0, 8);
+      this.lavaTimer = (this.lavaTimer ?? 0) - dt;
+      if (this.lavaTimer <= 0) { this.lavaTimer = 0.5; this.hurtCooldown = 0; this.damage(4, null); }
+    }
+    if (this.inWater) this.fireTime = 0;
+    const burning = this.fireTime > 0;
+    if (burning) {
+      this.fireTime -= dt;
+      this.fireTick = (this.fireTick ?? 1) - dt;
+      if (this.fireTick <= 0) {
+        this.fireTick = 1;
+        this.hurtCooldown = 0;
+        this.damage(this.undead ? 2 : 1, null);
+      }
+    }
+    if (burning !== !!this.flames?.visible) this.showFlames(burning);
+    if (burning && this.flames) this.flames.material.rotation = Math.sin(this.age * 20) * 0.08;
+  }
+
+  showFlames(on) {
+    if (!this.flames) {
+      if (!on) return;
+      flameTex ??= makeFlameTexture();
+      this.flames = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, fog: false }));
+      this.flames.scale.set(this.w * 1.6, this.h * 1.2, 1);
+      this.flames.position.y = this.h * 0.55;
+      this.group.add(this.flames);
+    }
+    this.flames.visible = on;
   }
 
   // face the player and walk toward (dir 1) or away from (dir -1) them

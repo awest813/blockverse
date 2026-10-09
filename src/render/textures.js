@@ -189,6 +189,79 @@ tile('water', (ctx, rng) => {
   }
 });
 
+tile('lava', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[232, 96, 20], 6], [[250, 150, 30], 4], [[196, 56, 14], 3], [[255, 214, 90], 1]]);
+  for (let i = 0; i < 5; i++) blob(ctx, rng, (rng() * 14 + 1) | 0, (rng() * 14 + 1) | 0, 4, [[255, 196, 64], [255, 168, 40]]);
+});
+
+// ---- block shapes: ladder, door, fence icon, lily pad, kelp, seagrass ----
+tile('ladder', (ctx) => {
+  const rail = P.woodOakD, rung = P.woodOak, hi = P.woodOakL;
+  rect(ctx, 2, 0, 2, 16, rail); rect(ctx, 12, 0, 2, 16, rail);
+  rect(ctx, 2, 0, 1, 16, hi); rect(ctx, 12, 0, 1, 16, hi);
+  for (const y of [2, 6, 10, 14]) { rect(ctx, 4, y, 8, 2, rung); rect(ctx, 4, y, 8, 1, hi); }
+});
+
+function doorHalf(ctx, rng, upper) {
+  planks(ctx, rng, P.woodOak);
+  const frame = P.woodOakD;
+  rect(ctx, 0, 0, 16, 1, frame); rect(ctx, 0, 15, 16, 1, frame);
+  rect(ctx, 0, 0, 1, 16, frame); rect(ctx, 15, 0, 1, 16, frame);
+  if (upper) {
+    // two little windows
+    ctx.clearRect(3, 3, 4, 6); ctx.clearRect(9, 3, 4, 6);
+    rect(ctx, 7, 3, 2, 6, frame);
+  } else {
+    rect(ctx, 3, 3, 10, 1, frame); rect(ctx, 3, 12, 10, 1, frame);
+    rect(ctx, 12, 1, 2, 2, [70, 70, 76]);   // handle
+  }
+}
+tile('oak_door_lower', (ctx, rng) => doorHalf(ctx, rng, false));
+tile('oak_door_upper', (ctx, rng) => doorHalf(ctx, rng, true));
+tile('oak_door_item', (ctx, rng) => {
+  const d = P.woodOakD, w = P.woodOak, l = P.woodOakL;
+  rect(ctx, 4, 0, 8, 16, w); rect(ctx, 4, 0, 1, 16, l);
+  rect(ctx, 4, 0, 8, 1, d); rect(ctx, 4, 15, 8, 1, d); rect(ctx, 11, 0, 1, 16, d);
+  ctx.clearRect(6, 2, 4, 4); rect(ctx, 6, 7, 4, 1, d);
+  rect(ctx, 9, 9, 1, 2, [70, 70, 76]);
+});
+tile('oak_fence_item', (ctx) => {
+  const w = P.woodOak, d = P.woodOakD, l = P.woodOakL;
+  for (const x of [2, 11]) { rect(ctx, x, 1, 3, 15, w); rect(ctx, x, 1, 1, 15, l); rect(ctx, x + 2, 1, 1, 15, d); }
+  rect(ctx, 0, 4, 16, 2, w); rect(ctx, 0, 10, 16, 2, w);
+  rect(ctx, 0, 5, 16, 1, d); rect(ctx, 0, 11, 16, 1, d);
+});
+tile('lily_pad', (ctx, rng) => {
+  const g = [58, 128, 46], gd = [40, 96, 32], gl = [86, 160, 64];
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const dx = x - 7.5, dy = y - 7.5;
+    if (dx * dx + dy * dy > 49) continue;
+    if (dx > 0 && Math.abs(dy) < dx * 0.35) continue;   // the notch
+    px(ctx, x, y, rng() < 0.2 ? gl : rng() < 0.2 ? gd : g);
+  }
+  for (let i = 1; i < 7; i++) { px(ctx, 7 - i, 7, gd); px(ctx, 7, 7 - i, gd); px(ctx, 7, 7 + i, gd); }
+});
+tile('kelp', (ctx, rng) => {
+  const g = [52, 110, 40], gd = [36, 80, 28], gl = [80, 140, 56];
+  for (let y = 0; y < 16; y++) {
+    const x = 7 + Math.round(Math.sin(y * 0.7) * 1.5);
+    rect(ctx, x, y, 2, 1, g);
+    if (y % 4 === 1) { rect(ctx, x + 2, y, 3, 1, gl); px(ctx, x + 4, y + 1, gl); }
+    if (y % 4 === 3) { rect(ctx, x - 3, y, 3, 1, gd); px(ctx, x - 3, y + 1, gd); }
+  }
+});
+tile('seagrass', (ctx, rng) => {
+  const cols = [[64, 140, 60], [48, 116, 48], [92, 168, 80]];
+  for (let i = 0; i < 6; i++) {
+    let x = 2 + i * 2 + ((rng() * 2) | 0);
+    const top = 3 + ((rng() * 8) | 0);
+    for (let y = 15; y >= top; y--) {
+      px(ctx, x, y, cols[i % 3]);
+      if (rng() < 0.15) x += rng() < 0.5 ? -1 : 1;
+    }
+  }
+});
+
 tile('ice', (ctx, rng) => {
   fillNoise(ctx, rng, [[[158, 190, 242, 235], 7], [[140, 174, 232, 235], 4], [[184, 210, 248, 235], 3]]);
   for (let i = 0; i < 3; i++) {
@@ -919,6 +992,44 @@ tile('shears', (ctx) => {
   ];
   const cols = { b: [150, 150, 160], B: [222, 222, 228], k: [90, 90, 96], G: [190, 60, 50] };
   map.forEach((row, y) => [...row].forEach((ch, x) => { if (cols[ch]) px(ctx, x, y + 1, cols[ch]); }));
+});
+
+// buckets: B = metal, d = shade, f = contents
+function bucket(ctx, fill) {
+  const map = [
+    '..BBBBBBBBBBBB..',
+    '.B............B.',
+    '.BffffffffffffB.',
+    '..BddffffffddB..',
+    '..BBBBBBBBBBBB..',
+    '..BBBBBBBBBBdB..',
+    '...BBBBBBBBdB...',
+    '...BBBBBBBBdB...',
+    '....BBBBBBdB....',
+    '....BBBBBBBB....',
+  ];
+  const cols = { B: [200, 200, 206], d: [140, 140, 150], f: fill };
+  map.forEach((row, y) => [...row].forEach((ch, x) => {
+    const c = ch === 'f' && !fill ? null : cols[ch];
+    if (c) px(ctx, x, y + 4, ch === 'd' && fill && y === 3 ? shade(fill, 0.8) : c);
+  }));
+  // the handle
+  for (let x = 2; x < 14; x++) px(ctx, x, 4 - Math.round(Math.sin(((x - 2) / 11) * Math.PI) * 3), [120, 120, 128]);
+}
+tile('bucket', (ctx) => bucket(ctx, null));
+tile('water_bucket', (ctx) => bucket(ctx, [52, 104, 220]));
+tile('lava_bucket', (ctx) => bucket(ctx, [240, 120, 30]));
+tile('milk_bucket', (ctx) => bucket(ctx, [244, 244, 240]));
+tile('snowball', (ctx, rng) => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const dx = x - 7.5, dy = y - 8.5;
+    if (dx * dx + dy * dy > 20) continue;
+    px(ctx, x, y, dx + dy < -2 ? P.snowL : dx + dy > 3 ? P.snowD : P.snow);
+  }
+});
+tile('dried_kelp', (ctx) => {
+  const d = [40, 52, 30], m = [60, 76, 40], l = [84, 100, 54];
+  for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 11 - i, 3, 2, i % 2 ? m : d); px(ctx, 3 + i, 11 - i, l); }
 });
 
 tile('golden_apple', (ctx) => {

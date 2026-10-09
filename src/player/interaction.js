@@ -16,8 +16,25 @@ const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 const CAMPFIRES = new Set([B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const DOORS = new Set([B.OAK_DOOR, B.OAK_DOOR_TOP]);
+const SLABS = new Set([B.OAK_SLAB, B.COBBLE_SLAB, B.STONE_BRICK_SLAB]);
+// ladder meta from the face clicked: the wall is behind the ladder
+const wallMeta = (nx, nz) => (nz === 1 ? 0 : nx === -1 ? 1 : nz === -1 ? 2 : 3);
+
+// Water and lava meeting: lava turns to obsidian. Call after placing either.
+export function fluidContact(world, x, y, z, onFizz) {
+  const id = world.getBlockW(x, y, z);
+  if (id !== B.WATER && id !== B.LAVA) return;
+  let fizz = false;
+  for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+    const n = world.getBlockW(x + dx, y + dy, z + dz);
+    if (id === B.WATER && n === B.LAVA) { world.setBlock(x + dx, y + dy, z + dz, B.OBSIDIAN); fizz = true; }
+    if (id === B.LAVA && (n === B.WATER || BLOCKS[n]?.waterlogged)) { world.setBlock(x, y, z, B.OBSIDIAN); fizz = true; break; }
+  }
+  if (fizz) onFizz?.();
+}
 
 // item stacks stored in a block entity (furnace slots, chest slots)
 export function entityContents(st) {
@@ -45,6 +62,7 @@ export class Interaction {
     this.useCooldown = 0;
     this.dropRng = mulberry32((Math.random() * 2 ** 31) | 0);
     this.bowCharge = 0;         // 0..1 while drawing a bow
+    this.eating = null;         // {id, slot, t, need, auto} while eating or drinking
   }
 
   update(input, dt, uiOpen) {
@@ -56,6 +74,8 @@ export class Interaction {
     if (uiOpen || p.dead) {
       this.target = null;
       this.bowCharge = 0;   // menus/pauses cancel a draw instead of firing on resume
+      this.eating = null;
+      p.usingItem = false;
       this.resetBreaking();
       return;
     }
@@ -91,8 +111,28 @@ export class Interaction {
       this.resetBreaking();
     }
 
-    // ---- bow: hold right mouse to draw, release to shoot ----
+    // ---- eating: hold use (touch: one tap) until the food is gone ----
     const held = p.heldStack();
+    this.inputMode = input.altInput;
+    if (this.eating) {
+      const e = this.eating;
+      if (!held || held.id !== e.id || p.selected !== e.slot || (!e.auto && !input.mouseDown(2))) {
+        this.eating = null;   // let go, or switched items: stop
+      } else {
+        e.t += dt;
+        if (Math.floor(e.t / 0.27) !== Math.floor((e.t - dt) / 0.27)) this.cb.playSound('eat', {});
+        if (e.t >= e.need) {
+          this.finishEating(held);
+          this.eating = null;
+          this.useCooldown = 0.35;
+        }
+        p.usingItem = !!this.eating;
+        return;
+      }
+    }
+    p.usingItem = false;
+
+    // ---- bow: hold right mouse to draw, release to shoot ----
     // a bow still opens chests, tables, furnaces and beds (unless already drawing)
     const aimingAtUsable = this.target && USABLE.has(this.target.id) && !p.sneaking && this.bowCharge === 0;
     if (held && itemInfo(held.id)?.bow && !aimingAtUsable) {
@@ -151,15 +191,24 @@ export class Interaction {
     const contents = entityContents(this.world.blockEntityAt(t.x, t.y, t.z));
     if (contents.length) this.cb.spawnDrops(t.x + 0.5, t.y + 0.5, t.z + 0.5, contents.map((s) => ({ ...s })));
 
-    this.world.setBlock(t.x, t.y, t.z, B.AIR);
+    this.world.setBlock(t.x, t.y, t.z, info.waterlogged ? B.WATER : B.AIR);
     this.cb.playSound('break', { block: info.sound });
+    // a door's other half goes with it
+    if (t.id === B.OAK_DOOR && this.world.getBlockW(t.x, t.y + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
+    if (t.id === B.OAK_DOOR_TOP && this.world.getBlockW(t.x, t.y - 1, t.z) === B.OAK_DOOR) {
+      this.world.setBlock(t.x, t.y - 1, t.z, B.AIR);
+      if (!creative) this.cb.spawnDrops(t.x + 0.5, t.y - 0.7, t.z + 0.5, [{ id: B.OAK_DOOR, count: 1 }]);
+    }
 
-    // cascade: break unsupported plants above
-    const above = this.world.getBlockW(t.x, t.y + 1, t.z);
-    if (NEEDS_GROUND.has(above)) {
+    // cascade: break unsupported plants above (a whole kelp stalk, a door on a broken floor)
+    for (let y = t.y + 1; y < t.y + 32; y++) {
+      const above = this.world.getBlockW(t.x, y, t.z);
+      if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR) break;
       const ainfo = blockInfo(above);
-      this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
-      if (!creative) this.spawnBlockDrops(t.x, t.y + 1, t.z, ainfo, true);
+      if (above === B.OAK_DOOR) this.world.setBlock(t.x, y + 1, t.z, B.AIR);
+      this.world.setBlock(t.x, y, t.z, ainfo.waterlogged ? B.WATER : B.AIR);
+      if (!creative) this.spawnBlockDrops(t.x, y, t.z, ainfo, true);
+      if (above !== B.KELP) break;
     }
 
     if (!creative) {
@@ -187,6 +236,17 @@ export class Interaction {
     const t = this.target;
     const held = p.heldStack();
 
+    // doors open and shut (both halves)
+    if (t && DOORS.has(t.id) && !p.sneaking) {
+      const lowerY = t.id === B.OAK_DOOR_TOP ? t.y - 1 : t.y;
+      const meta = this.world.getMetaW(t.x, lowerY, t.z) ^ 4;
+      this.world.setBlock(t.x, lowerY, t.z, B.OAK_DOOR, meta);
+      if (this.world.getBlockW(t.x, lowerY + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, lowerY + 1, t.z, B.OAK_DOOR_TOP, meta);
+      this.cb.playSound('place', { block: 'wood' });
+      this.useCooldown = 0.25;
+      return;
+    }
+
     // 1) use a block (crafting table, furnace) — unless sneaking
     if (t && USABLE.has(t.id) && !p.sneaking) {
       const kind = { [B.CRAFTING_TABLE]: 'crafting', [B.CHEST]: 'chest', [B.BED]: 'bed' }[t.id] ?? 'furnace';
@@ -194,22 +254,13 @@ export class Interaction {
       return;
     }
 
-    // 2) eat food
+    // 2) start eating (or drinking) — it takes a moment
     if (held) {
       const info = itemInfo(held.id);
-      const wantsIt = p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
-      if (info?.food && wantsIt && p.mode !== GAMEMODE_CREATIVE) {
-        p.eat(info.food);
-        if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
-        p.consumeHeld(1);
-        // stew and the like leave their container behind
-        if (info.returns) {
-          if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: info.returns, count: 1 };
-          else p.give(info.returns, 1);
-          p.events.dispatchEvent(new CustomEvent('inventory'));
-        }
+      const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
+      if ((info?.food || info?.drink) && wantsIt && p.mode !== GAMEMODE_CREATIVE) {
+        this.eating = { id: held.id, slot: p.selected, t: 0, need: info.eatTime, auto: this.inputMode === 'touch' };
         this.cb.playSound('eat', {});
-        this.useCooldown = 0.4;
         return;
       }
     }
@@ -221,6 +272,17 @@ export class Interaction {
     if (!t || !held || !isBlockItem(held.id)) return;
     const info = blockInfo(held.id);
 
+    // a slab on its matching half-slab completes the full block
+    if (SLABS.has(info.id) && t.id === info.id) {
+      const top = this.world.getMetaW(t.x, t.y, t.z) & 1;
+      if ((t.ny === 1 && !top) || (t.ny === -1 && top)) {
+        this.world.setBlock(t.x, t.y, t.z, info.full);
+        this.cb.playSound('place', { block: info.sound });
+        if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+        return;
+      }
+    }
+
     // target position: replaceable blocks are overwritten in place
     let px = t.x, py = t.y, pz = t.z;
     const targetInfo = blockInfo(t.id);
@@ -228,12 +290,22 @@ export class Interaction {
       px += t.nx; py += t.ny; pz += t.nz;
     }
     const existing = this.world.getBlockW(px, py, pz);
+    // ...or into the empty half of a slab of the same kind
+    if (SLABS.has(info.id) && existing === info.id) {
+      this.world.setBlock(px, py, pz, info.full);
+      this.cb.playSound('place', { block: info.sound });
+      if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+      return;
+    }
     if (!blockInfo(existing).replaceable) return;
+    // underwater plants need water; nothing else floats on it
+    if (info.waterlogged && existing !== B.WATER) return;
+    if (info.id === B.LADDER && (t.ny !== 0 || !isSolid(t.id))) return;
 
     // support requirement for plants/torches
     if (NEEDS_GROUND.has(info.id)) {
       const below = this.world.getBlockW(px, py - 1, pz);
-      if (!isSolid(below)) return;
+      if (!isSolid(below) && !(info.id === B.KELP && below === B.KELP)) return;
       if (SAPLINGS.has(info.id) && !SOIL.has(below)) return;
     }
 
@@ -251,6 +323,22 @@ export class Interaction {
       meta = [2, 1, 0, 3][quad];
     }
 
+    if (info.id === B.LADDER) meta = wallMeta(t.nx, t.nz);
+    if (SLABS.has(info.id)) {
+      // top half when placed against a ceiling or the upper half of a side
+      const fy = (t.point?.y ?? py) - Math.floor(t.point?.y ?? py);
+      meta = t.ny === -1 || (t.ny === 0 && fy > 0.5) ? 1 : 0;
+    }
+    if (info.id === B.OAK_DOOR) {
+      // two blocks tall, standing on something, panel on the far edge
+      if (!isSolid(this.world.getBlockW(px, py - 1, pz))) return;
+      if (!blockInfo(this.world.getBlockW(px, py + 1, pz)).replaceable) return;
+      if (this.intersectsPlayer(px, py, pz) || this.intersectsPlayer(px, py + 1, pz)) return;
+      const yaw = ((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      meta = [0, 3, 2, 1][Math.round(yaw / (Math.PI / 2)) % 4];
+      this.world.setBlock(px, py + 1, pz, B.OAK_DOOR_TOP, meta);
+    }
+
     const old = this.world.setBlock(px, py, pz, info.id, meta);
     if (old === -1) return;
     if (info.id === B.FURNACE) this.world.setBlockEntity(px, py, pz, null);
@@ -258,6 +346,61 @@ export class Interaction {
     if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
     this.cb.playSound('place', { block: info.sound });
     if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+  }
+
+  finishEating(held) {
+    const p = this.player;
+    const info = itemInfo(held.id);
+    if (info.food) p.eat(info.food);
+    if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
+    if (held.id === I.MILK_BUCKET) p.fireTime = 0;   // cools you right down
+    p.consumeHeld(1);
+    // stew and milk leave their container behind
+    if (info.returns) {
+      if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: info.returns, count: 1 };
+      else p.give(info.returns, 1);
+    }
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    this.cb.playSound('pickup', {});
+  }
+
+  // Buckets scoop and pour water and lava; lily pads go on a water surface.
+  useFluidItem(held) {
+    const p = this.player;
+    const creative = p.mode === GAMEMODE_CREATIVE;
+    const ft = raycastBlocks(this.world, { x: p.x, y: p.eyeY, z: p.z }, p.lookDir(), REACH_DISTANCE, true);
+    if (!ft) return false;
+    const swapHeld = (id) => {
+      if (creative) return;
+      if (held.count > 1) { p.consumeHeld(1); p.give(id, 1); } else p.inventory[p.selected] = { id, count: 1 };
+      p.events.dispatchEvent(new CustomEvent('inventory'));
+    };
+    this.useCooldown = 0.3;
+    if (held.id === B.LILY_PAD) {
+      if (ft.id !== B.WATER || this.world.getBlockW(ft.x, ft.y + 1, ft.z) !== B.AIR) return false;
+      this.world.setBlock(ft.x, ft.y + 1, ft.z, B.LILY_PAD);
+      if (!creative) p.consumeHeld(1);
+      this.cb.playSound('place', { block: 'leaf' });
+      return true;
+    }
+    if (held.id === I.BUCKET) {
+      if (ft.id !== B.WATER && ft.id !== B.LAVA) return false;
+      this.world.setBlock(ft.x, ft.y, ft.z, B.AIR);
+      swapHeld(ft.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET);
+      this.cb.playSound('splash', {});
+      return true;
+    }
+    // pour: into the fluid cell itself, or the cell in front of the face we hit
+    let x = ft.x, y = ft.y, z = ft.z;
+    if (!blockInfo(ft.id).replaceable) { x += ft.nx; y += ft.ny; z += ft.nz; }
+    const here = this.world.getBlockW(x, y, z);
+    if (!blockInfo(here).replaceable) return false;
+    const fluid = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
+    this.world.setBlock(x, y, z, fluid);
+    fluidContact(this.world, x, y, z, () => this.cb.playSound('splash', {}));
+    swapHeld(I.BUCKET);
+    this.cb.playSound('splash', {});
+    return true;
   }
 
   // Returns true if the held item did something special.
@@ -276,6 +419,9 @@ export class Interaction {
       this.cb.playSound('equip', {});
       this.useCooldown = 0.3;
       return true;
+    }
+    if (held.id === I.BUCKET || held.id === I.WATER_BUCKET || held.id === I.LAVA_BUCKET || held.id === B.LILY_PAD) {
+      return this.useFluidItem(held);
     }
     if (!t) return false;
 

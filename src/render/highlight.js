@@ -2,6 +2,8 @@
 
 import * as THREE from 'three';
 import { generateTile } from './textures.js';
+import { BLOCKS, R_SHAPE } from '../blocks/blocks.js';
+import { worldBoxes } from '../blocks/shapes.js';
 
 export class BlockHighlight {
   constructor(scene) {
@@ -32,14 +34,24 @@ export class BlockHighlight {
     scene.add(this.crack);
   }
 
-  update(target, breakProgress) {
+  update(target, breakProgress, world) {
     if (!target) {
       this.outline.visible = false;
       this.crack.visible = false;
       return;
     }
     this.outline.visible = true;
-    this.outline.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
+    // part-blocks (slabs, doors, fences...) get an outline around their boxes
+    let b = [0, 0, 0, 1, 1, 1];
+    if (world && BLOCKS[target.id]?.render === R_SHAPE) {
+      b = [1, 1, 1, 0, 0, 0];
+      for (const x of worldBoxes(world, target.x, target.y, target.z, target.id)) {
+        for (let i = 0; i < 3; i++) { b[i] = Math.min(b[i], x[i]); b[i + 3] = Math.max(b[i + 3], x[i + 3]); }
+      }
+    }
+    this.outline.scale.set(b[3] - b[0], b[4] - b[1], b[5] - b[2]);
+    this.crack.scale.copy(this.outline.scale);
+    this.outline.position.set(target.x + (b[0] + b[3]) / 2, target.y + (b[1] + b[4]) / 2, target.z + (b[2] + b[5]) / 2);
 
     if (breakProgress > 0) {
       const stage = Math.min(4, Math.floor(breakProgress * 5));

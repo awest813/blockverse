@@ -53,7 +53,7 @@ export class ViewModel {
     const info = itemInfo(id);
     let mesh;
     const b = info?.block;
-    if (b && b.render !== R_CROSS && b.render !== R_TORCH) {
+    if (b && b.render !== R_CROSS && b.render !== R_TORCH && !b.icon) {
       const t = b.textures;
       const face = (sel) => (typeof t === 'string' ? t : t[sel] ?? t.side);
       // BoxGeometry face order: +x, -x, +y, -y, +z, -z
@@ -64,7 +64,7 @@ export class ViewModel {
       mesh.position.set(0, 0.02, 0);
     } else {
       // items and plants: a flat sprite held like a tool
-      const tile = b ? (typeof b.textures === 'string' ? b.textures : b.textures.side) : info?.texture;
+      const tile = b ? (b.icon ?? (typeof b.textures === 'string' ? b.textures : b.textures.side)) : info?.texture;
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3),
         overlayMaterial({ map: tileTexture(tile), side: THREE.DoubleSide }));
       mesh.rotation.set(0, -1.2, 0.35);
@@ -83,7 +83,7 @@ export class ViewModel {
   }
 
   // held: item id or 0; light: 0..1 brightness at the player's eyes
-  update(dt, { held, draw = 0, mining, speed, onGround, light, visible }) {
+  update(dt, { held, draw = 0, eating = 0, mining, speed, onGround, light, visible }) {
     this.root.visible = visible;
     if (!visible) return;
 
@@ -119,8 +119,11 @@ export class ViewModel {
     this.root.position.set(0.36, -0.3, -0.6);
     // a drawn bow comes in toward the centre of the view and trembles at full draw
     const shake = draw >= 1 ? Math.sin(performance.now() / 30) * 0.004 : 0;
-    this.pivot.position.set(bobX - s * 0.12 - draw * 0.22 + shake, bobY - equipDrop + s * 0.06 + draw * 0.1, -s * 0.12 + draw * 0.1);
-    this.pivot.rotation.set(-s * 0.9, s * 0.35 + draw * 0.5, s * 0.25 - draw * 0.3);
+    // eating: the food comes up to the mouth and bobs with each bite
+    const eat = eating > 0 ? Math.min(1, eating * 6) : 0;
+    const bite = eating > 0 ? Math.abs(Math.sin(eating * 40)) * 0.03 : 0;
+    this.pivot.position.set(bobX - s * 0.12 - draw * 0.22 + shake - eat * 0.28, bobY - equipDrop + s * 0.06 + draw * 0.1 + eat * 0.12 - bite, -s * 0.12 + draw * 0.1 + eat * 0.1);
+    this.pivot.rotation.set(-s * 0.9 + eat * 0.3, s * 0.35 + draw * 0.5 + eat * 0.6, s * 0.25 - draw * 0.3);
   }
 
   dispose() {

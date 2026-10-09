@@ -109,7 +109,9 @@ export class Atlas {
       const b = info.block;
       const t = b.textures;
       const tname = (sel) => (typeof t === 'string' ? t : t[sel] ?? t.side);
-      if (b.render === R_CROSS || b.render === R_TORCH) {
+      if (b.icon) {
+        ctx.drawImage(generateTile(b.icon), 0, 0, 32, 32);
+      } else if (b.render === R_CROSS || b.render === R_TORCH) {
         ctx.drawImage(generateTile(tname('side')), 0, 0, 32, 32);
       } else {
         this.drawIsoCube(ctx, generateTile(tname('top')), generateTile(tname('side')), generateTile(tname('side')));

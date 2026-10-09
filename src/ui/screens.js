@@ -20,6 +20,9 @@ const DEATH_MESSAGES = {
   explosion: 'You blew up',
   dog: 'You were mauled by a Dog',
   fire: 'You went up in flames',
+  lava: 'You tried to swim in lava',
+  husk: 'You were slain by a Husk',
+  drowned: 'You were slain by a Drowned',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

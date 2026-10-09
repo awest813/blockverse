@@ -37,6 +37,8 @@ function item(id, name, display, opts = {}) {
     places: opts.places ?? null, // block this item plants/places (seeds)
     returns: opts.returns ?? null, // item left behind after eating (bowl)
     heal: opts.heal ?? 0,          // health restored on eating (golden apple)
+    eatTime: opts.eatTime ?? 1.6,  // seconds of holding use to eat/drink
+    drink: opts.drink ?? false,    // milk: drinkable without being food
   });
 }
 
@@ -95,6 +97,12 @@ item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
 item(I.PAPER, 'paper', 'Paper');
 item(I.BOOK, 'book', 'Book');
 item(I.BOWL, 'bowl', 'Bowl', { burnTime: 5 });
+item(I.BUCKET, 'bucket', 'Bucket', { stack: 16 });
+item(I.WATER_BUCKET, 'water_bucket', 'Water Bucket', { stack: 1 });
+item(I.LAVA_BUCKET, 'lava_bucket', 'Lava Bucket', { stack: 1 });
+item(I.MILK_BUCKET, 'milk_bucket', 'Milk Bucket', { stack: 1, drink: true, returns: I.BUCKET });
+item(I.SNOWBALL, 'snowball', 'Snowball', { stack: 16 });
+item(I.DRIED_KELP, 'dried_kelp', 'Dried Kelp', { food: 1, eatTime: 0.8 });
 item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
 item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, heal: 8 });
 item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, stack: 1, returns: I.BOWL });

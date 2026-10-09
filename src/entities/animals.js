@@ -52,6 +52,17 @@ export class Cow extends Animal {
     this.breedItem = I.WHEAT;
   }
 
+  // a bucket fills with milk
+  interact(player, held) {
+    if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
+    if (player.mode !== GAMEMODE_CREATIVE) {
+      if (held.count > 1) { player.consumeHeld(1); player.give(I.MILK_BUCKET, 1); } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
+      player.events.dispatchEvent(new CustomEvent('inventory'));
+    }
+    this.fx?.sound('cow', { vol: 0.8 });
+    return true;
+  }
+
   buildModel() {
     const hide = 0x4a3426, spot = 0xe8e4dc, muzzle = 0xc9a48c, horn = 0xd8d0c0;
     this.part(1.0, 0.7, 0.6, hide, 0, 0.9, 0);                 // body

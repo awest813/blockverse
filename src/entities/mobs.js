@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { I } from '../items/itemIds.js';
-import { B } from '../blocks/blocks.js';
+import { B, isWater } from '../blocks/blocks.js';
+import { makeStack } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 export class Pig extends Mob {
@@ -133,10 +134,21 @@ export class Zombie extends Mob {
     this.burnTimer = 0;
     this.kind = 'zombie';
     this.ambientSound = 'zombie';
+    this.undead = true;
+    this.submerged = 0;   // seconds with its head underwater (30 -> drowned)
   }
 
-  buildModel() {
-    const skinC = 0x5a9c50, shirt = 0x3a6a8a, pants = 0x35506b;
+  // baby zombies: half size, fast, just as tough
+  makeBaby() {
+    this.small = true;
+    this.w = 0.35; this.h = 1.0;
+    this.group.scale.setScalar(0.52);
+    this.speed *= 1.6;
+    this.fleeSpeed *= 1.45;
+    return this;
+  }
+
+  buildModel(skinC = 0x5a9c50, shirt = 0x3a6a8a, pants = 0x35506b) {
     this.part(0.5, 0.72, 0.3, shirt, 0, 1.12, 0);             // torso
     this.part(0.42, 0.42, 0.42, skinC, 0, 1.72, 0);           // head
     this.part(0.08, 0.08, 0.02, 0x1a1a1a, -0.1, 1.78, -0.22);
@@ -161,6 +173,18 @@ export class Zombie extends Mob {
   think(dt, player, playerDist) {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     if (this.burnInDaylight(dt)) return;
+    // a zombie that stays underwater too long turns into a drowned
+    if (this.kind === 'zombie') {
+      const head = this.world.getBlockW(Math.floor(this.x), Math.floor(this.y + this.h - 0.2), Math.floor(this.z));
+      this.submerged = isWater(head) ? this.submerged + dt : 0;
+      if (this.submerged > 30 && this.fx?.spawn) {
+        const d = new Drowned(this.scene, this.world, this.x, this.y, this.z);
+        if (this.small) d.makeBaby();
+        this.fx.spawn(d);
+        this.kill();
+        return;
+      }
+    }
     if (!this.senses(player, 18, dt)) {
       this.loseTarget();
       super.think(dt, player, playerDist);
@@ -169,13 +193,61 @@ export class Zombie extends Mob {
     this.state = 'chase';
     this.moving = true;
     this.steer(player, 1);
-    if (this.dist3(player) < 1.6 && this.attackCooldown <= 0 && this.meleeHit(player, 3, 'zombie')) {
+    if (this.dist3(player) < 1.6 && this.attackCooldown <= 0 && this.meleeHit(player, 3, this.kind)) {
       this.attackCooldown = 1.1;
+      // a burning zombie passes the fire on
+      if (this.fireTime > 0) player.fireTime = Math.max(player.fireTime ?? 0, 3);
+      this.onHit?.(player);
     }
   }
 
   onDeath() {
     this.dropFn?.([{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }]);
+  }
+}
+
+// Desert zombies: sun-dried, they don't burn in daylight, and their hits
+// leave you hungry.
+export class Husk extends Zombie {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'husk';
+    this.fireproofSun = true;
+  }
+
+  buildModel() { super.buildModel(0xa89a6a, 0x7a6a4a, 0x5c5040); }
+
+  onHit(player) { player.addExhaustion(6); }
+}
+
+// Zombies of the deep: they swim after you, and sometimes carry a spear.
+export class Drowned extends Zombie {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'drowned';
+    this.ambientSound = 'zombie';
+  }
+
+  // swims (steers vertically) only while in water; walks like a zombie on land
+  get swimmer() { return this.inWater; }
+
+  buildModel() { super.buildModel(0x4f9a8e, 0x2d6b6a, 0x2b4a5a); }
+
+  think(dt, player, playerDist) {
+    super.think(dt, player, playerDist);
+    if (!this.inWater || this.dead || this.dying !== undefined) return;
+    if (this.state === 'chase') {
+      this.targetVy = Math.max(-2.2, Math.min(2.2, (player.y + 0.4 - this.y) * 1.5));
+      this.fleeSpeed = 2.4;
+    } else {
+      this.targetVy = (Math.random() - 0.5) * 0.4;
+    }
+  }
+
+  onDeath() {
+    const drops = [{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }];
+    if (Math.random() < 0.04) drops.push(makeStack(I.IRON_SPEAR, 1));
+    this.dropFn?.(drops);
   }
 }
 
@@ -191,6 +263,7 @@ export class Skeleton extends Mob {
     this.shootCooldown = 1 + Math.random();
     this.kind = 'skeleton';
     this.ambientSound = 'skeleton';
+    this.undead = true;
   }
 
   buildModel() {

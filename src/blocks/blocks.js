@@ -73,6 +73,18 @@ export const B = {
   SPAWNER: 67,
   CHISELED_SANDSTONE: 68,
   MOSSY_STONE_BRICKS: 69,
+  LADDER: 70,
+  OAK_DOOR: 71,          // lower half (the item)
+  OAK_DOOR_TOP: 72,      // upper half
+  OAK_FENCE: 73,
+  OAK_SLAB: 74,
+  COBBLE_SLAB: 75,
+  STONE_BRICK_SLAB: 76,
+  LAVA: 77,
+  KELP: 78,
+  SEAGRASS: 79,
+  LILY_PAD: 80,
+  SNOW_LAYER: 81,
 };
 
 // Tool classes
@@ -88,6 +100,7 @@ export const R_CUTOUT = 2; // full cube, alpha-tested texture (glass, leaves)
 export const R_BLEND = 3;  // alpha-blended (water, ice)
 export const R_CROSS = 4;  // two crossed quads (plants)
 export const R_TORCH = 5;  // small torch model
+export const R_SHAPE = 6;  // boxes from blocks/shapes.js (slabs, doors, fences, ladders, lily pads)
 
 function def(id, name, display, opts = {}) {
   return {
@@ -107,7 +120,11 @@ function def(id, name, display, opts = {}) {
     textures: opts.textures ?? name,         // tile name or {top,bottom,side,front}
     replaceable: opts.replaceable ?? false,  // placement can overwrite it
     fluid: opts.fluid ?? false,
-    climbable: false,
+    climbable: opts.climbable ?? false,      // ladders
+    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'door' | 'fence' | 'ladder' | 'pad' | 'layer'
+    waterlogged: opts.waterlogged ?? false,  // sits in a water cell (kelp, seagrass)
+    icon: opts.icon ?? null,                 // flat inventory icon tile instead of a cube
+    full: opts.full ?? null,                 // slabs: the full block two of them make
     sound: opts.sound ?? 'stone',            // sfx family: stone|dirt|wood|sand|leaf|glass|cloth
   };
 }
@@ -150,9 +167,9 @@ reg(def(B.WATER, 'water', 'Water', {
   drop: null, fluid: true,
 }));
 reg(def(B.ICE, 'ice', 'Ice', { render: R_BLEND, opacity: 2, hardness: 0.5, tool: TOOL_PICKAXE, sound: 'glass' }));
-reg(def(B.SNOW_BLOCK, 'snow_block', 'Snow Block', { hardness: 0.2, tool: TOOL_SHOVEL, sound: 'cloth' }));
+reg(def(B.SNOW_BLOCK, 'snow_block', 'Snow Block', { hardness: 0.2, tool: TOOL_SHOVEL, sound: 'cloth', drop: () => [{ id: I.SNOWBALL, count: 4 }] }));
 reg(def(B.SNOWY_GRASS, 'snowy_grass', 'Snowy Grass', {
-  hardness: 0.6, tool: TOOL_SHOVEL, drop: B.DIRT, sound: 'dirt',
+  hardness: 0.6, tool: TOOL_SHOVEL, drop: () => [{ id: B.DIRT, count: 1 }, { id: I.SNOWBALL, count: 1 }], sound: 'dirt',
   textures: { top: 'snow_block', bottom: 'dirt', side: 'snowy_grass_side' },
 }));
 reg(def(B.OAK_LOG, 'oak_log', 'Oak Log', {
@@ -288,6 +305,31 @@ reg(def(B.CHISELED_SANDSTONE, 'chiseled_sandstone', 'Chiseled Sandstone', {
   hardness: 0.8, tool: TOOL_PICKAXE, minTier: 1,
   textures: { top: 'sandstone_top', bottom: 'sandstone_top', side: 'chiseled_sandstone' },
 }));
+reg(def(B.LADDER, 'ladder', 'Ladder', {
+  solid: false, render: R_SHAPE, shape: 'ladder', opacity: 0, hardness: 0.4, tool: TOOL_AXE, sound: 'wood', climbable: true, icon: 'ladder',
+}));
+// doors: two blocks; meta bits 0-1 = which edge the panel sits on, bit 2 = open
+const door = { render: R_SHAPE, shape: 'door', opacity: 0, hardness: 3, tool: TOOL_AXE, sound: 'wood', icon: 'oak_door_item' };
+reg(def(B.OAK_DOOR, 'oak_door', 'Oak Door', { ...door, textures: { top: 'oak_planks', bottom: 'oak_planks', side: 'oak_door_lower' } }));
+reg(def(B.OAK_DOOR_TOP, 'oak_door_top', 'Oak Door', { ...door, drop: null, textures: { top: 'oak_planks', bottom: 'oak_planks', side: 'oak_door_upper' } }));
+reg(def(B.OAK_FENCE, 'oak_fence', 'Oak Fence', {
+  render: R_SHAPE, shape: 'fence', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'oak_fence_item',
+}));
+// slabs: meta bit 0 = top half; two make the full block
+reg(def(B.OAK_SLAB, 'oak_slab', 'Oak Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', full: B.OAK_PLANKS }));
+reg(def(B.COBBLE_SLAB, 'cobble_slab', 'Cobblestone Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone', full: B.COBBLESTONE }));
+reg(def(B.STONE_BRICK_SLAB, 'stone_brick_slab', 'Stone Brick Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks', full: B.STONE_BRICKS }));
+reg(def(B.LAVA, 'lava', 'Lava', {
+  solid: false, render: R_BLEND, opacity: 2, lightEmit: 15, hardness: -1, replaceable: true, drop: null, fluid: true,
+}));
+// underwater plants share their cell with water
+reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true }));
+reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
+reg(def(B.LILY_PAD, 'lily_pad', 'Lily Pad', { solid: false, render: R_SHAPE, shape: 'pad', opacity: 0, hardness: 0, sound: 'leaf', icon: 'lily_pad' }));
+reg(def(B.SNOW_LAYER, 'snow_layer', 'Snow', {
+  solid: false, render: R_SHAPE, shape: 'layer', opacity: 0, hardness: 0.1, tool: TOOL_SHOVEL, sound: 'cloth', replaceable: true,
+  textures: 'snow_block', drop: () => [{ id: I.SNOWBALL, count: 1 }],
+}));
 reg(def(B.MOSSY_STONE_BRICKS, 'mossy_stone_bricks', 'Mossy Stone Bricks', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1 }));
 
 export function blockInfo(id) {
@@ -306,9 +348,15 @@ export function isSolid(id) {
 }
 
 // Blocks a face of `id` adjacent to `neighborId` need to be drawn?
+// water, or a plant standing in water
+export function isWater(id) {
+  return id === B.WATER || (BLOCKS[id]?.waterlogged ?? false);
+}
+
 export function faceVisible(id, neighborId) {
   const nb = BLOCKS[neighborId];
   if (!nb || nb.render === R_NONE) return true;
+  if (id === B.WATER && isWater(neighborId)) return false;   // no water faces against kelp
   if (nb.render === R_SOLID) return false;
   // Same transparent block type: hide inner faces (water-water, glass-glass, leaves keep faces for depth)
   if (id === neighborId) {

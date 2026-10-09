@@ -32,10 +32,12 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Smelting guide auto-fuel no longer burns coal blocks / chests / bookshelves
 - [x] Ice can be collected
 - [x] Bone meal on grass grows tall grass and flowers
-- [ ] Unobtainable: obsidian (no lava), snow block (no snowballs)
+- [x] Obsidian (pour water onto lava, or lava next to water); snowballs from snow, snowy grass and snow layers → snow blocks
 - [x] Shears: shear sheep (fleece regrows), snip leaves / tall grass / dead bushes whole
-- [ ] Bucket, flint & steel, fishing rod
-- [ ] Ladders, doors, fences, slabs/stairs, glass panes, signs
+- [x] Buckets: scoop and pour water and lava, milk cows (milk puts out fire)
+- [ ] Flint & steel, fishing rod
+- [x] Ladders (climbable), oak doors (two-high, open/close), fences (connect, 1.5 high), oak/cobblestone/stone-brick slabs (two make a block; walk up them)
+- [ ] Stairs, glass panes, signs, fence gates
 - [x] Sugar cane and cactus grow (up to 3 tall) near the player
 - [ ] Tool repair in the crafting grid
 
@@ -51,7 +53,8 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [ ] Birds roost at night; whales drop nothing
 - [x] Mobs push each other apart, and the player shoves through them
 - [x] Sheep shearing / wool regrowth
-- [ ] Milk, eggs
+- [x] Milk
+- [ ] Eggs
 
 ## Hostile mobs
 - [x] No melee hits through block corners (line of sight required)
@@ -60,8 +63,9 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Zombies/skeletons don't burn while standing in water
 - [x] Skeletons lead moving targets
 - [x] Hostile cap scales with difficulty (easy 5 / normal 8 / hard 12)
-- [ ] Burning flame visual, undead seek shade
-- [ ] Husks (desert), drowned (zombies underwater), baby zombies
+- [x] Burning mobs show flames; burning zombies set you alight
+- [ ] Undead seek shade
+- [x] Husks (desert, sun-proof, hits make you hungry), drowned (swim after you, spawn in water at night, zombies drown into them), baby zombies (fast)
 - [ ] Arrows slow in water
 
 ## Survival mechanics
@@ -69,8 +73,9 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Peaceful regenerates health and hunger
 - [x] Respawn resets exhaustion / regen / air timers
 - [x] No sprint hunger drain in shallow water
-- [ ] Burning state (fire time, extinguished by water) for campfires/lava
-- [ ] Per-food saturation, eating takes time
+- [x] Burning state: lava sets you on fire, water/milk put it out, flames on screen
+- [x] Eating and drinking take time (hold use; touch: one tap), and slow you down
+- [ ] Per-food saturation
 - [ ] Mining slower underwater / in mid-air
 
 ## Swimming
@@ -84,8 +89,10 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 ## Biomes & world generation
 (new decoration needs a generator version bump so existing worlds don't seam)
 - [x] (gen v4) Decoration per 8×8 quadrant with per-feature biome checks: trees and grass along rivers, no flowers on sand
-- [ ] Oceans are empty (kelp/seagrass, sand/gravel patches, shipwrecks)
+- [x] (gen v5) Kelp forests and seagrass in oceans and rivers
+- [ ] Shipwrecks, ocean ruins
 - [x] (gen v4) Sugar cane grows wherever low ground touches water
 - [x] (gen v4) Sparse spruce on the tundra, mossy boulders on mountains/tundra, more mountain spruce, more desert dead bushes
-- [ ] Swamps have no standing water / lily pads
-- [ ] Desert wells/fossils; lava pools + obsidian in deep caves
+- [x] (gen v5) Shallow swamp pools with lily pads and seagrass
+- [x] (gen v5) Lava floods the deepest caves; snow layers on the tundra, snowfields on high peaks
+- [ ] Desert wells/fossils

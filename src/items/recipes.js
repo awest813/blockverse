@@ -94,6 +94,14 @@ shaped(B.SANDSTONE, 1, ['XX', 'XX'], { X: [B.SAND] });
 shaped(B.CHISELED_SANDSTONE, 1, ['X', 'X'], { X: [B.SANDSTONE] });
 shapeless(B.MOSSY_STONE_BRICKS, 2, [[B.STONE_BRICKS], [B.MOSSY_COBBLE]]);
 shaped(I.SHEARS, 1, ['.X', 'X.'], { X: [I.IRON_INGOT] });
+shaped(I.BUCKET, 1, ['X.X', '.X.'], { X: [I.IRON_INGOT] });
+shaped(B.LADDER, 3, ['S.S', 'SSS', 'S.S'], { S: [I.STICK] });
+shaped(B.OAK_DOOR, 3, ['XX', 'XX', 'XX'], { X: ANY_PLANKS });
+shaped(B.OAK_FENCE, 3, ['XSX', 'XSX'], { X: ANY_PLANKS, S: [I.STICK] });
+shaped(B.OAK_SLAB, 6, ['XXX'], { X: ANY_PLANKS });
+shaped(B.COBBLE_SLAB, 6, ['XXX'], { X: [B.COBBLESTONE] });
+shaped(B.STONE_BRICK_SLAB, 6, ['XXX'], { X: [B.STONE_BRICKS] });
+shaped(B.SNOW_BLOCK, 1, ['XX', 'XX'], { X: [I.SNOWBALL] });
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });
@@ -217,6 +225,7 @@ export const SMELTING = new Map([
   [B.IRON_ORE, { id: I.IRON_INGOT, count: 1 }],
   [B.GOLD_ORE, { id: I.GOLD_INGOT, count: 1 }],
   [B.SAND, { id: B.GLASS, count: 1 }],
+  [B.KELP, { id: I.DRIED_KELP, count: 1 }],
   [B.COBBLESTONE, { id: B.STONE, count: 1 }],
   [I.CLAY_BALL, { id: I.BRICK_ITEM, count: 1 }],
   [I.PORKCHOP_RAW, { id: I.PORKCHOP_COOKED, count: 1 }],

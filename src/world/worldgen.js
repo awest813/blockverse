@@ -29,8 +29,9 @@ function smoothstep(a, b, x) {
 // Generator versions: 1 = the original terrain (kept so existing worlds don't
 // grow seams); 2 = full-range climate, rolling terrain and rivers;
 // 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
-// (river-bank trees, cane by any water, boulders, sparse tundra spruce).
-export const LATEST_GEN = 4;
+// (river-bank trees, cane by any water, boulders, sparse tundra spruce);
+// 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow.
+export const LATEST_GEN = 5;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -83,9 +84,14 @@ export class WorldGen {
     h += v2 ? Math.pow(Math.max(0, ridge - 0.3), 1.4) * 72 * mMask
       : Math.pow(Math.max(0, ridge - 0.35), 1.6) * 52 * mMask;
 
-    // Swamps flatten terrain toward the waterline.
+    // Swamps flatten terrain toward the waterline (v5: with shallow pools).
+    let pool = false;
     if (m > 0.72 && t > 0.35 && t < 0.7 && mMask < 0.3 && h > SEA_LEVEL - 1 && h < SEA_LEVEL + 8) {
       h = SEA_LEVEL + 1 + (h - SEA_LEVEL - 1) * 0.25;
+      if (this.version >= 5) {
+        const p = this.detail.fbm2(wx / 19, wz / 19, 2);
+        if (p > 0.12) { h = Math.max(SEA_LEVEL - 1.9, SEA_LEVEL - 0.4 - (p - 0.12) * 6); pool = true; }
+      }
     }
 
     // Rivers: a thin band of noise carves a channel below sea level, with
@@ -103,7 +109,7 @@ export class WorldGen {
       }
     }
 
-    return { h: Math.max(4, Math.min(CHUNK_Y - 10, h)), t, m, mMask, river };
+    return { h: Math.max(4, Math.min(CHUNK_Y - 10, h)), t, m, mMask, river, pool };
   }
 
   // Terrain height (pre-cave, pre-decoration). Pure function of (x, z).
@@ -123,7 +129,8 @@ export class WorldGen {
     return this.biomeOf(this.columnAt(wx, wz));
   }
 
-  biomeOf({ h, t, m, mMask, river }) {
+  biomeOf({ h, t, m, mMask, river, pool }) {
+    if (pool) return BIOME.SWAMP;
     if (river > 0.2 && h < SEA_LEVEL) return BIOME.RIVER;
     if (h < SEA_LEVEL - 2) return BIOME.OCEAN;
     if (h > (this.version >= 2 ? 66 : 74) && mMask > 0.35) return BIOME.MOUNTAINS;
@@ -158,6 +165,7 @@ export class WorldGen {
     const heightMap = new Uint8Array(CHUNK_X * CHUNK_Z);
     const biomeMap = new Uint8Array(CHUNK_X * CHUNK_Z);
     const bedrockRng = coordRng(this.seed, cx, cz, 1);
+    const v5 = this.version >= 5;
 
     for (let x = 0; x < CHUNK_X; x++) {
       for (let z = 0; z < CHUNK_Z; z++) {
@@ -187,10 +195,13 @@ export class WorldGen {
           } else if (y === 0 || (y === 1 && bedrockRng() < 0.5)) {
             id = B.BEDROCK;
           } else if (this.isCave(wx, y, wz, h)) {
-            id = y <= 9 ? B.WATER : B.AIR; // lava would go here; use water pools deep down
+            // the deepest caves flood: lava from generator 5, water before
+            id = y <= 9 ? (v5 ? B.LAVA : B.WATER) : B.AIR;
           } else if (y === h) {
             // surface block
-            if (y < SEA_LEVEL - 1) id = sandy ? B.SAND : (biome === BIOME.OCEAN ? B.GRAVEL : B.DIRT);
+            if (col.pool) id = B.DIRT;   // swamp pool beds
+            else if (v5 && h > 84 && (snowy || biome === BIOME.MOUNTAINS)) id = B.SNOW_BLOCK;   // snowfields on high peaks
+            else if (y < SEA_LEVEL - 1) id = sandy ? B.SAND : (biome === BIOME.OCEAN ? B.GRAVEL : B.DIRT);
             else if (sandy) id = B.SAND;
             else if (snowy) id = B.SNOWY_GRASS;
             else if (biome === BIOME.MOUNTAINS && h > 68) id = B.STONE;
@@ -211,6 +222,7 @@ export class WorldGen {
           const r = coordRng(this.seed, wx, wz, 33)();
           if (r < 0.06 && h > 4) blocks[blockIndex(x, h, z)] = B.CLAY;
         }
+        if (v5) this.columnLife(blocks, x, z, wx, wz, h, biome, col, snowy);
       }
     }
 
@@ -222,6 +234,30 @@ export class WorldGen {
     if (plan) entities.push(...buildStructure(this, blocks, cx, cz));
 
     return { blocks, heightMap, biomeMap, entities };
+  }
+
+  // Generator 5: things that live on one column (so they never cross a chunk
+  // edge): kelp and seagrass underwater, lily pads on swamp pools, snow layers.
+  columnLife(blocks, x, z, wx, wz, h, biome, col, snowy) {
+    const r = colHash(wx * 3 + 7, wz - 11), r2 = colHash(wx - 5, wz * 7 + 3);
+    const ground = blocks[blockIndex(x, h, z)];
+    if (ground === B.AIR || ground === B.WATER || ground === B.LAVA) return;   // a cave mouth
+    const depth = SEA_LEVEL - h;
+    if (depth >= 2 && blocks[blockIndex(x, h + 1, z)] === B.WATER) {
+      if (biome === BIOME.OCEAN && depth >= 5 && r < 0.07) {
+        // a kelp stalk that stops short of the surface
+        const len = 2 + Math.floor(r2 * (depth - 3));
+        for (let y = h + 1; y <= h + len && y < SEA_LEVEL - 1; y++) blocks[blockIndex(x, y, z)] = B.KELP;
+      } else if (r < 0.3 && (biome === BIOME.OCEAN || biome === BIOME.RIVER || col.pool)) {
+        blocks[blockIndex(x, h + 1, z)] = B.SEAGRASS;
+      }
+    }
+    // lily pads float on swamp pools
+    if (col.pool && r2 < 0.14 && blocks[blockIndex(x, SEA_LEVEL, z)] === B.WATER) blocks[blockIndex(x, SEA_LEVEL + 1, z)] = B.LILY_PAD;
+    // a blanket of snow on the tundra
+    if (snowy && biome !== BIOME.MOUNTAINS && h >= SEA_LEVEL && ground === B.SNOWY_GRASS && r < 0.8 && h + 1 < CHUNK_Y) {
+      blocks[blockIndex(x, h + 1, z)] = B.SNOW_LAYER;
+    }
   }
 
   // Is the ground at a feature's spot real (not carved away by a cave mouth)?

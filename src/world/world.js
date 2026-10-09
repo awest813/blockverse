@@ -47,6 +47,13 @@ export class World {
     return c.blocks[blockIndex(wx & 15, wy, wz & 15)];
   }
 
+  getMetaW(wx, wy, wz) {
+    if (wy < 0 || wy >= CHUNK_Y) return 0;
+    const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
+    if (!c || !c.hasBlocks) return 0;
+    return c.getMeta(wx & 15, wy, wz & 15);
+  }
+
   isLoaded(wx, wz) {
     const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
     return !!(c && c.hasBlocks);

@@ -3,7 +3,8 @@
 
 import * as THREE from 'three';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z } from '../core/constants.js';
-import { BLOCKS, R_NONE, R_SOLID, R_CUTOUT, R_BLEND, R_CROSS, R_TORCH, faceVisible, B } from '../blocks/blocks.js';
+import { BLOCKS, R_NONE, R_SOLID, R_CUTOUT, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
+import { shapeBoxes } from '../blocks/shapes.js';
 import { FACE_PX, FACE_NX, FACE_PY, FACE_NY, FACE_PZ, FACE_NZ } from './atlas.js';
 
 const OPACITY = new Uint8Array(BLOCKS.length);
@@ -21,6 +22,14 @@ const FACES = [
 ];
 
 const AO_LEVELS = [0.45, 0.62, 0.8, 1.0];
+
+// texture coords from a point on each face (FACES order), so part-block
+// boxes show the matching part of the tile
+const FACE_UV = [
+  (p) => [p[2], p[1]], (p) => [1 - p[2], p[1]],
+  (p) => [p[0], p[2]], (p) => [p[0], p[2]],
+  (p) => [p[0], p[1]], (p) => [1 - p[0], p[1]],
+];
 
 class GeoBuilder {
   constructor() {
@@ -100,21 +109,49 @@ export function buildChunkGeometry(world, chunk, atlas) {
             const uvRev = [[0, 1], [1, 1], [1, 0], [0, 0]];
             opaque.quad(x, y, z, rev, uvRev, layer, lights, false);
           }
+          // kelp and seagrass stand in water: draw the water around them too
+          if (!info.waterlogged) continue;
+        }
+
+        if (render === R_SHAPE) {
+          // slabs, doors, fences, ladders, lily pads: lit from their own cell
+          const sky = getSky(wx, y, wz) / 15;
+          const bl = getBlockLight(wx, y, wz) / 15;
+          const boxes = shapeBoxes(id, chunk.getMeta(x, y, z), (dx, dz) => getBlock(wx + dx, y, wz + dz));
+          for (const bx of boxes) {
+            for (let fi = 0; fi < 6; fi++) {
+              const f = FACES[fi];
+              const d = f.dir;
+              // faces flush with the cell edge hide against opaque neighbours
+              const flush = (d[0] === 1 && bx[3] === 1) || (d[0] === -1 && bx[0] === 0) ||
+                (d[1] === 1 && bx[4] === 1) || (d[1] === -1 && bx[1] === 0) ||
+                (d[2] === 1 && bx[5] === 1) || (d[2] === -1 && bx[2] === 0);
+              if (flush && OPACITY[getBlock(wx + d[0], y + d[1], wz + d[2])] >= 15) continue;
+              const corners = f.corners.map((c) => [c[0] ? bx[3] : bx[0], c[1] ? bx[4] : bx[1], c[2] ? bx[5] : bx[2]]);
+              const uvs = corners.map(FACE_UV[fi]);
+              for (let i = 0; i < 4; i++) { lights[i * 2] = sky * f.shade; lights[i * 2 + 1] = bl * f.shade; }
+              opaque.quad(x, y, z, corners, uvs, atlas.faceLayer(id, f.face), lights, false);
+            }
+          }
           continue;
         }
 
-        const isWater = id === B.WATER;
-        const target = render === R_BLEND ? water : opaque;
+        // waterlogged plants render their cell as water from here on
+        const rid = info.waterlogged ? B.WATER : id;
+        const isFluid = rid === B.WATER || rid === B.LAVA;
+        // lava is opaque and glows; water is see-through
+        const target = render === R_BLEND && rid !== B.LAVA || info.waterlogged ? water : opaque;
         const orient = chunk.getMeta(x, y, z);
-        // water surface drops when there is no water above
-        const topY = isWater && getBlock(wx, y + 1, wz) !== B.WATER ? 0.875 : 1;
+        // a fluid's surface drops when there is no more of it above
+        const above = getBlock(wx, y + 1, wz);
+        const topY = isFluid && !(rid === B.WATER ? isWater(above) : above === rid) ? 0.875 : 1;
 
         for (const f of FACES) {
           const nx = wx + f.dir[0], ny = y + f.dir[1], nz = wz + f.dir[2];
           const nId = getBlock(nx, ny, nz);
-          if (!faceVisible(id, nId)) continue;
+          if (!faceVisible(rid, nId)) continue;
 
-          const layer = atlas.faceLayer(id, f.face, orient);
+          const layer = atlas.faceLayer(rid, f.face, orient);
 
           // Per-vertex AO + smooth light
           let aoSum03 = 0, aoSum12 = 0;
@@ -159,10 +196,10 @@ export function buildChunkGeometry(world, chunk, atlas) {
           const flip = aoVals[0] + aoVals[2] < aoVals[1] + aoVals[3];
 
           let corners = f.corners;
-          if ((isWater && topY !== 1) || (id === B.CACTUS)) {
-            // clone and shrink: water top drop / cactus inset sides
+          if ((isFluid && topY !== 1) || (id === B.CACTUS)) {
+            // clone and shrink: fluid top drop / cactus inset sides
             corners = f.corners.map((c) => [...c]);
-            if (isWater) for (const c of corners) { if (c[1] === 1) c[1] = topY; }
+            if (isFluid) for (const c of corners) { if (c[1] === 1) c[1] = topY; }
             if (id === B.CACTUS && f.dir[1] === 0) {
               for (const c of corners) {
                 if (f.dir[0] === 1) c[0] = 0.9375; else if (f.dir[0] === -1) c[0] = 0.0625;
