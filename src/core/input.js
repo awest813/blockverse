@@ -17,20 +17,24 @@ export class Input {
     this.onMouseUp = null;
     this.onWheel = null;
 
+    // every listener is registered with this signal so dispose() removes them all
+    this._abort = new AbortController();
+    const opts = { signal: this._abort.signal };
+
     document.addEventListener('keydown', (e) => {
       if (e.code === 'F3' || e.code === 'F5') e.preventDefault();
       if (this.onKeyDown && this.onKeyDown(e.code, e)) return;
       if (!this.captured) this.keys.add(e.code);
-    });
-    document.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => { this.keys.clear(); this.mouseButtons.clear(); });
+    }, opts);
+    document.addEventListener('keyup', (e) => this.keys.delete(e.code), opts);
+    window.addEventListener('blur', () => { this.keys.clear(); this.mouseButtons.clear(); }, opts);
 
     document.addEventListener('mousemove', (e) => {
       if (this.pointerLocked && !this.captured) {
         this.dx += e.movementX;
         this.dy += e.movementY;
       }
-    });
+    }, opts);
 
     canvas.addEventListener('mousedown', (e) => {
       if (this.captured) return;
@@ -40,17 +44,17 @@ export class Input {
       }
       this.mouseButtons.add(e.button);
       this.onMouseDown?.(e.button);
-    });
+    }, opts);
     document.addEventListener('mouseup', (e) => {
       this.mouseButtons.delete(e.button);
       this.onMouseUp?.(e.button);
-    });
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }, opts);
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault(), opts);
     canvas.addEventListener('wheel', (e) => {
       if (this.captured) return;
       this.wheel += Math.sign(e.deltaY);
       this.onWheel?.(Math.sign(e.deltaY));
-    }, { passive: true });
+    }, { passive: true, signal: this._abort.signal });
 
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === canvas;
@@ -59,7 +63,16 @@ export class Input {
         this.mouseButtons.clear();
         this.onLockLost?.();
       }
-    });
+      this.onLockChange?.(this.pointerLocked);
+    }, opts);
+  }
+
+  // AbortSignal for listeners other modules want torn down with this input
+  get signal() { return this._abort.signal; }
+
+  dispose() {
+    this._abort.abort();
+    this.releaseLock();
   }
 
   requestLock() {

@@ -8,6 +8,7 @@ import { furnaceState } from '../items/furnace.js';
 import { BLOCKS } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
+import { fillSlot } from './hud.js';
 
 // Slot abstraction: {get: () => stack|null, set: (stack) => void, filter?: (id)=>bool, output?: bool}
 
@@ -33,9 +34,42 @@ export class Containers {
     document.addEventListener('mousemove', (e) => {
       this.cursorEl.style.left = `${e.clientX - 18}px`;
       this.cursorEl.style.top = `${e.clientY - 18}px`;
-      this.tooltipEl.style.left = `${e.clientX + 14}px`;
-      this.tooltipEl.style.top = `${e.clientY + 10}px`;
-    });
+      this.positionTooltip(e.clientX, e.clientY);
+    }, { signal: game.input.signal });
+  }
+
+  dispose() {
+    this.cursorEl.remove();
+    this.tooltipEl.remove();
+  }
+
+  // keep the tooltip beside the pointer but inside the viewport
+  positionTooltip(x, y) {
+    const t = this.tooltipEl;
+    if (t.classList.contains('hidden')) return;
+    const w = t.offsetWidth, h = t.offsetHeight;
+    const left = x + 14 + w > window.innerWidth - 4 ? x - 10 - w : x + 14;
+    const top = Math.min(y + 10, window.innerHeight - h - 4);
+    t.style.left = `${Math.max(4, left)}px`;
+    t.style.top = `${Math.max(4, top)}px`;
+  }
+
+  showTooltip(stack, x, y) {
+    const info = itemInfo(stack.id);
+    const t = this.tooltipEl;
+    t.textContent = info?.display ?? '?';
+    if (stack.dur !== undefined && info?.tool) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      d.textContent = `Durability ${stack.dur} / ${info.tool.durability}`;
+      t.appendChild(d);
+    }
+    t.classList.remove('hidden');
+    this.positionTooltip(x, y);
+  }
+
+  hideTooltip() {
+    this.tooltipEl.classList.add('hidden');
   }
 
   isOpen() { return this.open !== null; }
@@ -84,7 +118,7 @@ export class Containers {
     this.furnacePos = null;
     this.root.innerHTML = '';
     this.renderCursor();
-    this.tooltipEl.classList.add('hidden');
+    this.hideTooltip();
     this.game.setUiOpen(false);
     this.game.hud.renderHotbar();
     this.game.input.requestLock();
@@ -104,6 +138,8 @@ export class Containers {
   }
 
   render() {
+    // the hovered slot is about to be replaced; its mouseleave will never fire
+    this.hideTooltip();
     this.root.innerHTML = '';
     const screen = document.createElement('div');
     screen.className = 'screen dim';
@@ -118,6 +154,8 @@ export class Containers {
         }
       }
     });
+    // right-click splits stacks; never let the browser menu open over the UI
+    screen.addEventListener('contextmenu', (e) => e.preventDefault());
     const win = document.createElement('div');
     win.className = 'inv-window';
     screen.appendChild(win);
@@ -134,43 +172,27 @@ export class Containers {
     }
 
     this.renderPlayerInv(win);
+
+    const hint = document.createElement('div');
+    hint.className = 'inv-hint';
+    hint.textContent = this.open === 'inventory' && this.player.mode === GAMEMODE_CREATIVE
+      ? 'Left-click: stack · Right-click: one · Click outside: drop · E: close'
+      : 'Right-click: split · Shift-click: move · Click outside: drop · E: close';
+    win.appendChild(hint);
     this.renderCursor();
   }
 
-  slotEl(ref, size = null) {
+  slotEl(ref) {
     const el = document.createElement('div');
     el.className = 'slot';
-    const stack = ref.get();
-    if (stack) {
-      const img = document.createElement('img');
-      img.src = this.atlas.icon(stack.id);
-      img.draggable = false;
-      el.appendChild(img);
-      if (stack.count > 1) {
-        const c = document.createElement('span');
-        c.className = 'count';
-        c.textContent = stack.count;
-        el.appendChild(c);
-      }
-      if (stack.dur !== undefined) {
-        const info = itemInfo(stack.id);
-        if (info?.tool && stack.dur < info.tool.durability) {
-          const bar = document.createElement('div');
-          bar.className = 'durability';
-          const fill = document.createElement('div');
-          fill.style.width = `${Math.round((stack.dur / info.tool.durability) * 100)}%`;
-          bar.appendChild(fill);
-          el.appendChild(bar);
-        }
-      }
-      el.addEventListener('mouseenter', () => {
-        const cur = ref.get();
-        if (!cur) return;
-        this.tooltipEl.textContent = itemInfo(cur.id)?.display ?? '?';
-        this.tooltipEl.classList.remove('hidden');
-      });
-      el.addEventListener('mouseleave', () => this.tooltipEl.classList.add('hidden'));
-    }
+    fillSlot(el, ref.get(), this.atlas);
+    // mousemove (not mouseenter) so the tooltip comes back after a re-render
+    el.addEventListener('mousemove', (e) => {
+      const cur = ref.get();
+      if (cur && !this.cursor) this.showTooltip(cur, e.clientX, e.clientY);
+      else this.hideTooltip();
+    });
+    el.addEventListener('mouseleave', () => this.hideTooltip());
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -239,7 +261,8 @@ export class Containers {
 
     const flame = document.createElement('div');
     flame.className = 'furnace-flame';
-    flame.textContent = st.burnLeft > 0 ? '🔥' : '▫';
+    flame.textContent = '🔥';
+    flame.classList.toggle('off', !(st.burnLeft > 0));
     const burnTrack = document.createElement('div');
     burnTrack.className = 'progress-track';
     const burnFill = document.createElement('div');
@@ -272,7 +295,7 @@ export class Containers {
 
   renderCreative(win) {
     const h3 = document.createElement('h3');
-    h3.textContent = 'Creative — click to grab a stack';
+    h3.textContent = 'All Items';
     win.appendChild(h3);
     const grid = document.createElement('div');
     grid.className = 'inv-grid cols-9';

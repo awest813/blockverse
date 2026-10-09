@@ -37,8 +37,9 @@ async function boot() {
 }
 
 async function startWorld(id) {
+  if (game) return; // guard against double-clicks starting two worlds
   const meta = await store.loadWorld(id);
-  if (!meta) return;
+  if (!meta || game) return;
   screens.showLoading(`Loading "${meta.name}"…`);
 
   const settings = screens.settings;
@@ -57,9 +58,9 @@ async function startWorld(id) {
       game.pause();
       screens.showPause();
     },
-    showDeath: () => {
+    showDeath: (cause) => {
       game.setUiOpen(true);
-      screens.showDeath();
+      screens.showDeath(cause);
     },
     handleKey: (code) => {
       if (code === 'Escape' && (screens.current === 'pause' || screens.current === 'settings-pause')) {

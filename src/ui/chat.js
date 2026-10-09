@@ -19,22 +19,44 @@ export class Chat {
     this.rowEl = document.getElementById('chat-input-row');
     this.inputEl = document.getElementById('chat-input');
     this.open = false;
+    this.history = [];      // previously sent lines, newest last
+    this.historyPos = 0;
+    this.logEl.innerHTML = '';
 
     this.inputEl.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
         const text = this.inputEl.value.trim();
         this.hide();
-        if (text) this.submit(text);
+        if (text) {
+          if (this.history[this.history.length - 1] !== text) this.history.push(text);
+          if (this.history.length > 50) this.history.shift();
+          this.submit(text);
+        }
       } else if (e.key === 'Escape') {
         this.hide();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!this.history.length) return;
+        const dir = e.key === 'ArrowUp' ? -1 : 1;
+        this.historyPos = Math.max(0, Math.min(this.history.length, this.historyPos + dir));
+        this.inputEl.value = this.history[this.historyPos] ?? '';
       }
-    });
+    }, { signal: game.input.signal });
+  }
+
+  dispose() {
+    this.open = false;
+    this.rowEl.classList.add('hidden');
+    this.logEl.classList.remove('open');
+    this.logEl.innerHTML = '';
   }
 
   show(prefill = '') {
     this.open = true;
+    this.historyPos = this.history.length;
     this.rowEl.classList.remove('hidden');
+    this.logEl.classList.add('open');   // reveal faded messages while typing
     this.inputEl.value = prefill;
     this.game.setUiOpen(true);
     setTimeout(() => this.inputEl.focus(), 0);
@@ -43,6 +65,7 @@ export class Chat {
   hide() {
     this.open = false;
     this.rowEl.classList.add('hidden');
+    this.logEl.classList.remove('open');
     this.inputEl.value = '';
     this.inputEl.blur();
     this.game.setUiOpen(false);
@@ -55,9 +78,9 @@ export class Chat {
     el.textContent = text;      // textContent: no HTML injection
     el.style.color = color;
     this.logEl.appendChild(el);
-    while (this.logEl.children.length > 12) this.logEl.firstChild.remove();
-    setTimeout(() => { el.style.opacity = '0'; }, 8000);
-    setTimeout(() => { el.remove(); }, 9500);
+    while (this.logEl.children.length > 30) this.logEl.firstChild.remove();
+    // fade out of the HUD but stay in the log, visible again while chat is open
+    setTimeout(() => el.classList.add('faded'), 8000);
   }
 
   submit(text) {

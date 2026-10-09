@@ -71,7 +71,7 @@ export class Game {
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.chat = new Chat(this);
     this._stepDistance = 0;
-    canvas.addEventListener('mousedown', () => this.sfx?.resume());
+    canvas.addEventListener('mousedown', () => this.sfx?.resume(), { signal: this.input.signal });
 
     // attack mobs on left click (takes priority over starting to mine)
     this.input.onMouseDown = (button) => {
@@ -113,8 +113,8 @@ export class Game {
       this.hud.renderStats();
       this.flashDamage();
     });
-    this.player.events.addEventListener('death', () => {
-      this.uiHooks?.showDeath?.();
+    this.player.events.addEventListener('death', (e) => {
+      this.uiHooks?.showDeath?.(e.detail?.cause);
     });
 
     this._onResize = () => {
@@ -309,6 +309,13 @@ export class Game {
     this.world.update(this.player.x, this.player.z, now, document.hidden ? 8 : 1);
     this.renderer.render(this.scene, this.camera);
 
+    // prompt the player to click when the game is live but the mouse isn't captured
+    const needClick = !this.uiOpen && !this.input.pointerLocked && !this.player.dead;
+    if (needClick !== this._promptShown) {
+      this._promptShown = needClick;
+      this.hud.setPrompt(needClick);
+    }
+
     this.statTimer += dt;
     if (this.statTimer > 0.25) {
       this.statTimer = 0;
@@ -413,6 +420,12 @@ export class Game {
     this.running = false;
     if (this.store) this.save();
     this.ticker.terminate();
+    // drop every document/window listener so a later world doesn't inherit them
+    this.input.dispose();
+    this.containers.dispose();
+    this.chat.dispose();
+    this.hud.hide();
+    this.canvas.style.filter = 'none';
     document.removeEventListener('visibilitychange', this._onVisibility);
     window.removeEventListener('resize', this._onResize);
     this.entities.dispose();
