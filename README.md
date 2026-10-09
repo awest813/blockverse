@@ -52,9 +52,9 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Distance fog that follows your render-distance setting; underwater fog and tint when you dive
 
 ### 🖥️ Complete game shell
-- Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, delete
+- Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
 - **Saving is automatic** (IndexedDB): modified chunks, player state, inventory, time of day, and furnace contents all persist
-- Pause menu, settings (render distance, FOV, mouse sensitivity, volume — applied live), death screen, loading screen
+- Pause menu with a controls cheat sheet, settings (render distance, FOV, volume, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - HUD: hotbar with icons & durability bars, hearts, hunger, air bubbles, crosshair, block-break cracks and selection outline
 - **F3 debug overlay**: FPS, position, chunk, biome, light levels, draw calls, triangle count
 - **Chat & command console**: `/tp`, `/time set`, `/give`, `/gamemode`, `/seed`, `/heal`, `/rd`, and more
@@ -75,16 +75,18 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 | **Left click** | Mine block / attack |
 | **Right click** | Place block / use (crafting table, furnace) / eat |
 | **Space** | Jump / swim up (double-tap in creative: toggle flight) |
-| **Ctrl** | Sprint |
+| **Ctrl** / double-tap **W** | Sprint |
 | **Shift** | Sneak (you won't fall off edges) / fly down |
 | **1–9 / mouse wheel** | Select hotbar slot |
 | **E** | Inventory (creative: item palette) |
-| **Q** | Drop held item |
+| **Q** | Drop held item (Ctrl+Q: whole stack) |
+| **Middle click** | Pick block |
 | **T** or **/** | Chat / command console |
+| **F1** | Hide HUD |
 | **F3** | Debug overlay |
 | **Esc** | Pause |
 
-Full details in [docs/CONTROLS.md](docs/CONTROLS.md).
+All keys can be rebound in **Settings → Controls**. Full details in [docs/CONTROLS.md](docs/CONTROLS.md).
 
 ## Commands
 

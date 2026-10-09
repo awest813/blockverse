@@ -12,7 +12,8 @@ import { Sky } from './render/sky.js';
 import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { MobSpawner } from './entities/mobSpawner.js';
-import { itemInfo } from './items/items.js';
+import { itemInfo, isBlockItem, makeStack, maxStack } from './items/items.js';
+import { resolveBindings } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
 import { blockInfo } from './blocks/blocks.js';
@@ -75,6 +76,7 @@ export class Game {
 
     // attack mobs on left click (takes priority over starting to mine)
     this.input.onMouseDown = (button) => {
+      if (button === 1 && !this.uiOpen && !this.player.dead) { this.pickBlock(); return; }
       if (button !== 0 || this.uiOpen || this.player.dead) return;
       const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
       const dir = this.player.lookDir();
@@ -156,20 +158,31 @@ export class Game {
   }
 
   bindKeys() {
+    const input = this.input;
     this.input.onKeyDown = (code, e) => {
       if (this.uiHooks?.handleKey?.(code, e)) return true;
 
-      if (code === 'KeyE' || (code === 'Escape' && this.containers.isOpen())) {
-        if (this.containers.isOpen()) this.containers.close();
-        else if (code === 'KeyE' && !this.uiOpen && !this.player.dead) this.containers.openInventory();
+      // inventory-style screens: E / Esc close, 1-9 and drop act on the hovered slot
+      if (this.containers.isOpen()) {
+        if (code === 'Escape' || input.is(code, 'inventory')) {
+          this.containers.close();
+          return true;
+        }
+        const n = code.startsWith('Digit') ? parseInt(code.slice(5), 10) : 0;
+        if (n >= 1 && n <= 9) { this.containers.swapHoveredWithHotbar(n - 1); return true; }
+        if (input.is(code, 'drop')) { this.containers.dropHovered(e.ctrlKey); return true; }
+        return false;
+      }
+      if (input.is(code, 'inventory') && !this.uiOpen && !this.player.dead) {
+        this.containers.openInventory();
         return true;
       }
       if (code === 'Escape' && !this.uiOpen && !this.player.dead) {
         this.uiHooks?.showPause?.();
         return true;
       }
-      if ((code === 'KeyT' || code === 'Slash') && !this.uiOpen && !this.player.dead) {
-        this.chat.show(code === 'Slash' ? '/' : '');
+      if ((input.is(code, 'chat') || input.is(code, 'command')) && !this.uiOpen && !this.player.dead) {
+        this.chat.show(input.is(code, 'command') ? '/' : '');
         return true;
       }
       if (this.uiOpen) return false;
@@ -182,24 +195,30 @@ export class Game {
           return true;
         }
       }
-      switch (code) {
-        case 'F3':
-          this.hud.toggleDebug();
-          return true;
-        case 'Space':
-          this.player.tapSpace(performance.now());
-          return false;
-        case 'KeyQ': {
-          const s = this.player.heldStack();
-          if (s) {
-            const dir = this.player.lookDir();
-            this.entities.spawnDrops(
-              this.player.x + dir.x, this.player.eyeY - 0.3, this.player.z + dir.z,
-              [{ id: s.id, count: 1 }]);
-            this.player.consumeHeld(1);
-          }
-          return true;
+      if (input.is(code, 'debug')) {
+        e.preventDefault();
+        this.hud.toggleDebug();
+        return true;
+      }
+      if (input.is(code, 'hideHud')) {
+        e.preventDefault();
+        this.hud.toggleHidden();
+        return true;
+      }
+      if (input.is(code, 'jump') && !e.repeat) this.player.tapSpace(performance.now());
+      if (input.is(code, 'forward') && !e.repeat) this.player.tapForward(performance.now());
+      if (input.is(code, 'drop')) {
+        const s = this.player.heldStack();
+        if (s) {
+          // Ctrl+drop throws the whole stack
+          const count = e.ctrlKey ? s.count : 1;
+          const dir = this.player.lookDir();
+          this.entities.spawnDrops(
+            this.player.x + dir.x, this.player.eyeY - 0.3, this.player.z + dir.z,
+            [{ ...s, count }]);
+          this.player.consumeHeld(count);
         }
+        return true;
       }
       return false;
     };
@@ -213,6 +232,37 @@ export class Game {
     this.input.onLockLost = () => {
       if (!this.uiOpen && this.running) this.uiHooks?.showPause?.();
     };
+  }
+
+  // Middle click: select the targeted block in the hotbar (creative: conjure it).
+  pickBlock() {
+    const t = this.interaction.target;
+    if (!t) return;
+    let id = t.id === B.FURNACE_LIT ? B.FURNACE : t.id;
+    if (!isBlockItem(id) || id === B.WATER) return;
+    const p = this.player;
+    const inv = p.inventory;
+    const hot = inv.findIndex((s, i) => i < 9 && s?.id === id);
+    if (hot >= 0) {
+      p.selected = hot;
+    } else {
+      const found = inv.findIndex((s, i) => i >= 9 && s?.id === id);
+      if (found >= 0) {
+        // survival: swap the stack from the backpack into the selected slot
+        const empty = inv.findIndex((s, i) => i < 9 && !s);
+        if (empty >= 0) p.selected = empty;
+        [inv[p.selected], inv[found]] = [inv[found], inv[p.selected]];
+      } else if (p.mode === GAMEMODE_CREATIVE) {
+        const empty = inv.findIndex((s, i) => i < 9 && !s);
+        if (empty >= 0) p.selected = empty;
+        inv[p.selected] = makeStack(id, maxStack(id));
+      } else {
+        return;
+      }
+      p.events.dispatchEvent(new CustomEvent('inventory'));
+    }
+    this.hud.renderHotbar();
+    this.hud.showLabel();
   }
 
   setUiOpen(open) {
@@ -390,6 +440,8 @@ export class Game {
     this.camera.fov = s.fov;
     this.camera.updateProjectionMatrix();
     this.player.sensitivity = s.sensitivity;
+    this.player.invertY = !!s.invertY;
+    this.input.bindings = resolveBindings(s.keys);
     this.sfx?.setVolume(s.volume);
   }
 

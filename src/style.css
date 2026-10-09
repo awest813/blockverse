@@ -57,6 +57,9 @@ html, body {
 }
 @keyframes pulse { 50% { opacity: 0.55; } }
 
+/* F1: hide the HUD except chat and the click prompt */
+#hud.bare > :not(#chat-log):not(#chat-input-row):not(#click-to-play) { visibility: hidden; }
+
 #hotbar {
   position: absolute; left: 50%; bottom: 8px;
   transform: translateX(-50%);
@@ -379,8 +382,39 @@ html, body {
   border: 2px solid rgba(255, 255, 255, 0.12);
   width: min(440px, 100%);
 }
+.settings-panel { max-height: min(56vh, 520px); overflow-y: auto; }
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
-.setting-row label { flex: 1; font-size: 14px; }
+.setting-row label, .setting-row .setting-label { flex: 1; font-size: 14px; }
+.setting-group {
+  margin-top: 8px; padding-bottom: 2px;
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  color: #ffd83d; border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.setting-group:first-of-type { margin-top: 4px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: -14px; }
+.tab {
+  padding: 7px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.12); border-bottom: none;
+  color: #aaa; font: inherit; font-size: 13px;
+  cursor: pointer;
+}
+.tab:hover { color: #fff; }
+.tab[aria-selected="true"] { background: rgba(0, 0, 0, 0.4); color: #fff; border-color: rgba(255, 255, 255, 0.25); }
+.tab:focus-visible, .toggle:focus-visible, .keybind:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.toggle, .keybind {
+  min-width: 110px; padding: 5px 10px;
+  background: #222; border: 2px solid #555;
+  color: #fff; font: inherit; font-size: 13px;
+  cursor: pointer;
+}
+.toggle:hover, .keybind:hover { border-color: #999; }
+.toggle[aria-pressed="true"] { background: #3f6e2a; border-color: var(--accent); }
+.keybind.changed { color: #ffd83d; }
+.keybind.conflict { border-color: #e53935; color: #ff8a80; }
+.keybind.listening { border-color: var(--focus); background: #3a3420; color: #ffd83d; animation: pulse 1s ease-in-out infinite; }
 .setting-row input[type=range] { flex: 1.2; min-width: 0; accent-color: var(--accent); cursor: pointer; }
 .setting-row .val { width: 72px; text-align: right; font-size: 13px; color: #ccc; font-variant-numeric: tabular-nums; }
 

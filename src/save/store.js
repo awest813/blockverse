@@ -64,6 +64,14 @@ export class SaveStore {
     await req(this.tx('worlds', 'readwrite').put(meta));
   }
 
+  // rename without bumping lastPlayed, so the world list order doesn't change
+  async renameWorld(id, name) {
+    const meta = await this.loadWorld(id);
+    if (!meta) return;
+    meta.name = name;
+    await req(this.tx('worlds', 'readwrite').put(meta));
+  }
+
   async deleteWorld(id) {
     await req(this.tx('worlds', 'readwrite').delete(id));
     const range = IDBKeyRange.bound(`${id}:`, `${id}:￿`);
@@ -102,6 +110,8 @@ export const DEFAULT_SETTINGS = {
   fov: 75,
   sensitivity: 1,
   volume: 0.5,
+  invertY: false,
+  keys: {},          // action id -> KeyboardEvent.code overrides (see core/keybinds.js)
 };
 
 export function loadSettings() {

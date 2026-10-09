@@ -72,6 +72,7 @@ export class Hud {
   show() { this.root.classList.remove('hidden'); }
   hide() {
     this.root.classList.add('hidden');
+    this.root.classList.remove('bare');
     this.setPrompt(false);
   }
 
@@ -151,5 +152,10 @@ export class Hud {
 
   toggleDebug() {
     this.debugEl.classList.toggle('hidden');
+  }
+
+  // F1: hide everything but chat, for screenshots
+  toggleHidden() {
+    this.root.classList.toggle('bare');
   }
 }

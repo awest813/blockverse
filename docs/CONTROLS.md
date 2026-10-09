@@ -1,5 +1,10 @@
 # Controls & Commands
 
+All keyboard controls below are defaults. Rebind them in **Settings → Controls**
+(click a key, press the new one; Esc cancels). Conflicting bindings are shown in
+red, and **Reset Keys** restores the defaults. Esc and 1–9 can't be rebound.
+The same tab has mouse sensitivity and **Invert mouse Y**.
+
 ## Movement
 
 | Input | Action |
@@ -7,7 +12,7 @@
 | W / A / S / D | Walk |
 | Mouse | Look around (click the game once to capture the mouse) |
 | Space | Jump; hold to swim upward in water |
-| Ctrl (hold) | Sprint (needs food > 3 drumsticks) |
+| Ctrl, or double-tap W | Sprint until you stop moving forward (needs food > 3 drumsticks) |
 | Shift (hold) | Sneak — slower, and you cannot walk off block edges |
 | Space ×2 (creative) | Toggle flight; Space/Shift to fly up/down |
 
@@ -20,7 +25,8 @@
 | Right click | Place the held block |
 | Right click on crafting table / furnace | Open it (sneak to place a block against it instead) |
 | Right click with food | Eat |
-| Q | Drop one of the held item |
+| Q | Drop one of the held item (Ctrl+Q: the whole stack) |
+| Middle click | Pick block: select the targeted block in your hotbar (creative: get a stack) |
 | 1–9 / mouse wheel | Select hotbar slot |
 
 ## Screens
@@ -30,6 +36,7 @@
 | E | Open/close inventory (survival: with 2×2 crafting; creative: item palette) |
 | Esc | Close screen / pause menu |
 | T or / | Open chat (/ pre-fills a command) |
+| F1 | Hide the HUD |
 | F3 | Debug overlay |
 
 ### Inventory mouse rules
@@ -39,6 +46,8 @@
 - Shift+click: quick-move between areas (into furnace slots, hotbar ↔ backpack)
 - Shift+click a craft result: craft as many as fit into your inventory
 - Click outside the window: throw the cursor stack on the ground
+- 1–9 while hovering a slot: swap it with that hotbar slot
+- Q while hovering a slot: drop one item (Ctrl+Q: the whole stack)
 
 ## Mining rules
 

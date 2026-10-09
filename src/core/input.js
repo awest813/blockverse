@@ -1,6 +1,8 @@
 // Input manager: keyboard, mouse, pointer lock. UI layers can pause
 // game input by pushing "capture" (e.g. inventory open).
 
+import { resolveBindings } from './keybinds.js';
+
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -11,6 +13,7 @@ export class Input {
     this.wheel = 0;
     this.captured = false;      // true when a UI layer owns input
     this.pointerLocked = false;
+    this.bindings = resolveBindings();   // action id -> KeyboardEvent.code
 
     this.onKeyDown = null;      // (code, event) => bool handled
     this.onMouseDown = null;    // (button) => void
@@ -22,7 +25,7 @@ export class Input {
     const opts = { signal: this._abort.signal };
 
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'F3' || e.code === 'F5') e.preventDefault();
+      if (e.code === 'F1' || e.code === 'F3' || e.code === 'F5') e.preventDefault();
       if (this.onKeyDown && this.onKeyDown(e.code, e)) return;
       if (!this.captured) this.keys.add(e.code);
     }, opts);
@@ -92,6 +95,16 @@ export class Input {
 
   down(code) {
     return !this.captured && this.keys.has(code);
+  }
+
+  // is the key bound to this action held?
+  action(id) {
+    return this.down(this.bindings[id]);
+  }
+
+  // does this key code trigger the action?
+  is(code, id) {
+    return this.bindings[id] === code;
   }
 
   mouseDown(button) {

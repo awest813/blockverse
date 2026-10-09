@@ -48,6 +48,9 @@ export class Player {
 
     // double-tap space tracking for fly toggle
     this._lastSpace = -1;
+    this._lastForward = -1;
+    this.sprintLatch = false;
+    this.invertY = false;
 
     this.events = new EventTarget();
   }
@@ -80,7 +83,7 @@ export class Player {
     if (!paused) {
       const sens = 0.0023 * (this.sensitivity ?? 1);
       this.yaw -= input.dx * sens;
-      this.pitch -= input.dy * sens;
+      this.pitch -= input.dy * sens * (this.invertY ? -1 : 1);
       this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
     }
 
@@ -90,13 +93,16 @@ export class Player {
     // movement intent
     let fwd = 0, strafe = 0;
     if (!paused) {
-      if (input.down('KeyW')) fwd += 1;
-      if (input.down('KeyS')) fwd -= 1;
-      if (input.down('KeyD')) strafe += 1;
-      if (input.down('KeyA')) strafe -= 1;
+      if (input.action('forward')) fwd += 1;
+      if (input.action('back')) fwd -= 1;
+      if (input.action('right')) strafe += 1;
+      if (input.action('left')) strafe -= 1;
     }
-    this.sneaking = !paused && input.down('ShiftLeft') && !this.flying;
-    this.sprinting = !paused && input.down('ControlLeft') && fwd > 0 && !this.sneaking && this.hunger > 6;
+    this.sneaking = !paused && input.action('sneak') && !this.flying;
+    // sprint lasts while moving forward once started (sprint key or double-tap forward)
+    if (fwd <= 0 || this.sneaking || this.hunger <= 6) this.sprintLatch = false;
+    else if (!paused && input.action('sprint')) this.sprintLatch = true;
+    this.sprinting = !paused && this.sprintLatch;
 
     const creative = this.mode === GAMEMODE_CREATIVE;
     if (!creative) this.flying = false;
@@ -120,17 +126,17 @@ export class Player {
 
     if (this.flying) {
       let vy = 0;
-      if (!paused && input.down('Space')) vy += FLY_SPEED;
-      if (!paused && input.down('ShiftLeft')) vy -= FLY_SPEED;
+      if (!paused && input.action('jump')) vy += FLY_SPEED;
+      if (!paused && input.action('sneak')) vy -= FLY_SPEED;
       this.vy += (vy - this.vy) * Math.min(1, 24 * dt);
     } else if (this.inWater) {
       this.vy -= GRAVITY * 0.25 * dt;
       this.vy = Math.max(this.vy, -3.5);
-      if (!paused && input.down('Space')) this.vy = Math.min(this.vy + 24 * dt, 3.2);
+      if (!paused && input.action('jump')) this.vy = Math.min(this.vy + 24 * dt, 3.2);
     } else {
       this.vy -= GRAVITY * dt;
       this.vy = Math.max(this.vy, -60);
-      if (!paused && input.down('Space') && this.onGround) {
+      if (!paused && input.action('jump') && this.onGround) {
         this.vy = JUMP_SPEED;
         this.addExhaustion(this.sprinting ? 0.2 : 0.05);
       }
@@ -180,6 +186,12 @@ export class Player {
     } else {
       this._lastSpace = now;
     }
+  }
+
+  // double-tap forward starts sprinting (avoids Ctrl+W closing the browser tab)
+  tapForward(now) {
+    if (now - this._lastForward < 300 && this.hunger > 6) this.sprintLatch = true;
+    this._lastForward = now;
   }
 
   updateSurvival(dt) {

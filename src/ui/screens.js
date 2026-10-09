@@ -4,6 +4,7 @@
 import { hashString } from '../core/rng.js';
 import { GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { loadSettings, saveSettings } from '../save/store.js';
+import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
 
 const DEATH_MESSAGES = {
   fall: 'You hit the ground too hard',
@@ -14,14 +15,19 @@ const DEATH_MESSAGES = {
   command: 'You were killed by a command',
 };
 
-const CONTROLS = [
-  ['WASD', 'Move'], ['Mouse', 'Look'],
-  ['Left click', 'Mine / attack'], ['Right click', 'Place / use'],
-  ['Space', 'Jump (double-tap: fly in creative)'], ['Ctrl / Shift', 'Sprint / sneak'],
-  ['1–9 / wheel', 'Hotbar'], ['E', 'Inventory'],
-  ['Q', 'Drop item'], ['T or /', 'Chat & commands'],
-  ['F3', 'Debug info'], ['Esc', 'Pause'],
-];
+// Pause-screen cheat sheet, labelled with the player's current bindings.
+function controlsList(bindings) {
+  const k = (id) => keyLabel(bindings[id]);
+  return [
+    [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Move'], ['Mouse', 'Look'],
+    ['Left click', 'Mine / attack'], ['Right click', 'Place / use'],
+    [k('jump'), 'Jump (double-tap: fly in creative)'], [`${k('sprint')} / ${k('sneak')}`, 'Sprint / sneak'],
+    ['Middle click', 'Pick block'], ['1–9 / wheel', 'Hotbar'],
+    [k('inventory'), 'Inventory'], [k('drop'), 'Drop item (Ctrl: stack)'],
+    [`${k('chat')} or ${k('command')}`, 'Chat & commands'], [k('hideHud'), 'Hide HUD'],
+    [k('debug'), 'Debug info'], ['Esc', 'Pause'],
+  ];
+}
 
 function timeAgo(ts) {
   if (!ts) return 'never played';
@@ -46,16 +52,26 @@ export class Screens {
     this.current = null;
     this.settings = loadSettings();
     this.onKey = null;   // per-screen keyboard handler for menus outside a game
+    this.rebind = null;  // set while a keybind button waits for its new key
 
     document.addEventListener('keydown', (e) => {
       if (this.onKey && this.onKey(e)) e.preventDefault();
     });
+    // capture phase on window runs before the game's document listener, so the
+    // key being bound (even Esc or E) never reaches gameplay or menu handlers
+    window.addEventListener('keydown', (e) => {
+      if (!this.rebind) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.rebind(e);
+    }, true);
   }
 
   clear() {
     this.root.innerHTML = '';
     this.current = null;
     this.onKey = null;
+    this.rebind = null;
   }
 
   screen(className = 'screen menu-bg') {
@@ -98,13 +114,13 @@ export class Screens {
 
   // ---------- main menu ----------
 
-  async showMain() {
+  async showMain(selectId = null) {
     const worlds = await this.store.listWorlds();
     const el = this.screen();
     this.current = 'main';
     this.title(el);
 
-    let selected = worlds[0]?.id ?? null;
+    let selected = (worlds.find((w) => w.id === selectId) ?? worlds[0])?.id ?? null;
 
     const list = document.createElement('div');
     list.className = 'world-list';
@@ -123,8 +139,12 @@ export class Screens {
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
         await this.store.deleteWorld(w.id);
         this.showMain();
-      }, () => this.showMain());
+      }, () => this.showMain(w.id));
     }, 'btn small danger');
+    const renameBtn = this.btn('Rename…', () => {
+      const w = worlds.find((x) => x.id === selected);
+      if (w) this.showRename(w);
+    }, 'btn small');
 
     const entries = new Map();
     const select = (id, focus = false) => {
@@ -138,6 +158,7 @@ export class Screens {
       }
       playBtn.disabled = !selected;
       deleteBtn.disabled = !selected;
+      renameBtn.disabled = !selected;
     };
 
     for (const w of worlds) {
@@ -178,8 +199,9 @@ export class Screens {
     row2.className = 'row';
     const createBtn = this.btn('Create New World', () => this.showCreate(), worlds.length ? 'btn small' : 'btn small primary');
     row2.appendChild(createBtn);
-    row2.appendChild(this.btn('Settings', () => this.showSettings(() => this.showMain()), 'btn small'));
+    row2.appendChild(renameBtn);
     row2.appendChild(deleteBtn);
+    row2.appendChild(this.btn('Settings', () => this.showSettings(() => this.showMain(selected)), 'btn small'));
     el.appendChild(row2);
 
     const foot = document.createElement('div');
@@ -191,7 +213,7 @@ export class Screens {
     if (selected) entries.get(selected).focus();
     else createBtn.focus();
 
-    // arrow keys move the selection, Enter plays, Delete asks to delete
+    // arrow keys move the selection, Enter plays, F2 renames, Delete asks to delete
     this.onKey = (e) => {
       if (e.target instanceof HTMLButtonElement && e.key === 'Enter') return false;
       const ids = worlds.map((w) => w.id);
@@ -200,8 +222,48 @@ export class Screens {
       if (e.key === 'ArrowUp' && ids.length) { select(ids[Math.max(0, i - 1)], true); return true; }
       if (e.key === 'Enter' && selected) { this.onPlay(selected); return true; }
       if (e.key === 'Delete' && selected) { deleteBtn.click(); return true; }
+      if (e.key === 'F2' && selected) { renameBtn.click(); return true; }
       return false;
     };
+  }
+
+  // ---------- rename world ----------
+
+  showRename(w) {
+    const el = this.screen();
+    this.current = 'rename';
+    this.heading(el, 'Rename World');
+    const form = document.createElement('form');
+    form.className = 'form';
+    const f = document.createElement('div');
+    f.className = 'field';
+    const input = document.createElement('input');
+    input.id = 'rename-input';
+    input.value = w.name;
+    input.maxLength = 32;
+    input.autocomplete = 'off';
+    const l = document.createElement('label');
+    l.htmlFor = input.id;
+    l.textContent = 'World name';
+    f.appendChild(l);
+    f.appendChild(input);
+    form.appendChild(f);
+    const save = this.btn('Save', () => {}, 'btn primary');
+    save.type = 'submit';
+    form.appendChild(save);
+    el.appendChild(form);
+    el.appendChild(this.btn('Cancel', () => this.showMain(w.id), 'btn small'));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (name && name !== w.name) await this.store.renameWorld(w.id, name);
+      this.showMain(w.id);
+    });
+    this.onKey = (e) => {
+      if (e.key === 'Escape') { this.showMain(w.id); return true; }
+      return false;
+    };
+    setTimeout(() => { input.focus(); input.select(); }, 0);
   }
 
   // ---------- confirm dialog ----------
@@ -363,7 +425,7 @@ export class Screens {
 
     const help = document.createElement('dl');
     help.className = 'controls';
-    for (const [k, v] of CONTROLS) {
+    for (const [k, v] of controlsList(resolveBindings(this.settings.keys))) {
       const dt = document.createElement('dt');
       dt.textContent = k;
       const dd = document.createElement('dd');
@@ -376,30 +438,48 @@ export class Screens {
 
   // ---------- settings ----------
 
-  showSettings(back) {
+  showSettings(back, tab = 'general') {
     const inGame = this.current === 'pause' || this.current === 'settings-pause';
     const el = this.screen(inGame ? 'screen dim' : 'screen menu-bg');
     this.current = inGame ? 'settings-pause' : 'settings';
     this.heading(el, 'Settings');
 
+    const tabs = document.createElement('div');
+    tabs.className = 'tabs';
+    tabs.setAttribute('role', 'tablist');
+    for (const [id, label] of [['general', 'Video & Sound'], ['controls', 'Controls']]) {
+      const t = this.btn(label, () => { if (id !== tab) this.showSettings(back, id); }, 'tab');
+      t.setAttribute('role', 'tab');
+      t.setAttribute('aria-selected', String(id === tab));
+      tabs.appendChild(t);
+    }
+    el.appendChild(tabs);
+
     const panel = document.createElement('div');
     panel.className = 'settings-panel';
+    panel.setAttribute('role', 'tabpanel');
     el.appendChild(panel);
 
     let n = 0;
+    const row = (label, control, extra = null) => {
+      const r = document.createElement('div');
+      r.className = 'setting-row';
+      control.id = `setting-${++n}`;
+      const l = document.createElement('label');
+      l.htmlFor = control.id;
+      l.textContent = label;
+      r.appendChild(l);
+      r.appendChild(control);
+      if (extra) r.appendChild(extra);
+      panel.appendChild(r);
+      return r;
+    };
     const slider = (label, min, max, step, value, fmt, onChange) => {
-      const row = document.createElement('div');
-      row.className = 'setting-row';
       const input = document.createElement('input');
       input.type = 'range';
-      input.id = `setting-${++n}`;
       input.min = min; input.max = max; input.step = step; input.value = value;
-      const l = document.createElement('label');
-      l.htmlFor = input.id;
-      l.textContent = label;
       const val = document.createElement('output');
       val.className = 'val';
-      val.htmlFor = input.id;
       val.textContent = fmt(value);
       input.addEventListener('input', () => {
         const v = parseFloat(input.value);
@@ -407,18 +487,51 @@ export class Screens {
         onChange(v);
         this.applySettings();
       });
-      row.appendChild(l); row.appendChild(input); row.appendChild(val);
-      panel.appendChild(row);
+      row(label, input, val);
+      val.htmlFor = input.id;
       return input;
+    };
+    const toggle = (label, value, onChange) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'toggle';
+      const paint = (v) => { b.textContent = v ? 'On' : 'Off'; b.setAttribute('aria-pressed', String(v)); };
+      paint(value);
+      b.addEventListener('click', () => {
+        value = !value;
+        paint(value);
+        this.sfx?.play('click');
+        onChange(value);
+        this.applySettings();
+      });
+      row(label, b);
+      return b;
     };
 
     const s = this.settings;
-    const first = slider('Render distance', 2, 16, 1, s.renderDistance, (v) => `${v} chunks`, (v) => { s.renderDistance = v; });
-    slider('Field of view', 60, 110, 1, s.fov, (v) => `${v}°`, (v) => { s.fov = v; });
-    slider('Mouse sensitivity', 0.2, 2.5, 0.05, s.sensitivity, (v) => `${(+v).toFixed(2)}×`, (v) => { s.sensitivity = v; });
-    slider('Volume', 0, 1, 0.05, s.volume, (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`), (v) => { s.volume = v; });
+    let first;
+    if (tab === 'general') {
+      first = slider('Render distance', 2, 16, 1, s.renderDistance, (v) => `${v} chunks`, (v) => { s.renderDistance = v; });
+      slider('Field of view', 60, 110, 1, s.fov, (v) => `${v}°`, (v) => { s.fov = v; });
+      slider('Volume', 0, 1, 0.05, s.volume, (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`), (v) => { s.volume = v; });
+    } else {
+      first = slider('Mouse sensitivity', 0.2, 2.5, 0.05, s.sensitivity, (v) => `${(+v).toFixed(2)}×`, (v) => { s.sensitivity = v; });
+      toggle('Invert mouse Y', !!s.invertY, (v) => { s.invertY = v; });
+      this.renderKeybinds(panel, back);
+    }
 
-    el.appendChild(this.btn('Done', () => back(), 'btn small'));
+    const footer = document.createElement('div');
+    footer.className = 'row';
+    if (tab === 'controls') {
+      footer.appendChild(this.btn('Reset Keys', () => {
+        s.keys = {};
+        this.applySettings();
+        this.showSettings(back, 'controls');
+      }, 'btn small'));
+    }
+    footer.appendChild(this.btn('Done', () => back(), 'btn small primary'));
+    el.appendChild(footer);
+
     if (!inGame) first.focus();
     // in-game, Escape is routed through the game's key handler (resumes play)
     if (!inGame) {
@@ -427,6 +540,62 @@ export class Screens {
         return false;
       };
     }
+  }
+
+  renderKeybinds(panel, back) {
+    const s = this.settings;
+    const bindings = resolveBindings(s.keys);
+    const conflicts = findConflicts(bindings);
+    let group = null;
+    for (const a of ACTIONS) {
+      if (a.group !== group) {
+        group = a.group;
+        const h = document.createElement('div');
+        h.className = 'setting-group';
+        h.textContent = group;
+        panel.appendChild(h);
+      }
+      const r = document.createElement('div');
+      r.className = 'setting-row';
+      const l = document.createElement('span');
+      l.className = 'setting-label';
+      l.textContent = a.label;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'keybind';
+      b.textContent = keyLabel(bindings[a.id]);
+      b.classList.toggle('conflict', conflicts.has(a.id));
+      b.classList.toggle('changed', bindings[a.id] !== a.def);
+      b.setAttribute('aria-label', `${a.label}: ${keyLabel(bindings[a.id])}. Press to change.`);
+      if (conflicts.has(a.id)) b.title = 'This key is also bound to another action';
+      b.addEventListener('click', () => {
+        this.sfx?.play('click');
+        panel.querySelectorAll('.keybind.listening').forEach((x) => {
+          x.classList.remove('listening');
+          x.textContent = keyLabel(bindings[x.dataset.action]);
+        });
+        b.classList.add('listening');
+        b.textContent = 'Press a key…';
+        this.rebind = (e) => {
+          this.rebind = null;
+          if (e.code !== 'Escape' && !RESERVED.has(e.code)) {
+            if (e.code === a.def) delete s.keys[a.id];
+            else s.keys = { ...s.keys, [a.id]: e.code };
+            this.applySettings();
+          }
+          this.showSettings(back, 'controls');
+        };
+      });
+      b.dataset.action = a.id;
+      r.appendChild(l);
+      r.appendChild(b);
+      panel.appendChild(r);
+    }
+    const note = document.createElement('div');
+    note.className = 'field-hint';
+    note.textContent = 'Click a key to change it, then press the new key (Esc cancels). '
+      + 'Double-tap forward also sprints. Esc and 1–9 are fixed.';
+    panel.appendChild(note);
   }
 
   applySettings() {

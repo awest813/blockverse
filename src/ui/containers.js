@@ -23,6 +23,7 @@ export class Containers {
     this.craftGrid = new Array(9).fill(null); // stacks in the 3x3 (or 2x2) grid
     this.craftSize = 2;
     this.furnacePos = null;
+    this.hovered = null;          // slot ref under the mouse, for 1-9 / drop keys
 
     this.cursorEl = document.createElement('div');
     this.cursorEl.id = 'cursor-stack';
@@ -116,6 +117,7 @@ export class Containers {
     }
     this.open = null;
     this.furnacePos = null;
+    this.hovered = null;
     this.root.innerHTML = '';
     this.renderCursor();
     this.hideTooltip();
@@ -140,6 +142,7 @@ export class Containers {
   render() {
     // the hovered slot is about to be replaced; its mouseleave will never fire
     this.hideTooltip();
+    // this.hovered survives: the pointer is still over the same slot position
     this.root.innerHTML = '';
     const screen = document.createElement('div');
     screen.className = 'screen dim';
@@ -188,11 +191,15 @@ export class Containers {
     fillSlot(el, ref.get(), this.atlas);
     // mousemove (not mouseenter) so the tooltip comes back after a re-render
     el.addEventListener('mousemove', (e) => {
+      this.hovered = ref;
       const cur = ref.get();
       if (cur && !this.cursor) this.showTooltip(cur, e.clientX, e.clientY);
       else this.hideTooltip();
     });
-    el.addEventListener('mouseleave', () => this.hideTooltip());
+    el.addEventListener('mouseleave', () => {
+      if (this.hovered === ref) this.hovered = null;
+      this.hideTooltip();
+    });
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -564,6 +571,36 @@ export class Containers {
       }
     }
     ref.set(stack.count > 0 ? stack : null);
+  }
+
+  // number key over a slot: swap it with that hotbar slot
+  swapHoveredWithHotbar(i) {
+    const ref = this.hovered;
+    if (!ref || this.cursor || ref.output) return;
+    const inv = this.player.inventory;
+    if (ref.creative !== undefined) {
+      inv[i] = makeStack(ref.creative, maxStack(ref.creative));
+    } else {
+      if (ref.area === 'inv' && ref.index === i) return;
+      const here = ref.get();
+      const there = inv[i];
+      if (there && ref.filter && !ref.filter(there.id)) return;
+      ref.set(there);
+      inv[i] = here;
+    }
+    this.afterChange();
+  }
+
+  // drop key over a slot: throw one item (or the whole stack)
+  dropHovered(all) {
+    const ref = this.hovered;
+    if (!ref || this.cursor || ref.output || ref.creative !== undefined) return;
+    const s = ref.get();
+    if (!s) return;
+    const n = all ? s.count : 1;
+    this.dropStack({ ...s, count: n });
+    ref.set(s.count - n > 0 ? { ...s, count: s.count - n } : null);
+    this.afterChange();
   }
 
   afterChange() {
