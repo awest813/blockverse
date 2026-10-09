@@ -94,6 +94,12 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     // lily pads float on the (slightly lowered) water surface below them
     case 'pad': return [[P, -0.125, P, 1 - P, -0.1, 1 - P]];
     case 'layer': return [[0, 0, 0, 1, 2 * P, 1]];
+    case 'lantern': {
+      // body and cap (a hanging one dangles on a chain from the block above)
+      const boxes = [[5 * P, 0, 5 * P, 11 * P, 7 * P, 11 * P], [6 * P, 7 * P, 6 * P, 10 * P, 9 * P, 10 * P]];
+      if ((meta & 1) && !collision) boxes.push([7.5 * P, 9 * P, 7.5 * P, 8.5 * P, 1, 8.5 * P]);
+      return boxes;
+    }
     case 'fence': {
       const top = collision ? 1.5 : 1;
       const boxes = [[6 * P, 0, 6 * P, 10 * P, top, 10 * P]];

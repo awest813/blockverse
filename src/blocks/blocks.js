@@ -93,6 +93,7 @@ export const B = {
   FIRE: 87,
   OAK_SIGN: 88,
   BONE_BLOCK: 89,
+  LANTERN: 90,
 };
 
 // Tool classes
@@ -129,7 +130,7 @@ function def(id, name, display, opts = {}) {
     replaceable: opts.replaceable ?? false,  // placement can overwrite it
     fluid: opts.fluid ?? false,
     climbable: opts.climbable ?? false,      // ladders
-    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'stairs' | 'door' | 'fence' | 'gate' | 'pane' | 'ladder' | 'pad' | 'layer'
+    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'stairs' | 'door' | 'fence' | 'gate' | 'pane' | 'ladder' | 'pad' | 'layer' | 'lantern'
     waterlogged: opts.waterlogged ?? false,  // sits in a water cell (kelp, seagrass)
     icon: opts.icon ?? null,                 // flat inventory icon tile instead of a cube
     full: opts.full ?? null,                 // slabs: the full block two of them make
@@ -334,6 +335,10 @@ reg(def(B.LAVA, 'lava', 'Lava', {
 // underwater plants share their cell with water
 reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true }));
 reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
+// an iron lantern burning whale oil: stands on a block, or hangs under one (meta 1)
+reg(def(B.LANTERN, 'lantern', 'Lantern', {
+  solid: false, render: R_SHAPE, shape: 'lantern', opacity: 0, lightEmit: 15, hardness: 0.5, tool: TOOL_PICKAXE, sound: 'glass', icon: 'lantern',
+}));
 reg(def(B.LILY_PAD, 'lily_pad', 'Lily Pad', { solid: false, render: R_SHAPE, shape: 'pad', opacity: 0, hardness: 0, sound: 'leaf', icon: 'lily_pad' }));
 reg(def(B.SNOW_LAYER, 'snow_layer', 'Snow', {
   solid: false, render: R_SHAPE, shape: 'layer', opacity: 0, hardness: 0.1, tool: TOOL_SHOVEL, sound: 'cloth', replaceable: true,

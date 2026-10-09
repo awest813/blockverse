@@ -52,7 +52,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Melee hits pets only while sneaking
 - [x] Passive animals make (quiet) sounds; dolphins click, whales sing
 - [x] Birds roost on the ground at night
-- [ ] Whales drop nothing — deliberate: they're gentle giants, not a food source
+- [x] Whales drop whale oil (long-burning fuel, torches, hanging or standing lanterns) — no meat: they're not a food source
 - [x] Mobs push each other apart, and the player shoves through them
 - [x] Sheep shearing / wool regrowth
 - [x] Milk

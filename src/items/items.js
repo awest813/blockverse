@@ -109,6 +109,8 @@ item(I.FLINT_AND_STEEL, 'flint_and_steel', 'Flint and Steel', { stack: 1, tool: 
 item(I.EGG, 'egg', 'Egg', { stack: 16 });
 item(I.SUGAR, 'sugar', 'Sugar');
 item(I.PUMPKIN_PIE, 'pumpkin_pie', 'Pumpkin Pie', { food: 8, sat: 4.8 });
+// rendered from whales: burns twice as long as coal, and lights lanterns and torches
+item(I.WHALE_OIL, 'whale_oil', 'Whale Oil', { burnTime: 160 });
 item(I.FISHING_ROD, 'fishing_rod', 'Fishing Rod', { stack: 1, tool: { class: 'rod', tier: 0, speed: 1, durability: 64, damage: 1 }, burnTime: 10 });
 item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
 item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, sat: 9.6, heal: 8 });

@@ -27,6 +27,8 @@ shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
 shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL, I.CHARCOAL], S: [I.STICK] });
+shaped(B.TORCH, 6, ['O', 'S'], { O: [I.WHALE_OIL], S: [I.STICK] });
+shaped(B.LANTERN, 1, ['.I.', 'GOG', '.I.'], { I: [I.IRON_INGOT], G: [B.GLASS_PANE], O: [I.WHALE_OIL] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
 shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 

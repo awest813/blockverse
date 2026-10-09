@@ -1017,6 +1017,26 @@ function bucket(ctx, fill) {
   for (let x = 2; x < 14; x++) px(ctx, x, 4 - Math.round(Math.sin(((x - 2) / 11) * Math.PI) * 3), [120, 120, 128]);
 }
 tile('bucket', (ctx) => bucket(ctx, null));
+// a stoppered glass bottle of amber oil
+tile('whale_oil', (ctx) => {
+  const glass = [200, 220, 228], glassD = [150, 172, 184], oil = [214, 150, 48], oilL = [244, 196, 92], cork = [150, 108, 66];
+  rect(ctx, 6, 1, 4, 2, cork);
+  rect(ctx, 6, 3, 4, 2, glass);
+  rect(ctx, 4, 5, 8, 10, glass);
+  rect(ctx, 5, 7, 6, 7, oil);
+  rect(ctx, 5, 7, 2, 5, oilL);
+  rect(ctx, 4, 5, 1, 10, glassD); rect(ctx, 11, 5, 1, 10, glassD); rect(ctx, 4, 14, 8, 1, glassD);
+});
+// lantern: iron frame and cap round a glowing pane (also its icon)
+tile('lantern', (ctx) => {
+  // laid out to match the block's boxes: body x 5-10 (bottom 7 rows), cap x 6-9 above it
+  const iron = [62, 62, 72], ironL = [104, 104, 116], glow = [255, 214, 120], glowL = [255, 240, 190];
+  rect(ctx, 7, 0, 2, 7, [80, 80, 90]);            // chain
+  rect(ctx, 6, 7, 4, 2, iron); rect(ctx, 6, 7, 4, 1, ironL);   // cap
+  rect(ctx, 5, 9, 6, 7, iron);                     // body frame
+  rect(ctx, 6, 10, 4, 5, glow);
+  rect(ctx, 7, 11, 2, 3, glowL);
+});
 tile('water_bucket', (ctx) => bucket(ctx, [52, 104, 220]));
 tile('lava_bucket', (ctx) => bucket(ctx, [240, 120, 30]));
 tile('milk_bucket', (ctx) => bucket(ctx, [244, 244, 240]));

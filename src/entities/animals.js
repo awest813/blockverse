@@ -336,6 +336,11 @@ export class Whale extends Swimmer {
     this.ambientSound = 'whale';
   }
 
+  // rendered down for oil: fuel, torches and lanterns
+  onDeath() {
+    this.dropFn?.([{ id: I.WHALE_OIL, count: 2 + ((Math.random() * 3) | 0) }]);
+  }
+
   buildModel() {
     const back = 0x3c4c62, belly = 0xb8c4cc;
     this.part(2.2, 1.5, 4.2, back, 0, 0.8, 0);                // body

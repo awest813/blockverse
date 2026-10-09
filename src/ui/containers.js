@@ -36,7 +36,7 @@ function creativeCategory(id) {
   const info = itemInfo(id);
   if (info?.tool || info?.armor || info?.bow || id === I.ARROW) return 'tools';
   if (info?.food) return 'food';
-  if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH ? 'decor' : 'blocks';
+  if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH || info.block.shape === 'lantern' ? 'decor' : 'blocks';
   return 'materials';
 }
 

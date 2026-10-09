@@ -106,4 +106,5 @@ export const I = {
   SUGAR: 350,
   PUMPKIN_PIE: 351,
   FISHING_ROD: 352,
+  WHALE_OIL: 353,
 };

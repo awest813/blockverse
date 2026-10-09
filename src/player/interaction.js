@@ -225,13 +225,17 @@ export class Interaction {
     const w = this.world;
     for (let yy = y + 1; yy < y + 32; yy++) {
       const above = w.getBlockW(x, yy, z);
-      const standingSign = above === B.OAK_SIGN && !(w.getMetaW(x, yy, z) & 4);
-      if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR && !standingSign) break;
+      const standing = (above === B.OAK_SIGN && !(w.getMetaW(x, yy, z) & 4)) || (above === B.LANTERN && !(w.getMetaW(x, yy, z) & 1));
+      if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR && !standing) break;
       const ainfo = blockInfo(above);
       if (above === B.OAK_DOOR) w.setBlock(x, yy + 1, z, B.AIR);
       w.setBlock(x, yy, z, ainfo.waterlogged ? B.WATER : B.AIR);
       if (drops) this.spawnBlockDrops(x, yy, z, ainfo, true);
       if (above !== B.KELP) break;
+    }
+    if (w.getBlockW(x, y - 1, z) === B.LANTERN && (w.getMetaW(x, y - 1, z) & 1)) {   // a hanging lantern
+      w.setBlock(x, y - 1, z, B.AIR);
+      if (drops) this.spawnBlockDrops(x, y - 1, z, blockInfo(B.LANTERN), true);
     }
     for (let e = 0; e < 4; e++) {
       const [dx, dz] = EDGE_DIRS[e];
@@ -350,6 +354,13 @@ export class Interaction {
     if (info.waterlogged && existing !== B.WATER) return;
     if (info.id === B.LADDER && (t.ny !== 0 || !isSolid(t.id))) return;
 
+    // lanterns hang under a block (clicked from below) or stand on one
+    let hang = false;
+    if (info.id === B.LANTERN) {
+      hang = t.ny === -1 && isSolid(this.world.getBlockW(px, py + 1, pz));
+      if (!hang && !this.supportsTop(px, py - 1, pz)) return;
+    }
+
     // support requirement for plants/torches
     if (NEEDS_GROUND.has(info.id)) {
       const below = this.world.getBlockW(px, py - 1, pz);
@@ -372,6 +383,7 @@ export class Interaction {
     }
 
     if (info.id === B.LADDER) meta = wallMeta(t.nx, t.nz);
+    if (info.id === B.LANTERN) meta = hang ? 1 : 0;
     const yawQuad = Math.round((((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) % 4;
     if (STAIRS.has(info.id)) {
       // climb away from the player; upside down against a ceiling or a block's upper half

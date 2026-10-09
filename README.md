@@ -60,6 +60,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
 - **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on
 - **Flint and steel** lights fires, TNT and campfires; a **fishing rod** lands fish (and the odd treasure) when the bobber ducks under; snowballs and eggs can be thrown (an egg may hatch a chick); worn tools mend when two are crafted together
+- **Whale oil**: burns twice as long as coal, makes 6 torches with a stick, and fuels **lanterns** (iron, glass panes and oil) that stand on a block or hang beneath one
 - **Buckets**: scoop up and pour water and lava (lava meeting water turns to obsidian) and milk cows
 - **Fire**: lava sets you alight; jump in water (or drink milk) to put it out. Burning mobs show flames
 - **Eating takes a moment**: hold use to eat or drink (you slow down while you do); dried kelp is a quick snack
@@ -77,7 +78,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Breeding**: feed two animals their favourite food (wheat for cows and sheep, seeds for chickens, apples for pigs) and they'll have a baby that grows up in a few minutes; animals you've fed are kept and saved with your world instead of wandering off
 - Mobs jostle each other and get shoved aside instead of stacking up inside one another
 - **Dolphins** play in the open ocean in pods: they swim over to you, leap from the waves and give swimmers near them a burst of speed (feed one a fish and it escorts you). Gentle **manatees** graze in warm rivers, swamps and shallow coasts, drifting up to breathe
-- **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean
+- **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean (they yield whale oil)
 - **Pets**: tame dogs with bones and cats with raw fish. Pets follow you, sit on command, are saved with your world, and catch up if you leave them behind. Dogs fight monsters near you; creepers flee from cats
 - **Zombies** spawn in darkness, chase you, hit hard, and burn in the morning sun
 - **Skeletons** keep their distance and shoot arrows (and burn in daylight); they drop bones
