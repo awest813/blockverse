@@ -118,6 +118,7 @@ All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch s
 /time set <day|noon|night|midnight|0..1>
 /give <item> [count]        e.g. /give diamond_pickaxe
 /gamemode <survival|creative>
+/difficulty <peaceful|easy|normal|hard>
 /seed  /spawn  /kill  /heal  /clear
 /rd <2-16>                  render distance
 ```

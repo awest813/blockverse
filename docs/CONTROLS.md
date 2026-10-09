@@ -134,6 +134,7 @@ Open chat with `T` or `/`, then:
 | `/time set <day\|noon\|sunset\|night\|midnight\|0..1>` | Set time of day |
 | `/give <item> [count]` | Give items — names like `oak_planks`, `diamond_pickaxe`, `torch` |
 | `/gamemode <survival\|creative>` | Switch mode |
+| `/difficulty <peaceful\|easy\|normal\|hard>` | Peaceful removes monsters; Easy halves their damage; Hard hits harder and spawns more |
 | `/seed` | Show the world seed |
 | `/spawn` | Return to spawn |
 | `/heal` | Refill health, hunger, air |
