@@ -9,6 +9,8 @@ import { moveEntity, entityInBlock, pointInWater } from '../core/physics.js';
 import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
+// damage from monsters scales with difficulty (Game sets mobDamageScale)
+const MOB_DAMAGE = new Set(['zombie', 'skeleton', 'spider', 'dog']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire']);
 
 export class Player {
@@ -255,6 +257,11 @@ export class Player {
   damage(amount, cause = 'generic') {
     if (this.dead || this.mode === GAMEMODE_CREATIVE) return;
     if (this.hurtCooldown > 0) return;
+    if (MOB_DAMAGE.has(cause)) {
+      amount *= this.mobDamageScale ?? 1;
+      if (amount <= 0) return;
+      amount = Math.max(0.5, Math.round(amount * 2) / 2);
+    }
     this.hurtCooldown = 0.5;
     // armour soaks up to 80% of attacks and explosions (not falls, hunger, drowning)
     if (!UNARMORED_DAMAGE.has(cause)) {

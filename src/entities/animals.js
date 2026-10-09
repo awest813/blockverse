@@ -34,7 +34,7 @@ class Animal extends Mob {
   nearest(kind, range) {
     let best = null, bestD = range;
     for (const m of this.fx?.mobs() ?? []) {
-      if (m.dead || m === this || (kind && !kind(m))) continue;
+      if (m.dead || m.dying !== undefined || m === this || (kind && !kind(m))) continue;
       const d = this.dist(m);
       if (d < bestD) { best = m; bestD = d; }
     }

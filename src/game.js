@@ -64,7 +64,7 @@ export class Game {
     this.entities = new EntityManager(this.scene, this.world);
     this.entities.onPickup = () => this.sfx?.play('pickup');
     this.entities.fx.explode = (x, y, z, power) => this.explode(x, y, z, power);
-    this.entities.fx.sound = (name) => this.sfx?.play(name);
+    this.entities.fx.sound = (name, opts) => this.sfx?.play(name, opts);
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
     this.blasts = [];   // expanding explosion flashes
 
@@ -119,6 +119,7 @@ export class Game {
     this.time = worldMeta.timeOfDay ?? 0.05; // fraction of a day; 0 = sunrise
     this.day = worldMeta.day ?? 1;           // days survived, shown at each sunrise
     this.sleeping = false;
+    this.setDifficulty(worldMeta.difficulty ?? 2);
     this.paused = false;
     this.uiOpen = false;
     this.uiHooks = null;   // set by ui/screens module
@@ -464,6 +465,13 @@ export class Game {
 
   // ---------- survival ----------
 
+  // 0 peaceful, 1 easy, 2 normal, 3 hard
+  setDifficulty(level) {
+    this.difficulty = Math.max(0, Math.min(3, level | 0));
+    this.mobSpawner.difficulty = this.difficulty;
+    this.player.mobDamageScale = [0, 0.5, 1, 1.5][this.difficulty];
+  }
+
   newDay() {
     this.day++;
     if (this.player.mode !== GAMEMODE_CREATIVE) this.hud.toast(`Day ${this.day}`, 'You made it through the night.', B.BED, 5000);
@@ -799,6 +807,7 @@ export class Game {
       })),
       timeOfDay: this.time,
       day: this.day,
+      difficulty: this.difficulty,
       playerData: this.player.serialize(),
     });
   }

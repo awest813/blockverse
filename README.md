@@ -63,6 +63,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Skeletons** keep their distance and shoot arrows (and burn in daylight); they drop bones
 - **Spiders** are fast and climb walls; they only hunt in the dark unless provoked, and drop string
 - **Creepers** sneak up, hiss and explode, blasting holes in the terrain; they drop gunpowder
+- Monsters need to see you (they remember you for a few seconds round a corner), ignore creative players, knock you back when they hit, work their way around walls, haunt dark caves at any hour, and groan, rattle or hiss as they approach
+- **Difficulty** per world — Peaceful, Easy, Normal or Hard — changeable any time with `/difficulty`
 - Original box-model creatures with walk animations, knockback, fall damage, and voxel-light-aware shading
 
 ### 🌗 Living environment

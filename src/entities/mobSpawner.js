@@ -42,6 +42,7 @@ export class MobSpawner {
     this.world = world;
     this.entities = entities;
     this.timer = 0;
+    this.difficulty = 2;   // 0 peaceful, 1 easy, 2 normal, 3 hard (set by the game)
   }
 
   update(dt, player, dayFactor) {
@@ -53,8 +54,17 @@ export class MobSpawner {
     const passives = mobs.filter((m) => !m.hostile && m.countsForCap !== false && !m.flier && !m.swimmer && !m.tamed).length;
     const hostiles = mobs.filter((m) => m.hostile).length;
 
+    // peaceful: monsters vanish; otherwise far-away ones slowly despawn
+    for (const m of mobs) {
+      if (!m.hostile || m.dead) continue;
+      const d = Math.hypot(m.x - player.x, m.y - player.y, m.z - player.z);
+      if (this.difficulty === 0 || (d > 48 && Math.random() < 0.15)) m.kill();
+    }
+
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
-    if (hostiles < HOSTILE_CAP && dayFactor < 0.4) this.trySpawn(player, true, dayFactor);
+    const cap = this.difficulty === 3 ? HOSTILE_CAP + 4 : HOSTILE_CAP;
+    // the surface spawns monsters at night; caves are dark at any hour
+    if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
     if (dayFactor > 0.5 && count(mobs, Bird) < BIRD_CAP) this.trySpawnBird(player);
     if (count(mobs, Fish) < FISH_CAP) this.trySpawnWater(player, Fish, 1);
     if (count(mobs, Whale) < WHALE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Whale, 7);
@@ -99,7 +109,36 @@ export class MobSpawner {
     }
   }
 
+  // a dark cave floor somewhere under this column, or null
+  caveSpot(wx, wz, player) {
+    const top = this.world.surfaceHeight(wx, wz);
+    const lo = Math.max(4, Math.floor(player.y) - 24), hi = Math.min(top - 6, Math.floor(player.y) + 24);
+    for (let attempt = 0; attempt < 4 && hi > lo; attempt++) {
+      const y = lo + Math.floor(Math.random() * (hi - lo));
+      if (this.world.getBlockW(wx, y, wz) !== B.AIR || this.world.getBlockW(wx, y + 1, wz) !== B.AIR) continue;
+      if (!isSolid(this.world.getBlockW(wx, y - 1, wz))) continue;
+      if (this.world.getBlockLightW(wx, y, wz) > 7 || this.world.getSkyW(wx, y, wz) > 0) continue;
+      return y;
+    }
+    return null;
+  }
+
   trySpawn(player, hostile, dayFactor) {
+    if (hostile && (dayFactor >= 0.4 || Math.random() < 0.5)) {
+      // underground first (always allowed); the surface only at night
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 16 + Math.random() * 24;
+        const wx = Math.floor(player.x + Math.cos(angle) * dist);
+        const wz = Math.floor(player.z + Math.sin(angle) * dist);
+        if (!this.world.isLoaded(wx, wz)) continue;
+        const y = this.caveSpot(wx, wz, player);
+        if (y === null) continue;
+        this.spawnMob(pickHostile(), wx + 0.5, y, wz + 0.5);
+        return;
+      }
+      if (dayFactor >= 0.4) return;
+    }
     for (let attempt = 0; attempt < 6; attempt++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 24 + Math.random() * 24;

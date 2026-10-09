@@ -88,6 +88,7 @@ export class Sfx {
   play(name, opts = {}) {
     const m = this.materialParams(opts.block ?? 'stone');
     const detune = 0.85 + Math.random() * 0.3;
+    const vol = opts.vol ?? 1;   // distance falloff for mob sounds
     switch (name) {
       case 'hit':
         this.noise({ ...m, freq: m.freq * detune, dur: 0.06, gain: 0.22 });
@@ -122,7 +123,25 @@ export class Sfx {
         this.tone({ freq: 70, endFreq: 28, dur: 0.7, gain: 0.5, type: 'sine' });
         break;
       case 'fuse':
-        this.noise({ freq: 3200, q: 0.5, dur: 1.4, gain: 0.16, type: 'highpass' });
+        this.noise({ freq: 3200, q: 0.5, dur: 1.4, gain: 0.22 * vol, type: 'highpass' });
+        break;
+      case 'zombie':   // low, wavering groan
+        this.tone({ freq: 110 * detune, endFreq: 70, dur: 0.7, gain: 0.22 * vol, type: 'sawtooth' });
+        this.noise({ freq: 300, q: 1.2, dur: 0.6, gain: 0.08 * vol, type: 'bandpass' });
+        break;
+      case 'skeleton': // dry rattle of quick clicks
+        for (let i = 0; i < 4; i++) {
+          setTimeout(() => this.noise({ freq: 2400 * detune, q: 4, dur: 0.03, gain: 0.2 * vol, type: 'bandpass' }), i * 55);
+        }
+        break;
+      case 'spider':   // hiss
+        this.noise({ freq: 5200 * detune, q: 1.5, dur: 0.35, gain: 0.12 * vol, type: 'bandpass' });
+        break;
+      case 'mobhurt':
+        this.tone({ freq: 340 * detune, endFreq: 220, dur: 0.1, gain: 0.12 * vol, type: 'square' });
+        break;
+      case 'mobdeath': // soft poof
+        this.noise({ freq: 900, q: 0.6, dur: 0.35, gain: 0.3, type: 'lowpass', pitchDrop: 600 });
         break;
       case 'shoot':
         this.tone({ freq: 900 * detune, endFreq: 260, dur: 0.12, gain: 0.14, type: 'triangle' });

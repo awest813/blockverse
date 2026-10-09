@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { I } from '../items/itemIds.js';
-import { B, isSolid } from '../blocks/blocks.js';
+import { B } from '../blocks/blocks.js';
 
 export class Pig extends Mob {
   constructor(scene, world, x, y, z) {
@@ -100,6 +100,7 @@ export class Zombie extends Mob {
     this.attackCooldown = 0;
     this.burnTimer = 0;
     this.kind = 'zombie';
+    this.ambientSound = 'zombie';
   }
 
   buildModel() {
@@ -127,47 +128,23 @@ export class Zombie extends Mob {
 
   think(dt, player, playerDist) {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
-
     if (this.burnInDaylight(dt)) return;
-
-    if (!player.dead && playerDist < 18) {
-      this.state = 'chase';
-      this.moving = true;
-      const dx = player.x - this.x, dz = player.z - this.z;
-      this.targetYaw = Math.atan2(-dx, -dz);
-      // melee
-      if (playerDist < 1.4 && this.attackCooldown <= 0) {
-        const dy = Math.abs((player.y + 0.9) - (this.y + 1));
-        if (dy < 1.6) {
-          player.damage(3, 'zombie');
-          this.attackCooldown = 1.1;
-        }
-      }
-    } else if (this.state === 'chase') {
-      this.state = 'idle';
-      this.stateTime = 1;
-      this.moving = false;
-    } else {
+    if (!this.senses(player, 18, dt)) {
+      this.loseTarget();
       super.think(dt, player, playerDist);
+      return;
+    }
+    this.state = 'chase';
+    this.moving = true;
+    this.steer(player, 1);
+    if (this.dist3(player) < 1.6 && this.attackCooldown <= 0 && this.meleeHit(player, 3, 'zombie')) {
+      this.attackCooldown = 1.1;
     }
   }
 
   onDeath() {
     this.dropFn?.([{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }]);
   }
-}
-
-// Line of sight from a mob's eyes to the player's chest: march the segment
-// and stop at solid blocks only (grass and flowers don't block a shot).
-function canSee(mob, player, eyeY) {
-  const ox = mob.x, oy = mob.y + eyeY, oz = mob.z;
-  const dx = player.x - ox, dy = player.y + 1.2 - oy, dz = player.z - oz;
-  const steps = Math.ceil(Math.hypot(dx, dy, dz) / 0.3);
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    if (isSolid(mob.world.getBlockW(Math.floor(ox + dx * t), Math.floor(oy + dy * t), Math.floor(oz + dz * t)))) return false;
-  }
-  return true;
 }
 
 export class Skeleton extends Mob {
@@ -181,6 +158,7 @@ export class Skeleton extends Mob {
     this.fleeSpeed = 2.4;
     this.shootCooldown = 1 + Math.random();
     this.kind = 'skeleton';
+    this.ambientSound = 'skeleton';
   }
 
   buildModel() {
@@ -206,8 +184,8 @@ export class Skeleton extends Mob {
   think(dt, player, playerDist) {
     if (this.burnInDaylight(dt)) return;
     this.shootCooldown -= dt;
-    if (player.dead || playerDist > 16) {
-      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+    if (!this.senses(player, 16, dt)) {
+      this.loseTarget();
       super.think(dt, player, playerDist);
       return;
     }
@@ -217,7 +195,7 @@ export class Skeleton extends Mob {
     else if (playerDist < 5) { this.steer(player, -1); this.moving = true; }
     else { this.steer(player, 1); this.moving = false; }
 
-    if (this.shootCooldown <= 0 && canSee(this, player, 1.6)) {
+    if (this.shootCooldown <= 0 && this.canSee(player, 1.6)) {
       this.shootCooldown = 1.6 + Math.random() * 0.8;
       if (!this.moving || playerDist < 5) this.steer(player, 1);
       const ox = this.x, oy = this.y + 1.5, oz = this.z;
@@ -252,6 +230,7 @@ export class Spider extends Mob {
     this.attackCooldown = 0;
     this.angry = 0;          // seconds of aggression after being hit in daylight
     this.kind = 'spider';
+    this.ambientSound = 'spider';
   }
 
   buildModel() {
@@ -283,22 +262,21 @@ export class Spider extends Mob {
   think(dt, player, playerDist) {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.angry = Math.max(0, this.angry - dt);
-    // spiders only hunt in the dark, unless you started it
-    const day = this.world.materials.uniforms.uDay.value;
-    const hunting = !player.dead && playerDist < 16 && (day < 0.6 || this.angry > 0);
-    if (hunting) {
-      this.state = 'chase';
-      this.moving = true;
-      this.steer(player, 1);
-      if (playerDist < 1.6 && this.attackCooldown <= 0 && Math.abs(player.y - this.y) < 1.6) {
-        player.damage(2, 'spider');
-        this.attackCooldown = 1;
-        // pounce
-        if (this.onGround) this.vy = 5;
-      }
-    } else {
-      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+    // spiders only hunt in the dark (caves count), unless you started it
+    const x = Math.floor(this.x), y = Math.floor(this.y + 0.5), z = Math.floor(this.z);
+    const light = Math.max((this.world.getSkyW(x, y, z) / 15) * this.world.materials.uniforms.uDay.value, this.world.getBlockLightW(x, y, z) / 15);
+    const hunting = this.senses(player, 16, dt) && (light < 0.5 || this.angry > 0);
+    if (!hunting) {
+      this.loseTarget();
       super.think(dt, player, playerDist);
+      return;
+    }
+    this.state = 'chase';
+    this.moving = true;
+    this.steer(player, 1);
+    if (this.dist3(player) < 1.8 && this.attackCooldown <= 0 && this.meleeHit(player, 2, 'spider')) {
+      this.attackCooldown = 1;
+      if (this.onGround) this.vy = 5;   // pounce
     }
   }
 
@@ -345,12 +323,6 @@ export class Creeper extends Mob {
   }
 
   think(dt, player, playerDist) {
-    if (player.dead || playerDist > 16) {
-      this.fuse = Math.max(0, this.fuse - dt);
-      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
-      super.think(dt, player, playerDist);
-      return;
-    }
     // creepers keep well away from cats
     const cat = (this.fx?.mobs() ?? []).find((m) => m.kind === 'cat' && !m.dead && Math.hypot(m.x - this.x, m.z - this.z) < 6);
     if (cat) {
@@ -360,32 +332,29 @@ export class Creeper extends Mob {
       this.targetYaw = Math.atan2(-(cat.x - this.x), -(cat.z - this.z)) + Math.PI;
       return;
     }
+    const sees = this.senses(player, 16, dt);
+    const d = this.dist3(player);
+    // a lit fuse keeps burning while you're within 7 blocks, seen or not
+    if (!sees && !(this.fuse > 0 && d < 7 && !player.dead)) {
+      this.fuse = Math.max(0, this.fuse - dt);
+      this.loseTarget();
+      super.think(dt, player, playerDist);
+      return;
+    }
     this.state = 'chase';
     this.steer(player, 1);
-    if (playerDist < 3 || (this.fuse > 0 && playerDist < 7)) {
+    if ((d < 3 && this.canSee(player)) || (this.fuse > 0 && d < 7)) {
       // stop and hiss; walking away far enough defuses it
-      if (this.fuse === 0) this.fx?.sound('fuse');
+      if (this.fuse === 0) this.fx?.sound('fuse', { vol: 1 });
       this.moving = false;
       this.fuse += dt;
       if (this.fuse >= FUSE_TIME) {
         this.kill();   // first, so the blast doesn't also "kill" it for drops
         this.fx?.explode(this.x, this.y + 0.8, this.z, 3);
-        return;
       }
     } else {
       this.fuse = Math.max(0, this.fuse - dt);
       this.moving = true;
-    }
-  }
-
-  update(dt, player) {
-    super.update(dt, player);
-    if (this.dead) return;
-    // swell and flash white while the fuse burns
-    const f = this.fuse / FUSE_TIME;
-    this.group.scale.setScalar(1 + f * 0.25);
-    if (f > 0 && Math.floor(this.fuse * 8) % 2 === 0) {
-      for (const { mat } of this.materials) mat.color.lerp(new THREE.Color(0xffffff), 0.7);
     }
   }
 

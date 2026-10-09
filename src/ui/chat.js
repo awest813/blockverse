@@ -107,6 +107,7 @@ export class Chat {
         this.message('/give <item> [count] — e.g. /give diamond_pickaxe');
         this.message('/gamemode <survival|creative>');
         this.message('/seed  /spawn  /kill  /clear  /rd <2-16>  /heal');
+        this.message('/difficulty <peaceful|easy|normal|hard>');
         break;
       case 'tp': {
         if (args.length < 3) throw new Error('usage: /tp x y z');
@@ -144,6 +145,14 @@ export class Chat {
         else throw new Error('usage: /gamemode <survival|creative>');
         g.hud.renderStats();
         this.message(`Game mode: ${p.mode === GAMEMODE_CREATIVE ? 'creative' : 'survival'}`, '#9fdcff');
+        break;
+      }
+      case 'difficulty': {
+        const names = ['peaceful', 'easy', 'normal', 'hard'];
+        const n = names.findIndex((d) => d.startsWith((args[0] ?? '').toLowerCase()) && args[0]);
+        if (n < 0) throw new Error(`difficulty is ${names[g.difficulty]} — usage: /difficulty <peaceful|easy|normal|hard>`);
+        g.setDifficulty(n);
+        this.message(`Difficulty: ${names[n]}`, '#9fdcff');
         break;
       }
       case 'seed':

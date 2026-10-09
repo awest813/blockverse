@@ -3,7 +3,10 @@
 
 import * as THREE from 'three';
 import { moveEntity, entityInBlock } from '../core/physics.js';
-import { B } from '../blocks/blocks.js';
+import { B, isSolid } from '../blocks/blocks.js';
+import { GAMEMODE_CREATIVE } from '../core/constants.js';
+
+const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
 
 // BoxGeometry with per-face brightness baked into vertex colors, so flat
 // MeshBasicMaterial still reads as 3D.
@@ -69,6 +72,7 @@ export class Mob {
 
   update(dt, player) {
     if (this.dead) return;
+    if (this.dying !== undefined) { this.animateDeath(dt); return; }
     this.age += dt;
     this.hurtCooldown = Math.max(0, this.hurtCooldown - dt);
     this.flashTime = Math.max(0, this.flashTime - dt);
@@ -92,6 +96,9 @@ export class Mob {
     if (!this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) return;
 
     this.think(dt, player, Math.sqrt(playerDistSq));
+    if (this.dead || this.dying !== undefined) return;
+    this.avoidHazards(dt);
+    this.ambient(dt, player);
 
     // steering: turn toward targetYaw, walk forward when moving
     let dyaw = ((this.targetYaw - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -122,6 +129,16 @@ export class Mob {
     const before = this.y;
     const r = moveEntity(this.world, this, dt);
     this.onGround = r.onGround;
+    // pressing against a wall it can't hop for a while: sidestep for a moment
+    if (r.hitWall && this.moving && !this.flier && !this.swimmer && !this.climber) {
+      this.stuckTime = (this.stuckTime ?? 0) + dt;
+      if (this.stuckTime > 0.6) {
+        this.stuckTime = 0;
+        this.detour = { yaw: this.yaw + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, t: 0.7 + Math.random() * 0.6 };
+      }
+    } else {
+      this.stuckTime = 0;
+    }
     // hop up single blocks when walking into a wall; climbers (spiders) scale it
     if (r.hitWall && this.moving && !inWater && !this.flier && !this.swimmer) {
       if (this.climber) this.vy = Math.max(this.vy, 3.6);
@@ -155,6 +172,101 @@ export class Mob {
       mat.color.copy(base).multiplyScalar(light);
       if (this.flashTime > 0) mat.color.lerp(new THREE.Color(0xff3333), 0.55);
     }
+  }
+
+  // ---------- shared AI helpers ----------
+
+  // distance from this mob's middle to the player's middle, in 3D
+  dist3(p) {
+    return Math.hypot(p.x - this.x, p.y + 0.9 - (this.y + this.h / 2), p.z - this.z);
+  }
+
+  // line of sight from the mob's eyes to the player's chest (solid blocks block it)
+  canSee(player, eyeY = this.h * 0.85) {
+    const ox = this.x, oy = this.y + eyeY, oz = this.z;
+    const dx = player.x - ox, dy = player.y + 1.2 - oy, dz = player.z - oz;
+    const steps = Math.ceil(Math.hypot(dx, dy, dz) / 0.3);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      if (isSolid(this.world.getBlockW(Math.floor(ox + dx * t), Math.floor(oy + dy * t), Math.floor(oz + dz * t)))) return false;
+    }
+    return true;
+  }
+
+  // Hostile awareness: a survival player within range that the mob can see,
+  // or saw in the last few seconds (so it follows you round a corner).
+  senses(player, range, dt) {
+    if (player.dead || player.mode === GAMEMODE_CREATIVE || this.dist3(player) > range) {
+      this.memory = 0;
+      return false;
+    }
+    this.losTimer = (this.losTimer ?? 0) - dt;
+    if (this.losTimer <= 0) {
+      this.losTimer = 0.25;
+      if (this.canSee(player)) this.memory = 4;
+    }
+    this.memory = Math.max(0, (this.memory ?? 0) - dt);
+    return this.memory > 0;
+  }
+
+  // stop chasing and go back to wandering
+  loseTarget() {
+    if (this.state !== 'chase') return;
+    this.state = 'idle';
+    this.stateTime = 1;
+    this.moving = false;
+  }
+
+  // a melee hit with knockback away from the mob
+  meleeHit(player, dmg, cause) {
+    if (player.hurtCooldown > 0 || player.dead) return false;
+    player.damage(dmg, cause);
+    const dx = player.x - this.x, dz = player.z - this.z;
+    const d = Math.hypot(dx, dz) || 1;
+    player.vx += (dx / d) * 5;
+    player.vz += (dz / d) * 5;
+    player.vy = Math.max(player.vy, 4);
+    return true;
+  }
+
+  // detours around walls, and wanderers turn back at cliff edges
+  avoidHazards(dt) {
+    if (this.detour) {
+      this.targetYaw = this.detour.yaw;
+      this.moving = true;
+      this.detour.t -= dt;
+      if (this.detour.t <= 0) this.detour = null;
+      return;
+    }
+    if (this.state !== 'wander' || !this.moving || !this.onGround || this.flier || this.swimmer) return;
+    const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.6));
+    const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.6));
+    const y = Math.floor(this.y);
+    let drop = 0;
+    while (drop < 4 && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) drop++;
+    if (drop >= 4 || this.world.getBlockW(ax, y - 1, az) === B.WATER) {
+      this.targetYaw = this.yaw + Math.PI;
+      this.yaw += Math.PI;   // turn on the spot rather than step off
+      this.vx = this.vz = 0;
+    }
+  }
+
+  // occasional groans / rattles / hisses, quieter with distance
+  ambient(dt, player) {
+    if (!this.ambientSound) return;
+    this.ambientTimer = (this.ambientTimer ?? 3 + Math.random() * 8) - dt;
+    if (this.ambientTimer > 0) return;
+    this.ambientTimer = 7 + Math.random() * 10;
+    const d = this.dist3(player);
+    if (d < 16) this.fx?.sound(this.ambientSound, { vol: 1 - d / 16 });
+  }
+
+  animateDeath(dt) {
+    this.dying -= dt;
+    const k = Math.min(1, 1 - this.dying / DEATH_TIME);
+    this.group.rotation.z = Math.min(1, k * 2) * Math.PI / 2;   // tip over
+    for (const { mat, base } of this.materials) mat.color.copy(base).lerp(new THREE.Color(0xff3333), 0.5).multiplyScalar(1 - k * 0.6);
+    if (this.dying <= 0) this.kill();
   }
 
   // undead burn in direct daylight; returns true if this killed the mob
@@ -209,7 +321,7 @@ export class Mob {
   }
 
   damage(amount, source) {
-    if (this.dead || this.hurtCooldown > 0) return false;
+    if (this.dead || this.dying !== undefined || this.hurtCooldown > 0) return false;
     this.hurtCooldown = 0.45;
     this.health -= amount;
     this.flashTime = 0.25;
@@ -232,12 +344,18 @@ export class Mob {
       this.die();
       return true;
     }
+    this.fx?.sound('mobhurt', { vol: 0.8 });
     return true;
   }
 
   die() {
+    if (this.dying !== undefined) return;
     this.onDeath?.();
-    this.kill();
+    this.fx?.sound('mobdeath');
+    // tip over briefly before vanishing; no longer a threat or a target
+    this.dying = DEATH_TIME;
+    this.hostile = false;
+    this.moving = false;
   }
 
   kill() {
@@ -248,6 +366,7 @@ export class Mob {
 
   // ray vs this mob's AABB; returns distance or null
   rayHit(origin, dir, maxDist) {
+    if (this.dying !== undefined) return null;
     const hw = this.w / 2;
     const min = { x: this.x - hw, y: this.y, z: this.z - hw };
     const max = { x: this.x + hw, y: this.y + this.h, z: this.z + hw };

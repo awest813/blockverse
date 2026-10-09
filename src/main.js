@@ -62,7 +62,8 @@ async function startWorld(id) {
     showPause: () => {
       if (game.paused || game.player.dead || game.chat.open) return;
       game.pause();
-      screens.showPause(game.input.altInput, `Day ${game.day} · ${game.clockTime()}`);
+      const level = ['Peaceful', 'Easy', 'Normal', 'Hard'][game.difficulty];
+      screens.showPause(game.input.altInput, `Day ${game.day} · ${game.clockTime()} · ${level}`);
     },
     showDeath: (cause, dropped) => {
       game.setUiOpen(true);

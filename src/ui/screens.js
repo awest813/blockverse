@@ -389,6 +389,16 @@ export class Screens {
     }
     mkField('When you die', keepSel, 'Dropped items can be picked up again for 5 minutes.');
 
+    const diffSel = document.createElement('select');
+    ['Peaceful — no monsters', 'Easy — monsters hit for half', 'Normal', 'Hard — more monsters, harder hits'].forEach((label, v) => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = label;
+      diffSel.appendChild(o);
+    });
+    diffSel.value = '2';
+    mkField('Difficulty', diffSel, 'Change it any time with /difficulty.');
+
     const createBtn = this.btn('Create World', () => {}, 'btn primary');
     createBtn.type = 'submit';
     form.appendChild(createBtn);
@@ -410,6 +420,7 @@ export class Screens {
         mode: parseInt(modeSel.value, 10),
         renderDistance: this.settings.renderDistance,
         keepInventory: keepSel.value === '1',
+        difficulty: parseInt(diffSel.value, 10),
       });
       this.onPlay(meta.id);
     });

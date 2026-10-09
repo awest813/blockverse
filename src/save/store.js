@@ -36,7 +36,7 @@ export class SaveStore {
     return all.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
   }
 
-  async createWorld({ name, seed, mode, renderDistance, keepInventory = false }) {
+  async createWorld({ name, seed, mode, renderDistance, keepInventory = false, difficulty = 2 }) {
     const meta = {
       id: `w${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`,
       name,
@@ -44,6 +44,7 @@ export class SaveStore {
       mode,
       renderDistance,
       keepInventory,
+      difficulty,
       created: Date.now(),
       lastPlayed: Date.now(),
       timeOfDay: 0.05,
