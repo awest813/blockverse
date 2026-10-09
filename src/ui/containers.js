@@ -9,6 +9,7 @@ import { B, BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 import { fillSlot } from './hud.js';
+import { keyLabel } from '../core/keybinds.js';
 
 // fuels the smelting guide may load automatically
 const AUTO_FUELS = new Set([
@@ -301,6 +302,8 @@ export class Containers {
           this.cursor = null;
           this.renderCursor();
           this.render();
+        } else if (this.game.input.altInput === 'touch') {
+          this.close();   // touch has no E/Esc: a tap outside closes
         }
       }
     });
@@ -316,6 +319,15 @@ export class Containers {
     }
     if (this.open === 'furnace' && this.bookOpen) row.appendChild(this.renderSmeltingGuide());
     row.appendChild(win);
+    // an explicit close button (touch and gamepad players have no E key)
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'inv-close';
+    closeBtn.textContent = '✕';
+    closeBtn.title = 'Close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.addEventListener('click', () => this.close());
+    win.appendChild(closeBtn);
     screen.appendChild(row);
     this.root.appendChild(screen);
 
@@ -335,9 +347,16 @@ export class Containers {
 
     const hint = document.createElement('div');
     hint.className = 'inv-hint';
-    hint.textContent = this.open === 'inventory' && this.player.mode === GAMEMODE_CREATIVE
-      ? 'Left-click: stack · Right-click: one · ✕: destroy · E: close'
-      : 'Right-click: split · Shift-click: move · Click outside: drop · E: close';
+    const mode = this.game.input.altInput;
+    const closeKey = keyLabel(this.game.input.bindings.inventory);
+    const creative = this.open === 'inventory' && this.player.mode === GAMEMODE_CREATIVE;
+    hint.textContent = mode === 'touch'
+      ? (creative ? 'Tap: take a stack · Hold: take one · Tap outside: close' : 'Tap: pick up / place · Hold: split or place one · Tap outside: close')
+      : mode === 'gamepad'
+        ? 'A: pick up / place · X: split · RB: quick move · B: close'
+        : creative
+          ? `Left-click: stack · Right-click: one · ✕ slot: destroy · ${closeKey}: close`
+          : `Right-click: split · Shift-click: move · Click outside: drop · ${closeKey}: close`;
     win.appendChild(hint);
     this.renderCursor();
   }
@@ -663,7 +682,9 @@ export class Containers {
 
     const hint = document.createElement('div');
     hint.className = 'inv-hint';
-    hint.textContent = 'Click: fill the grid (or preview a missing recipe) · Shift-click: as many as you can';
+    hint.textContent = this.game.input.altInput === 'touch'
+      ? 'Tap: fill the grid (or preview a missing recipe)'
+      : 'Click: fill the grid (or preview a missing recipe) · Shift-click: as many as you can';
     book.appendChild(hint);
     if (this.bookFocusSearch) setTimeout(() => search.focus(), 0);
     return book;
@@ -844,7 +865,10 @@ export class Containers {
 
     const flame = document.createElement('div');
     flame.className = 'furnace-flame';
-    flame.textContent = '🔥';
+    const flameImg = document.createElement('img');
+    flameImg.src = this.atlas.icon(B.CAMPFIRE);   // pixel-art flame, not a platform emoji
+    flameImg.alt = '';
+    flame.appendChild(flameImg);
     flame.classList.toggle('off', !(st.burnLeft > 0));
     const burnTrack = document.createElement('div');
     burnTrack.className = 'progress-track';

@@ -164,7 +164,7 @@ export class Screens {
       list.appendChild(empty);
     }
 
-    const playBtn = this.btn('Play Selected World', () => { if (selected) this.onPlay(selected); });
+    const playBtn = this.btn('Play', () => { if (selected) this.onPlay(selected); });
     const deleteBtn = this.btn('Delete…', () => {
       const w = worlds.find((x) => x.id === selected);
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
@@ -221,17 +221,20 @@ export class Screens {
     }
     el.appendChild(list);
 
+    // with no worlds yet, creating one is the only thing to do: make it the big button
     const row = document.createElement('div');
     row.className = 'row';
-    row.appendChild(playBtn);
+    const createBtn = this.btn('Create New World', () => this.showCreate(), worlds.length ? 'btn small' : 'btn primary');
+    row.appendChild(worlds.length ? playBtn : createBtn);
     el.appendChild(row);
 
     const row2 = document.createElement('div');
     row2.className = 'row';
-    const createBtn = this.btn('Create New World', () => this.showCreate(), worlds.length ? 'btn small' : 'btn small primary');
-    row2.appendChild(createBtn);
-    row2.appendChild(renameBtn);
-    row2.appendChild(deleteBtn);
+    if (worlds.length) {
+      row2.appendChild(createBtn);
+      row2.appendChild(renameBtn);
+      row2.appendChild(deleteBtn);
+    }
     row2.appendChild(this.btn('Settings', () => this.showSettings(() => this.showMain(selected)), 'btn small'));
     el.appendChild(row2);
 
@@ -454,7 +457,19 @@ export class Screens {
     el.appendChild(track);
     const tip = document.createElement('div');
     tip.className = 'loading-tip';
-    tip.textContent = 'Tip: press T or / to open chat, then /help to list commands.';
+    const keys = resolveBindings(this.settings.keys);
+    const touch = window.matchMedia?.('(pointer: coarse)').matches;
+    const tips = [
+      touch ? 'Tip: tap … to open chat, then /help to list commands.'
+        : `Tip: press ${keyLabel(keys.chat)} or ${keyLabel(keys.command)} to open chat, then /help to list commands.`,
+      'Tip: feed two animals their favourite food and they\'ll have a baby.',
+      'Tip: a full swing hits hardest — and a falling blow lands a critical hit.',
+      'Tip: dig through the chiseled square in a desert temple\'s floor.',
+      touch ? 'Tip: sprint underwater to swim fast wherever you look.'
+        : `Tip: sprint (${keyLabel(keys.sprint)}) underwater to swim fast wherever you look.`,
+      'Tip: break a dungeon\'s spawner cage to stop the monsters for good.',
+    ];
+    tip.textContent = tips[(Math.random() * tips.length) | 0];
     el.appendChild(tip);
     this._loadingTrack = track;
     this._loadingFill = fill;
@@ -498,6 +513,7 @@ export class Screens {
     const inGame = this.current === 'pause' || this.current === 'settings-pause';
     const el = this.screen(inGame ? 'screen dim' : 'screen menu-bg');
     this.current = inGame ? 'settings-pause' : 'settings';
+    this.settingsBack = back;
     this.heading(el, 'Settings');
 
     const tabs = document.createElement('div');
@@ -601,7 +617,7 @@ export class Screens {
 
     // keep focus where the player was (tab strip, the key just rebound) for keyboard / gamepad
     ((focus && el.querySelector(focus)) || first).focus();
-    // in-game, Escape is routed through the game's key handler (resumes play)
+    // in-game, Escape is routed through the game's key handler (back to the pause menu)
     if (!inGame) {
       this.onKey = (e) => {
         if (e.key === 'Escape') { back(); return true; }
@@ -635,7 +651,15 @@ export class Screens {
       b.classList.toggle('conflict', conflicts.has(a.id));
       b.classList.toggle('changed', bindings[a.id] !== a.def);
       b.setAttribute('aria-label', `${a.label}: ${keyLabel(bindings[a.id])}. Press to change.`);
-      if (conflicts.has(a.id)) b.title = 'This key is also bound to another action';
+      if (conflicts.has(a.id)) {
+        // say what it clashes with, inline (touch has no hover tooltips)
+        const others = ACTIONS.filter((o) => o.id !== a.id && bindings[o.id] === bindings[a.id]).map((o) => o.label);
+        b.title = `Also bound to: ${others.join(', ')}`;
+        const note = document.createElement('span');
+        note.className = 'keybind-clash';
+        note.textContent = `also ${others.join(', ')}`;
+        l.appendChild(note);
+      }
       b.addEventListener('click', () => {
         this.sfx?.play('click');
         panel.querySelectorAll('.keybind.listening').forEach((x) => {
@@ -701,6 +725,6 @@ export class Screens {
     }
     // no autofocus: a held Space/Enter from gameplay must not trigger Respawn
     el.appendChild(this.btn('Respawn', () => this.onRespawn()));
-    el.appendChild(this.btn('Title Screen', () => this.onQuitToTitle()));
+    el.appendChild(this.btn('Save & Quit to Title', () => this.onQuitToTitle()));
   }
 }

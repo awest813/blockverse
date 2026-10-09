@@ -5,19 +5,19 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 `[ ]` = open. Roughly most important first within each section.
 
 ## UI / UX
-- [ ] **Touch: containers can't be closed** (screen covers the touch buttons) — add a ✕/Done button to every container window, tap outside to close
-- [ ] **Phones: GUI too small** (auto scale floors at 0.6 → ~8px text, 26px touch targets); allow pinch zoom
-- [ ] Settings panel clipped on short screens (max-height fights `zoom`)
-- [ ] Debug overlay and chat overlap in touch mode
-- [ ] Inventory hint text ignores rebinding / touch; loading tip hard-codes "T or /"
-- [ ] Default sprint key Ctrl (Ctrl+W closes the tab outside fullscreen); Ctrl+Q drop-stack quits Firefox
-- [ ] Empty world list: big disabled "Play" above a small "Create"
-- [ ] Esc from in-game Settings should return to the pause menu
-- [ ] Chat/toasts show through pause and container screens
-- [ ] Keybind conflicts only shown as a red border; say what clashes
-- [ ] Death screen: low-contrast title, inconsistent "Title Screen" vs "Save & Quit" wording
-- [ ] Focus rings for creative tabs, recipes, slots; reduced-motion for pulses/toasts
-- [ ] Furnace 🔥 emoji clashes with pixel icons; ambiguous touch glyphs
+- [x] **Touch: containers couldn't be closed** — every container window has a ✕ (44px on touch), and a tap outside closes on touch
+- [x] Phones: HUD never shrinks below 85% on touch; thumb buttons are 44px+ (menus still use the auto GUI scale)
+- [x] Settings panel no longer clipped on short screens
+- [x] Debug overlay and chat no longer overlap in touch mode
+- [x] Inventory / recipe-book hints follow key bindings and input type (touch, gamepad); loading tips use real bindings
+- [x] Ctrl+W mid-game: the world saves and the browser asks before leaving (sprint stays on Ctrl)
+- [x] Empty world list leads with a big Create New World button
+- [x] Esc from in-game Settings returns to the pause menu
+- [x] Chat and toasts fade behind menus and containers
+- [x] Keybind conflicts say what they clash with, inline
+- [x] Death screen: readable title, "Save & Quit to Title" like the pause menu
+- [x] Focus rings for creative tabs, recipes, slots; reduced motion covers pulses and toasts
+- [x] Furnace flame is a pixel icon (touch glyphs still ▦ / …)
 - [ ] Separate volume sliders, brightness, view bobbing, screenshot key, crosshair options
 - [ ] World list search/sort, duplicate, export/import, copy seed
 - [ ] Chat command completion; touch send button

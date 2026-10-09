@@ -15,6 +15,15 @@ const hudEl = document.getElementById('hud');
 const atlas = new Atlas();
 const sfx = new Sfx();
 let game = null;
+
+// Ctrl is the sprint key, so Ctrl+W can close the tab mid-game outside
+// fullscreen: save at once and let the browser ask "Leave site?"
+window.addEventListener('beforeunload', (e) => {
+  if (!game?.running) return;
+  game.save();
+  e.preventDefault();
+  e.returnValue = '';
+});
 let screens = null;
 let store = null;
 
@@ -70,7 +79,11 @@ async function startWorld(id) {
       screens.showDeath(cause, dropped);
     },
     handleKey: (code) => {
-      if (code === 'Escape' && (screens.current === 'pause' || screens.current === 'settings-pause')) {
+      if (code === 'Escape' && screens.current === 'settings-pause') {
+        screens.settingsBack?.();   // settings -> pause menu, like the Done button
+        return true;
+      }
+      if (code === 'Escape' && screens.current === 'pause') {
         resumeGame();
         return true;
       }

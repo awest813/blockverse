@@ -35,6 +35,8 @@ html, body {
 /* ---------- HUD ---------- */
 
 #hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; zoom: var(--gui); }
+/* phones: never shrink the HUD and its thumb controls below a usable size */
+#hud.touch { zoom: max(var(--gui), 0.85); }
 
 #fps-counter {
   position: absolute; right: 8px; top: 8px;
@@ -403,6 +405,7 @@ html, body {
 /* ---------- inventory / crafting / furnace ---------- */
 
 .inv-window {
+  position: relative;
   background: var(--ui-bg);
   border: 3px solid;
   border-color: var(--ui-border-light) var(--ui-border-dark) var(--ui-border-dark) var(--ui-border-light);
@@ -413,6 +416,20 @@ html, body {
 }
 
 .inv-window h3 { font-size: 14px; color: #3b3b3b; margin-bottom: 8px; }
+.inv-close {
+  position: absolute; top: 4px; right: 4px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: #a9a9a9; border: 2px solid; border-color: #dcdcdc #6b6b6b #6b6b6b #dcdcdc;
+  color: #333; font: 700 13px/1 sans-serif; cursor: pointer; padding: 0;
+}
+.inv-close:hover { background: #c4c4c4; }
+.inv-close:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+/* #ui-root is zoomed by --gui: keep the close button a real 44px thumb target */
+#hud.touch ~ #ui-root .inv-close { width: calc(44px / var(--gui)); height: calc(44px / var(--gui)); font-size: calc(18px / var(--gui)); }
+/* keep window headers (titles, guide toggles) clear of the close button */
+.inv-close + * { margin-right: 30px; }
+#hud.touch ~ #ui-root .inv-close + * { margin-right: calc(50px / var(--gui)); }
 
 .inv-grid { display: grid; gap: 3px; }
 .inv-grid.cols-9 { grid-template-columns: repeat(9, var(--slot-size)); }
@@ -520,7 +537,8 @@ html, body {
 
 .arrow { font-size: 26px; color: #3b3b3b; align-self: center; padding: 0 8px; }
 
-.furnace-flame { font-size: 20px; text-align: center; }
+.furnace-flame { text-align: center; line-height: 0; }
+.furnace-flame img { width: 26px; height: 26px; image-rendering: pixelated; }
 .furnace-flame.off { filter: grayscale(1); opacity: 0.3; }
 .progress-track { width: 40px; height: 6px; background: #777; margin: 4px 0; }
 .progress-track > div { height: 100%; background: #e8862c; }
@@ -554,7 +572,7 @@ html, body {
 .tooltip-sub { color: #aaa; font-size: 12px; font-weight: 400; }
 
 /* death screen */
-.death-title { font-size: 40px; color: #ff5555; text-shadow: 2px 2px 0 #500; }
+.death-title { font-size: 40px; color: #ffe1e1; text-shadow: 2px 2px 0 #7a0000, 0 0 18px rgba(255, 60, 60, 0.7); }
 .death-items { max-width: 420px; text-align: center; color: #ffd0d0; font-size: 13px; font-weight: 400; margin: -4px 0 8px; }
 .pause-sub { color: #cfd6ff; margin-top: -8px; font-size: 14px; }
 .death-cause { color: #fff; margin-top: -6px; margin-bottom: 8px; text-shadow: 1px 1px 0 #000; }
@@ -567,7 +585,8 @@ html, body {
   border: 2px solid rgba(255, 255, 255, 0.12);
   width: min(440px, 100%);
 }
-.settings-panel { max-height: min(56vh, 520px); overflow-y: auto; }
+/* #ui-root is zoomed by --gui, so divide the viewport by it to get the real room left */
+.settings-panel { max-height: max(160px, min(520px, calc(100vh / var(--gui) - 190px))); overflow-y: auto; }
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
 .setting-row label, .setting-row .setting-label { flex: 1; font-size: 14px; }
 .setting-group {
@@ -610,7 +629,8 @@ html, body {
 .loading-bar-track > div { height: 100%; background: #6fbf4a; width: 0%; transition: width 0.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  #click-to-play, .stat-icon, #hotbar .slot img, #vignette.low { animation: none !important; }
+  #click-to-play, .stat-icon, #hotbar .slot img, #vignette.low,
+  #inventory-hint, .keybind.listening, .toast, .tc-inv { animation: none !important; transition: none !important; }
   #vignette.low { opacity: 0.4; }
 }
 
@@ -652,11 +672,11 @@ html, body {
 .tc-btn.on { background: rgba(111, 191, 74, 0.55); border-color: var(--accent); }
 .tc-jump { right: 34px; bottom: 44px; width: 76px; height: 76px; font-size: 30px; }
 .tc-sneak { right: 124px; bottom: 30px; }
-.tc-drop { right: 124px; bottom: 100px; width: 46px; height: 46px; }
-.tc-pause, .tc-chat, .tc-inv { top: 12px; width: 46px; height: 46px; border-radius: 8px; font-size: 18px; }
+.tc-drop { right: 124px; bottom: 100px; width: 52px; height: 52px; }
+.tc-pause, .tc-chat, .tc-inv { top: 12px; width: 52px; height: 52px; border-radius: 8px; font-size: 20px; }
 .tc-pause { right: 12px; }
-.tc-chat { right: 66px; }
-.tc-inv { right: 120px; }
+.tc-chat { right: 72px; }
+.tc-inv { right: 132px; }
 
 /* portrait phones: the hotbar spans the width, so lift the controls above it */
 @media (orientation: portrait) {
@@ -665,4 +685,15 @@ html, body {
   .tc-sneak { bottom: 152px; }
   .tc-drop { bottom: 222px; }
 }
-#hud.touch #chat-log { top: 70px; bottom: auto; }
+#hud.touch #chat-log { top: 76px; bottom: auto; }
+/* F3 info and chat would overlap at the top-left on touch: push chat below it */
+#hud.touch.debug-on #chat-log { top: 46%; }
+
+/* menus and containers on top: fade the chat log and toasts behind them */
+#hud:has(~ #ui-root > .screen) #chat-log,
+#hud:has(~ #ui-root > .screen) #toasts { opacity: 0.18; transition: opacity 0.15s; }
+.keybind-clash { display: block; font-size: 11px; color: #ff9a8a; }
+
+/* keyboard / gamepad focus on in-game panels */
+.creative-tab:focus-visible, .book-toggle:focus-visible, .recipe:focus-visible,
+.slot:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }

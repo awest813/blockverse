@@ -263,7 +263,8 @@ export class Hud {
   }
 
   toggleDebug() {
-    this.debugEl.classList.toggle('hidden');
+    const on = this.debugEl.classList.toggle('hidden') === false;
+    this.root.classList.toggle('debug-on', on);
   }
 
   // F1: hide everything but chat, for screenshots
