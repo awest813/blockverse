@@ -38,6 +38,19 @@ export class Atlas {
         const src = (TILE - 1 - y) * TILE * 4;
         data.set(img.subarray(src, src + TILE * 4), base + y * TILE * 4);
       }
+      // fully transparent texels come back black; give them the tile's
+      // average colour instead so mipmaps don't darken the edges of leaves,
+      // flowers and glass in the distance
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = base; i < base + TILE * TILE * 4; i += 4) {
+        if (data[i + 3]) { r += data[i]; g += data[i + 1]; b += data[i + 2]; n++; }
+      }
+      if (n && n < TILE * TILE) {
+        r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+        for (let i = base; i < base + TILE * TILE * 4; i += 4) {
+          if (!data[i + 3]) { data[i] = r; data[i + 1] = g; data[i + 2] = b; }
+        }
+      }
     });
 
     const tex = new THREE.DataArrayTexture(data, TILE, TILE, this.count);

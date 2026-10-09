@@ -9,6 +9,7 @@ const DAY_ZENITH = new THREE.Color(0x6f9fe8);
 const DAY_HORIZON = new THREE.Color(0x9cc4f0);
 const NIGHT = new THREE.Color(0x070b18);
 const DUSK = new THREE.Color(0xe08a4e);
+const DUSK_GLOW = new THREE.Color(0xff9a50);
 
 function makeCloudTexture() {
   const size = 256;
@@ -44,6 +45,25 @@ function makeCloudTexture() {
   return tex;
 }
 
+// radial falloff so the cloud plane thins out toward its edge instead of
+// ending in a hard line
+function makeCloudFade() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 6, 32, 32, 32);
+  g.addColorStop(0, '#fff');
+  g.addColorStop(0.55, '#bbb');
+  g.addColorStop(1, '#000');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+const SKY_DAY = new THREE.Vector3(1, 1, 1);
+const SKY_NIGHT = new THREE.Vector3(0.78, 0.86, 1.0);   // moonlight is cool
+const SKY_DUSK = new THREE.Vector3(1.0, 0.86, 0.74);
+
 const CLOUD_NIGHT = new THREE.Color(0x283044);
 const CLOUD_DUSK = new THREE.Color(0xffb38a);
 const WHITE = new THREE.Color(0xffffff);
@@ -63,6 +83,40 @@ export class Sky {
         map: tex, transparent: true, fog: false, depthWrite: false, side: THREE.DoubleSide,
       });
     };
+
+    // the sky itself: a dome shading from the horizon (the fog colour, so
+    // distant land melts into it) up to the zenith, with a warm glow on the
+    // sun's side at dawn and dusk
+    this.domeUniforms = {
+      uZenith: { value: new THREE.Color() },   // holds sRGB components
+      uHorizon: { value: new THREE.Color() },
+      uGlow: { value: new THREE.Color() },
+      uSunDir: { value: new THREE.Vector3(1, 0, 0) },
+      uGlowAmt: { value: 0 },
+    };
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(380, 24, 12), new THREE.ShaderMaterial({
+      uniforms: this.domeUniforms,
+      vertexShader: /* glsl */ `
+        varying vec3 vDir;
+        void main() {
+          vDir = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uZenith, uHorizon, uGlow, uSunDir;
+        uniform float uGlowAmt;
+        varying vec3 vDir;
+        void main() {
+          vec3 d = normalize(vDir);
+          vec3 col = mix(uHorizon, uZenith, pow(clamp(d.y, 0.0, 1.0), 0.5));
+          float g = pow(max(dot(d, uSunDir), 0.0), 5.0) * uGlowAmt * (1.0 - clamp(abs(d.y) * 1.5, 0.0, 1.0));
+          gl_FragColor = vec4(mix(col, uGlow, g), 1.0);
+        }`,
+      side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+    }));
+    this.dome.renderOrder = -1000;
+    this.dome.frustumCulled = false;
+    this.group.add(this.dome);
 
     this.sun = new THREE.Mesh(new THREE.PlaneGeometry(56, 56), spriteMat('sun'));
     this.moon = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), spriteMat('moon'));
@@ -92,7 +146,7 @@ export class Sky {
     // clouds: two large translucent planes drifting overhead
     this.cloudTex = makeCloudTexture();
     const cloudMat = new THREE.MeshBasicMaterial({
-      map: this.cloudTex, transparent: true, opacity: 0.85, depthWrite: false,
+      map: this.cloudTex, alphaMap: makeCloudFade(), transparent: true, opacity: 0.85, depthWrite: false,
       side: THREE.DoubleSide, fog: false,
     });
     this.clouds = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), cloudMat);
@@ -118,6 +172,15 @@ export class Sky {
     this.moon.position.set(-sx, -sy, 0);
     this.moon.lookAt(p.x, p.y, p.z);
 
+    // the stars wheel overhead with the sun and moon
+    this.stars.rotation.z = angle;
+    // nothing of the sky shows through water
+    this.group.visible = this.clouds.visible = !underwater;
+    // skylight tint for the terrain: cool at night, warm at dawn and dusk
+    const elev = Math.sin(angle);
+    this.uniforms.uSkyTint.value.copy(SKY_NIGHT).lerp(SKY_DAY, Math.min(1, day * 1.3))
+      .lerp(SKY_DUSK, Math.max(0, 1 - Math.abs(elev) * 4) * 0.6);
+
     const night = 1 - Math.min(1, day * 1.6);
     this.starMat.opacity = Math.max(0, night - 0.15);
 
@@ -140,11 +203,28 @@ export class Sky {
       const el = Math.sin(angle); // sun elevation -1..1
       this._bg.copy(DAY_ZENITH).lerp(NIGHT, 1 - Math.max(0.04, Math.min(1, 0.5 + el * 2.2)));
       const duskAmount = Math.max(0, 1 - Math.abs(el) * 5) * 0.55;
-      this._bg.lerp(DUSK, duskAmount);
+      this._bg.lerp(DUSK, duskAmount * 0.4);   // the dome's glow does the rest
       this._fog.copy(DAY_HORIZON).lerp(NIGHT, 1 - Math.max(0.05, Math.min(1, 0.5 + el * 2.2)));
       this._fog.lerp(DUSK, duskAmount);
       this.scene.background = this._bg;
       this.uniforms.uFogColor.value.copy(this._fog);
+      const du = this.domeUniforms;
+      // the dome's colours go straight to the screen, so hand it sRGB
+      this._bg.getRGB(du.uZenith.value, THREE.SRGBColorSpace);
+      this._fog.getRGB(du.uHorizon.value, THREE.SRGBColorSpace);
+      DUSK_GLOW.getRGB(du.uGlow.value, THREE.SRGBColorSpace);
+      du.uSunDir.value.set(Math.cos(angle), Math.sin(angle), 0).normalize();
+      du.uGlowAmt.value = Math.max(0, 1 - Math.abs(el) * 4) * 0.85;
+    }
+  }
+
+  dispose() {
+    this.scene.remove(this.group, this.clouds);
+    for (const o of [this.dome, this.sun, this.moon, this.stars, this.clouds]) {
+      o.geometry.dispose();
+      o.material.map?.dispose();
+      o.material.alphaMap?.dispose();
+      o.material.dispose();
     }
   }
 }

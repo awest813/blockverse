@@ -53,6 +53,8 @@ function bubbleTexture() {
   return tex;
 }
 
+const BLAST_GEO = new THREE.SphereGeometry(1, 16, 12);   // shared by every explosion flash
+
 export class Game {
   constructor({ canvas, atlas, worldMeta, store = null, sfx = null, onExit = null }) {
     this.canvas = canvas;
@@ -67,6 +69,8 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.scene = new THREE.Scene();
+    // fog for mobs, drops and particles; kept in step with the chunk shader's
+    this.scene.fog = new THREE.Fog(0x8fbcec, 80, 140);
     this.scene.background = new THREE.Color(0x8fbcec);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.08, 800);
     this.scene.add(this.camera);   // so the held-item view model (a camera child) renders
@@ -179,6 +183,7 @@ export class Game {
     });
 
     this._onResize = () => {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));   // e.g. moved to another screen
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
@@ -617,7 +622,7 @@ export class Game {
 
   addBlast(x, y, z, power) {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 16, 12),
+      BLAST_GEO,
       new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
     mesh.position.set(x, y, z);
     this.scene.add(mesh);
@@ -632,7 +637,6 @@ export class Game {
       b.mesh.material.opacity = Math.max(0, 0.85 * (1 - f));
       if (f >= 1) {
         this.scene.remove(b.mesh);
-        b.mesh.geometry.dispose();
         b.mesh.material.dispose();
       }
     }
@@ -867,6 +871,10 @@ export class Game {
 
     // underwater tint
     this.applyUnderwaterEffect();
+    const fu = this.world.materials.uniforms, fog = this.scene.fog;
+    fog.color.copy(fu.uFogColor.value);
+    fog.near = fu.uFogNear.value;
+    fog.far = fu.uFogFar.value;
 
     this.world.update(this.player.x, this.player.z, now, document.hidden ? 8 : 1);
     this.renderer.render(this.scene, this.camera);
@@ -902,8 +910,7 @@ export class Game {
   updateViewModel(dt, paused) {
     const p = this.player;
     const x = Math.floor(p.x), y = Math.floor(p.eyeY), z = Math.floor(p.z);
-    const sky = this.world.getSkyW(x, y, z) ?? 15, block = this.world.getBlockLightW(x, y, z) ?? 0;
-    const light = Math.max((sky / 15) * this.world.materials.uniforms.uDay.value, block / 15) || 0;
+    const light = this.world.lightAt(x, y, z) || 0;
     this.viewModel.update(paused ? 0 : dt, {
       held: p.heldStack()?.id ?? 0,
       draw: this.interaction.bowCharge,
@@ -1102,6 +1109,7 @@ export class Game {
     this.viewModel.dispose();
     this.campfireFx.dispose();
     this.signFx.dispose();
+    this.sky.dispose();
     this.hud.hide();
     document.removeEventListener('visibilitychange', this._onVisibility);
     window.removeEventListener('resize', this._onResize);

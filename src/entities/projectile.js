@@ -28,13 +28,22 @@ export class Arrow {
     this.stuck = false;
     this.dead = false;
     this.mesh = this.makeMesh();
+    this.base = this.mesh.material.color.clone();
     scene.add(this.mesh);
     this.orient();
   }
 
-  makeMesh() { return new THREE.Mesh(shaftGeo, shaftMat); }
+  makeMesh() { return new THREE.Mesh(shaftGeo, shaftMat.clone()); }
+
+  // shaded by the light where it is, like everything else in the world
+  shade() {
+    if ((this._lt = (this._lt ?? 0) - 1) > 0) return;
+    this._lt = 6;
+    this.mesh.material.color.copy(this.base).multiplyScalar(this.world.lightAt(this.x, this.y, this.z));
+  }
 
   orient() {
+    this.shade();
     this.mesh.position.set(this.x, this.y, this.z);
     this.mesh.lookAt(this.x + this.vx, this.y + this.vy, this.z + this.vz);
   }
@@ -105,6 +114,7 @@ export class Arrow {
   kill() {
     this.dead = true;
     this.scene.remove(this.mesh);
+    this.mesh.material.dispose();
   }
 }
 
@@ -115,12 +125,14 @@ export class Thrown extends Arrow {
     super(scene, world, x, y, z, vx, vy, vz, 0, 'player', false);
     this.kind = kind;
     this.onHatch = onHatch;
-    this.mesh.material = kind === 'egg' ? eggMat : snowMat;
+    this.mesh.material.color.copy((kind === 'egg' ? eggMat : snowMat).color);
+    this.base = this.mesh.material.color.clone();
+    this._lt = 0; this.shade();
   }
 
-  makeMesh() { return new THREE.Mesh(ballGeo, snowMat); }
+  makeMesh() { return new THREE.Mesh(ballGeo, snowMat.clone()); }
 
-  orient() { this.mesh.position.set(this.x, this.y, this.z); }
+  orient() { this.shade(); this.mesh.position.set(this.x, this.y, this.z); }
 
   splat() {
     if (this.kind === 'egg' && Math.random() < 0.125) this.onHatch?.(this.x - this.vx * 0.02, this.y + 0.2, this.z - this.vz * 0.02);
@@ -152,9 +164,9 @@ export class Bobber extends Arrow {
     scene.add(this.line);
   }
 
-  makeMesh() { return new THREE.Mesh(bobberGeo, bobberMat); }
+  makeMesh() { return new THREE.Mesh(bobberGeo, bobberMat.clone()); }
 
-  orient() { this.mesh.position.set(this.x, this.y - (this.biteTime > 0 ? 0.18 : 0), this.z); }
+  orient() { this.shade(); this.mesh.position.set(this.x, this.y - (this.biteTime > 0 ? 0.18 : 0), this.z); }
 
   get biting() { return this.biteTime > 0; }
 

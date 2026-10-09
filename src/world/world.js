@@ -67,17 +67,23 @@ export class World {
     return c.skyLight[blockIndex(wx & 15, wy, wz & 15)];
   }
 
+  // How bright an unlit (non-voxel) thing at this spot should be drawn, as
+  // a linear colour multiplier: the same curve the chunk shader applies
+  // (sky light by time of day, block light, a small floor, the brightness
+  // setting), so mobs, drops and the hand match the terrain around them.
+  lightAt(x, y, z) {
+    const wx = Math.floor(x), wy = Math.floor(y), wz = Math.floor(z);
+    const u = this.materials.uniforms;
+    let br = Math.min(1, Math.max(this.getBlockLightW(wx, wy, wz) / 15, (this.getSkyW(wx, wy, wz) / 15) * u.uDay.value) + 0.04);
+    br = Math.pow(br, 1 / (1 + u.uBrightness.value * 1.2));
+    return Math.pow(br, 2.2);
+  }
+
   getBlockLightW(wx, wy, wz) {
     if (wy < 0 || wy >= CHUNK_Y) return 0;
     const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
     if (!c || !c.hasLight) return 0;
     return c.blockLight[blockIndex(wx & 15, wy, wz & 15)];
-  }
-
-  getMetaW(wx, wy, wz) {
-    const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
-    if (!c || wy < 0 || wy >= CHUNK_Y) return 0;
-    return c.getMeta(wx & 15, wy, wz & 15);
   }
 
   // Set a block, updating light and marking meshes dirty. Returns old id, or -1.
@@ -140,6 +146,9 @@ export class World {
   // ---- streaming ----
   // budgetScale > 1 lets background/hidden ticks do more work per call.
   update(px, pz, frameStart, budgetScale = 1) {
+    // game logic before this call counts against the budgets for at most
+    // 4ms, so a slow frame still gets some chunk work done
+    frameStart = Math.max(frameStart, performance.now() - 4 * budgetScale);
     const lightBudget = 5 * budgetScale;
     const meshBudget = 9 * budgetScale;
     const pcx = Math.floor(px / CHUNK_X);
@@ -156,10 +165,10 @@ export class World {
 
     // light init: budgeted
     let guard = 0;
+    // nearest first (popped off the end)
+    if (this.lightQueue.length > 1) this.lightQueue.sort((a, b) =>
+      (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)) - (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)));
     while (this.lightQueue.length && performance.now() - frameStart < lightBudget && guard++ < 4 * budgetScale) {
-      // nearest first
-      this.lightQueue.sort((a, b) =>
-        (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)) - (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)));
       const c = this.lightQueue.pop();
       if (!c.hasBlocks || c.hasLight) continue;
       initChunkLight(this, c, this.dirtyMeshes);
@@ -167,11 +176,15 @@ export class World {
 
     // mesh rebuilds: nearest dirty chunks first, budgeted
     if (this.dirtyMeshes.size) {
-      const list = [...this.dirtyMeshes]
-        .map((key) => this.chunks.get(key))
-        .filter((c) => c && c.hasLight && this.neighborsLit(c) &&
-          Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) <= R)
-        .sort((a, b) =>
+      // chunks just outside the view stay queued until they come into range;
+      // ones that have been unloaded are dropped
+      const list = [];
+      for (const key of this.dirtyMeshes) {
+        const c = this.chunks.get(key);
+        if (!c) { this.dirtyMeshes.delete(key); continue; }
+        if (Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) <= R && c.hasLight && this.neighborsLit(c)) list.push(c);
+      }
+      list.sort((a, b) =>
           (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)) - (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)));
       for (const c of list) {
         this.rebuildMesh(c);

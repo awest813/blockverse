@@ -100,3 +100,17 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] (gen v5) Lava floods the deepest caves; snow layers on the tundra, snowfields on high peaks
 - [x] (gen v6) Desert wells
 - [x] (gen v6) Fossils of bone blocks buried under deserts and swamps (bone blocks craft from bone meal)
+
+## Rendering & audio
+- [x] Fog colour converted to the screen's colour space (it was darker than the sky, near-black at night)
+- [x] Mobs, drops, arrows, sign text and the hand lit with the terrain's light curve (they glowed at night)
+- [x] Scene fog for mobs, items and particles; no sky, sun or clouds underwater
+- [x] Gradient sky dome with a dusk glow on the sun's side; warm torchlight, cool moonlight; stars wheel; clouds tinted by time of day, fading at the edge
+- [x] East/west block faces were mirrored
+- [x] Transparent texels no longer darken leaf/flower/glass edges in the distance
+- [x] Dirty-chunk queue drops unloaded chunks; light queue sorted once a frame; chunk work keeps a budget on slow frames
+- [x] Audio: limiter, positional falloff and stereo panning, per-sound throttles, background-tab suspend, ambience (fire, lava, caves, crickets, heartbeat), door/chest/sizzle/burp sounds
+- [x] Mesher reads the 3×3 neighbour chunks directly with precomputed offsets (same output, ~2× faster rebuilds)
+- [ ] One material per mob part: bake colours into vertex colours, one material per mob
+- [ ] Slabs, stairs and other shaped blocks are lit flat (no smooth light / AO)
+- [ ] Animated water surface

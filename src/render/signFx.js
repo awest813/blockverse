@@ -52,9 +52,14 @@ export class SignFx {
         seen.add(key);
         const meta = this.world.getMetaW(x, y, z);
         const have = this.signs.get(key);
-        if (have && have.rev === st.rev && have.meta === meta) continue;
-        if (have) this.remove(key);
-        this.signs.set(key, { mesh: this.makeMesh(x, y, z, meta, st.lines), rev: st.rev, meta });
+        let sign = have;
+        if (!have || have.rev !== st.rev || have.meta !== meta) {
+          if (have) this.remove(key);
+          sign = { mesh: this.makeMesh(x, y, z, meta, st.lines), rev: st.rev, meta };
+          this.signs.set(key, sign);
+        }
+        // lettering takes the light of the board it's written on
+        sign.mesh.material.color.setScalar(this.world.lightAt(x + 0.5, y + 0.5, z + 0.5));
       }
     }
     for (const key of [...this.signs.keys()]) if (!seen.has(key)) this.remove(key);

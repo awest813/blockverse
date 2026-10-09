@@ -104,7 +104,7 @@ export class CampfireFx {
         if (mesh && (!s || mesh.userData.id !== s.id)) { this.scene.remove(mesh); mesh.material.dispose(); f.food[i] = null; }
         if (s && !f.food[i]) {
           const m = new THREE.Mesh(this.foodGeo, new THREE.MeshBasicMaterial({
-            map: this.iconTexture(s.id), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, fog: false,
+            map: this.iconTexture(s.id), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
           }));
           m.rotation.x = -Math.PI / 2;
           m.rotation.z = i * 0.9;

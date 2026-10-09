@@ -28,6 +28,7 @@ precision highp sampler2DArray;
 uniform sampler2DArray uAtlas;
 uniform float uDay;
 uniform float uBrightness;
+uniform vec3 uSkyTint;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -38,14 +39,18 @@ out vec4 outColor;
 void main() {
   vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));
   ${water ? '' : 'if (tex.a < 0.5) discard;'}
-  float br = clamp(max(vLight.y, vLight.x * uDay) + 0.04, 0.0, 1.0);
+  // torchlight is a touch warm; skylight takes the tint of the hour
+  vec3 br = clamp(max(vLight.y * vec3(1.0, 0.93, 0.82), vLight.x * uDay * uSkyTint) + 0.04, 0.0, 1.0);
   // brightness setting: lift the darks (gamma), never blow out the brights
-  br = pow(br, 1.0 / (1.0 + uBrightness * 1.2));
+  br = pow(br, vec3(1.0 / (1.0 + uBrightness * 1.2)));
   vec3 col = tex.rgb * br;
+  // the atlas is sampled as-is (sRGB) and written straight out, while
+  // THREE.Color uniforms are linear: convert the fog so it matches the sky
+  vec3 fogC = mix(uFogColor * 12.92, 1.055 * pow(uFogColor, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, uFogColor));
   float fogF = smoothstep(uFogNear, uFogFar, vFogDepth);
   ${water
-    ? 'outColor = vec4(mix(col, uFogColor, fogF), tex.a * 0.82);'
-    : 'outColor = vec4(mix(col, uFogColor, fogF), 1.0);'}
+    ? 'outColor = vec4(mix(col, fogC, fogF), tex.a * 0.82);'
+    : 'outColor = vec4(mix(col, fogC, fogF), 1.0);'}
 }
 `;
 }
@@ -55,6 +60,7 @@ export function createChunkMaterials(atlas) {
     uAtlas: { value: atlas.texture },
     uDay: { value: 1.0 },
     uBrightness: { value: 0.0 },   // 0 moody .. 1 bright (settings)
+    uSkyTint: { value: new THREE.Vector3(1, 1, 1) },   // set by the sky
     uFogColor: { value: new THREE.Color(0x8fbcec) },
     uFogNear: { value: 80 },
     uFogFar: { value: 140 },

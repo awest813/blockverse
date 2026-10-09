@@ -7,6 +7,7 @@ import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
+const HURT_RED = new THREE.Color(0xff3333);
 
 // BoxGeometry with per-face brightness baked into vertex colors, so flat
 // MeshBasicMaterial still reads as 3D.
@@ -260,13 +261,10 @@ export class Mob {
     this.group.rotation.y = this.yaw;
 
     // brightness from voxel light + hurt flash
-    const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + 0.5), Math.floor(this.z));
-    const bl = this.world.getBlockLightW(Math.floor(this.x), Math.floor(this.y + 0.5), Math.floor(this.z));
-    const day = this.world.materials.uniforms.uDay.value;
-    const light = Math.max(0.12, Math.max((sky / 15) * day, bl / 15));
+    const light = this.world.lightAt(this.x, this.y + 0.5, this.z);
     for (const { mat, base } of this.materials) {
       mat.color.copy(base).multiplyScalar(light);
-      if (this.flashTime > 0) mat.color.lerp(new THREE.Color(0xff3333), 0.55);
+      if (this.flashTime > 0) mat.color.lerp(HURT_RED, 0.55);
     }
   }
 
@@ -366,7 +364,7 @@ export class Mob {
     this.dying -= dt;
     const k = Math.min(1, 1 - this.dying / DEATH_TIME);
     this.group.rotation.z = Math.min(1, k * 2) * Math.PI / 2;   // tip over
-    for (const { mat, base } of this.materials) mat.color.copy(base).lerp(new THREE.Color(0xff3333), 0.5).multiplyScalar(1 - k * 0.6);
+    for (const { mat, base } of this.materials) mat.color.copy(base).lerp(HURT_RED, 0.5).multiplyScalar((1 - k * 0.6) * this.world.lightAt(this.x, this.y + 0.5, this.z));
     if (this.dying <= 0) this.kill();
   }
 

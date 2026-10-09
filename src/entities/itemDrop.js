@@ -100,6 +100,11 @@ export class ItemDrop {
     const bob = Math.sin(this.age * 2.2) * 0.045;
     this.mesh.position.set(this.x, this.y + 0.18 + bob, this.z);
     this.mesh.rotation.y = this.spin;
+    // take the light of where it lies (a few times a second is plenty)
+    if ((this._lt = (this._lt ?? Math.random() * 0.2) - dt) <= 0) {
+      this._lt = 0.2;
+      this.mesh.material.color.setScalar(this.world.lightAt(this.x, this.y + 0.2, this.z));
+    }
   }
 
   kill() {

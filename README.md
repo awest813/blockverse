@@ -89,8 +89,9 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Original box-model creatures with walk animations, knockback, fall damage, and voxel-light-aware shading
 
 ### 🌗 Living environment
-- Full **day/night cycle** (20 min) with sunrise/sunset color grading, a sun and a moon, drifting blocky clouds, and a starfield at night
-- Distance fog that follows your render-distance setting; underwater the view tints blue, darkens with depth and at night, and bubbles rise from you
+- Full **day/night cycle** (20 min): a gradient sky dome that glows on the sun's side at sunrise and sunset, a sun and a moon, drifting blocky clouds that take the colour of the hour, and a starfield that wheels overhead at night
+- Torchlight is warm and moonlight cool; mobs, dropped items, arrows, sign lettering and your hand are all lit by the voxel light where they stand, so nothing glows in a dark cave
+- Distance fog that follows your render-distance setting and blends terrain, mobs and items into the horizon; underwater the sky disappears, the view tints blue, darkens with depth and at night, and bubbles rise from you
 
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
@@ -106,7 +107,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🎨 100% procedural assets
 - Every block, item, and tool texture is **pixel art drawn by code** into a texture array at startup (mipmap-safe, no bleeding)
 - Inventory icons are rendered as tiny isometric cubes from the same tiles
-- All sound effects — digging, footsteps per material, hurt, eating, splashes, UI clicks — are **synthesized live with WebAudio**. There are no asset files in the repository at all.
+- All sound effects — digging, footsteps per material, hurt (by cause), eating, doors, chests, splashes, UI clicks — are **synthesized live with WebAudio**. There are no asset files in the repository at all.
+- Sounds are positional: they fade with distance and pan left/right; a limiter keeps a burst of explosions from clipping, and repeated sounds are throttled. Ambience: fires crackle, lava pops, caves drone, crickets sing on clear nights, and your heart pounds at low health. Audio pauses in a background tab.
 
 ---
 

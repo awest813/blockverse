@@ -97,7 +97,7 @@ export class ViewModel {
 
     // tint to the light level so the hand isn't glowing in a dark cave
     this.brightness += (light - this.brightness) * Math.min(1, dt * 8);
-    const c = 0.2 + 0.8 * this.brightness;
+    const c = Math.max(0.02, this.brightness);   // linear, matches the terrain
     const mats = Array.isArray(this.current.material) ? this.current.material : [this.current.material];
     for (const m of mats) m.color.setScalar(c);
     if (this.current === this.arm) this.arm.material.color.setRGB(0.85 * c, 0.64 * c, 0.49 * c);

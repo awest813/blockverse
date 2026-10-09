@@ -5,28 +5,41 @@ import * as THREE from 'three';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z } from '../core/constants.js';
 import { BLOCKS, R_NONE, R_SOLID, R_CUTOUT, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
 import { shapeBoxes } from '../blocks/shapes.js';
+import { chunkKey } from '../world/chunk.js';
 import { FACE_PX, FACE_NX, FACE_PY, FACE_NY, FACE_PZ, FACE_NZ } from './atlas.js';
 
 const OPACITY = new Uint8Array(BLOCKS.length);
 for (const b of BLOCKS) if (b) OPACITY[b.id] = b.opacity;
 
-// Face tables. corners are CCW seen from outside; uv matches corner order.
+// Face tables. corners are CCW seen from outside; uv matches corner order
+// (u runs left to right as seen from outside, so no face is mirrored).
 // ao tangent axes: for each face, the two axes spanning the face plane.
 const FACES = [
-  { face: FACE_PX, dir: [1, 0, 0], shade: 0.6, ta: 1, tb: 2, corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], uvs: [[0, 0], [0, 1], [1, 1], [1, 0]] },
-  { face: FACE_NX, dir: [-1, 0, 0], shade: 0.6, ta: 1, tb: 2, corners: [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]], uvs: [[0, 0], [0, 1], [1, 1], [1, 0]] },
+  { face: FACE_PX, dir: [1, 0, 0], shade: 0.6, ta: 1, tb: 2, corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], uvs: [[1, 0], [1, 1], [0, 1], [0, 0]] },
+  { face: FACE_NX, dir: [-1, 0, 0], shade: 0.6, ta: 1, tb: 2, corners: [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]], uvs: [[1, 0], [1, 1], [0, 1], [0, 0]] },
   { face: FACE_PY, dir: [0, 1, 0], shade: 1.0, ta: 0, tb: 2, corners: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], uvs: [[0, 1], [1, 1], [1, 0], [0, 0]] },
   { face: FACE_NY, dir: [0, -1, 0], shade: 0.5, ta: 0, tb: 2, corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], uvs: [[0, 0], [1, 0], [1, 1], [0, 1]] },
   { face: FACE_PZ, dir: [0, 0, 1], shade: 0.8, ta: 0, tb: 1, corners: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], uvs: [[0, 0], [1, 0], [1, 1], [0, 1]] },
   { face: FACE_NZ, dir: [0, 0, -1], shade: 0.8, ta: 0, tb: 1, corners: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], uvs: [[0, 0], [1, 0], [1, 1], [0, 1]] },
 ];
 
+// per face, per corner: the two in-plane offsets (A then B) used for AO and
+// smooth light, precomputed so the hot loop allocates nothing
+for (const f of FACES) {
+  f.offs = f.corners.map((c) => {
+    const a = [0, 0, 0], b = [0, 0, 0];
+    a[f.ta] = c[f.ta] === 1 ? 1 : -1;
+    b[f.tb] = c[f.tb] === 1 ? 1 : -1;
+    return [...a, ...b];
+  });
+}
+
 const AO_LEVELS = [0.45, 0.62, 0.8, 1.0];
 
 // texture coords from a point on each face (FACES order), so part-block
 // boxes show the matching part of the tile
 const FACE_UV = [
-  (p) => [p[2], p[1]], (p) => [1 - p[2], p[1]],
+  (p) => [1 - p[2], p[1]], (p) => [p[2], p[1]],
   (p) => [p[0], p[2]], (p) => [p[0], p[2]],
   (p) => [p[0], p[1]], (p) => [1 - p[0], p[1]],
 ];
@@ -73,10 +86,36 @@ export function buildChunkGeometry(world, chunk, atlas) {
   const baseX = chunk.cx * CHUNK_X;
   const baseZ = chunk.cz * CHUNK_Z;
 
-  // Cached world accessors (hot path: hoist for speed)
-  const getBlock = (wx, wy, wz) => world.getBlockW(wx, wy, wz);
-  const getSky = (wx, wy, wz) => world.getSkyW(wx, wy, wz);
-  const getBlockLight = (wx, wy, wz) => world.getBlockLightW(wx, wy, wz);
+  // Hot path: look the 3×3 neighbourhood of chunks up once and read their
+  // arrays directly (same rules as the world accessors: unloaded = solid
+  // and sky-lit, above the world = air)
+  const near = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) near.push(world.chunks.get(chunkKey(chunk.cx + dx, chunk.cz + dz)));
+  const chunkAt = (wx, wz) => {
+    const dx = (wx >> 4) - chunk.cx, dz = (wz >> 4) - chunk.cz;
+    if (dx < -1 || dx > 1 || dz < -1 || dz > 1) return world.chunks.get(chunkKey(wx >> 4, wz >> 4));
+    return near[(dx + 1) * 3 + dz + 1];
+  };
+  const idx = (wx, wy, wz) => ((wx & 15) * CHUNK_Z + (wz & 15)) * CHUNK_Y + wy;
+  const getBlock = (wx, wy, wz) => {
+    if (wy < 0) return B.BEDROCK;
+    if (wy >= CHUNK_Y) return B.AIR;
+    const c = chunkAt(wx, wz);
+    return c && c.hasBlocks ? c.blocks[idx(wx, wy, wz)] : B.BEDROCK;
+  };
+  const getSky = (wx, wy, wz) => {
+    if (wy >= CHUNK_Y) return 15;
+    if (wy < 0) return 0;
+    const c = chunkAt(wx, wz);
+    return c && c.hasLight ? c.skyLight[idx(wx, wy, wz)] : 15;
+  };
+  const getBlockLight = (wx, wy, wz) => {
+    if (wy < 0 || wy >= CHUNK_Y) return 0;
+    const c = chunkAt(wx, wz);
+    return c && c.hasLight ? c.blockLight[idx(wx, wy, wz)] : 0;
+  };
+  const aoVals = [0, 0, 0, 0];
+  const cell = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];   // 4 cells × xyz
 
   const lights = new Float32Array(8);
 
@@ -154,32 +193,28 @@ export function buildChunkGeometry(world, chunk, atlas) {
           const layer = atlas.faceLayer(rid, f.face, orient);
 
           // Per-vertex AO + smooth light
-          let aoSum03 = 0, aoSum12 = 0;
-          const aoVals = [0, 0, 0, 0];
           for (let vi = 0; vi < 4; vi++) {
-            const c = f.corners[vi];
-            const sa = c[f.ta] === 1 ? 1 : -1;
-            const sb = c[f.tb] === 1 ? 1 : -1;
+            const o = f.offs[vi];
             // cells in the plane one step along the normal
-            const bx = wx + f.dir[0], by = y + f.dir[1], bz = wz + f.dir[2];
-            const offA = [0, 0, 0]; offA[f.ta] = sa;
-            const offB = [0, 0, 0]; offB[f.tb] = sb;
+            const bx = nx, by = ny, bz = nz;
+            const ax = bx + o[0], ay = by + o[1], az = bz + o[2];
+            const qx = bx + o[3], qy = by + o[4], qz = bz + o[5];
+            const cx = ax + o[3], cy = ay + o[4], cz = az + o[5];
 
-            const s1 = OPACITY[getBlock(bx + offA[0], by + offA[1], bz + offA[2])] >= 15 ? 1 : 0;
-            const s2 = OPACITY[getBlock(bx + offB[0], by + offB[1], bz + offB[2])] >= 15 ? 1 : 0;
-            const cr = OPACITY[getBlock(bx + offA[0] + offB[0], by + offA[1] + offB[1], bz + offA[2] + offB[2])] >= 15 ? 1 : 0;
+            const s1 = OPACITY[getBlock(ax, ay, az)] >= 15 ? 1 : 0;
+            const s2 = OPACITY[getBlock(qx, qy, qz)] >= 15 ? 1 : 0;
+            const cr = OPACITY[getBlock(cx, cy, cz)] >= 15 ? 1 : 0;
             const ao = s1 && s2 ? 0 : 3 - (s1 + s2 + cr);
             aoVals[vi] = ao;
 
             // smooth light: average the 4 cells around this vertex
             let skyAcc = 0, blAcc = 0, cnt = 0;
-            const cells = [
-              [bx, by, bz],
-              [bx + offA[0], by + offA[1], bz + offA[2]],
-              [bx + offB[0], by + offB[1], bz + offB[2]],
-              [bx + offA[0] + offB[0], by + offA[1] + offB[1], bz + offA[2] + offB[2]],
-            ];
-            for (const [gx, gy, gz] of cells) {
+            cell[0] = bx; cell[1] = by; cell[2] = bz;
+            cell[3] = ax; cell[4] = ay; cell[5] = az;
+            cell[6] = qx; cell[7] = qy; cell[8] = qz;
+            cell[9] = cx; cell[10] = cy; cell[11] = cz;
+            for (let k = 0; k < 12; k += 3) {
+              const gx = cell[k], gy = cell[k + 1], gz = cell[k + 2];
               if (OPACITY[getBlock(gx, gy, gz)] >= 15) continue;
               skyAcc += getSky(gx, gy, gz);
               blAcc += getBlockLight(gx, gy, gz);
@@ -189,7 +224,6 @@ export function buildChunkGeometry(world, chunk, atlas) {
             const mod = AO_LEVELS[ao] * f.shade;
             lights[vi * 2] = (skyAcc / cnt / 15) * mod;
             lights[vi * 2 + 1] = (blAcc / cnt / 15) * mod;
-            if (vi === 0 || vi === 3) aoSum03 += ao; else aoSum12 += ao;
           }
 
           // flip quad diagonal to avoid AO anisotropy
