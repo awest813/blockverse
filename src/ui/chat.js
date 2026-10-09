@@ -59,7 +59,8 @@ export class Chat {
     this.logEl.classList.add('open');   // reveal faded messages while typing
     this.inputEl.value = prefill;
     this.game.setUiOpen(true);
-    setTimeout(() => this.inputEl.focus(), 0);
+    // focus now so fast typing isn't lost; the opening key's default is cancelled by the caller
+    this.inputEl.focus();
   }
 
   hide() {

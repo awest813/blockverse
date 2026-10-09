@@ -51,6 +51,7 @@ export class Hud {
     this.labelEl = document.getElementById('held-item-label');
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
+    this.fpsEl = document.getElementById('fps-counter');
     this._labelTimer = null;
     this._lastSelected = -1;
     this._statsKey = '';
@@ -144,6 +145,14 @@ export class Hud {
         this.airEl.appendChild(bub);
       }
     }
+  }
+
+  showFps(on) {
+    this.fpsEl.classList.toggle('hidden', !on);
+  }
+
+  setFps(fps) {
+    this.fpsEl.textContent = `${fps} FPS`;
   }
 
   setDebug(text) {

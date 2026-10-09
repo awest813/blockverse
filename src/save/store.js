@@ -111,6 +111,8 @@ export const DEFAULT_SETTINGS = {
   sensitivity: 1,
   volume: 0.5,
   invertY: false,
+  showFps: false,
+  guiScale: 0,       // 0 = auto (fit the window), otherwise a multiplier
   keys: {},          // action id -> KeyboardEvent.code overrides (see core/keybinds.js)
 };
 

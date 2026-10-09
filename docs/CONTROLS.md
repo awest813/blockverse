@@ -5,7 +5,42 @@ All keyboard controls below are defaults. Rebind them in **Settings → Controls
 red, and **Reset Keys** restores the defaults. Esc and 1–9 can't be rebound.
 The same tab has mouse sensitivity and **Invert mouse Y**.
 
-## Movement
+## Controller
+
+Any standard gamepad (Xbox, PlayStation, most Bluetooth pads) works as soon as
+you press a button.
+
+| Button | In game | In menus / inventories |
+| --- | --- | --- |
+| Left stick | Move (click: sprint) | Move the highlight |
+| Right stick | Look (click: toggle sneak) | — |
+| RT / LT | Mine / attack · Place / use | — |
+| A | Jump (double-tap in creative: fly) | Select / pick up |
+| B | Drop item | Back / close |
+| X | Pick block | Split a stack (right click) |
+| Y | Inventory | Close inventory |
+| LB / RB | Hotbar | Switch settings tabs · RB: quick move |
+| D-pad | ←/→ hotbar, ↑ hide HUD | Move the highlight |
+| Start | Pause | Back |
+| Back / View | Chat | — |
+
+## Touch (phones and tablets)
+
+Touch controls appear automatically on the first touch.
+
+| Gesture | Action |
+| --- | --- |
+| Left stick | Move — push all the way forward to sprint |
+| Drag anywhere else | Look around |
+| Tap | Use / place, or hit a mob in reach |
+| Touch and hold | Mine |
+| ⤒ | Jump (double-tap in creative: fly) |
+| Sneak / Drop | Toggle sneaking · drop the held item |
+| ▦ / … / II | Inventory · chat · pause |
+| Hotbar | Tap a slot to select it |
+| Inventory | Tap to pick up / place · touch and hold to split |
+
+## Keyboard & mouse: movement
 
 | Input | Action |
 | --- | --- |

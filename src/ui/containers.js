@@ -32,11 +32,16 @@ export class Containers {
     this.tooltipEl.className = 'tooltip hidden';
     document.body.appendChild(this.tooltipEl);
 
-    document.addEventListener('mousemove', (e) => {
-      this.cursorEl.style.left = `${e.clientX - 18}px`;
-      this.cursorEl.style.top = `${e.clientY - 18}px`;
-      this.positionTooltip(e.clientX, e.clientY);
-    }, { signal: game.input.signal });
+    document.addEventListener('mousemove', (e) => this.movePointer(e.clientX, e.clientY),
+      { signal: game.input.signal });
+  }
+
+  // cursor stack + tooltip follow the mouse (or the gamepad/touch focus)
+  movePointer(x, y) {
+    const half = this.cursorEl.offsetWidth / 2 || 18;
+    this.cursorEl.style.left = `${x - half}px`;
+    this.cursorEl.style.top = `${y - half}px`;
+    this.positionTooltip(x, y);
   }
 
   dispose() {
@@ -204,6 +209,25 @@ export class Containers {
       e.preventDefault();
       e.stopPropagation();
       this.clickSlot(ref, e.button, e.shiftKey);
+    });
+    // touch: tap = left click, touch-and-hold = right click (split / place one)
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      e.preventDefault();          // also suppresses the emulated mousedown
+      e.stopPropagation();
+      this.movePointer(e.clientX, e.clientY);
+      let long = false;
+      const timer = setTimeout(() => { long = true; this.clickSlot(ref, 2, false); }, 450);
+      // listen on window: furnace refreshes may replace this element mid-press
+      const end = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        clearTimeout(timer);
+        if (!long && ev.type === 'pointerup') this.clickSlot(ref, 0, false);
+      };
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
     });
     return el;
   }

@@ -16,6 +16,7 @@ import { itemInfo, isBlockItem, makeStack, maxStack } from './items/items.js';
 import { resolveBindings } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
+import { TouchControls } from './ui/touch.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -71,6 +72,7 @@ export class Game {
     this._furnaceUiTimer = 0;
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.chat = new Chat(this);
+    this.touch = new TouchControls(this);
     this._stepDistance = 0;
     canvas.addEventListener('mousedown', () => this.sfx?.resume(), { signal: this.input.signal });
 
@@ -78,25 +80,7 @@ export class Game {
     this.input.onMouseDown = (button) => {
       if (button === 1 && !this.uiOpen && !this.player.dead) { this.pickBlock(); return; }
       if (button !== 0 || this.uiOpen || this.player.dead) return;
-      const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
-      const dir = this.player.lookDir();
-      let best = null, bestDist = Infinity;
-      for (const m of this.entities.mobs) {
-        const d = m.rayHit(origin, dir, REACH_DISTANCE);
-        if (d !== null && d < bestDist) { best = m; bestDist = d; }
-      }
-      // don't attack through walls
-      if (best && (!this.interaction.target || bestDist < this.interaction.target.dist)) {
-        const held = this.player.heldStack();
-        const dmg = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
-        if (best.damage(dmg, this.player)) {
-          this.sfx?.play('hit', { block: 'cloth' });
-          this.player.damageHeldTool(1);
-          this.player.addExhaustion(0.1);
-          this.interaction.breakCooldown = 0.3;
-          this.interaction.resetBreaking();
-        }
-      }
+      this.attackMob();
     };
 
     this.time = worldMeta.timeOfDay ?? 0.05; // fraction of a day; 0 = sunrise
@@ -182,6 +166,7 @@ export class Game {
         return true;
       }
       if ((input.is(code, 'chat') || input.is(code, 'command')) && !this.uiOpen && !this.player.dead) {
+        e.preventDefault();   // keep the T or / itself out of the chat box
         this.chat.show(input.is(code, 'command') ? '/' : '');
         return true;
       }
@@ -232,6 +217,30 @@ export class Game {
     this.input.onLockLost = () => {
       if (!this.uiOpen && this.running) this.uiHooks?.showPause?.();
     };
+  }
+
+  // Hit the mob under the crosshair, if one is closer than the targeted block.
+  // Returns true when a mob was in reach (touch taps fall back to "use" otherwise).
+  attackMob() {
+    const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
+    const dir = this.player.lookDir();
+    let best = null, bestDist = Infinity;
+    for (const m of this.entities.mobs) {
+      const d = m.rayHit(origin, dir, REACH_DISTANCE);
+      if (d !== null && d < bestDist) { best = m; bestDist = d; }
+    }
+    // don't attack through walls
+    if (!best || (this.interaction.target && bestDist >= this.interaction.target.dist)) return false;
+    const held = this.player.heldStack();
+    const dmg = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
+    if (best.damage(dmg, this.player)) {
+      this.sfx?.play('hit', { block: 'cloth' });
+      this.player.damageHeldTool(1);
+      this.player.addExhaustion(0.1);
+      this.interaction.breakCooldown = 0.3;
+      this.interaction.resetBreaking();
+    }
+    return true;
   }
 
   // Middle click: select the targeted block in the hotbar (creative: conjure it).
@@ -360,7 +369,8 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
 
     // prompt the player to click when the game is live but the mouse isn't captured
-    const needClick = !this.uiOpen && !this.input.pointerLocked && !this.player.dead;
+    // (gamepad and touch players don't need the mouse captured)
+    const needClick = !this.uiOpen && !this.input.pointerLocked && !this.player.dead && !this.input.altInput;
     if (needClick !== this._promptShown) {
       this._promptShown = needClick;
       this.hud.setPrompt(needClick);
@@ -370,6 +380,7 @@ export class Game {
     if (this.statTimer > 0.25) {
       this.statTimer = 0;
       this.hud.renderStats();
+      this.hud.setFps(this.fps);
       this.updateDebug();
     }
 
@@ -441,6 +452,7 @@ export class Game {
     this.camera.updateProjectionMatrix();
     this.player.sensitivity = s.sensitivity;
     this.player.invertY = !!s.invertY;
+    this.hud.showFps(!!s.showFps);
     this.input.bindings = resolveBindings(s.keys);
     this.sfx?.setVolume(s.volume);
   }
@@ -476,6 +488,7 @@ export class Game {
     this.input.dispose();
     this.containers.dispose();
     this.chat.dispose();
+    this.touch.dispose();
     this.hud.hide();
     this.canvas.style.filter = 'none';
     document.removeEventListener('visibilitychange', this._onVisibility);

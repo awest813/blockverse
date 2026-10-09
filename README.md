@@ -54,7 +54,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
 - **Saving is automatic** (IndexedDB): modified chunks, player state, inventory, time of day, and furnace contents all persist
-- Pause menu with a controls cheat sheet, settings (render distance, FOV, volume, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
+- Pause menu with a controls cheat sheet, settings (render distance, FOV, volume, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
+- **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
 - HUD: hotbar with icons & durability bars, hearts, hunger, air bubbles, crosshair, block-break cracks and selection outline
 - **F3 debug overlay**: FPS, position, chunk, biome, light levels, draw calls, triangle count
 - **Chat & command console**: `/tp`, `/time set`, `/give`, `/gamemode`, `/seed`, `/heal`, `/rd`, and more
@@ -86,7 +87,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 | **F3** | Debug overlay |
 | **Esc** | Pause |
 
-All keys can be rebound in **Settings → Controls**. Full details in [docs/CONTROLS.md](docs/CONTROLS.md).
+All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch screens** are supported too (menus and inventories included). Full details in [docs/CONTROLS.md](docs/CONTROLS.md).
 
 ## Commands
 

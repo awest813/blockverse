@@ -5,6 +5,10 @@ import { hashString } from '../core/rng.js';
 import { GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { loadSettings, saveSettings } from '../save/store.js';
 import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
+import { PAD_LAYOUT } from '../core/gamepad.js';
+import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale } from './display.js';
+
+const GUI_SCALES = [0, 0.75, 1, 1.25, 1.5, 2];   // 0 = auto
 
 const DEATH_MESSAGES = {
   fall: 'You hit the ground too hard',
@@ -27,6 +31,28 @@ function controlsList(bindings) {
     [`${k('chat')} or ${k('command')}`, 'Chat & commands'], [k('hideHud'), 'Hide HUD'],
     [k('debug'), 'Debug info'], ['Esc', 'Pause'],
   ];
+}
+
+const TOUCH_LAYOUT = [
+  ['Left stick', 'Move (push fully: sprint)'], ['Drag', 'Look around'],
+  ['Tap', 'Use / place / hit'], ['Touch & hold', 'Mine'],
+  ['⤒', 'Jump (double-tap: fly)'], ['Sneak', 'Toggle sneaking'],
+  ['▦', 'Inventory'], ['Drop', 'Drop held item'],
+  ['Hotbar', 'Tap a slot to select'], ['Inventory', 'Tap: pick up · Hold: split'],
+];
+
+function cheatSheet(rows) {
+  const dl = document.createElement('dl');
+  dl.className = 'controls';
+  for (const [k, v] of rows) {
+    const dt = document.createElement('dt');
+    dt.textContent = k;
+    const dd = document.createElement('dd');
+    dd.textContent = v;
+    dl.appendChild(dt);
+    dl.appendChild(dd);
+  }
+  return dl;
 }
 
 function timeAgo(ts) {
@@ -263,7 +289,8 @@ export class Screens {
       if (e.key === 'Escape') { this.showMain(w.id); return true; }
       return false;
     };
-    setTimeout(() => { input.focus(); input.select(); }, 0);
+    input.focus();
+    input.select();
   }
 
   // ---------- confirm dialog ----------
@@ -377,7 +404,8 @@ export class Screens {
       if (e.key === 'Escape') { this.showMain(); return true; }
       return false;
     };
-    setTimeout(() => { nameIn.focus(); nameIn.select(); }, 0);
+    nameIn.focus();
+    nameIn.select();
   }
 
   // ---------- loading ----------
@@ -415,30 +443,26 @@ export class Screens {
 
   // ---------- pause ----------
 
-  showPause() {
+  // altInput: 'gamepad' | 'touch' | null — picks which cheat sheet to show
+  showPause(altInput = null) {
     const el = this.screen('screen dim');
     this.current = 'pause';
     this.heading(el, 'Game Paused');
     el.appendChild(this.btn('Back to Game', () => this.onResume()));
-    el.appendChild(this.btn('Settings', () => this.showSettings(() => this.showPause())));
+    el.appendChild(this.btn('Settings', () => this.showSettings(() => this.showPause(altInput))));
     el.appendChild(this.btn('Save & Quit to Title', () => this.onQuitToTitle()));
 
-    const help = document.createElement('dl');
-    help.className = 'controls';
-    for (const [k, v] of controlsList(resolveBindings(this.settings.keys))) {
-      const dt = document.createElement('dt');
-      dt.textContent = k;
-      const dd = document.createElement('dd');
-      dd.textContent = v;
-      help.appendChild(dt);
-      help.appendChild(dd);
-    }
+    const rows = altInput === 'gamepad' ? PAD_LAYOUT
+      : altInput === 'touch' ? TOUCH_LAYOUT
+        : controlsList(resolveBindings(this.settings.keys));
+    const help = cheatSheet(rows);
     el.appendChild(help);
   }
 
   // ---------- settings ----------
 
-  showSettings(back, tab = 'general') {
+  // focus: CSS selector of the element to focus after (re)rendering
+  showSettings(back, tab = 'general', focus = null) {
     const inGame = this.current === 'pause' || this.current === 'settings-pause';
     const el = this.screen(inGame ? 'screen dim' : 'screen menu-bg');
     this.current = inGame ? 'settings-pause' : 'settings';
@@ -448,7 +472,7 @@ export class Screens {
     tabs.className = 'tabs';
     tabs.setAttribute('role', 'tablist');
     for (const [id, label] of [['general', 'Video & Sound'], ['controls', 'Controls']]) {
-      const t = this.btn(label, () => { if (id !== tab) this.showSettings(back, id); }, 'tab');
+      const t = this.btn(label, () => { if (id !== tab) this.showSettings(back, id, '.tab[aria-selected="true"]'); }, 'tab');
       t.setAttribute('role', 'tab');
       t.setAttribute('aria-selected', String(id === tab));
       tabs.appendChild(t);
@@ -474,7 +498,8 @@ export class Screens {
       panel.appendChild(r);
       return r;
     };
-    const slider = (label, min, max, step, value, fmt, onChange) => {
+    // live=false applies only on release (for settings that move the slider itself)
+    const slider = (label, min, max, step, value, fmt, onChange, live = true) => {
       const input = document.createElement('input');
       input.type = 'range';
       input.min = min; input.max = max; input.step = step; input.value = value;
@@ -484,9 +509,11 @@ export class Screens {
       input.addEventListener('input', () => {
         const v = parseFloat(input.value);
         val.textContent = fmt(v);
-        onChange(v);
-        this.applySettings();
+        if (live) { onChange(v); this.applySettings(); }
       });
+      if (!live) {
+        input.addEventListener('change', () => { onChange(parseFloat(input.value)); this.applySettings(); });
+      }
       row(label, input, val);
       val.htmlFor = input.id;
       return input;
@@ -497,11 +524,13 @@ export class Screens {
       b.className = 'toggle';
       const paint = (v) => { b.textContent = v ? 'On' : 'Off'; b.setAttribute('aria-pressed', String(v)); };
       paint(value);
-      b.addEventListener('click', () => {
+      b.addEventListener('click', async () => {
         value = !value;
-        paint(value);
         this.sfx?.play('click');
-        onChange(value);
+        // onChange may return the real resulting state (e.g. fullscreen refused)
+        const result = await onChange(value);
+        if (typeof result === 'boolean') value = result;
+        paint(value);
         this.applySettings();
       });
       row(label, b);
@@ -514,6 +543,12 @@ export class Screens {
       first = slider('Render distance', 2, 16, 1, s.renderDistance, (v) => `${v} chunks`, (v) => { s.renderDistance = v; });
       slider('Field of view', 60, 110, 1, s.fov, (v) => `${v}°`, (v) => { s.fov = v; });
       slider('Volume', 0, 1, 0.05, s.volume, (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`), (v) => { s.volume = v; });
+      const gi = Math.max(0, GUI_SCALES.indexOf(s.guiScale));
+      slider('GUI scale', 0, GUI_SCALES.length - 1, 1, gi,
+        (i) => (GUI_SCALES[i] ? `${GUI_SCALES[i] * 100}%` : `Auto (${Math.round(autoGuiScale() * 100)}%)`),
+        (i) => { s.guiScale = GUI_SCALES[i]; }, false);
+      toggle('Show FPS', !!s.showFps, (v) => { s.showFps = v; });
+      if (fullscreenSupported()) toggle('Fullscreen', isFullscreen(), (v) => setFullscreen(v));
     } else {
       first = slider('Mouse sensitivity', 0.2, 2.5, 0.05, s.sensitivity, (v) => `${(+v).toFixed(2)}×`, (v) => { s.sensitivity = v; });
       toggle('Invert mouse Y', !!s.invertY, (v) => { s.invertY = v; });
@@ -532,7 +567,8 @@ export class Screens {
     footer.appendChild(this.btn('Done', () => back(), 'btn small primary'));
     el.appendChild(footer);
 
-    if (!inGame) first.focus();
+    // keep focus where the player was (tab strip, the key just rebound) for keyboard / gamepad
+    ((focus && el.querySelector(focus)) || first).focus();
     // in-game, Escape is routed through the game's key handler (resumes play)
     if (!inGame) {
       this.onKey = (e) => {
@@ -583,7 +619,7 @@ export class Screens {
             else s.keys = { ...s.keys, [a.id]: e.code };
             this.applySettings();
           }
-          this.showSettings(back, 'controls');
+          this.showSettings(back, 'controls', `.keybind[data-action="${a.id}"]`);
         };
       });
       b.dataset.action = a.id;
@@ -596,6 +632,14 @@ export class Screens {
     note.textContent = 'Click a key to change it, then press the new key (Esc cancels). '
       + 'Double-tap forward also sprints. Esc and 1–9 are fixed.';
     panel.appendChild(note);
+
+    const pad = document.createElement('div');
+    pad.className = 'setting-group';
+    pad.textContent = 'Controller';
+    panel.appendChild(pad);
+    const sheet = cheatSheet(PAD_LAYOUT);
+    sheet.classList.add('controls-inline');
+    panel.appendChild(sheet);
   }
 
   applySettings() {

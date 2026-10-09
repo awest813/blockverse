@@ -5,6 +5,8 @@ import { Game } from './game.js';
 import { SaveStore, loadSettings } from './save/store.js';
 import { Screens } from './ui/screens.js';
 import { Sfx } from './audio/sfx.js';
+import { applyGuiScale } from './ui/display.js';
+import { GamepadController } from './core/gamepad.js';
 
 const canvas = document.getElementById('game-canvas');
 const uiRoot = document.getElementById('ui-root');
@@ -18,7 +20,9 @@ let store = null;
 
 async function boot() {
   store = await SaveStore.open();
-  sfx.setVolume(loadSettings().volume);
+  const initial = loadSettings();
+  sfx.setVolume(initial.volume);
+  applyGuiScale(initial.guiScale);
 
   screens = new Screens(uiRoot, {
     store,
@@ -29,11 +33,13 @@ async function boot() {
     onResume: () => resumeGame(),
     onApplySettings: (s) => {
       sfx.setVolume(s.volume);
+      applyGuiScale(s.guiScale);
       game?.applySettings(s);
     },
   });
 
   screens.showMain();
+  new GamepadController({ getGame: () => game, uiRoot });
 }
 
 async function startWorld(id) {
@@ -56,7 +62,7 @@ async function startWorld(id) {
     showPause: () => {
       if (game.paused || game.player.dead || game.chat.open) return;
       game.pause();
-      screens.showPause();
+      screens.showPause(game.input.altInput);
     },
     showDeath: (cause) => {
       game.setUiOpen(true);

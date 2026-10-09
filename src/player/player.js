@@ -97,6 +97,9 @@ export class Player {
       if (input.action('back')) fwd -= 1;
       if (input.action('right')) strafe += 1;
       if (input.action('left')) strafe -= 1;
+      // analog stick / touch joystick
+      fwd = Math.max(-1, Math.min(1, fwd + input.move.y));
+      strafe = Math.max(-1, Math.min(1, strafe + input.move.x));
     }
     this.sneaking = !paused && input.action('sneak') && !this.flying;
     // sprint lasts while moving forward once started (sprint key or double-tap forward)
@@ -117,7 +120,9 @@ export class Player {
     let dvx = (-sin * fwd + cos * strafe);
     let dvz = (-cos * fwd - sin * strafe);
     const len = Math.hypot(dvx, dvz);
-    if (len > 0) { dvx = (dvx / len) * speed; dvz = (dvz / len) * speed; }
+    // keys give full speed; a half-tilted stick walks at half speed
+    const throttle = Math.min(1, Math.hypot(fwd, strafe));
+    if (len > 0) { dvx = (dvx / len) * speed * throttle; dvz = (dvz / len) * speed * throttle; }
 
     // acceleration: snappy on ground, floatier in air/water
     const accel = this.flying ? 24 : this.onGround ? 40 : this.inWater ? 12 : 8;

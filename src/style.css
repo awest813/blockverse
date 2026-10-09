@@ -12,6 +12,7 @@
   --accent: #6fbf4a;
   --focus: #ffd83d;
   --gutter: 16px;
+  --gui: 1;          /* GUI scale, set from settings by ui/display.js */
 }
 
 html, body {
@@ -33,7 +34,14 @@ html, body {
 
 /* ---------- HUD ---------- */
 
-#hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+#hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; zoom: var(--gui); }
+
+#fps-counter {
+  position: absolute; right: 8px; top: 8px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.45); border-radius: 3px;
+  color: #fff; font: 12px/1.5 Consolas, monospace;
+}
 
 #crosshair {
   position: absolute; left: 50%; top: 50%;
@@ -176,7 +184,7 @@ html, body {
 
 /* ---------- full-screen UI (menus, inventory) ---------- */
 
-#ui-root { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+#ui-root { position: absolute; inset: 0; z-index: 10; pointer-events: none; zoom: var(--gui); }
 #ui-root > * { pointer-events: auto; }
 
 .screen {
@@ -300,6 +308,11 @@ html, body {
 .controls dt { color: #ffd83d; text-align: right; white-space: nowrap; }
 .controls dd { color: #ddd; font-weight: 400; }
 @media (max-width: 560px) { .controls { grid-template-columns: auto 1fr; } }
+.controls.controls-inline { grid-template-columns: auto 1fr; margin: 4px 0 0; background: none; border: none; padding: 4px 0; }
+
+/* gamepad highlight in menus and inventories */
+.pad-focus { outline: 3px solid var(--focus) !important; outline-offset: 2px; }
+.inv-window .slot.pad-focus { outline-offset: -1px; z-index: 1; }
 
 /* ---------- inventory / crafting / furnace ---------- */
 
@@ -344,7 +357,7 @@ html, body {
 
 #cursor-stack {
   position: fixed;
-  width: 36px; height: 36px;
+  width: calc(36px * var(--gui)); height: calc(36px * var(--gui));
   pointer-events: none;
   z-index: 100;
   display: none;
@@ -362,7 +375,7 @@ html, body {
   border: 1px solid #6a3a9a;
   color: #fff;
   padding: 4px 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--gui));
   pointer-events: none;
   z-index: 101;
   border-radius: 2px;
@@ -416,7 +429,7 @@ html, body {
 .keybind.conflict { border-color: #e53935; color: #ff8a80; }
 .keybind.listening { border-color: var(--focus); background: #3a3420; color: #ffd83d; animation: pulse 1s ease-in-out infinite; }
 .setting-row input[type=range] { flex: 1.2; min-width: 0; accent-color: var(--accent); cursor: pointer; }
-.setting-row .val { width: 72px; text-align: right; font-size: 13px; color: #ccc; font-variant-numeric: tabular-nums; }
+.setting-row .val { width: 96px; white-space: nowrap; text-align: right; font-size: 13px; color: #ccc; font-variant-numeric: tabular-nums; }
 
 /* loading */
 .loading-label { font-size: 16px; }
@@ -424,15 +437,59 @@ html, body {
 .loading-bar-track { width: min(320px, 100%); height: 10px; background: #222; border: 2px solid #666; }
 .loading-bar-track > div { height: 100%; background: #6fbf4a; width: 0%; transition: width 0.2s; }
 
-/* ---------- small screens ---------- */
-
-@media (max-width: 480px) {
-  :root { --slot-size: 34px; }
-  #status-bars { width: 330px; }
-  .stat-icon { width: 15px; font-size: 12px; }
-  .inv-window { padding: 10px; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   #click-to-play, #health-bar.low .stat-icon { animation: none; }
 }
+
+/* ---------- touch controls ---------- */
+
+#touch-controls { position: absolute; inset: 0; z-index: 1; }
+#touch-controls > * { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#hud.touch #hotbar { pointer-events: auto; z-index: 2; touch-action: none; }
+#hud.touch #crosshair { z-index: 0; }
+
+.tc-look { position: absolute; inset: 0; }
+
+.tc-stick {
+  position: absolute; left: 28px; bottom: 28px;
+  width: 140px; height: 140px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.tc-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.tc-btn {
+  position: absolute;
+  width: 58px; height: 58px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  color: #fff; font-size: 24px; font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+  user-select: none; -webkit-user-select: none;
+}
+.tc-btn.tc-text { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+.tc-btn.down { background: rgba(255, 255, 255, 0.35); }
+.tc-btn.on { background: rgba(111, 191, 74, 0.55); border-color: var(--accent); }
+.tc-jump { right: 34px; bottom: 44px; width: 76px; height: 76px; font-size: 30px; }
+.tc-sneak { right: 124px; bottom: 30px; }
+.tc-drop { right: 124px; bottom: 100px; width: 46px; height: 46px; }
+.tc-pause, .tc-chat, .tc-inv { top: 12px; width: 46px; height: 46px; border-radius: 8px; font-size: 18px; }
+.tc-pause { right: 12px; }
+.tc-chat { right: 66px; }
+.tc-inv { right: 120px; }
+
+/* portrait phones: the hotbar spans the width, so lift the controls above it */
+@media (orientation: portrait) {
+  .tc-stick { bottom: 150px; }
+  .tc-jump { bottom: 166px; }
+  .tc-sneak { bottom: 152px; }
+  .tc-drop { bottom: 222px; }
+}
+#hud.touch #chat-log { top: 70px; bottom: auto; }
