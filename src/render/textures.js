@@ -1042,11 +1042,24 @@ tile('fire', (ctx, rng) => {
   }
 });
 tile('flint_and_steel', (ctx) => {
-  // the steel ring
-  for (const [x, y] of [[4, 4], [5, 3], [6, 3], [7, 4], [8, 5], [8, 6], [7, 7], [4, 5], [4, 6], [5, 7], [6, 8]]) px(ctx, x, y, [200, 200, 206]);
-  rect(ctx, 6, 8, 2, 4, [150, 150, 158]);
-  // the flint
-  rect(ctx, 9, 9, 4, 4, [62, 62, 66]); rect(ctx, 10, 8, 2, 1, [90, 90, 96]); px(ctx, 12, 12, [40, 40, 44]);
+  // a C-shaped steel striker and a dark wedge of flint
+  const map = [
+    '..SSSS..........',
+    '.Sd..dS.........',
+    'Sd....dS........',
+    'S......S........',
+    'S...............',
+    'Sd..............',
+    '.SdddS..........',
+    '..SSS...FFF.....',
+    '.......FFFFF....',
+    '......FFfFFFF...',
+    '......FFFFFFF...',
+    '.......FFFFf....',
+    '........FFF.....',
+  ];
+  const cols = { S: [206, 206, 214], d: [140, 140, 150], F: [70, 70, 76], f: [110, 110, 118] };
+  map.forEach((row, y) => [...row].forEach((ch, x) => { if (cols[ch]) px(ctx, x + 2, y + 2, cols[ch]); }));
 });
 tile('egg', (ctx) => {
   const c = [232, 216, 180], d = [204, 184, 146], l = [248, 240, 220];

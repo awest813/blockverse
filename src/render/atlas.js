@@ -9,6 +9,13 @@ import { itemInfo } from '../items/items.js';
 // Face order used by the mesher: +x, -x, +y, -y, +z, -z
 export const FACE_PX = 0, FACE_NX = 1, FACE_PY = 2, FACE_NY = 3, FACE_PZ = 4, FACE_NZ = 5;
 
+// inventory icon shapes for part-blocks (icon units, 16 = a full block)
+const ICON_BOXES = {
+  slab: [[0, 0, 0, 16, 8, 16]],
+  layer: [[0, 0, 0, 16, 3, 16]],
+  stairs: [[0, 0, 0, 16, 8, 16], [0, 8, 0, 8, 16, 16]],
+};
+
 export class Atlas {
   constructor() {
     const names = tileNames();
@@ -113,6 +120,9 @@ export class Atlas {
         ctx.drawImage(generateTile(b.icon), 0, 0, 32, 32);
       } else if (b.render === R_CROSS || b.render === R_TORCH) {
         ctx.drawImage(generateTile(tname('side')), 0, 0, 32, 32);
+      } else if (ICON_BOXES[b.shape]) {
+        // part-blocks show their real shape (half a cube, a step...)
+        this.drawIsoBoxes(ctx, generateTile(tname('top')), generateTile(tname('side')), ICON_BOXES[b.shape]);
       } else {
         this.drawIsoCube(ctx, generateTile(tname('top')), generateTile(tname('side')), generateTile(tname('side')));
       }
@@ -120,6 +130,37 @@ export class Atlas {
       ctx.drawImage(generateTile(info.texture), 0, 0, 32, 32);
     }
     return canvas.toDataURL();
+  }
+
+  // Boxes in 0..16 icon units [x0, y0, z0, x1, y1, z1], drawn bottom-up with
+  // the same projection as drawIsoCube: (x, y, z) -> (16 + x - z, (x + z) / 2 + 16 - y).
+  drawIsoBoxes(ctx, topTile, sideTile, boxes) {
+    const shaded = (tileCanvas, factor) => {
+      const c = document.createElement('canvas');
+      c.width = TILE; c.height = TILE;
+      const cctx = c.getContext('2d');
+      cctx.drawImage(tileCanvas, 0, 0);
+      cctx.globalCompositeOperation = 'source-atop';
+      cctx.fillStyle = `rgba(0,0,0,${1 - factor})`;
+      cctx.fillRect(0, 0, TILE, TILE);
+      return c;
+    };
+    const left = shaded(sideTile, 0.72), right = shaded(sideTile, 0.55);
+    const k = TILE / 16;   // icon units -> tile pixels
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    for (const [x0, y0, z0, x1, y1, z1] of boxes) {
+      // front-left face (z = z1)
+      ctx.setTransform(1, 0.5, 0, 1, 16 - z1, z1 / 2);
+      ctx.drawImage(left, x0 * k, (16 - y1) * k, (x1 - x0) * k, (y1 - y0) * k, x0, 16 - y1, x1 - x0, y1 - y0);
+      // front-right face (x = x1)
+      ctx.setTransform(1, -0.5, 0, 1, x1, x1 / 2 + 8);
+      ctx.drawImage(right, (16 - z1) * k, (16 - y1) * k, (z1 - z0) * k, (y1 - y0) * k, 16 - z1, 16 - y1, z1 - z0, y1 - y0);
+      // top (y = y1)
+      ctx.setTransform(1, 0.5, -1, 0.5, 16, 16 - y1);
+      ctx.drawImage(topTile, x0 * k, z0 * k, (x1 - x0) * k, (z1 - z0) * k, x0, z0, x1 - x0, z1 - z0);
+    }
+    ctx.restore();
   }
 
   drawIsoCube(ctx, topTile, leftTile, rightTile) {
