@@ -32,12 +32,18 @@ uniform vec3 uSkyTint;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
+uniform float uTime;
 in vec3 vUvw;
 in vec2 vLight;
 in float vFogDepth;
 out vec4 outColor;
 void main() {
-  vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));
+  ${water
+    // water drifts slowly; wrap within the tile, with gradients from the
+    // unwrapped coords so the mip level doesn't jump at the wrap
+    ? `vec2 wuv = vUvw.xy + vec2(uTime * 0.045, sin(uTime * 0.6) * 0.06 + uTime * 0.02);
+  vec4 tex = textureGrad(uAtlas, vec3(fract(wuv), vUvw.z), dFdx(vUvw.xy), dFdy(vUvw.xy));`
+    : 'vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));'}
   ${water ? '' : 'if (tex.a < 0.5) discard;'}
   // torchlight is a touch warm; skylight takes the tint of the hour
   vec3 br = clamp(max(vLight.y * vec3(1.0, 0.93, 0.82), vLight.x * uDay * uSkyTint) + 0.04, 0.0, 1.0);
@@ -64,6 +70,7 @@ export function createChunkMaterials(atlas) {
     uFogColor: { value: new THREE.Color(0x8fbcec) },
     uFogNear: { value: 80 },
     uFogFar: { value: 140 },
+    uTime: { value: 0 },   // seconds, wraps (water drift)
   };
 
   const opaque = new THREE.RawShaderMaterial({

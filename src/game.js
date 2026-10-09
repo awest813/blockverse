@@ -803,6 +803,7 @@ export class Game {
     }
     const day = this.dayFactor();
     this.world.materials.uniforms.uDay.value = day;
+    this.world.materials.uniforms.uTime.value = (performance.now() / 1000) % 1000;
 
     // fog follows render distance
     const R = this.world.renderDistance * 16;
