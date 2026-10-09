@@ -115,6 +115,7 @@ export function buildChunkGeometry(world, chunk, atlas) {
     return c && c.hasLight ? c.blockLight[idx(wx, wy, wz)] : 0;
   };
   const aoVals = [0, 0, 0, 0];
+  const off = [0, 0, 0];
   const cell = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];   // 4 cells × xyz
 
   const lights = new Float32Array(8);
@@ -153,9 +154,9 @@ export function buildChunkGeometry(world, chunk, atlas) {
         }
 
         if (render === R_SHAPE) {
-          // slabs, doors, fences, ladders, lily pads: lit from their own cell
-          const sky = getSky(wx, y, wz) / 15;
-          const bl = getBlockLight(wx, y, wz) / 15;
+          // slabs, stairs, doors, fences...: smooth light per corner, from the
+          // cell the face looks into and its neighbours along the cell edges
+          const ownSky = getSky(wx, y, wz), ownBl = getBlockLight(wx, y, wz);
           const boxes = shapeBoxes(id, chunk.getMeta(x, y, z), (dx, dz) => getBlock(wx + dx, y, wz + dz));
           for (const bx of boxes) {
             for (let fi = 0; fi < 6; fi++) {
@@ -168,7 +169,26 @@ export function buildChunkGeometry(world, chunk, atlas) {
               if (flush && OPACITY[getBlock(wx + d[0], y + d[1], wz + d[2])] >= 15) continue;
               const corners = f.corners.map((c) => [c[0] ? bx[3] : bx[0], c[1] ? bx[4] : bx[1], c[2] ? bx[5] : bx[2]]);
               const uvs = corners.map(FACE_UV[fi]);
-              for (let i = 0; i < 4; i++) { lights[i * 2] = sky * f.shade; lights[i * 2 + 1] = bl * f.shade; }
+              const ox = wx + (flush ? d[0] : 0), oy = y + (flush ? d[1] : 0), oz = wz + (flush ? d[2] : 0);
+              for (let i = 0; i < 4; i++) {
+                const c = corners[i];
+                // neighbours only where the corner sits on the cell's edge
+                const ea = c[f.ta] === 0 ? -1 : c[f.ta] === 1 ? 1 : 0;
+                const eb = c[f.tb] === 0 ? -1 : c[f.tb] === 1 ? 1 : 0;
+                let skyAcc = 0, blAcc = 0, cnt = 0;
+                for (let a = 0; a <= (ea ? 1 : 0); a++) {
+                  for (let b = 0; b <= (eb ? 1 : 0); b++) {
+                    off[0] = off[1] = off[2] = 0;
+                    off[f.ta] += a * ea; off[f.tb] += b * eb;
+                    const gx = ox + off[0], gy = oy + off[1], gz = oz + off[2];
+                    if (OPACITY[getBlock(gx, gy, gz)] >= 15) continue;
+                    skyAcc += getSky(gx, gy, gz); blAcc += getBlockLight(gx, gy, gz); cnt++;
+                  }
+                }
+                if (!cnt) { skyAcc = ownSky; blAcc = ownBl; cnt = 1; }
+                lights[i * 2] = (skyAcc / cnt / 15) * f.shade;
+                lights[i * 2 + 1] = (blAcc / cnt / 15) * f.shade;
+              }
               opaque.quad(x, y, z, corners, uvs, atlas.faceLayer(id, f.face), lights, false);
             }
           }

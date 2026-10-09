@@ -111,8 +111,8 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Dirty-chunk queue drops unloaded chunks; light queue sorted once a frame; chunk work keeps a budget on slow frames
 - [x] Audio: limiter, positional falloff and stereo panning, per-sound throttles, background-tab suspend, ambience (fire, lava, caves, crickets, heartbeat), door/chest/sizzle/burp sounds
 - [x] Mesher reads the 3×3 neighbour chunks directly with precomputed offsets (same output, ~2× faster rebuilds)
-- [ ] One material per mob part: bake colours into vertex colours, one material per mob
-- [ ] Slabs, stairs and other shaped blocks are lit flat (no smooth light / AO)
+- [x] Mob part boxes share geometry by size (materials stay per part: parts animate and recolour on their own — collars, sheared wool, the creeper flash)
+- [x] Slabs, stairs and other shaped blocks get smooth per-corner light from the cells around them
 - [x] Water drifts gently (animated texture)
 
 ## Saving & stability

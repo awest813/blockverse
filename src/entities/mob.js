@@ -12,7 +12,17 @@ const HURT_RED = new THREE.Color(0xff3333);
 // BoxGeometry with per-face brightness baked into vertex colors, so flat
 // MeshBasicMaterial still reads as 3D.
 const FACE_SHADE = { px: 0.72, nx: 0.72, py: 1.0, ny: 0.45, pz: 0.86, nz: 0.6 };
+// box geometries are shared by size across every mob (never disposed)
+const BOX_CACHE = new Map();
+const SHARED = new WeakSet();   // (not userData: clones would inherit it)
 function shadedBox(w, h, d) {
+  const key = `${w},${h},${d}`;
+  let g = BOX_CACHE.get(key);
+  if (!g) { g = makeShadedBox(w, h, d); SHARED.add(g); BOX_CACHE.set(key, g); }
+  return g;
+}
+
+function makeShadedBox(w, h, d) {
   const g = new THREE.BoxGeometry(w, h, d);
   const colors = new Float32Array(g.attributes.position.count * 3);
   const order = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
@@ -522,8 +532,8 @@ export class Mob {
     this.dead = true;
     this.scene.remove(this.group);
     for (const { mat } of this.materials) mat.dispose();
-    // every part has its own geometry; flames have their own material
-    this.group.traverse((o) => o.geometry?.dispose());
+    // part boxes are shared; anything else built for this mob goes; flames have their own material
+    this.group.traverse((o) => { if (o.geometry && !SHARED.has(o.geometry) && !o.isSprite) o.geometry.dispose(); });
     this.flames?.material.dispose();
   }
 
