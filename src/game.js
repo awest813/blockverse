@@ -293,7 +293,8 @@ export class Game {
     const t = this.interaction.target;
     if (!t) return;
     let id = t.id === B.FURNACE_LIT ? B.FURNACE : t.id;
-    if (!isBlockItem(id) || id === B.WATER) return;
+    if (id >= B.WHEAT_0 && id <= B.WHEAT_3) id = I.WHEAT_SEEDS;   // crops pick their seeds
+    else if (!isBlockItem(id) || id === B.WATER) return;
     const p = this.player;
     const inv = p.inventory;
     const hot = inv.findIndex((s, i) => i < 9 && s?.id === id);
@@ -322,6 +323,7 @@ export class Game {
   setUiOpen(open) {
     this.uiOpen = open;
     this.input.captured = open;
+    if (open) this.interaction.bowCharge = 0;   // a menu cancels a bow draw instead of firing on resume
     if (open) this.input.releaseLock();
   }
 
@@ -355,7 +357,7 @@ export class Game {
       p.x + dir.x * 0.5, p.eyeY - 0.1 + dir.y * 0.5, p.z + dir.z * 0.5,
       dir.x * speed, dir.y * speed, dir.z * speed,
       Math.round(1 + 8 * power * power), !creative);
-    if (!creative) p.damageHeldTool(1);
+    if (!creative) p.damageHeldTool(1, true);
     this.viewModel.swing();
   }
 
@@ -384,6 +386,7 @@ export class Game {
             this.primeTnt(bx + 0.5, by, bz + 0.5, 0.5 + Math.random() * 1);
             continue;
           }
+          if (this.containers.isOpenAt(bx, by, bz)) this.containers.close();   // don't keep editing a destroyed chest
           const contents = entityContents(this.world.blockEntityAt(bx, by, bz));
           if (contents.length) this.entities.spawnDrops(bx + 0.5, by + 0.5, bz + 0.5, contents.map((s) => ({ ...s })));
           this.world.setBlock(bx, by, bz, B.AIR);
@@ -499,7 +502,9 @@ export class Game {
     const p = this.player;
     const bed = p.bedPos;
     let note = null;
-    if (bed && this.world.getBlockW(bed.x, bed.y, bed.z) === B.BED) {
+    // a bed in an unloaded chunk can't be checked: trust it rather than forget it
+    const bedOk = bed && (!this.world.isLoaded(bed.x, bed.z) || this.world.getBlockW(bed.x, bed.y, bed.z) === B.BED);
+    if (bedOk) {
       p.spawnPoint = { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
     } else {
       if (bed) note = 'Your bed was missing, so you woke up at the world spawn.';

@@ -80,9 +80,10 @@ export class Mob {
       if (!this.tamed) { this.kill(); return; }
     }
     // pets left far behind catch up by appearing next to the player
-    if (this.tamed && !this.sitting && playerDistSq > 24 * 24 && !player.dead) {
+    // (only once the player is on the ground, so pets aren't dropped from the sky)
+    if (this.tamed && !this.sitting && playerDistSq > 24 * 24 && !player.dead && player.onGround && !player.flying) {
       this.x = player.x + (Math.random() - 0.5) * 2;
-      this.y = player.y + 0.5;
+      this.y = player.y + 0.1;
       this.z = player.z + (Math.random() - 0.5) * 2;
       this.vx = this.vy = this.vz = 0;
       this.fallStart = undefined;

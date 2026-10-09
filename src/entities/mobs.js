@@ -223,6 +223,7 @@ export class Skeleton extends Mob {
       const ox = this.x, oy = this.y + 1.5, oz = this.z;
       const dx = player.x - ox, dy = player.y + 1.1 - oy, dz = player.z - oz;
       const flat = Math.hypot(dx, dz);
+      if (flat < 0.5) return;   // straight up/down: no sensible lob
       const speed = 18;
       const t = flat / speed;
       // lob to cancel gravity over the flight time, plus a little inaccuracy

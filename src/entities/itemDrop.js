@@ -31,10 +31,12 @@ const geoCube = new THREE.BoxGeometry(0.28, 0.28, 0.28);
 const geoFlat = new THREE.PlaneGeometry(0.35, 0.35);
 
 export class ItemDrop {
-  constructor(scene, world, id, count, x, y, z, vx = 0, vy = 2.5, vz = 0) {
+  // dur: remaining durability of a worn tool / armour piece (kept through drop and pickup)
+  constructor(scene, world, id, count, x, y, z, vx = 0, vy = 2.5, vz = 0, dur = undefined) {
     this.world = world;
     this.id = id;
     this.count = count;
+    this.dur = dur;
     this.x = x; this.y = y; this.z = z;
     this.vx = vx; this.vy = vy; this.vz = vz;
     this.w = 0.25;
@@ -75,7 +77,9 @@ export class ItemDrop {
       const dz = player.z - this.z;
       const distSq = dx * dx + dy * dy + dz * dz;
       if (distSq < 1.1) {
-        const leftover = player.give(this.id, this.count);
+        const leftover = this.dur !== undefined
+          ? player.giveStack({ id: this.id, count: this.count, dur: this.dur })
+          : player.give(this.id, this.count);
         if (leftover === 0) {
           this.kill();
           this.pickedUp = true;

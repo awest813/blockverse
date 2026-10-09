@@ -38,6 +38,7 @@ export class EntityManager {
         this.scene, this.world, d.id, d.count,
         x, y, z,
         Math.cos(a) * s, 2.2 + Math.random(), Math.sin(a) * s,
+        d.dur,
       ));
     }
   }

@@ -337,6 +337,16 @@ export class Player {
     return remaining;
   }
 
+  // Add an exact stack (keeps durability). Returns the leftover count.
+  giveStack(stack) {
+    if (stack.dur === undefined) return this.give(stack.id, stack.count);
+    const i = this.inventory.findIndex((s) => !s);
+    if (i < 0) return stack.count;
+    this.inventory[i] = { ...stack };
+    this.events.dispatchEvent(new CustomEvent('inventory'));
+    return 0;
+  }
+
   // Remove `count` items of id. Returns how many were removed.
   take(id, count = 1) {
     let removed = 0;
@@ -367,9 +377,11 @@ export class Player {
     this.events.dispatchEvent(new CustomEvent('inventory'));
   }
 
-  damageHeldTool(n = 1) {
+  // any: also wear non-tools that have durability (a bow when it fires)
+  damageHeldTool(n = 1, any = false) {
     const s = this.inventory[this.selected];
     if (!s || s.dur === undefined) return;
+    if (!any && !itemInfo(s.id)?.tool) return;   // armour or a bow used as a club doesn't wear
     s.dur -= n;
     if (s.dur <= 0) {
       this.inventory[this.selected] = null;

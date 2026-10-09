@@ -91,7 +91,7 @@ Touch controls appear automatically on the first touch.
 
 ### Creative item palette
 
-- Category tabs (All, Blocks, Plants & Decor, Tools, Food, Materials) and a search box
+- Category tabs (All, Blocks, Plants, Gear, Food, Items) and a search box
 - Drop a carried stack on the red ✕ slot to destroy it
 
 ### Inventory mouse rules

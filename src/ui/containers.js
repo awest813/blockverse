@@ -5,19 +5,19 @@
 import { itemInfo, maxStack, makeStack } from '../items/items.js';
 import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
-import { BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
+import { B, BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 import { fillSlot } from './hud.js';
 
 const CREATIVE_TABS = [
-  ['all', 'All'], ['blocks', 'Blocks'], ['decor', 'Plants & Decor'],
-  ['tools', 'Tools & Armour'], ['food', 'Food'], ['materials', 'Materials'],
+  ['all', 'All'], ['blocks', 'Blocks'], ['decor', 'Plants'],
+  ['tools', 'Gear'], ['food', 'Food'], ['materials', 'Items'],
 ];
 
 function creativeCategory(id) {
   const info = itemInfo(id);
-  if (info?.tool || info?.armor) return 'tools';
+  if (info?.tool || info?.armor || info?.bow || id === I.ARROW) return 'tools';
   if (info?.food) return 'food';
   if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH ? 'decor' : 'blocks';
   return 'materials';
@@ -28,7 +28,8 @@ function creativeItems(tab) {
   if (!creativeIdsCache) {
     creativeIdsCache = [];
     for (const b of BLOCKS) {
-      if (b && b.id !== 0 && b.name !== 'furnace_lit' && b.name !== 'water') creativeIdsCache.push(b.id);
+      // skip technical states: lit furnace, water, growing wheat
+      if (b && b.id !== 0 && b.id !== B.FURNACE_LIT && b.id !== B.WATER && !(b.id >= B.WHEAT_0 && b.id <= B.WHEAT_3)) creativeIdsCache.push(b.id);
     }
     for (const id of Object.values(I)) creativeIdsCache.push(id);
   }
@@ -150,6 +151,12 @@ export class Containers {
 
   isOpen() { return this.open !== null; }
 
+  // is a chest / furnace UI showing the block at this position?
+  isOpenAt(x, y, z) {
+    const p = this.open === 'chest' ? this.chestPos : this.open === 'furnace' ? this.furnacePos : null;
+    return !!p && p.x === x && p.y === y && p.z === z;
+  }
+
   // ---------- open / close ----------
 
   openInventory() {
@@ -196,18 +203,21 @@ export class Containers {
     for (let i = 0; i < this.craftGrid.length; i++) {
       const s = this.craftGrid[i];
       if (s) {
-        const left = this.player.give(s.id, s.count);
+        const left = this.player.giveStack(s);
         if (left > 0) this.dropStack({ ...s, count: left });
         this.craftGrid[i] = null;
       }
     }
     if (this.cursor) {
-      const left = this.player.give(this.cursor.id, this.cursor.count);
+      const left = this.player.giveStack(this.cursor);
       if (left > 0) this.dropStack({ ...this.cursor, count: left });
       this.cursor = null;
     }
-    // chest contents changed: make sure the chunk is saved
-    if (this.open === 'chest') this.game.world.setBlockEntity(this.chestPos.x, this.chestPos.y, this.chestPos.z, this.chestState());
+    // chest contents changed: make sure the chunk is saved (if the chest still exists)
+    if (this.open === 'chest') {
+      const { x, y, z } = this.chestPos;
+      if (this.game.world.getBlockW(x, y, z) === B.CHEST) this.game.world.setBlockEntity(x, y, z, this.chestState());
+    }
     this.open = null;
     this.furnacePos = null;
     this.chestPos = null;
@@ -525,7 +535,7 @@ export class Containers {
     for (let i = 0; i < this.craftGrid.length; i++) {
       const s = this.craftGrid[i];
       if (!s) continue;
-      const left = this.player.give(s.id, s.count);
+      const left = this.player.giveStack(s);
       if (left > 0) this.dropStack({ ...s, count: left });
       this.craftGrid[i] = null;
     }
@@ -918,7 +928,7 @@ export class Containers {
       this.moveIntoRange(ref, stack, targetRange);
     } else {
       // container -> inventory
-      const left = this.player.give(stack.id, stack.count);
+      const left = this.player.giveStack(stack);
       ref.set(left > 0 ? { ...stack, count: left } : null);
     }
   }

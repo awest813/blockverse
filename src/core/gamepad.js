@@ -104,7 +104,8 @@ export class GamepadController {
 
   gameplay(game, pad, pressed, edge, dt) {
     const input = game.input;
-    input.altInput = 'gamepad';
+    // claim the input only while the pad is in use, so mouse + keyboard can take over again
+    if (pressed.some(Boolean) || pad.axes.some((a) => Math.abs(a) > DEAD)) input.altInput = 'gamepad';
     input.move.x = deadzone(pad.axes[0] ?? 0);
     input.move.y = -deadzone(pad.axes[1] ?? 0);
     // squared response: fine aim near the centre, fast turns at the edge

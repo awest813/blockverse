@@ -50,6 +50,7 @@ export class Interaction {
 
     if (uiOpen || p.dead) {
       this.target = null;
+      this.bowCharge = 0;   // menus/pauses cancel a draw instead of firing on resume
       this.resetBreaking();
       return;
     }
@@ -87,7 +88,9 @@ export class Interaction {
 
     // ---- bow: hold right mouse to draw, release to shoot ----
     const held = p.heldStack();
-    if (held && itemInfo(held.id)?.bow) {
+    // a bow still opens chests, tables, furnaces and beds (unless already drawing)
+    const aimingAtUsable = this.target && USABLE.has(this.target.id) && !p.sneaking && this.bowCharge === 0;
+    if (held && itemInfo(held.id)?.bow && !aimingAtUsable) {
       const hasArrows = p.mode === GAMEMODE_CREATIVE || p.countOf(I.ARROW) > 0;
       if (input.mouseDown(2) && hasArrows) {
         this.bowCharge = Math.min(1, this.bowCharge + dt / BOW_DRAW_TIME);
