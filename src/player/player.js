@@ -250,6 +250,7 @@ export class Player {
       this.lavaTimer = (this.lavaTimer ?? 0) - dt;
       if (this.lavaTimer <= 0) { this.lavaTimer = 0.5; this.damage(4, 'lava'); }
     }
+    if (entityInBlock(this.world, this, B.FIRE)) this.fireTime = Math.max(this.fireTime, 4);
     if (this.inWater && this.fireTime > 0) { this.fireTime = 0; this.events.dispatchEvent(new CustomEvent('extinguish')); }
     if (this.fireTime > 0) {
       this.fireTime -= dt;
@@ -352,9 +353,9 @@ export class Player {
     if (changed) this.events.dispatchEvent(new CustomEvent('inventory'));
   }
 
-  eat(foodValue) {
+  eat(foodValue, sat = foodValue * 0.6) {
     this.hunger = Math.min(20, this.hunger + foodValue);
-    this.saturation = Math.min(this.hunger, this.saturation + foodValue * 0.6);
+    this.saturation = Math.min(this.hunger, this.saturation + sat);
   }
 
   respawn() {

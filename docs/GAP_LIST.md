@@ -18,10 +18,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Death screen: readable title, "Save & Quit to Title" like the pause menu
 - [x] Focus rings for creative tabs, recipes, slots; reduced motion covers pulses and toasts
 - [x] Furnace flame is a pixel icon (touch glyphs still ▦ / …)
-- [ ] Separate volume sliders, brightness, view bobbing, screenshot key, crosshair options
-- [ ] World list search/sort, duplicate, export/import, copy seed
-- [ ] Chat command completion; touch send button
-- [ ] Loading screen cancel / "taking longer" state
+- [x] Volume sliders for blocks / creatures / player & menus, brightness, view bobbing, F2 screenshots
+- [ ] Crosshair options
+- [x] World list search and sort, duplicate, export/import (.json), copy seed
+- [x] Chat: Tab completes commands, items and mobs (with hints); /summon; a Send button on touch
+- [x] Loading screen: Cancel button, and a note when it's taking a while
 
 ## Crafting & items
 - [x] Shift-click craft output duplicated items when the inventory was nearly full
@@ -35,11 +36,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Obsidian (pour water onto lava, or lava next to water); snowballs from snow, snowy grass and snow layers → snow blocks
 - [x] Shears: shear sheep (fleece regrows), snip leaves / tall grass / dead bushes whole
 - [x] Buckets: scoop and pour water and lava, milk cows (milk puts out fire)
-- [ ] Flint & steel, fishing rod
+- [x] Flint and steel (fire that burns out; lights TNT and campfires), fishing rod (cast, wait for the bite, reel in)
 - [x] Ladders (climbable), oak doors (two-high, open/close), fences (connect, 1.5 high), oak/cobblestone/stone-brick slabs (two make a block; walk up them)
-- [ ] Stairs, glass panes, signs, fence gates
+- [x] Stairs (oak, cobblestone, stone brick; upside-down too), glass panes (connect), fence gates (open/close), signs (standing or on walls, editable text)
 - [x] Sugar cane and cactus grow (up to 3 tall) near the player
-- [ ] Tool repair in the crafting grid
+- [x] Tool repair: two worn tools of a kind mend into one (+5% bonus)
 
 ## Mobs & animals
 - [x] **Dolphins** (ocean pods, follow swimmers, leap, speed boost; feed fish to escort you)
@@ -50,11 +51,12 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Swimmers and birds turn away from walls
 - [x] Melee hits pets only while sneaking
 - [x] Passive animals make (quiet) sounds; dolphins click, whales sing
-- [ ] Birds roost at night; whales drop nothing
+- [x] Birds roost on the ground at night
+- [ ] Whales drop nothing (intentional for now)
 - [x] Mobs push each other apart, and the player shoves through them
 - [x] Sheep shearing / wool regrowth
 - [x] Milk
-- [ ] Eggs
+- [x] Eggs: hens lay them; throw them (sometimes a chick hatches), or bake pumpkin pie (pumpkin + sugar + egg); snowballs throw too
 
 ## Hostile mobs
 - [x] No melee hits through block corners (line of sight required)
@@ -64,9 +66,9 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Skeletons lead moving targets
 - [x] Hostile cap scales with difficulty (easy 5 / normal 8 / hard 12)
 - [x] Burning mobs show flames; burning zombies set you alight
-- [ ] Undead seek shade
+- [x] Undead burning in the sun head for shade
 - [x] Husks (desert, sun-proof, hits make you hungry), drowned (swim after you, spawn in water at night, zombies drown into them), baby zombies (fast)
-- [ ] Arrows slow in water
+- [x] Arrows slow right down in water
 
 ## Survival mechanics
 - [x] Starvation floor by difficulty (easy 5 hearts, normal ½, hard none)
@@ -75,8 +77,8 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] No sprint hunger drain in shallow water
 - [x] Burning state: lava sets you on fire, water/milk put it out, flames on screen
 - [x] Eating and drinking take time (hold use; touch: one tap), and slow you down
-- [ ] Per-food saturation
-- [ ] Mining slower underwater / in mid-air
+- [x] Per-food saturation (cooked meat keeps you full longest); rotten flesh and raw chicken can upset your stomach
+- [x] Mining is slower underwater and in mid-air
 
 ## Swimming
 - [x] Sprint-swimming in the look direction (dive/climb with pitch)
@@ -84,15 +86,17 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Sneak edge-guard no longer applies underwater
 - [x] Dolphin's grace speed boost
 - [x] Bubbles rise while underwater; water darkens with depth and at night
-- [ ] Muffled underwater ambience
+- [x] Sound muffles underwater, with a low hum
 
 ## Biomes & world generation
 (new decoration needs a generator version bump so existing worlds don't seam)
 - [x] (gen v4) Decoration per 8×8 quadrant with per-feature biome checks: trees and grass along rivers, no flowers on sand
 - [x] (gen v5) Kelp forests and seagrass in oceans and rivers
-- [ ] Shipwrecks, ocean ruins
+- [x] (gen v6) Shipwrecks with cargo chests
+- [ ] Ocean ruins
 - [x] (gen v4) Sugar cane grows wherever low ground touches water
 - [x] (gen v4) Sparse spruce on the tundra, mossy boulders on mountains/tundra, more mountain spruce, more desert dead bushes
 - [x] (gen v5) Shallow swamp pools with lily pads and seagrass
 - [x] (gen v5) Lava floods the deepest caves; snow layers on the tundra, snowfields on high peaks
-- [ ] Desert wells/fossils
+- [x] (gen v6) Desert wells
+- [ ] Fossils

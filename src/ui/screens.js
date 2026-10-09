@@ -37,7 +37,7 @@ function controlsList(bindings) {
     ['Middle click', 'Pick block'], ['1–9 / wheel', 'Hotbar'],
     [k('inventory'), 'Inventory'], [k('drop'), 'Drop item (Ctrl: stack)'],
     [`${k('chat')} or ${k('command')}`, 'Chat & commands'], [k('hideHud'), 'Hide HUD'],
-    [k('debug'), 'Debug info'], ['Esc', 'Pause'],
+    [k('debug'), 'Debug info'], ['F2', 'Screenshot'], ['Esc', 'Pause'],
   ];
 }
 
@@ -156,16 +156,39 @@ export class Screens {
 
     let selected = (worlds.find((w) => w.id === selectId) ?? worlds[0])?.id ?? null;
 
+    // search + sort once there's more than a couple of worlds
+    this.worldQuery ??= '';
+    this.worldSort ??= 'played';
+    const SORTS = { played: 'Last played', name: 'Name', created: 'Newest' };
+    if (worlds.length > 2) {
+      const tools = document.createElement('div');
+      tools.className = 'world-tools';
+      const search = document.createElement('input');
+      search.type = 'search';
+      search.className = 'world-search';
+      search.placeholder = 'Search worlds…';
+      search.setAttribute('aria-label', 'Search worlds');
+      search.value = this.worldQuery;
+      search.addEventListener('input', () => { this.worldQuery = search.value; renderList(); });
+      search.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); const v = visible(); if (v.length) select(v[0].id, true); } });
+      const sort = document.createElement('select');
+      sort.className = 'world-sort';
+      sort.setAttribute('aria-label', 'Sort worlds');
+      for (const [k, label] of Object.entries(SORTS)) {
+        const o = document.createElement('option');
+        o.value = k; o.textContent = label;
+        sort.appendChild(o);
+      }
+      sort.value = this.worldSort;
+      sort.addEventListener('change', () => { this.worldSort = sort.value; renderList(); });
+      tools.append(search, sort);
+      el.appendChild(tools);
+    }
+
     const list = document.createElement('div');
     list.className = 'world-list';
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', 'Worlds');
-    if (worlds.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'world-empty';
-      empty.textContent = 'No worlds yet — create one to start playing.';
-      list.appendChild(empty);
-    }
 
     const playBtn = this.btn('Play', () => { if (selected) this.onPlay(selected); });
     const deleteBtn = this.btn('Delete…', () => {
@@ -179,6 +202,38 @@ export class Screens {
       const w = worlds.find((x) => x.id === selected);
       if (w) this.showRename(w);
     }, 'btn small');
+    const dupBtn = this.btn('Duplicate', async () => {
+      if (!selected) return;
+      dupBtn.disabled = true;
+      const copy = await this.store.duplicateWorld(selected);
+      this.showMain(copy?.id ?? selected);
+    }, 'btn small');
+    const exportBtn = this.btn('Export', async () => {
+      const w = worlds.find((x) => x.id === selected);
+      if (!w) return;
+      const data = await this.store.exportWorld(w.id);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+      a.download = `${w.name.replace(/[^\w -]+/g, '').trim() || 'world'}.blockverse.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'btn small');
+    const importBtn = this.btn('Import…', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          const meta = await this.store.importWorld(JSON.parse(await file.text()));
+          this.showMain(meta.id);
+        } catch (err) {
+          this.showConfirm('Couldn’t import that file', String(err.message ?? err), 'OK', () => this.showMain(), () => this.showMain());
+        }
+      });
+      input.click();
+    }, 'btn small');
 
     const entries = new Map();
     const select = (id, focus = false) => {
@@ -190,38 +245,71 @@ export class Screens {
         e.tabIndex = on ? 0 : -1;
         if (on && focus) { e.focus(); e.scrollIntoView({ block: 'nearest' }); }
       }
-      playBtn.disabled = !selected;
-      deleteBtn.disabled = !selected;
-      renameBtn.disabled = !selected;
+      for (const b of [playBtn, deleteBtn, renameBtn, dupBtn, exportBtn]) b.disabled = !selected;
     };
 
-    for (const w of worlds) {
-      const e = document.createElement('div');
-      e.className = 'world-entry';
-      e.setAttribute('role', 'option');
-      const name = document.createElement('div');
-      name.className = 'w-name';
-      name.textContent = w.name;
-      const info = document.createElement('div');
-      info.className = 'w-info';
-      const mode = w.mode === GAMEMODE_CREATIVE ? 'Creative' : 'Survival';
-      info.textContent = `${mode} · seed ${w.seed} · ${timeAgo(w.lastPlayed)}`;
-      info.title = w.lastPlayed ? new Date(w.lastPlayed).toLocaleString() : '';
-      const left = document.createElement('div');
-      left.appendChild(name);
-      left.appendChild(info);
-      e.appendChild(left);
-      const play = document.createElement('span');
-      play.className = 'w-play';
-      play.textContent = '▶';
-      play.setAttribute('aria-hidden', 'true');
-      e.appendChild(play);
-      e.addEventListener('click', () => select(w.id));
-      e.addEventListener('dblclick', () => this.onPlay(w.id));
-      play.addEventListener('click', (ev) => { ev.stopPropagation(); this.onPlay(w.id); });
-      entries.set(w.id, e);
-      list.appendChild(e);
-    }
+    // the worlds matching the search, in the chosen order
+    const visible = () => {
+      const q = this.worldQuery.trim().toLowerCase();
+      const out = worlds.filter((w) => !q || w.name.toLowerCase().includes(q) || String(w.seed).includes(q));
+      if (this.worldSort === 'name') out.sort((x, y) => x.name.localeCompare(y.name));
+      else if (this.worldSort === 'created') out.sort((x, y) => (y.created ?? 0) - (x.created ?? 0));
+      return out;
+    };
+
+    const renderList = () => {
+      list.innerHTML = '';
+      entries.clear();
+      const shown = visible();
+      if (shown.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'world-empty';
+        empty.textContent = worlds.length ? 'No worlds match your search.' : 'No worlds yet — create one to start playing.';
+        list.appendChild(empty);
+      }
+      for (const w of shown) {
+        const e = document.createElement('div');
+        e.className = 'world-entry';
+        e.setAttribute('role', 'option');
+        const name = document.createElement('div');
+        name.className = 'w-name';
+        name.textContent = w.name;
+        const info = document.createElement('div');
+        info.className = 'w-info';
+        const mode = w.mode === GAMEMODE_CREATIVE ? 'Creative' : 'Survival';
+        info.textContent = `${mode} · seed ${w.seed} · ${timeAgo(w.lastPlayed)}`;
+        info.title = w.lastPlayed ? new Date(w.lastPlayed).toLocaleString() : '';
+        // copy the seed (to share a world with a friend)
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'w-copy';
+        copy.textContent = 'copy seed';
+        copy.tabIndex = -1;
+        copy.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          try { await navigator.clipboard.writeText(String(w.seed)); copy.textContent = 'copied!'; } catch { copy.textContent = String(w.seed); }
+          setTimeout(() => { copy.textContent = 'copy seed'; }, 1500);
+        });
+        info.appendChild(copy);
+        const left = document.createElement('div');
+        left.appendChild(name);
+        left.appendChild(info);
+        e.appendChild(left);
+        const play = document.createElement('span');
+        play.className = 'w-play';
+        play.textContent = '▶';
+        play.setAttribute('aria-hidden', 'true');
+        e.appendChild(play);
+        e.addEventListener('click', () => select(w.id));
+        e.addEventListener('dblclick', () => this.onPlay(w.id));
+        play.addEventListener('click', (ev) => { ev.stopPropagation(); this.onPlay(w.id); });
+        entries.set(w.id, e);
+        list.appendChild(e);
+      }
+      if (!entries.has(selected)) selected = shown[0]?.id ?? null;
+      select(selected);
+    };
+    renderList();
     el.appendChild(list);
 
     // with no worlds yet, creating one is the only thing to do: make it the big button
@@ -236,8 +324,11 @@ export class Screens {
     if (worlds.length) {
       row2.appendChild(createBtn);
       row2.appendChild(renameBtn);
+      row2.appendChild(dupBtn);
+      row2.appendChild(exportBtn);
       row2.appendChild(deleteBtn);
     }
+    row2.appendChild(importBtn);
     row2.appendChild(this.btn('Settings', () => this.showSettings(() => this.showMain(selected)), 'btn small'));
     el.appendChild(row2);
 
@@ -253,7 +344,8 @@ export class Screens {
     // arrow keys move the selection, Enter plays, F2 renames, Delete asks to delete
     this.onKey = (e) => {
       if (e.target instanceof HTMLButtonElement && e.key === 'Enter') return false;
-      const ids = worlds.map((w) => w.id);
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return false;   // typing in the search box
+      const ids = visible().map((w) => w.id);
       const i = ids.indexOf(selected);
       if (e.key === 'ArrowDown' && ids.length) { select(ids[Math.min(ids.length - 1, i + 1)], true); return true; }
       if (e.key === 'ArrowUp' && ids.length) { select(ids[Math.max(0, i - 1)], true); return true; }
@@ -471,9 +563,18 @@ export class Screens {
       touch ? 'Tip: sprint underwater to swim fast wherever you look.'
         : `Tip: sprint (${keyLabel(keys.sprint)}) underwater to swim fast wherever you look.`,
       'Tip: break a dungeon\'s spawner cage to stop the monsters for good.',
+      'Tip: pour a bucket of water onto lava to make obsidian.',
+      'Tip: F2 saves a screenshot.',
     ];
     tip.textContent = tips[(Math.random() * tips.length) | 0];
     el.appendChild(tip);
+    // a slow device shouldn't feel stuck: say so, and offer a way out
+    const slow = document.createElement('div');
+    slow.className = 'loading-slow hidden';
+    slow.textContent = 'Still building the terrain around you — this can take a while on slower devices.';
+    el.appendChild(slow);
+    if (this.onCancelLoading) el.appendChild(this.btn('Cancel', () => this.onCancelLoading(), 'btn small'));
+    this._loadingSlow = setTimeout(() => slow.classList.remove('hidden'), 8000);
     this._loadingTrack = track;
     this._loadingFill = fill;
   }
@@ -593,12 +694,18 @@ export class Screens {
     if (tab === 'general') {
       first = slider('Render distance', 2, 16, 1, s.renderDistance, (v) => `${v} chunks`, (v) => { s.renderDistance = v; });
       slider('Field of view', 60, 110, 1, s.fov, (v) => `${v}°`, (v) => { s.fov = v; });
-      slider('Volume', 0, 1, 0.05, s.volume, (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`), (v) => { s.volume = v; });
+      const pct = (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`);
+      slider('Brightness', 0, 1, 0.05, s.brightness, (v) => (v === 0 ? 'Moody' : v === 1 ? 'Bright' : `${Math.round(v * 100)}%`), (v) => { s.brightness = v; });
+      slider('Volume', 0, 1, 0.05, s.volume, pct, (v) => { s.volume = v; });
+      slider('· Blocks & world', 0, 1, 0.05, s.blockVolume, pct, (v) => { s.blockVolume = v; });
+      slider('· Creatures', 0, 1, 0.05, s.mobVolume, pct, (v) => { s.mobVolume = v; });
+      slider('· Player & menus', 0, 1, 0.05, s.uiVolume, pct, (v) => { s.uiVolume = v; });
       const gi = Math.max(0, GUI_SCALES.indexOf(s.guiScale));
       slider('GUI scale', 0, GUI_SCALES.length - 1, 1, gi,
         (i) => (GUI_SCALES[i] ? `${GUI_SCALES[i] * 100}%` : `Auto (${Math.round(autoGuiScale() * 100)}%)`),
         (i) => { s.guiScale = GUI_SCALES[i]; }, false);
       toggle('Show FPS', !!s.showFps, (v) => { s.showFps = v; });
+      toggle('View bobbing', s.viewBobbing !== false, (v) => { s.viewBobbing = v; });
       if (fullscreenSupported()) toggle('Fullscreen', isFullscreen(), (v) => setFullscreen(v));
     } else {
       first = slider('Mouse sensitivity', 0.2, 2.5, 0.05, s.sensitivity, (v) => `${(+v).toFixed(2)}×`, (v) => { s.sensitivity = v; });

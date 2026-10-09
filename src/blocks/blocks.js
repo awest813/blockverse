@@ -85,6 +85,13 @@ export const B = {
   SEAGRASS: 79,
   LILY_PAD: 80,
   SNOW_LAYER: 81,
+  OAK_STAIRS: 82,
+  COBBLE_STAIRS: 83,
+  STONE_BRICK_STAIRS: 84,
+  GLASS_PANE: 85,
+  OAK_FENCE_GATE: 86,
+  FIRE: 87,
+  OAK_SIGN: 88,
 };
 
 // Tool classes
@@ -121,7 +128,7 @@ function def(id, name, display, opts = {}) {
     replaceable: opts.replaceable ?? false,  // placement can overwrite it
     fluid: opts.fluid ?? false,
     climbable: opts.climbable ?? false,      // ladders
-    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'door' | 'fence' | 'ladder' | 'pad' | 'layer'
+    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'stairs' | 'door' | 'fence' | 'gate' | 'pane' | 'ladder' | 'pad' | 'layer'
     waterlogged: opts.waterlogged ?? false,  // sits in a water cell (kelp, seagrass)
     icon: opts.icon ?? null,                 // flat inventory icon tile instead of a cube
     full: opts.full ?? null,                 // slabs: the full block two of them make
@@ -329,6 +336,21 @@ reg(def(B.LILY_PAD, 'lily_pad', 'Lily Pad', { solid: false, render: R_SHAPE, sha
 reg(def(B.SNOW_LAYER, 'snow_layer', 'Snow', {
   solid: false, render: R_SHAPE, shape: 'layer', opacity: 0, hardness: 0.1, tool: TOOL_SHOVEL, sound: 'cloth', replaceable: true,
   textures: 'snow_block', drop: () => [{ id: I.SNOWBALL, count: 1 }],
+}));
+// stairs: meta bits 0-1 = the high (back) edge, bit 2 = upside down
+reg(def(B.OAK_STAIRS, 'oak_stairs', 'Oak Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks' }));
+reg(def(B.COBBLE_STAIRS, 'cobble_stairs', 'Cobblestone Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone' }));
+reg(def(B.STONE_BRICK_STAIRS, 'stone_brick_stairs', 'Stone Brick Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks' }));
+reg(def(B.GLASS_PANE, 'glass_pane', 'Glass Pane', { render: R_SHAPE, shape: 'pane', opacity: 0, hardness: 0.3, drop: null, sound: 'glass', textures: 'glass', icon: 'glass' }));
+// fence gates: meta bit 0 = runs along z (else x), bit 2 = open
+reg(def(B.OAK_FENCE_GATE, 'oak_fence_gate', 'Oak Fence Gate', {
+  render: R_SHAPE, shape: 'gate', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'oak_gate_item',
+}));
+// fire from flint and steel: burns out after a few seconds, hurts to stand in
+reg(def(B.FIRE, 'fire', 'Fire', { solid: false, render: R_CROSS, opacity: 0, lightEmit: 15, hardness: 0, replaceable: true, drop: null, sound: 'leaf' }));
+// signs: meta bits 0-1 = which way the text faces, bit 2 = hung on a wall
+reg(def(B.OAK_SIGN, 'oak_sign', 'Oak Sign', {
+  solid: false, render: R_SHAPE, shape: 'sign', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'oak_sign_item',
 }));
 reg(def(B.MOSSY_STONE_BRICKS, 'mossy_stone_bricks', 'Mossy Stone Bricks', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1 }));
 

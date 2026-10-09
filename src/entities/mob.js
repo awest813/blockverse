@@ -385,6 +385,7 @@ export class Mob {
       this.lavaTimer = (this.lavaTimer ?? 0) - dt;
       if (this.lavaTimer <= 0) { this.lavaTimer = 0.5; this.hurtCooldown = 0; this.damage(4, null); }
     }
+    if (entityInBlock(this.world, this, B.FIRE)) this.fireTime = Math.max(this.fireTime ?? 0, 4);
     if (this.inWater) this.fireTime = 0;
     const burning = this.fireTime > 0;
     if (burning) {
@@ -410,6 +411,30 @@ export class Mob {
       this.group.add(this.flames);
     }
     this.flames.visible = on;
+  }
+
+  // Burning in the sun with nothing to chase: head for the nearest shade
+  // (a spot whose sky light is blocked: under trees, overhangs, caves).
+  seekShade(dt) {
+    if (!(this.fireTime > 0) || this.fireproofSun) return false;
+    this.shadeTimer = (this.shadeTimer ?? 0) - dt;
+    if (this.shadeTimer <= 0 || !this.shade) {
+      this.shadeTimer = 1;
+      this.shade = null;
+      for (let i = 0; i < 12; i++) {
+        const x = Math.floor(this.x + (Math.random() - 0.5) * 16), z = Math.floor(this.z + (Math.random() - 0.5) * 16);
+        for (let y = Math.floor(this.y) + 2; y >= Math.floor(this.y) - 2; y--) {
+          if (this.world.getBlockW(x, y, z) !== B.AIR || !isSolid(this.world.getBlockW(x, y - 1, z))) continue;
+          if (this.world.getSkyW(x, y + 1, z) < 13) { this.shade = { x: x + 0.5, z: z + 0.5 }; break; }
+        }
+        if (this.shade) break;
+      }
+    }
+    if (!this.shade) return false;
+    this.targetYaw = Math.atan2(-(this.shade.x - this.x), -(this.shade.z - this.z));
+    this.moving = Math.hypot(this.shade.x - this.x, this.shade.z - this.z) > 0.6;
+    this.state = 'wander';
+    return true;
   }
 
   // face the player and walk toward (dir 1) or away from (dir -1) them

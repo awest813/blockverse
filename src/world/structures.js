@@ -149,7 +149,7 @@ const GROUND = new Set([
   B.SNOW_BLOCK, B.SNOWY_GRASS, B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE, B.REDSTONE_ORE,
 ]);
 
-const SIZES = { desert_temple: 13, forest_temple: 11, shrine: 7 };
+const SIZES = { desert_temple: 13, forest_temple: 11, shrine: 7, well: 5, shipwreck: 13 };
 const SHRINE_BIOMES = new Set([2, 3, 4, 5, 6, 7, 8, 9]);   // land biomes (see BIOME)
 
 // What surface structure (if any) this chunk holds: {type, x0, z0, size, y, rot, biome}.
@@ -191,6 +191,11 @@ function makePlan(gen, cx, cz) {
   if (biome === 5 && roll < 0.12) type = 'desert_temple';
   else if ((biome === 3 || biome === 4 || biome === 8) && roll < 0.045) type = 'forest_temple';
   else if (SHRINE_BIOMES.has(biome) && roll > 0.955) type = 'shrine';
+  // generator 6: desert wells and sunken ships
+  if (gen.version >= 6 && !type) {
+    if (biome === 5 && roll > 0.8) type = 'well';
+    else if (biome === 0 && roll < 0.05) type = 'shipwreck';
+  }
   if (!type) return null;
   const size = SIZES[type];
   const x0 = 1 + ((rng() * (CHUNK_X - size - 1)) | 0);
@@ -203,8 +208,14 @@ function makePlan(gen, cx, cz) {
       lo = Math.min(lo, h); hi = Math.max(hi, h); sum += h; n++;
     }
   }
-  if (lo <= SEA_LEVEL || hi - lo > (type === 'shrine' ? 3 : 5)) return null;
-  const y = Math.round(sum / n);
+  let y = Math.round(sum / n);
+  if (type === 'shipwreck') {
+    // resting on the sea floor, well under the surface
+    if (hi > SEA_LEVEL - 5 || hi - lo > 4) return null;
+    y = lo + 1;
+  } else if (lo <= SEA_LEVEL || hi - lo > (type === 'shrine' || type === 'well' ? 3 : 5)) {
+    return null;
+  }
   if (y + 16 >= CHUNK_Y) return null;
   return { type, x0, z0, size, y, rot: (rng() * 4) | 0, biome, priority: rng() };
 }
@@ -269,6 +280,8 @@ export function buildStructure(gen, blocks, cx, cz) {
   };
   if (plan.type === 'desert_temple') desertTemple(b, plan, rng);
   else if (plan.type === 'forest_temple') forestTemple(b, plan, rng);
+  else if (plan.type === 'well') well(b, plan);
+  else if (plan.type === 'shipwreck') shipwreck(b, plan, rng);
   else shrine(b, plan, rng);
   return out;
 }
@@ -390,4 +403,56 @@ function shrine(b, { y, biome }, rng) {
   b.entity(b.set(C, y + 1, C, B.CHEST), chest(rng, SHRINE_LOOT));
 }
 
-export const STRUCTURE_NAMES = { desert_temple: 'Desert Temple', forest_temple: 'Forest Temple', shrine: 'Shrine' };
+// An open sandstone well: a 3x3 water shaft behind a low rim, four corner
+// posts and a roof, with chiseled stone over the middle.
+function well(b, { y }) {
+  const S = 5, C = 2;
+  b.site(y, B.SANDSTONE, 6);
+  for (let dx = 0; dx < S; dx++) {
+    for (let dz = 0; dz < S; dz++) {
+      const ring = Math.max(Math.abs(dx - C), Math.abs(dz - C));
+      const corner = ring === 2 && Math.abs(dx - C) === 2 && Math.abs(dz - C) === 2;
+      if (ring <= 1) {
+        for (let dy = 0; dy >= -3; dy--) b.set(dx, y + dy, dz, B.WATER);
+        b.set(dx, y - 4, dz, B.SANDSTONE);
+      } else {
+        b.set(dx, y, dz, B.SANDSTONE);
+        b.set(dx, y + 1, dz, B.SANDSTONE);   // the rim
+        if (corner) for (let dy = 2; dy <= 3; dy++) b.set(dx, y + dy, dz, B.SANDSTONE);
+      }
+      b.set(dx, y + 4, dz, dx === C && dz === C ? B.CHISELED_SANDSTONE : B.SANDSTONE);
+    }
+  }
+}
+
+const SHIPWRECK_LOOT = [
+  [I.IRON_INGOT, 2, 6, 0.6], [I.GOLD_INGOT, 1, 4, 0.4], [I.DIAMOND, 1, 2, 0.12], [I.COAL, 3, 8, 0.4],
+  [I.BREAD, 1, 3, 0.4], [I.FISH_RAW, 2, 5, 0.5], [I.DRIED_KELP, 2, 6, 0.4], [I.PAPER, 1, 4, 0.4], [I.BOOK, 1, 2, 0.25],
+  [I.IRON_SWORD, 1, 1, 0.12], [I.IRON_SPEAR, 1, 1, 0.15], [I.LEATHER_HELMET, 1, 1, 0.2], [I.GOLDEN_APPLE, 1, 1, 0.06],
+  [I.FISHING_ROD, 1, 1, 0.2], [I.BUCKET, 1, 1, 0.2],
+];
+
+// The broken hull of a little ship on the sea floor, with its cargo chest.
+function shipwreck(b, { y }, rng) {
+  const L = 13;
+  const water = (yy) => (yy <= SEA_LEVEL ? B.WATER : B.AIR);
+  const plank = () => (rng() < 0.7 ? B.SPRUCE_PLANKS : B.OAK_PLANKS);
+  // clear the sea above the wreck (kelp, seagrass) to plain water
+  for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) for (let dy = 0; dy <= 9; dy++) b.set(dx, y + dy, dz, water(y + dy));
+  for (let dz = 1; dz < L - 1; dz++) {
+    const bow = dz < 3 || dz > L - 4;   // narrower at both ends
+    const x0 = bow ? 5 : 4, x1 = bow ? 7 : 8;
+    for (let dx = x0; dx <= x1; dx++) b.set(dx, y, dz, B.SPRUCE_PLANKS);   // keel and hull bottom
+    for (let dy = 1; dy <= 2; dy++) {
+      if (rng() > 0.25) b.set(x0 - 1, y + dy, dz, plank());   // sides, with holes where it broke up
+      if (rng() > 0.25) b.set(x1 + 1, y + dy, dz, plank());
+    }
+    if (!bow) for (let dx = x0; dx <= x1; dx++) if (rng() < 0.45) b.set(dx, y + 3, dz, B.OAK_PLANKS);   // what's left of the deck
+  }
+  // a snapped mast
+  const mast = 3 + ((rng() * 4) | 0);
+  for (let dy = 1; dy <= mast; dy++) b.set(6, y + dy, 5, B.SPRUCE_LOG);
+  b.entity(b.set(6, y + 1, 9, B.CHEST), chest(rng, SHIPWRECK_LOOT));
+}
+
+export const STRUCTURE_NAMES = { desert_temple: 'Desert Temple', forest_temple: 'Forest Temple', shrine: 'Shrine', well: 'Well', shipwreck: 'Shipwreck' };

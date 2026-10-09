@@ -108,7 +108,7 @@ export class ViewModel {
 
     // walk bob eases in and out with movement
     const moving = onGround && speed > 0.5;
-    this.bobAmount += ((moving ? 1 : 0) - this.bobAmount) * Math.min(1, dt * 6);
+    this.bobAmount += ((moving && this.bobbing !== false ? 1 : 0) - this.bobAmount) * Math.min(1, dt * 6);
     this.bobPhase += dt * Math.min(speed, 8) * 1.6;
     const bobX = Math.sin(this.bobPhase) * 0.018 * this.bobAmount;
     const bobY = -Math.abs(Math.cos(this.bobPhase)) * 0.02 * this.bobAmount;

@@ -113,6 +113,12 @@ export class Chicken extends Animal {
   update(dt, player) {
     super.update(dt, player);
     if (this.dead) return;
+    // grown hens lay an egg every few minutes
+    this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt;
+    if (this.eggTimer <= 0) {
+      this.eggTimer = 300 + Math.random() * 300;
+      if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6 }); }
+    }
     // flap to fall gently
     const airborne = !this.onGround && this.vy < 0;
     if (airborne) this.vy = Math.max(this.vy, -2.2);
@@ -204,6 +210,13 @@ export class Bird extends Animal {
 
   think(dt, player, playerDist) {
     this.stateTime -= dt;
+    // at night birds come down and roost on the ground until morning
+    if (this.world.materials.uniforms.uDay.value < 0.35 && this.state !== 'flee') {
+      this.state = 'roost';
+      this.moving = !this.onGround;
+      this.targetVy = this.onGround ? 0 : -2.5;
+      return;
+    }
     this.moving = true;
     if (playerDist < 5 && this.state !== 'flee') {
       this.state = 'flee';
@@ -224,7 +237,7 @@ export class Bird extends Animal {
   }
 
   animate() {
-    const f = Math.sin(this.age * 28) * 0.8;
+    const f = this.state === 'roost' && this.onGround ? 0 : Math.sin(this.age * 28) * 0.8;
     this.wings[0].rotation.z = f;
     this.wings[1].rotation.z = -f;
   }

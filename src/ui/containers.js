@@ -1039,11 +1039,22 @@ export class Containers {
         const grid = [];
         for (let i = 0; i < size * size; i++) grid.push(this.craftGrid[i]?.id ?? 0);
         const m = matchRecipe(grid, size, size);
-        return m ? makeStack(m.id, m.count) : null;
+        return m ? makeStack(m.id, m.count) : this.repairResult();
       },
       set: () => {},
       output: 'craft',
     };
+  }
+
+  // two worn tools (or bows/armour) of the same kind mend into one, with a
+  // small bonus on top of their combined durability
+  repairResult() {
+    const items = this.craftGrid.filter(Boolean);
+    if (items.length !== 2 || items[0].id !== items[1].id || items[0].dur === undefined) return null;
+    const info = itemInfo(items[0].id);
+    const max = info?.tool?.durability ?? info?.armor?.durability ?? info?.bow?.durability;
+    if (!max) return null;
+    return { id: items[0].id, count: 1, dur: Math.min(max, items[0].dur + items[1].dur + Math.floor(max * 0.05)) };
   }
 
   beRef(st, field) {
@@ -1174,7 +1185,8 @@ export class Containers {
         if (!out) break;
         // crafting: only craft when the whole result fits, or it would be free
         if (ref.output === 'craft' && roomFor(this.player, out) < out.count) break;
-        const left = this.player.give(out.id, out.count);
+        // stacks with durability (a repaired tool) keep it
+        const left = out.dur !== undefined ? this.player.giveStack({ ...out }) : this.player.give(out.id, out.count);
         if (left > 0) {
           // furnace: keep whatever didn't fit in the output slot
           if (ref.output !== 'craft') ref.set(left === out.count ? out : { ...out, count: left });

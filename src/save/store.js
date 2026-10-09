@@ -12,6 +12,19 @@ function req(r) {
   });
 }
 
+function toB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+const bytesOf = (a) => new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+function fromB64(str) {
+  const s = atob(str);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
 export class SaveStore {
   static async open() {
     const store = new SaveStore();
@@ -40,7 +53,7 @@ export class SaveStore {
 
   async createWorld({ name, seed, mode, renderDistance, keepInventory = false, difficulty = 2 }) {
     const meta = {
-      id: `w${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`,
+      id: this.newId(),
       name,
       seed,
       mode,
@@ -83,6 +96,55 @@ export class SaveStore {
     await req(this.tx('chunks', 'readwrite').delete(range));
   }
 
+  // every saved chunk of a world, as [key suffix "cx,cz", value]
+  async worldChunks(id) {
+    const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
+    const store = this.tx('chunks');
+    const [keys, values] = await Promise.all([req(store.getAllKeys(range)), req(store.getAll(range))]);
+    return keys.map((k, i) => [k.slice(id.length + 1), values[i]]);
+  }
+
+  async putWorld(meta, chunks) {
+    await req(this.tx('worlds', 'readwrite').put(meta));
+    const store = this.tx('chunks', 'readwrite');
+    await Promise.all(chunks.map(([suffix, v]) => req(store.put(v, `${meta.id}:${suffix}`))));
+  }
+
+  newId() {
+    return `w${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+  }
+
+  async duplicateWorld(id) {
+    const meta = await this.loadWorld(id);
+    if (!meta) return null;
+    const copy = { ...structuredClone(meta), id: this.newId(), name: `${meta.name} (copy)`.slice(0, 32), created: Date.now(), lastPlayed: Date.now() };
+    await this.putWorld(copy, await this.worldChunks(id));
+    return copy;
+  }
+
+  // A whole world as a JSON-safe object (typed arrays as base64).
+  async exportWorld(id) {
+    const meta = await this.loadWorld(id);
+    const chunks = (await this.worldChunks(id)).map(([suffix, v]) => [suffix, {
+      blocks: toB64(bytesOf(v.blocks instanceof Uint16Array ? v.blocks : new Uint16Array(v.blocks))),
+      meta: v.meta ? toB64(v.meta instanceof Uint8Array ? v.meta : new Uint8Array(v.meta)) : null,
+      blockEntities: v.blockEntities ?? [],
+    }]);
+    return { format: 'blockverse-world', version: 1, meta, chunks };
+  }
+
+  async importWorld(data) {
+    if (data?.format !== 'blockverse-world' || !data.meta) throw new Error('Not a BlockVerse world file');
+    const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
+    const chunks = data.chunks.map(([suffix, v]) => [suffix, {
+      blocks: new Uint16Array(fromB64(v.blocks).buffer),
+      meta: v.meta ? fromB64(v.meta) : null,
+      blockEntities: v.blockEntities ?? [],
+    }]);
+    await this.putWorld(meta, chunks);
+    return meta;
+  }
+
   chunkKey(worldId, cx, cz) {
     return `${worldId}:${cx},${cz}`;
   }
@@ -115,6 +177,11 @@ export const DEFAULT_SETTINGS = {
   fov: 75,
   sensitivity: 1,
   volume: 0.5,
+  blockVolume: 1,   // per-category mix, multiplied with volume
+  mobVolume: 1,
+  uiVolume: 1,
+  brightness: 0.3,
+  viewBobbing: true,
   invertY: false,
   showFps: false,
   guiScale: 0,       // 0 = auto (fit the window), otherwise a multiplier

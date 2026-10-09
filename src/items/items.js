@@ -31,6 +31,8 @@ function item(id, name, display, opts = {}) {
     stack: opts.stack ?? 64,
     tool: opts.tool ?? null,   // {class, tier, speed, durability, damage}
     food: opts.food ?? 0,      // hunger points restored
+    sat: opts.sat ?? (opts.food ?? 0) * 0.6,   // saturation it gives
+    sickly: opts.sickly ?? 0,  // chance it upsets your stomach (rotten flesh, raw chicken)
     burnTime: opts.burnTime ?? 0, // furnace fuel, in seconds
     armor: opts.armor ?? null,  // {slot: 0 head .. 3 feet, points, durability}
     bow: opts.bow ?? null,      // {durability}
@@ -67,17 +69,17 @@ item(I.IRON_INGOT, 'iron_ingot', 'Iron Ingot');
 item(I.GOLD_INGOT, 'gold_ingot', 'Gold Ingot');
 item(I.DIAMOND, 'diamond', 'Diamond');
 item(I.REDSTONE_DUST, 'redstone_dust', 'Redstone Dust');
-item(I.PORKCHOP_RAW, 'porkchop_raw', 'Raw Porkchop', { food: 3 });
-item(I.PORKCHOP_COOKED, 'porkchop_cooked', 'Cooked Porkchop', { food: 8 });
-item(I.APPLE, 'apple', 'Apple', { food: 4 });
-item(I.ROTTEN_FLESH, 'rotten_flesh', 'Rotten Flesh', { food: 2 });
-item(I.MUTTON_RAW, 'mutton_raw', 'Raw Mutton', { food: 2 });
-item(I.MUTTON_COOKED, 'mutton_cooked', 'Cooked Mutton', { food: 6 });
+item(I.PORKCHOP_RAW, 'porkchop_raw', 'Raw Porkchop', { food: 3, sat: 1.8 });
+item(I.PORKCHOP_COOKED, 'porkchop_cooked', 'Cooked Porkchop', { food: 8, sat: 12.8 });
+item(I.APPLE, 'apple', 'Apple', { food: 4, sat: 2.4 });
+item(I.ROTTEN_FLESH, 'rotten_flesh', 'Rotten Flesh', { food: 2, sat: 0.4, sickly: 0.8 });
+item(I.MUTTON_RAW, 'mutton_raw', 'Raw Mutton', { food: 2, sat: 1.2 });
+item(I.MUTTON_COOKED, 'mutton_cooked', 'Cooked Mutton', { food: 6, sat: 9.6 });
 item(I.BRICK_ITEM, 'brick_item', 'Brick');
 item(I.CLAY_BALL, 'clay_ball', 'Clay Ball');
 item(I.WHEAT_SEEDS, 'wheat_seeds', 'Wheat Seeds', { places: B.WHEAT_0 });
 item(I.WHEAT, 'wheat', 'Wheat');
-item(I.BREAD, 'bread', 'Bread', { food: 5 });
+item(I.BREAD, 'bread', 'Bread', { food: 5, sat: 6 });
 item(I.BONE, 'bone', 'Bone');
 item(I.BONE_MEAL, 'bone_meal', 'Bone Meal');
 item(I.STRING, 'string', 'String');
@@ -87,12 +89,12 @@ item(I.ARROW, 'arrow', 'Arrow');
 item(I.FLINT, 'flint', 'Flint');
 item(I.FEATHER, 'feather', 'Feather');
 item(I.LEATHER, 'leather', 'Leather');
-item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3 });
-item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8 });
-item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2 });
-item(I.CHICKEN_COOKED, 'chicken_cooked', 'Cooked Chicken', { food: 6 });
-item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2 });
-item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5 });
+item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3, sat: 1.8 });
+item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8, sat: 12.8 });
+item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2, sat: 1.2, sickly: 0.3 });
+item(I.CHICKEN_COOKED, 'chicken_cooked', 'Cooked Chicken', { food: 6, sat: 7.2 });
+item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2, sat: 0.4 });
+item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5, sat: 6 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
 item(I.PAPER, 'paper', 'Paper');
 item(I.BOOK, 'book', 'Book');
@@ -103,9 +105,14 @@ item(I.LAVA_BUCKET, 'lava_bucket', 'Lava Bucket', { stack: 1 });
 item(I.MILK_BUCKET, 'milk_bucket', 'Milk Bucket', { stack: 1, drink: true, returns: I.BUCKET });
 item(I.SNOWBALL, 'snowball', 'Snowball', { stack: 16 });
 item(I.DRIED_KELP, 'dried_kelp', 'Dried Kelp', { food: 1, eatTime: 0.8 });
+item(I.FLINT_AND_STEEL, 'flint_and_steel', 'Flint and Steel', { stack: 1, tool: { class: 'igniter', tier: 0, speed: 1, durability: 64, damage: 1 } });
+item(I.EGG, 'egg', 'Egg', { stack: 16 });
+item(I.SUGAR, 'sugar', 'Sugar');
+item(I.PUMPKIN_PIE, 'pumpkin_pie', 'Pumpkin Pie', { food: 8, sat: 4.8 });
+item(I.FISHING_ROD, 'fishing_rod', 'Fishing Rod', { stack: 1, tool: { class: 'rod', tier: 0, speed: 1, durability: 64, damage: 1 }, burnTime: 10 });
 item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
-item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, heal: 8 });
-item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, stack: 1, returns: I.BOWL });
+item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, sat: 9.6, heal: 8 });
+item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, sat: 7.2, stack: 1, returns: I.BOWL });
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];

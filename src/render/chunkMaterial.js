@@ -27,6 +27,7 @@ precision highp float;
 precision highp sampler2DArray;
 uniform sampler2DArray uAtlas;
 uniform float uDay;
+uniform float uBrightness;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -38,6 +39,8 @@ void main() {
   vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));
   ${water ? '' : 'if (tex.a < 0.5) discard;'}
   float br = clamp(max(vLight.y, vLight.x * uDay) + 0.04, 0.0, 1.0);
+  // brightness setting: lift the darks (gamma), never blow out the brights
+  br = pow(br, 1.0 / (1.0 + uBrightness * 1.2));
   vec3 col = tex.rgb * br;
   float fogF = smoothstep(uFogNear, uFogFar, vFogDepth);
   ${water
@@ -51,6 +54,7 @@ export function createChunkMaterials(atlas) {
   const uniforms = {
     uAtlas: { value: atlas.texture },
     uDay: { value: 1.0 },
+    uBrightness: { value: 0.0 },   // 0 moody .. 1 bright (settings)
     uFogColor: { value: new THREE.Color(0x8fbcec) },
     uFogNear: { value: 80 },
     uFogFar: { value: 140 },

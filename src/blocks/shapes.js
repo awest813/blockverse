@@ -22,8 +22,22 @@ function edgeBox(e, t, y0 = 0, y1 = 1) {
 function fenceConnects(id) {
   const b = BLOCKS[id];
   if (!b) return false;
-  return id === B.OAK_FENCE || (b.solid && b.opacity >= 15);
+  return id === B.OAK_FENCE || id === B.OAK_FENCE_GATE || (b.solid && b.opacity >= 15);
 }
+
+function paneConnects(id) {
+  const b = BLOCKS[id];
+  if (!b) return false;
+  return id === B.GLASS_PANE || id === B.GLASS || (b.solid && b.opacity >= 15);
+}
+
+// a wall sign is a little narrower than the wall it hangs on
+function clipSides(b, wall) {
+  return (wall & 1) ? [b[0], b[1], P, b[3], b[4], 1 - P] : [P, b[1], b[2], 1 - P, b[4], b[5]];
+}
+
+// swap x and z of a box (for things that can run either way)
+const swapXZ = (b) => [b[2], b[1], b[0], b[5], b[4], b[3]];
 
 // door meta: bits 0-1 edge, bit 2 open (an open door swings onto the next edge)
 export function doorEdge(meta) {
@@ -35,6 +49,47 @@ export function shapeBoxes(id, meta, nb, collision = false) {
   switch (BLOCKS[id]?.shape) {
     case 'slab': return [(meta & 1) ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1]];
     case 'ladder': return [edgeBox(meta, P)];
+    case 'sign': {
+      // the text faces edge (meta & 3); a wall sign sits against the opposite edge
+      const f = meta & 3;
+      if (meta & 4) {
+        const wall = (f + 2) & 3;
+        return [edgeBox(wall, 2 * P, 4 * P, 12 * P)].map((b) => clipSides(b, wall));
+      }
+      const board = (f & 1) ? [7 * P, 7 * P, 0, 9 * P, 1, 1] : [0, 7 * P, 7 * P, 1, 1, 9 * P];
+      return [board, [7 * P, 0, 7 * P, 9 * P, 7 * P, 9 * P]];
+    }
+    case 'stairs': {
+      const up = meta & 4;
+      const base = up ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1];
+      const back = edgeBox(meta & 3, 0.5, up ? 0 : 0.5, up ? 0.5 : 1);
+      return [base, back];
+    }
+    case 'pane': {
+      const boxes = [[7 * P, 0, 7 * P, 9 * P, 1, 9 * P]];
+      const arms = EDGE_DIRS.map(([dx, dz]) => !!nb && paneConnects(nb(dx, dz)));
+      if (!arms.some(Boolean)) { arms[1] = arms[3] = true; }   // a lone pane stands as a flat sheet
+      if (arms[0]) boxes.push([7 * P, 0, 0, 9 * P, 1, 7 * P]);
+      if (arms[1]) boxes.push([9 * P, 0, 7 * P, 1, 1, 9 * P]);
+      if (arms[2]) boxes.push([7 * P, 0, 9 * P, 9 * P, 1, 1]);
+      if (arms[3]) boxes.push([0, 0, 7 * P, 7 * P, 1, 9 * P]);
+      return boxes;
+    }
+    case 'gate': {
+      const open = meta & 4;
+      let boxes;
+      if (collision) boxes = open ? [] : [[0, 0, 6 * P, 1, 1.5, 10 * P]];
+      else if (open) {
+        // posts, with the two halves swung back against them
+        boxes = [[0, 5 * P, 7 * P, 2 * P, 1, 9 * P], [14 * P, 5 * P, 7 * P, 1, 1, 9 * P],
+          [0, 6 * P, 9 * P, 2 * P, 15 * P, 15 * P], [14 * P, 6 * P, 9 * P, 1, 15 * P, 15 * P]];
+      } else {
+        boxes = [[0, 5 * P, 7 * P, 2 * P, 1, 9 * P], [14 * P, 5 * P, 7 * P, 1, 1, 9 * P],
+          [2 * P, 6 * P, 7 * P, 14 * P, 9 * P, 9 * P], [2 * P, 12 * P, 7 * P, 14 * P, 15 * P, 9 * P],
+          [7 * P, 9 * P, 7 * P, 9 * P, 12 * P, 9 * P]];
+      }
+      return (meta & 1) ? boxes.map(swapXZ) : boxes;
+    }
     case 'door': return [edgeBox(doorEdge(meta), 3 * P)];
     // lily pads float on the (slightly lowered) water surface below them
     case 'pad': return [[P, -0.125, P, 1 - P, -0.1, 1 - P]];

@@ -187,7 +187,7 @@ export class Zombie extends Mob {
     }
     if (!this.senses(player, 18, dt)) {
       this.loseTarget();
-      super.think(dt, player, playerDist);
+      if (!this.seekShade(dt)) super.think(dt, player, playerDist);
       return;
     }
     this.state = 'chase';
@@ -291,7 +291,7 @@ export class Skeleton extends Mob {
     this.shootCooldown -= dt;
     if (!this.senses(player, 16, dt)) {
       this.loseTarget();
-      super.think(dt, player, playerDist);
+      if (!this.seekShade(dt)) super.think(dt, player, playerDist);
       return;
     }
     // keep a shooting distance: close in when far, back off when crowded

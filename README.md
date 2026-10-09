@@ -28,6 +28,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
 - **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)
 - Structures keep their distance from each other, and trees grow around them rather than through them
+- Shipwrecks full of cargo on the sea floor and wells in the desert
 - Kelp forests and seagrass under the sea, lily pads on shallow swamp pools, snow blankets on the tundra, and lava pooling in the deepest caves
 - Decoration follows the biome under every tree and flower: river banks are wooded and grassy, sugar cane lines any water's edge, and mossy boulders dot mountains and tundra
 - Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
@@ -57,7 +58,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
-- **Building shapes**: ladders you can climb, two-high oak doors that open and shut, fences that link up (too tall to jump), and oak, cobblestone and stone-brick slabs you can walk up (two make a full block)
+- **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on
+- **Flint and steel** lights fires, TNT and campfires; a **fishing rod** lands fish (and the odd treasure) when the bobber ducks under; snowballs and eggs can be thrown (an egg may hatch a chick); worn tools mend when two are crafted together
 - **Buckets**: scoop up and pour water and lava (lava meeting water turns to obsidian) and milk cows
 - **Fire**: lava sets you alight; jump in water (or drink milk) to put it out. Burning mobs show flames
 - **Eating takes a moment**: hold use to eat or drink (you slow down while you do); dried kelp is a quick snack
@@ -93,7 +95,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
 - **Saving is automatic** (IndexedDB): modified chunks, player state, inventory, time of day, and furnace contents all persist
-- Pause menu with a controls cheat sheet, settings (render distance, FOV, volume, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
+- Pause menu with a controls cheat sheet, settings (render distance, FOV, brightness, master + per-category volume, view bobbing, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
+- World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
 - **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
 - HUD: hotbar with icons & durability bars, pixel-art hearts / hunger / air bubbles, crosshair, block-break cracks and selection outline, damage and low-health vignette
 - First-person held item (or bare arm) with walk bob, swing and equip animations, lit by the surrounding light
@@ -124,6 +127,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 | **Middle click** | Pick block |
 | **T** or **/** | Chat / command console |
 | **F1** | Hide HUD |
+| **F2** | Save a screenshot |
 | **F3** | Debug overlay |
 | **Esc** | Pause |
 

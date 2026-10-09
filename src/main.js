@@ -31,6 +31,7 @@ async function boot() {
   store = await SaveStore.open();
   const initial = loadSettings();
   sfx.setVolume(initial.volume);
+  sfx.setMix(initial);
   applyGuiScale(initial.guiScale);
 
   screens = new Screens(uiRoot, {
@@ -42,6 +43,7 @@ async function boot() {
     onResume: () => resumeGame(),
     onApplySettings: (s) => {
       sfx.setVolume(s.volume);
+      sfx.setMix(s);
       applyGuiScale(s.guiScale);
       game?.applySettings(s);
     },
@@ -55,6 +57,7 @@ async function startWorld(id) {
   if (game) return; // guard against double-clicks starting two worlds
   const meta = await store.loadWorld(id);
   if (!meta || game) return;
+  screens.onCancelLoading = () => { screens._cancelEarly = true; };
   screens.showLoading(`Loading "${meta.name}"…`);
 
   const settings = screens.settings;
@@ -94,7 +97,8 @@ async function startWorld(id) {
   game.setUiOpen(true); // block input until loaded
   game.start();
 
-  // wait for the area around the player to be meshed
+  // wait for the area around the player to be meshed (or for Cancel)
+  let cancelled = false;
   await new Promise((resolve) => {
     const t0 = performance.now();
     const poll = setInterval(() => {
@@ -114,8 +118,13 @@ async function startWorld(id) {
         resolve();
       }
     }, 200);
+    screens.onCancelLoading = () => { cancelled = true; clearInterval(poll); resolve(); };
+    if (screens._cancelEarly) { screens._cancelEarly = false; screens.onCancelLoading(); }
   });
 
+  screens.onCancelLoading = null;
+  clearTimeout(screens._loadingSlow);
+  if (cancelled) { quitToTitle(); return; }
   screens.clear();
   game.setUiOpen(false);
   game.updateDebug();

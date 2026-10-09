@@ -3,6 +3,24 @@
 import { BLOCKS } from '../blocks/blocks.js';
 import { itemInfo, I } from '../items/items.js';
 import { GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL } from '../core/constants.js';
+import * as MOBS from '../entities/mobs.js';
+import * as ANIMALS from '../entities/animals.js';
+
+// /summon names -> classes (every exported mob class with a lower-case name)
+const SUMMONABLE = {};
+for (const mod of [MOBS, ANIMALS]) {
+  for (const [name, Cls] of Object.entries(mod)) {
+    if (typeof Cls === 'function' && /^[A-Z]/.test(name) && Cls.prototype?.think && name !== 'PrimedTnt') SUMMONABLE[name.toLowerCase()] = Cls;
+  }
+}
+
+// what Tab can complete, per command argument
+const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];
+const ARGS = {
+  time: [['set'], ['day', 'noon', 'night', 'midnight']],
+  gamemode: [['survival', 'creative']],
+  difficulty: [['peaceful', 'easy', 'normal', 'hard']],
+};
 
 // name -> id lookup across blocks and items
 const NAME_TO_ID = new Map();
@@ -23,8 +41,25 @@ export class Chat {
     this.historyPos = 0;
     this.logEl.innerHTML = '';
 
+    // suggestions under the box, and a Send button for touch screens
+    this.suggestEl = document.createElement('div');
+    this.suggestEl.className = 'chat-suggest';
+    this.rowEl.appendChild(this.suggestEl);
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'chat-send';
+    send.textContent = 'Send';
+    send.addEventListener('click', () => this.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })));
+    this.rowEl.appendChild(send);
+    this.inputEl.addEventListener('input', () => this.suggest(), { signal: game.input.signal });
+
     this.inputEl.addEventListener('keydown', (e) => {
       e.stopPropagation();
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        this.complete();
+        return;
+      }
       if (e.key === 'Enter') {
         const text = this.inputEl.value.trim();
         this.hide();
@@ -58,6 +93,7 @@ export class Chat {
     this.rowEl.classList.remove('hidden');
     this.logEl.classList.add('open');   // reveal faded messages while typing
     this.inputEl.value = prefill;
+    this.suggest();
     this.game.setUiOpen(true);
     // focus now so fast typing isn't lost; the opening key's default is cancelled by the caller
     this.inputEl.focus();
@@ -106,7 +142,9 @@ export class Chat {
         this.message('/time set <day|noon|night|midnight|0..1>');
         this.message('/give <item> [count] — e.g. /give diamond_pickaxe');
         this.message('/gamemode <survival|creative>');
+        this.message('/summon <mob> — e.g. /summon dolphin');
         this.message('/seed  /spawn  /kill  /clear  /rd <2-16>  /heal');
+        this.message('Tab completes commands, items and mobs', '#aaa');
         this.message('/difficulty <peaceful|easy|normal|hard>');
         break;
       case 'tp': {
@@ -188,8 +226,48 @@ export class Chat {
         this.message(`Render distance: ${n}`, '#9fdcff');
         break;
       }
+      case 'summon': {
+        const Cls = SUMMONABLE[(args[0] ?? '').toLowerCase()];
+        if (!Cls) throw new Error(`usage: /summon <${Object.keys(SUMMONABLE).slice(0, 6).join('|')}|…>`);
+        const dir = p.lookDir();
+        const mob = g.mobSpawner.spawnMob(Cls, p.x + dir.x * 3, p.y + 0.2, p.z + dir.z * 3);
+        this.message(`Summoned a ${args[0].toLowerCase()}`, '#9fdcff');
+        break;
+      }
       default:
         throw new Error(`unknown command /${cmd} — try /help`);
     }
+  }
+
+  // candidates for the word being typed: [prefix before it, the word, options]
+  candidates() {
+    const text = this.inputEl.value;
+    if (!text.startsWith('/')) return null;
+    const parts = text.slice(1).split(' ');
+    const word = parts[parts.length - 1].toLowerCase();
+    const before = text.slice(0, text.length - parts[parts.length - 1].length);
+    let options;
+    if (parts.length === 1) options = COMMANDS;
+    else if (parts[0] === 'give' && parts.length === 2) options = [...NAME_TO_ID.keys()];
+    else if (parts[0] === 'summon' && parts.length === 2) options = Object.keys(SUMMONABLE);
+    else options = ARGS[parts[0]]?.[parts.length - 2] ?? [];
+    return { before, word, matches: options.filter((o) => o.startsWith(word)).sort() };
+  }
+
+  suggest() {
+    const c = this.candidates();
+    const show = c && c.matches.length && !(c.matches.length === 1 && c.matches[0] === c.word);
+    this.suggestEl.textContent = show ? c.matches.slice(0, 8).join('   ') + (c.matches.length > 8 ? '   …' : '') : '';
+  }
+
+  // Tab: finish the word (or as much as all the matches share)
+  complete() {
+    const c = this.candidates();
+    if (!c || !c.matches.length) return;
+    let common = c.matches[0];
+    for (const m of c.matches) while (!m.startsWith(common)) common = common.slice(0, -1);
+    const done = c.matches.length === 1;
+    this.inputEl.value = c.before + (common.length > c.word.length ? common : c.matches[0]) + (done ? ' ' : '');
+    this.suggest();
   }
 }

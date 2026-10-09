@@ -16,10 +16,11 @@ const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 const CAMPFIRES = new Set([B.CAMPFIRE, B.CAMPFIRE_OFF]);
 const DOORS = new Set([B.OAK_DOOR, B.OAK_DOOR_TOP]);
 const SLABS = new Set([B.OAK_SLAB, B.COBBLE_SLAB, B.STONE_BRICK_SLAB]);
+const STAIRS = new Set([B.OAK_STAIRS, B.COBBLE_STAIRS, B.STONE_BRICK_STAIRS]);
 // ladder meta from the face clicked: the wall is behind the ladder
 const wallMeta = (nx, nz) => (nz === 1 ? 0 : nx === -1 ? 1 : nz === -1 ? 2 : 3);
 
@@ -100,7 +101,9 @@ export class Interaction {
             this.breakCooldown = 0.22;
           }
         } else {
-          this.breakProgress += dt / this.breakTime;
+          // digging underwater or while airborne is slow going
+          const slow = (p.headInWater ? 5 : 1) * (!p.onGround && !p.flying && !p.onLadder ? 5 : 1);
+          this.breakProgress += dt / (this.breakTime * slow);
           if (this.breakProgress >= 1) this.finishBreak(false);
           else if (Math.random() < dt * 6) {
             this.cb.playSound('hit', { block: info.sound });
@@ -236,6 +239,21 @@ export class Interaction {
     const t = this.target;
     const held = p.heldStack();
 
+    // right-click a sign to change what it says
+    if (t && t.id === B.OAK_SIGN && !p.sneaking) {
+      this.cb.editSign?.(t.x, t.y, t.z);
+      this.useCooldown = 0.3;
+      return;
+    }
+
+    // fence gates swing open and shut
+    if (t && t.id === B.OAK_FENCE_GATE && !p.sneaking) {
+      this.world.setBlock(t.x, t.y, t.z, B.OAK_FENCE_GATE, this.world.getMetaW(t.x, t.y, t.z) ^ 4);
+      this.cb.playSound('place', { block: 'wood' });
+      this.useCooldown = 0.25;
+      return;
+    }
+
     // doors open and shut (both halves)
     if (t && DOORS.has(t.id) && !p.sneaking) {
       const lowerY = t.id === B.OAK_DOOR_TOP ? t.y - 1 : t.y;
@@ -324,6 +342,23 @@ export class Interaction {
     }
 
     if (info.id === B.LADDER) meta = wallMeta(t.nx, t.nz);
+    const yawQuad = Math.round((((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) % 4;
+    if (STAIRS.has(info.id)) {
+      // climb away from the player; upside down against a ceiling or a block's upper half
+      const fy = (t.point?.y ?? py) - Math.floor(t.point?.y ?? py);
+      meta = [0, 3, 2, 1][yawQuad] | (t.ny === -1 || (t.ny === 0 && fy > 0.5) ? 4 : 0);
+    }
+    if (info.id === B.OAK_FENCE_GATE) meta = yawQuad & 1 ? 1 : 0;
+    if (info.id === B.OAK_SIGN) {
+      if (t.ny === 0) {
+        // on a wall: text faces out, away from it
+        if (!isSolid(t.id)) return;
+        meta = (t.nz === -1 ? 0 : t.nx === 1 ? 1 : t.nz === 1 ? 2 : 3) | 4;
+      } else {
+        if (t.ny !== 1) return;
+        meta = [2, 1, 0, 3][yawQuad];   // standing: text faces the player
+      }
+    }
     if (SLABS.has(info.id)) {
       // top half when placed against a ceiling or the upper half of a side
       const fy = (t.point?.y ?? py) - Math.floor(t.point?.y ?? py);
@@ -344,6 +379,10 @@ export class Interaction {
     if (info.id === B.FURNACE) this.world.setBlockEntity(px, py, pz, null);
     // saplings remember when to grow (seconds of loaded time)
     if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
+    if (info.id === B.OAK_SIGN) {
+      this.world.setBlockEntity(px, py, pz, { kind: 'sign', lines: ['', '', '', ''], rev: 0 });
+      this.cb.editSign?.(px, py, pz);
+    }
     this.cb.playSound('place', { block: info.sound });
     if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
   }
@@ -351,7 +390,9 @@ export class Interaction {
   finishEating(held) {
     const p = this.player;
     const info = itemInfo(held.id);
-    if (info.food) p.eat(info.food);
+    if (info.food) p.eat(info.food, info.sat);
+    // some food doesn't sit well: you get hungry again fast
+    if (info.sickly && this.dropRng() < info.sickly) { p.addExhaustion(10); this.cb.notify?.('That didn\'t agree with you…'); }
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
     if (held.id === I.MILK_BUCKET) p.fireTime = 0;   // cools you right down
     p.consumeHeld(1);
@@ -423,7 +464,40 @@ export class Interaction {
     if (held.id === I.BUCKET || held.id === I.WATER_BUCKET || held.id === I.LAVA_BUCKET || held.id === B.LILY_PAD) {
       return this.useFluidItem(held);
     }
+    // snowballs and eggs are for throwing
+    if (held.id === I.SNOWBALL || held.id === I.EGG) {
+      this.cb.throwItem?.(held.id === I.EGG ? 'egg' : 'snowball');
+      if (!creative) p.consumeHeld(1);
+      this.useCooldown = 0.25;
+      return true;
+    }
+    if (held.id === I.FISHING_ROD) {
+      this.cb.castRod?.();
+      this.useCooldown = 0.35;
+      return true;
+    }
     if (!t) return false;
+
+    // flint and steel: light TNT and campfires, or start a small fire
+    if (held.id === I.FLINT_AND_STEEL) {
+      if (t.id === B.TNT) {
+        this.world.setBlock(t.x, t.y, t.z, B.AIR);
+        this.cb.primeTnt?.(t.x + 0.5, t.y, t.z + 0.5);
+      } else if (t.id === B.CAMPFIRE_OFF) {
+        const st = campfireState(this.world, t.x, t.y, t.z);
+        this.world.setBlock(t.x, t.y, t.z, B.CAMPFIRE);
+        this.world.setBlockEntity(t.x, t.y, t.z, st);
+      } else {
+        const fx = t.x + t.nx, fy = t.y + t.ny, fz = t.z + t.nz;
+        if (this.world.getBlockW(fx, fy, fz) !== B.AIR || !isSolid(this.world.getBlockW(fx, fy - 1, fz))) return false;
+        this.world.setBlock(fx, fy, fz, B.FIRE);
+        this.world.setBlockEntity(fx, fy, fz, { kind: 'fire', t: 5 + this.dropRng() * 5 });
+      }
+      this.cb.playSound('place', { block: 'stone' });
+      if (!creative) p.damageHeldTool(1);
+      this.useCooldown = 0.3;
+      return true;
+    }
 
     // campfires: cook food on them, put them out with a shovel, relight with a torch
     if (CAMPFIRES.has(t.id)) {

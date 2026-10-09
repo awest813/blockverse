@@ -5,7 +5,8 @@ import { World } from './world/world.js';
 import { Player } from './player/player.js';
 import { Interaction, entityContents } from './player/interaction.js';
 import { PrimedTnt } from './entities/mobs.js';
-import { PET_CLASSES } from './entities/animals.js';
+import { PET_CLASSES, Chicken } from './entities/animals.js';
+import { Thrown, Bobber } from './entities/projectile.js';
 import { Input } from './core/input.js';
 import { BlockHighlight } from './render/highlight.js';
 import { ViewModel } from './render/viewmodel.js';
@@ -18,7 +19,10 @@ import { tickSaplings } from './world/saplings.js';
 import { tickCampfires } from './items/campfire.js';
 import { tickSpawners } from './entities/spawners.js';
 import { tickRandomGrowth } from './world/randomTicks.js';
+import { tickFires } from './world/fire.js';
 import { CampfireFx } from './render/campfireFx.js';
+import { SignFx } from './render/signFx.js';
+import { SignEditor } from './ui/signEditor.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
@@ -78,6 +82,7 @@ export class Game {
     });
     this.scene.add(this.world.group);
     this.campfireFx = new CampfireFx(this.scene, this.world, atlas);
+    this.signFx = new SignFx(this.scene, this.world);
 
     this.player = new Player(this.world);
     this.player.mode = worldMeta.mode ?? GAMEMODE_SURVIVAL;
@@ -105,6 +110,9 @@ export class Game {
         else if (kind === 'bed') this.useBed(pos);
       },
       primeTnt: (x, y, z) => this.primeTnt(x, y, z, 3),
+      throwItem: (kind) => this.throwItem(kind),
+      castRod: () => this.castRod(),
+      editSign: (x, y, z) => this.signEditor.open(x, y, z),
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
       playSound: (name, opts) => {
@@ -116,6 +124,7 @@ export class Game {
     this.hud = new Hud(atlas, this.player);
     this.sky = new Sky(this.scene, this.world.materials.uniforms);
     this.containers = new Containers(this);
+    this.signEditor = new SignEditor(this);
     this._furnaceUiTimer = 0;
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.chat = new Chat(this);
@@ -214,6 +223,10 @@ export class Game {
   bindKeys() {
     const input = this.input;
     this.input.onKeyDown = (code, e) => {
+      if (this.signEditor.isOpen()) {
+        if (code === 'Escape') this.signEditor.close();
+        return true;
+      }
       if (this.uiHooks?.handleKey?.(code, e)) return true;
       if (this.sleeping) return true;   // no inventory / chat / pause mid-fade
 
@@ -250,6 +263,11 @@ export class Game {
           this.hud.renderHotbar();
           return true;
         }
+      }
+      if (code === 'F2') {
+        e.preventDefault();
+        this.screenshot();
+        return true;
       }
       if (input.is(code, 'debug')) {
         e.preventDefault();
@@ -454,6 +472,71 @@ export class Game {
   }
 
   // ---------- bow ----------
+
+  // F2: save what's on screen as a PNG
+  screenshot() {
+    this.renderer.render(this.scene, this.camera);   // fresh frame: the buffer isn't preserved
+    this.renderer.domElement.toBlob((blob) => {
+      if (!blob) return;
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `blockverse-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      this.hud.showLabel('Screenshot saved');
+      this.sfx?.play('click');
+    }, 'image/png');
+  }
+
+  // snowballs and eggs
+  throwItem(kind) {
+    const p = this.player;
+    const dir = p.lookDir();
+    const speed = 22;
+    this.entities.projectiles.push(new Thrown(this.scene, this.world,
+      p.x + dir.x * 0.5, p.eyeY - 0.1 + dir.y * 0.5, p.z + dir.z * 0.5,
+      dir.x * speed, dir.y * speed + 1.5, dir.z * speed, kind,
+      (x, y, z) => {   // an egg hatched
+        const chick = new Chicken(this.scene, this.world, x, y, z);
+        chick.setBaby(true);
+        chick.persistent = true;
+        this.entities.addMob(chick);
+      }));
+    this.sfx?.play('shoot', { vol: 0.5 });
+    this.viewModel.swing();
+  }
+
+  // fishing: cast the bobber out, or reel it in (landing a catch if a fish is biting)
+  castRod() {
+    const p = this.player;
+    this.viewModel.swing();
+    if (this.bobber && !this.bobber.dead) {
+      const b = this.bobber;
+      if (b.biting) {
+        const r = Math.random();
+        const catchId = r < 0.8 ? I.FISH_RAW : r < 0.9 ? I.STRING : r < 0.96 ? I.BONE : r < 0.985 ? I.BOOK : I.GOLDEN_APPLE;
+        // the catch flies toward the player
+        this.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: catchId, count: 1 }]);
+        this.hud.showLabel(catchId === I.FISH_RAW ? 'You caught a fish!' : 'You reeled something in!');
+        p.addExhaustion(0.5);
+        if (p.mode !== GAMEMODE_CREATIVE) p.damageHeldTool(1);
+        this.sfx?.play('splash');
+      }
+      b.kill();
+      this.bobber = null;
+      return;
+    }
+    const dir = p.lookDir();
+    const b = new Bobber(this.scene, this.world, p.x + dir.x * 0.6, p.eyeY - 0.2, p.z + dir.z * 0.6,
+      dir.x * 10, dir.y * 10 + 3, dir.z * 10);
+    b.onSplash = () => this.sfx?.play('splash', { vol: 0.4 });
+    b.onBite = () => this.sfx?.play('splash', { vol: 0.8 });
+    this.bobber = b;
+    this.entities.projectiles.push(b);
+    this.sfx?.play('shoot', { vol: 0.4 });
+  }
 
   fireBow(power) {
     const p = this.player;
@@ -743,7 +826,10 @@ export class Game {
     this.highlight.update(this.interaction.target, this.interaction.breakProgress, this.world);
     this.updateBlasts(dt);
     this.updateSparks(dt);
+    // putting the rod away reels the line in
+    if (this.bobber && (this.bobber.dead || this.player.heldStack()?.id !== I.FISHING_ROD)) { this.bobber.kill(); this.bobber = null; }
     this.updateBubbles(dt);
+    this.sfx?.setUnderwater(this.player.headInWater && !this.player.dead && !this.paused);
     this.sinceAttack += dt;
     if (!this.fireEl) this.fireEl = document.getElementById('fire-overlay');
     this.fireEl?.classList.toggle('on', this.player.fireTime > 0 && !this.player.dead);
@@ -754,6 +840,7 @@ export class Game {
       if (c < 1) this.chargeBar.style.width = `${(c * 100) | 0}%`;
     }
     this.campfireFx.update(gamePaused ? 0 : dt, this.player);
+    this.signFx.update(dt, this.player);
 
     // camera follows player eye
     this.camera.position.set(this.player.x, this.player.eyeY, this.player.z);
@@ -886,6 +973,7 @@ export class Game {
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
     tickSpawners(this, dt);
     tickRandomGrowth(this.world, this.player, dt);
+    tickFires(this.world, dt);
     this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;
@@ -923,6 +1011,8 @@ export class Game {
     this.hud.showFps(!!s.showFps);
     this.input.bindings = resolveBindings(s.keys);
     this.sfx?.setVolume(s.volume);
+    this.world.materials.uniforms.uBrightness.value = s.brightness ?? 0.3;
+    this.viewModel.bobbing = s.viewBobbing !== false;
   }
 
   pause() {
@@ -957,6 +1047,7 @@ export class Game {
 
   stop() {
     this.running = false;
+    this.sfx?.setUnderwater(false);
     if (this.store) this.save();
     this.ticker.terminate();
     // drop every document/window listener so a later world doesn't inherit them
@@ -966,6 +1057,7 @@ export class Game {
     this.touch.dispose();
     this.viewModel.dispose();
     this.campfireFx.dispose();
+    this.signFx.dispose();
     this.hud.hide();
     document.removeEventListener('visibilitychange', this._onVisibility);
     window.removeEventListener('resize', this._onResize);

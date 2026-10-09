@@ -1032,6 +1032,62 @@ tile('dried_kelp', (ctx) => {
   for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 11 - i, 3, 2, i % 2 ? m : d); px(ctx, 3 + i, 11 - i, l); }
 });
 
+tile('fire', (ctx, rng) => {
+  for (let x = 0; x < 16; x++) {
+    const h = 7 + Math.round(Math.abs(Math.sin(x * 1.3)) * 6 + rng() * 3);
+    for (let y = 0; y < h; y++) {
+      const k = y / h;
+      px(ctx, x, 15 - y, k < 0.35 ? [255, 236, 140] : k < 0.7 ? [255, 160, 40] : [222, 72, 20]);
+    }
+  }
+});
+tile('flint_and_steel', (ctx) => {
+  // the steel ring
+  for (const [x, y] of [[4, 4], [5, 3], [6, 3], [7, 4], [8, 5], [8, 6], [7, 7], [4, 5], [4, 6], [5, 7], [6, 8]]) px(ctx, x, y, [200, 200, 206]);
+  rect(ctx, 6, 8, 2, 4, [150, 150, 158]);
+  // the flint
+  rect(ctx, 9, 9, 4, 4, [62, 62, 66]); rect(ctx, 10, 8, 2, 1, [90, 90, 96]); px(ctx, 12, 12, [40, 40, 44]);
+});
+tile('egg', (ctx) => {
+  const c = [232, 216, 180], d = [204, 184, 146], l = [248, 240, 220];
+  for (let y = 3; y < 14; y++) {
+    const w = Math.round(Math.sqrt(1 - ((y - 8.5) / 5.5) ** 2) * (y < 8 ? 3.2 : 4));
+    rect(ctx, 8 - w, y, w * 2, 1, c);
+    px(ctx, 8 + w - 1, y, d);
+  }
+  px(ctx, 6, 6, l); px(ctx, 6, 7, l);
+});
+tile('sugar', (ctx, rng) => {
+  for (let i = 0; i < 40; i++) {
+    const x = 4 + ((rng() * 8) | 0), y = 6 + ((rng() * 7) | 0);
+    px(ctx, x, y, rng() < 0.3 ? [214, 214, 222] : [246, 246, 250]);
+  }
+});
+tile('pumpkin_pie', (ctx) => {
+  rect(ctx, 2, 7, 12, 5, [196, 140, 70]);
+  rect(ctx, 3, 6, 10, 2, [214, 120, 40]);
+  rect(ctx, 2, 11, 12, 1, [150, 100, 50]);
+  for (let x = 3; x < 13; x += 2) px(ctx, x, 7, [236, 160, 70]);
+});
+tile('fishing_rod', (ctx) => {
+  for (let i = 0; i < 12; i++) px(ctx, 2 + i, 14 - i, i < 4 ? [94, 72, 42] : [122, 94, 56]);
+  for (let y = 3; y < 13; y++) px(ctx, 14, y, [220, 220, 220]);
+  rect(ctx, 13, 12, 2, 2, [200, 50, 40]);
+});
+tile('oak_sign_item', (ctx) => {
+  const w = P.woodOak, d = P.woodOakD, l = P.woodOakL;
+  rect(ctx, 1, 2, 14, 8, w); rect(ctx, 1, 2, 14, 1, l); rect(ctx, 1, 9, 14, 1, d);
+  for (const y of [4, 6]) rect(ctx, 3, y, 10, 1, d);
+  rect(ctx, 7, 10, 2, 6, P.barkOak);
+});
+tile('oak_gate_item', (ctx) => {
+  const w = P.woodOak, d = P.woodOakD, l = P.woodOakL;
+  rect(ctx, 1, 2, 3, 13, w); rect(ctx, 12, 2, 3, 13, w);
+  rect(ctx, 1, 2, 1, 13, l); rect(ctx, 12, 2, 1, 13, l);
+  rect(ctx, 4, 5, 8, 2, w); rect(ctx, 4, 10, 8, 2, w); rect(ctx, 4, 6, 8, 1, d); rect(ctx, 4, 11, 8, 1, d);
+  rect(ctx, 7, 7, 2, 3, w);
+});
+
 tile('golden_apple', (ctx) => {
   const g = [246, 204, 62], gD = [196, 150, 36], gL = [255, 240, 150];
   rect(ctx, 5, 6, 6, 6, g);

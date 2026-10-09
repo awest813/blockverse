@@ -1,6 +1,13 @@
 // Procedurally synthesized sound effects (WebAudio). No audio files —
 // every sound is generated from noise bursts and oscillators.
 
+// which volume slider each sound answers to
+const CATEGORY = {
+  hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
+  zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
+  pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
+};
+
 export class Sfx {
   constructor() {
     this.ctx = null;
@@ -15,7 +22,11 @@ export class Sfx {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
       this.master.gain.value = this.volume;
-      this.master.connect(this.ctx.destination);
+      // everything passes a low-pass filter that closes up underwater
+      this.muffle = this.ctx.createBiquadFilter();
+      this.muffle.type = 'lowpass';
+      this.muffle.frequency.value = 20000;
+      this.master.connect(this.muffle).connect(this.ctx.destination);
       // 1s of white noise, reused by every noise-based effect
       const len = this.ctx.sampleRate;
       this._noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -29,6 +40,39 @@ export class Sfx {
 
   resume() {
     if (this.ensure() && this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  // Underwater: muffle everything and add a low, rolling hum.
+  setUnderwater(on) {
+    if (on === !!this._under || !this.ctx) return;
+    this._under = on;
+    const t = this.ctx.currentTime;
+    this.muffle.frequency.cancelScheduledValues(t);
+    this.muffle.frequency.setTargetAtTime(on ? 650 : 20000, t, 0.08);
+    if (on) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this._noiseBuf;
+      src.loop = true;
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 180;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.18, t + 0.4);
+      src.connect(lp).connect(g).connect(this.master);
+      src.start();
+      this._hum = { src, g };
+    } else if (this._hum) {
+      const { src, g } = this._hum;
+      g.gain.setTargetAtTime(0, t, 0.1);
+      src.stop(t + 0.6);
+      this._hum = null;
+    }
+  }
+
+  // per-category mix: {blockVolume, mobVolume, uiVolume}
+  setMix(s) {
+    this.mix = { blocks: s.blockVolume ?? 1, mobs: s.mobVolume ?? 1, ui: s.uiVolume ?? 1 };
   }
 
   setVolume(v) {
@@ -49,7 +93,7 @@ export class Sfx {
     if (pitchDrop) filter.frequency.exponentialRampToValueAtTime(Math.max(40, freq - pitchDrop), t + dur);
     filter.Q.value = q;
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
+    g.gain.setValueAtTime(gain * (this._k ?? 1), t);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     src.connect(filter).connect(g).connect(this.master);
     src.start(t, Math.random());
@@ -64,7 +108,7 @@ export class Sfx {
     osc.frequency.setValueAtTime(freq, t);
     if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
+    g.gain.setValueAtTime(gain * (this._k ?? 1), t);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(g).connect(this.master);
     osc.start(t);
@@ -86,6 +130,19 @@ export class Sfx {
   }
 
   play(name, opts = {}) {
+    const k = this.mix?.[CATEGORY[name] ?? 'ui'] ?? 1;
+    if (k <= 0) return;
+    this._k = k;   // scales the fixed-gain sounds below (noise/tone read it)
+    try { this.playRaw(name, opts); } finally { this._k = 1; }
+  }
+
+  // run part of a sound a moment later, at the same category volume
+  later(fn, ms) {
+    const k = this._k;
+    setTimeout(() => { this._k = k; try { fn(); } finally { this._k = 1; } }, ms);
+  }
+
+  playRaw(name, opts) {
     const m = this.materialParams(opts.block ?? 'stone');
     const detune = 0.85 + Math.random() * 0.3;
     const vol = opts.vol ?? 1;   // distance falloff for mob sounds
@@ -124,7 +181,7 @@ export class Sfx {
         break;
       case 'eat':
         this.noise({ freq: 420 * detune, q: 1.5, dur: 0.09, gain: 0.3, type: 'bandpass' });
-        setTimeout(() => this.noise({ freq: 380, q: 1.5, dur: 0.09, gain: 0.25, type: 'bandpass' }), 130);
+        this.later(() => this.noise({ freq: 380, q: 1.5, dur: 0.09, gain: 0.25, type: 'bandpass' }), 130);
         break;
       case 'click':
         this.tone({ freq: 880, dur: 0.04, gain: 0.12, type: 'square' });
@@ -145,7 +202,7 @@ export class Sfx {
         break;
       case 'skeleton': // dry rattle of quick clicks
         for (let i = 0; i < 4; i++) {
-          setTimeout(() => this.noise({ freq: 2400 * detune, q: 4, dur: 0.03, gain: 0.2 * vol, type: 'bandpass' }), i * 55);
+          this.later(() => this.noise({ freq: 2400 * detune, q: 4, dur: 0.03, gain: 0.2 * vol, type: 'bandpass' }), i * 55);
         }
         break;
       case 'spider':   // hiss
@@ -153,7 +210,7 @@ export class Sfx {
         break;
       // passive animals: quiet, so a field of them isn't a racket
       case 'pig':      // two short grunts
-        for (let i = 0; i < 2; i++) setTimeout(() => {
+        for (let i = 0; i < 2; i++) this.later(() => {
           this.tone({ freq: 210 * detune, endFreq: 150, dur: 0.11, gain: 0.07 * vol, type: 'square' });
           this.noise({ freq: 400, q: 1, dur: 0.1, gain: 0.05 * vol, type: 'lowpass' });
         }, i * 140);
@@ -162,10 +219,10 @@ export class Sfx {
         this.tone({ freq: 150 * detune, endFreq: 105, dur: 0.9, gain: 0.08 * vol, type: 'sawtooth' });
         break;
       case 'sheep':    // a wavering baa
-        for (let i = 0; i < 4; i++) setTimeout(() => this.tone({ freq: (380 - i * 12) * detune, dur: 0.09, gain: 0.05 * vol, type: 'sawtooth' }), i * 70);
+        for (let i = 0; i < 4; i++) this.later(() => this.tone({ freq: (380 - i * 12) * detune, dur: 0.09, gain: 0.05 * vol, type: 'sawtooth' }), i * 70);
         break;
       case 'chicken':  // clucks
-        for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) setTimeout(() => this.tone({ freq: 950 * detune, endFreq: 700, dur: 0.06, gain: 0.05 * vol, type: 'triangle' }), i * 110);
+        for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) this.later(() => this.tone({ freq: 950 * detune, endFreq: 700, dur: 0.06, gain: 0.05 * vol, type: 'triangle' }), i * 110);
         break;
       case 'dog':      // woof
         this.tone({ freq: 260 * detune, endFreq: 150, dur: 0.13, gain: 0.09 * vol, type: 'square' });
@@ -173,11 +230,11 @@ export class Sfx {
         break;
       case 'cat':      // meow: up, then down
         this.tone({ freq: 520 * detune, endFreq: 820, dur: 0.18, gain: 0.05 * vol, type: 'triangle' });
-        setTimeout(() => this.tone({ freq: 820 * detune, endFreq: 460, dur: 0.25, gain: 0.05 * vol, type: 'triangle' }), 170);
+        this.later(() => this.tone({ freq: 820 * detune, endFreq: 460, dur: 0.25, gain: 0.05 * vol, type: 'triangle' }), 170);
         break;
       case 'dolphin':  // clicks and a whistle
-        for (let i = 0; i < 5; i++) setTimeout(() => this.noise({ freq: 3800, q: 6, dur: 0.02, gain: 0.08 * vol }), i * 45);
-        setTimeout(() => this.tone({ freq: 1800 * detune, endFreq: 2700, dur: 0.3, gain: 0.04 * vol, type: 'sine' }), 260);
+        for (let i = 0; i < 5; i++) this.later(() => this.noise({ freq: 3800, q: 6, dur: 0.02, gain: 0.08 * vol }), i * 45);
+        this.later(() => this.tone({ freq: 1800 * detune, endFreq: 2700, dur: 0.3, gain: 0.04 * vol, type: 'sine' }), 260);
         break;
       case 'whale':    // a slow rising song
         this.tone({ freq: 90 * detune, endFreq: 170, dur: 1.6, gain: 0.08 * vol, type: 'sine' });

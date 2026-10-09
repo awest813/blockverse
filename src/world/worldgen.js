@@ -30,8 +30,9 @@ function smoothstep(a, b, x) {
 // grow seams); 2 = full-range climate, rolling terrain and rivers;
 // 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
 // (river-bank trees, cane by any water, boulders, sparse tundra spruce);
-// 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow.
-export const LATEST_GEN = 5;
+// 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
+// 6 = desert wells and shipwrecks.
+export const LATEST_GEN = 6;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
