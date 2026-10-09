@@ -52,6 +52,22 @@ html, body {
   mix-blend-mode: difference;
 }
 
+/* weapon charge meter under the crosshair, shown while a swing recovers */
+#attack-charge {
+  position: absolute; left: 50%; top: calc(50% + 14px);
+  transform: translateX(-50%);
+  width: 22px; height: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 1px;
+  pointer-events: none;
+}
+#attack-charge i {
+  display: block; height: 100%; width: 0;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 1px;
+}
+#attack-charge.hidden { display: none; }
+
 #click-to-play {
   position: absolute; left: 50%; top: calc(50% + 34px);
   transform: translateX(-50%);

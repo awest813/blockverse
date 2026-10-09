@@ -5,30 +5,7 @@ import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/consta
 import { Noise } from '../core/noise.js';
 import { coordRng } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
-import { I } from '../items/itemIds.js';
-import { makeStack } from '../items/items.js';
-
-// dungeon chest loot: [id, min, max, chance]
-const LOOT = [
-  [I.BREAD, 1, 3, 0.6], [I.WHEAT, 2, 5, 0.4], [I.WHEAT_SEEDS, 2, 6, 0.4], [I.APPLE, 1, 3, 0.4],
-  [I.COAL, 3, 8, 0.6], [I.IRON_INGOT, 1, 4, 0.5], [I.GOLD_INGOT, 1, 3, 0.3],
-  [I.STRING, 1, 4, 0.4], [I.BONE, 2, 5, 0.5], [I.ARROW, 4, 12, 0.4], [I.GUNPOWDER, 1, 3, 0.3],
-  [I.BOOK, 1, 2, 0.25], [I.DIAMOND, 1, 2, 0.15],
-  [I.IRON_PICKAXE, 1, 1, 0.12], [I.IRON_SWORD, 1, 1, 0.12], [I.BOW, 1, 1, 0.15],
-  [I.IRON_HELMET, 1, 1, 0.1], [I.LEATHER_CHESTPLATE, 1, 1, 0.15],
-];
-
-function dungeonLoot(rng) {
-  const slots = new Array(27).fill(null);
-  for (const [id, lo, hi, chance] of LOOT) {
-    if (rng() > chance) continue;
-    const stack = makeStack(id, lo + ((rng() * (hi - lo + 1)) | 0));
-    let i = (rng() * 27) | 0;
-    while (slots[i]) i = (i + 1) % 27;
-    slots[i] = stack;
-  }
-  return slots;
-}
+import { placeDungeon, structurePlan, nearStructure, buildStructure } from './structures.js';
 
 export const BIOME = {
   OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, BIRCH_FOREST: 4,
@@ -50,8 +27,9 @@ function smoothstep(a, b, x) {
 }
 
 // Generator versions: 1 = the original terrain (kept so existing worlds don't
-// grow seams); 2 = full-range climate, rolling terrain and rivers.
-export const LATEST_GEN = 2;
+// grow seams); 2 = full-range climate, rolling terrain and rivers;
+// 3 = surface structures (temples, shrines).
+export const LATEST_GEN = 3;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -237,8 +215,10 @@ export class WorldGen {
 
     this.placeOres(blocks, cx, cz, heightMap);
     this.decorateCaves(blocks, cx, cz, heightMap);
-    const entities = this.placeDungeon(blocks, cx, cz, heightMap);
+    const plan = structurePlan(this, cx, cz);
+    const entities = plan ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
     this.decorate(blocks, cx, cz);
+    if (plan) entities.push(...buildStructure(this, blocks, cx, cz));
 
     return { blocks, heightMap, biomeMap, entities };
   }
@@ -270,40 +250,6 @@ export class WorldGen {
         }
       }
     }
-  }
-
-  // A rare buried room of (mossy) cobblestone with a loot chest. Built
-  // entirely inside one chunk. Returns block entities as [index, data].
-  placeDungeon(blocks, cx, cz, heightMap) {
-    const rng = coordRng(this.seed, cx, cz, 4242);
-    if (rng() > 0.045) return [];
-    let minTop = CHUNK_Y;
-    for (let x = 3; x <= 12; x++) for (let z = 3; z <= 12; z++) minTop = Math.min(minTop, heightMap[x * CHUNK_Z + z]);
-    const hiY = Math.min(40, minTop - 8);
-    if (hiY < 12) return [];
-    const y0 = 10 + ((rng() * (hiY - 10)) | 0);   // floor level
-    const x0 = 4 + ((rng() * 2) | 0), z0 = 4 + ((rng() * 2) | 0);
-    const W = 7, H = 5;                           // outer size: 7 x 5 x 7
-    for (let dx = 0; dx < W; dx++) {
-      for (let dz = 0; dz < W; dz++) {
-        for (let dy = 0; dy < H; dy++) {
-          const edge = dx === 0 || dz === 0 || dx === W - 1 || dz === W - 1 || dy === 0 || dy === H - 1;
-          const idx = blockIndex(x0 + dx, y0 + dy, z0 + dz);
-          blocks[idx] = edge ? (rng() < 0.4 ? B.MOSSY_COBBLE : B.COBBLESTONE) : B.AIR;
-        }
-      }
-    }
-    // a doorway on one side so caves can connect
-    const side = (rng() * 4) | 0;
-    const door = [[3, 0], [3, W - 1], [0, 3], [W - 1, 3]][side];
-    for (const dy of [1, 2]) blocks[blockIndex(x0 + door[0], y0 + dy, z0 + door[1])] = B.AIR;
-
-    // the chest, against the wall opposite the door
-    const cpos = [[3, W - 2], [3, 1], [W - 2, 3], [1, 3]][side];
-    const cidx = blockIndex(x0 + cpos[0], y0 + 1, z0 + cpos[1]);
-    blocks[cidx] = B.CHEST;
-    blocks[blockIndex(x0 + 1, y0 + 1, z0 + 1)] = B.TORCH;   // a guttering torch in the corner
-    return [[cidx, { kind: 'chest', slots: dungeonLoot(rng) }]];
   }
 
   placeOres(blocks, cx, cz, heightMap) {
@@ -439,6 +385,7 @@ export class WorldGen {
   }
 
   applyFeature(blocks, cx, cz, f) {
+    if (nearStructure(this, f.wx, f.wz, f.type === 'tree' ? 3 : 0)) return;
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X;
       const z = wz - cz * CHUNK_Z;

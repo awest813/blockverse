@@ -70,6 +70,9 @@ export const B = {
   JACK_O_LANTERN: 64,
   CAMPFIRE: 65,
   CAMPFIRE_OFF: 66,
+  SPAWNER: 67,
+  CHISELED_SANDSTONE: 68,
+  MOSSY_STONE_BRICKS: 69,
 };
 
 // Tool classes
@@ -277,6 +280,15 @@ reg(def(B.JACK_O_LANTERN, 'jack_o_lantern', "Jack o'Lantern", {
 const campfire = { solid: false, render: R_CROSS, opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', drop: B.CAMPFIRE };
 reg(def(B.CAMPFIRE, 'campfire', 'Campfire', { ...campfire, lightEmit: 15 }));
 reg(def(B.CAMPFIRE_OFF, 'campfire_off', 'Campfire (unlit)', campfire));
+// dungeon spawner: a see-through cage; breaking it (no drop) stops the monsters
+reg(def(B.SPAWNER, 'spawner', 'Monster Spawner', {
+  render: R_CUTOUT, opacity: 0, hardness: 5, tool: TOOL_PICKAXE, minTier: 1, drop: null, lightEmit: 3,
+}));
+reg(def(B.CHISELED_SANDSTONE, 'chiseled_sandstone', 'Chiseled Sandstone', {
+  hardness: 0.8, tool: TOOL_PICKAXE, minTier: 1,
+  textures: { top: 'sandstone_top', bottom: 'sandstone_top', side: 'chiseled_sandstone' },
+}));
+reg(def(B.MOSSY_STONE_BRICKS, 'mossy_stone_bricks', 'Mossy Stone Bricks', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1 }));
 
 export function blockInfo(id) {
   return BLOCKS[id] ?? BLOCKS[B.AIR];

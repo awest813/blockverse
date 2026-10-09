@@ -16,9 +16,10 @@ import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { tickSaplings } from './world/saplings.js';
 import { tickCampfires } from './items/campfire.js';
+import { tickSpawners } from './entities/spawners.js';
 import { CampfireFx } from './render/campfireFx.js';
 import { MobSpawner } from './entities/mobSpawner.js';
-import { itemInfo, isBlockItem, makeStack, maxStack, I } from './items/items.js';
+import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
@@ -68,6 +69,8 @@ export class Game {
     this.entities.fx.sound = (name, opts) => this.sfx?.play(name, opts);
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
     this.blasts = [];   // expanding explosion flashes
+    this.sparkList = [];  // crit / sweep flecks
+    this.sinceAttack = 10; // seconds since the last landed hit (weapon charge)
 
     this.input = new Input(canvas);
     this.highlight = new BlockHighlight(this.scene);
@@ -269,31 +272,90 @@ export class Game {
   // Hit the mob under the crosshair, if one is closer than the targeted block.
   // Returns true when a mob was in reach (touch taps fall back to "use" otherwise).
   // the mob under the crosshair within reach, unless a block is in front of it
-  mobUnderCrosshair() {
+  mobUnderCrosshair(extraReach = 0) {
     const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
     const dir = this.player.lookDir();
     let best = null, bestDist = Infinity;
     for (const m of this.entities.mobs) {
-      const d = m.rayHit(origin, dir, REACH_DISTANCE);
+      const d = m.rayHit(origin, dir, REACH_DISTANCE + extraReach);
       if (d !== null && d < bestDist) { best = m; bestDist = d; }
     }
     if (!best || (this.interaction.target && bestDist >= this.interaction.target.dist)) return null;
     return best;
   }
 
-  attackMob() {
-    const best = this.mobUnderCrosshair();
-    if (!best) return false;
+  // How charged the next swing is (0..1): weapons hit hardest once their
+  // cooldown has passed since the last swing.
+  attackCharge() {
     const held = this.player.heldStack();
-    const dmg = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
-    if (best.damage(dmg, this.player)) {
-      this.sfx?.play('hit', { block: 'cloth' });
-      this.player.damageHeldTool(1);
-      this.player.addExhaustion(0.1);
-      this.interaction.breakCooldown = 0.3;
-      this.interaction.resetBreaking();
+    return Math.min(1, this.sinceAttack / weaponStats(held?.id).cooldown);
+  }
+
+  attackMob() {
+    const held = this.player.heldStack();
+    const w = weaponStats(held?.id);
+    const best = this.mobUnderCrosshair(w.reach);
+    if (!best) return false;
+    const p = this.player;
+    const charge = this.attackCharge();
+    const base = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
+    // spamming does little; a full swing does full damage
+    let dmg = base * (0.2 + 0.8 * charge * charge);
+    // critical hit: a full-strength blow while falling
+    const crit = charge > 0.9 && !p.onGround && !p.flying && p.vy < 0 && !p.inWater;
+    if (crit) dmg *= 1.5;
+    if (!best.damage(dmg, p)) return true;
+    this.sinceAttack = 0;
+    const dir = p.lookDir();
+    const hd = Math.hypot(dir.x, dir.z) || 1;
+    // extra knockback for heavy weapons (scaled by charge)
+    if (w.knockback) {
+      best.vx += (dir.x / hd) * w.knockback * charge;
+      best.vz += (dir.z / hd) * w.knockback * charge;
     }
+    this.sfx?.play(crit ? 'crit' : charge < 0.5 ? 'weak' : 'hit', { block: 'cloth' });
+    if (crit) this.sparks(best.x, best.y + best.h * 0.7, best.z, 0xfff2a8, 8);
+    // swords sweep: a full swing on the ground also clips mobs beside the target
+    const cls = held ? itemInfo(held.id)?.tool?.class : null;
+    if (cls === 'sword' && charge > 0.9 && p.onGround && !crit) {
+      let swept = 0;
+      for (const m of this.entities.mobs) {
+        if (m === best || m.dead || m.tamed) continue;
+        if (Math.hypot(m.x - best.x, m.z - best.z) > 2.2 || Math.abs(m.y - best.y) > 1.5) continue;
+        if (Math.hypot(m.x - p.x, m.z - p.z) > REACH_DISTANCE) continue;
+        if (m.damage(1 + base * 0.25, p)) swept++;
+      }
+      this.sfx?.play('sweep');
+      this.sparks(best.x, best.y + best.h * 0.5, best.z, 0xffffff, swept ? 10 : 5);
+    }
+    p.damageHeldTool(1);
+    p.addExhaustion(0.1);
+    this.interaction.breakCooldown = 0.3;
+    this.interaction.resetBreaking();
     return true;
+  }
+
+  // a few bright flecks flying out of a point (crits, sweeps)
+  sparks(x, y, z, color, n) {
+    for (let i = 0; i < n; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color, transparent: true, depthWrite: false, fog: false }));
+      sprite.scale.setScalar(0.12);
+      sprite.position.set(x, y, z);
+      this.scene.add(sprite);
+      const a = Math.random() * Math.PI * 2;
+      this.sparkList.push({ sprite, t: 0, vx: Math.cos(a) * (1.5 + Math.random() * 2), vy: 1 + Math.random() * 2.5, vz: Math.sin(a) * (1.5 + Math.random() * 2) });
+    }
+  }
+
+  updateSparks(dt) {
+    for (const s of this.sparkList) {
+      s.t += dt;
+      s.vy -= 9 * dt;
+      s.sprite.position.x += s.vx * dt; s.sprite.position.y += s.vy * dt; s.sprite.position.z += s.vz * dt;
+      s.sprite.material.opacity = Math.max(0, 1 - s.t / 0.5);
+      if (s.t >= 0.5) { this.scene.remove(s.sprite); s.sprite.material.dispose(); }
+    }
+    this.sparkList = this.sparkList.filter((s) => s.t < 0.5);
   }
 
   // Middle click: select the targeted block in the hotbar (creative: conjure it).
@@ -656,6 +718,14 @@ export class Game {
 
     this.highlight.update(this.interaction.target, this.interaction.breakProgress);
     this.updateBlasts(dt);
+    this.updateSparks(dt);
+    this.sinceAttack += dt;
+    if (!this.chargeEl) { this.chargeEl = document.getElementById('attack-charge'); this.chargeBar = this.chargeEl?.firstElementChild; }
+    if (this.chargeEl) {
+      const c = this.attackCharge();
+      this.chargeEl.classList.toggle('hidden', c >= 1 || this.player.dead);
+      if (c < 1) this.chargeBar.style.width = `${(c * 100) | 0}%`;
+    }
     this.campfireFx.update(gamePaused ? 0 : dt, this.player);
 
     // camera follows player eye
@@ -747,6 +817,7 @@ export class Game {
     tickFurnaces(this.world, dt);
     tickSaplings(this.world, dt);
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
+    tickSpawners(this, dt);
     this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;

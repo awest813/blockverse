@@ -23,7 +23,11 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), with dithered borders; cold water freezes over and cold mountain ranges are snowbound
 - Multi-octave gradient-noise terrain with rolling hills, regional mountain ranges with snow caps, erosion-controlled roughness, and flattened swamps
 - **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths, mushrooms and mossy patches; tunnels narrow near the surface so hillsides stay intact and never breach the seabed
-- **Dungeons**: rare mossy-cobblestone rooms deep underground, each with a chest of loot (food, ingots, iron gear, a bow, even diamonds)
+- **Dungeons**: rare mossy-cobblestone rooms where caves run into them, each with a **monster spawner** (zombies, skeletons or spiders that keep coming until you break the cage) and one or two chests of loot
+- **Desert temples**: sandstone pyramids with corner towers; dig through the chiseled square in the hall floor to find a sealed vault of four treasure chests
+- **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
+- **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)
+- Structures keep their distance from each other, and trees grow around them rather than through them
 - Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
 - Trees (oak, birch, spruce), cacti, sugar cane, flowers, tall grass, pumpkins, mushrooms — features generate seamlessly across chunk borders
@@ -36,7 +40,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Smooth lighting + per-vertex ambient occlusion** for that soft, grounded look
 
 ### ⛏️ Survival gameplay
-- Break any block with correct per-block hardness, tool classes (pickaxe / axe / shovel / sword) and five tool tiers (wood, stone, iron, gold, diamond) with durability
+- Break any block with correct per-block hardness, tool classes (pickaxe / axe / shovel / sword / spear) and five tool tiers (wood, stone, iron, gold, diamond) with durability
 - Item drops with physics that magnetize toward you and merge into your inventory
 - **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
 - **Recipe book** beside every crafting grid: search and categories, shape previews, ghost layouts for recipes you can't make yet, and one-click grid filling
@@ -51,6 +55,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal
+- **Weapons with weight**: every weapon recovers between swings (a meter under the crosshair shows it) and spamming only taps. Falling blows land **critical hits**, swords **sweep** mobs beside the target, axes hit hardest but slowest, and **spears** (all five materials) reach further and knock foes back
+- **Ancient Blade**: a rare temple-only sword stronger than diamond; **golden apples** (crafted from gold and an apple, or found in temples) restore hunger and four hearts
 - **Bow and arrows**: draw to charge, release to fire; arrows are crafted from flint (from gravel), sticks and feathers, and can be picked back up
 - **Armour**: leather, iron, gold and diamond helmets, chestplates, leggings and boots, with an armour bar, damage reduction and wear
 - **TNT** from gunpowder and sand, lit with a torch — chain reactions included

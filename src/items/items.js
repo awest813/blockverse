@@ -36,6 +36,7 @@ function item(id, name, display, opts = {}) {
     bow: opts.bow ?? null,      // {durability}
     places: opts.places ?? null, // block this item plants/places (seeds)
     returns: opts.returns ?? null, // item left behind after eating (bowl)
+    heal: opts.heal ?? 0,          // health restored on eating (golden apple)
   });
 }
 
@@ -50,7 +51,10 @@ function toolItem(id, material, cls) {
       tier: s.tier,
       speed: s.speed,
       durability: s.durability,
-      damage: cls === 'sword' ? s.damage : Math.max(1, s.damage - 3),
+      damage: cls === 'sword' ? s.damage
+        : cls === 'axe' ? s.damage + 1        // hits hard but slowly (see WEAPON_STATS)
+          : cls === 'spear' ? s.damage - 1    // longer reach, bigger knockback
+            : Math.max(1, s.damage - 3),
     },
   });
 }
@@ -91,6 +95,7 @@ item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
 item(I.PAPER, 'paper', 'Paper');
 item(I.BOOK, 'book', 'Book');
 item(I.BOWL, 'bowl', 'Bowl', { burnTime: 5 });
+item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, heal: 8 });
 item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, stack: 1, returns: I.BOWL });
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
@@ -112,18 +117,38 @@ for (const [mat, mult, points, ids] of [
 }
 
 for (const [mat, ids] of [
-  ['wood', [I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE]],
-  ['stone', [I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE]],
-  ['iron', [I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE]],
-  ['gold', [I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE]],
-  ['diamond', [I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE]],
+  ['wood', [I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE, I.WOOD_SPEAR]],
+  ['stone', [I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE, I.STONE_SPEAR]],
+  ['iron', [I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE, I.IRON_SPEAR]],
+  ['gold', [I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE, I.GOLD_SPEAR]],
+  ['diamond', [I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE, I.DIAMOND_SPEAR]],
 ]) {
-  const [pick, axe, shovel, sword, hoe] = ids;
+  const [pick, axe, shovel, sword, hoe, spear] = ids;
   toolItem(pick, mat, 'pickaxe');
   toolItem(axe, mat, 'axe');
   toolItem(shovel, mat, 'shovel');
   toolItem(sword, mat, 'sword');
   toolItem(hoe, mat, 'hoe');
+  toolItem(spear, mat, 'spear');
+}
+// the Ancient Blade: found only in temples
+item(I.ANCIENT_SWORD, 'ancient_sword', 'Ancient Blade', {
+  stack: 1, tool: { class: 'sword', tier: 4, speed: 8, durability: 900, damage: 8 },
+});
+
+// How each weapon class swings: seconds to a full-strength hit, extra reach
+// in blocks, and extra knockback. Anything else (fists, blocks) uses `hand`.
+export const WEAPON_STATS = {
+  hand: { cooldown: 0.25, reach: 0, knockback: 0 },
+  sword: { cooldown: 0.6, reach: 0, knockback: 0 },
+  axe: { cooldown: 1.0, reach: 0, knockback: 1 },
+  spear: { cooldown: 0.8, reach: 1.5, knockback: 5 },
+  pickaxe: { cooldown: 0.8, reach: 0, knockback: 0 },
+  shovel: { cooldown: 0.8, reach: 0, knockback: 0 },
+  hoe: { cooldown: 0.5, reach: 0, knockback: 0 },
+};
+export function weaponStats(id) {
+  return WEAPON_STATS[itemInfo(id)?.tool?.class] ?? WEAPON_STATS.hand;
 }
 
 // Burn times for block fuels

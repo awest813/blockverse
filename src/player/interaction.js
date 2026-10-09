@@ -193,8 +193,10 @@ export class Interaction {
     // 2) eat food
     if (held) {
       const info = itemInfo(held.id);
-      if (info?.food && p.hunger < 20 && p.mode !== GAMEMODE_CREATIVE) {
+      const wantsIt = p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
+      if (info?.food && wantsIt && p.mode !== GAMEMODE_CREATIVE) {
         p.eat(info.food);
+        if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
         p.consumeHeld(1);
         // stew and the like leave their container behind
         if (info.returns) {

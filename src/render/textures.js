@@ -552,6 +552,41 @@ tile('stone_bricks', (ctx, rng) => {
   rect(ctx, 0, 0, TILE, 1, shade(P.stoneL, 1.05));
 });
 
+tile('mossy_stone_bricks', (ctx, rng) => {
+  generators['stone_bricks'](ctx, rng);
+  for (let i = 0; i < 46; i++) {
+    const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+    // moss creeps along the mortar lines and the bottom of each brick
+    if (y === 7 || y === 15 || y === 6 || y === 14 || rng() < 0.35) px(ctx, x, y, rng() < 0.5 ? [86, 120, 52] : [64, 96, 40]);
+  }
+});
+
+tile('chiseled_sandstone', (ctx, rng) => {
+  generators['sandstone_top'](ctx, rng);
+  const d = P.sandD, l = P.sandL;
+  rect(ctx, 0, 0, TILE, 2, d); rect(ctx, 0, TILE - 2, TILE, 2, d);
+  rect(ctx, 0, 2, TILE, 1, l);
+  // a carved face/glyph in the middle
+  rect(ctx, 4, 5, 8, 6, shade(P.sand, 0.92));
+  rect(ctx, 5, 6, 2, 1, d); rect(ctx, 9, 6, 2, 1, d);
+  rect(ctx, 7, 7, 2, 2, d);
+  rect(ctx, 5, 9, 6, 1, d);
+  rect(ctx, 4, 11, 8, 1, l);
+});
+
+// monster spawner: a dark iron cage (gaps are see-through)
+tile('spawner', (ctx, rng) => {
+  const bar = [44, 50, 62], barL = [78, 88, 104], barD = [26, 30, 38];
+  for (let i = 0; i < TILE; i += 5) {
+    rect(ctx, i, 0, 2, TILE, bar);
+    rect(ctx, 0, i, TILE, 2, bar);
+    rect(ctx, i, 0, 1, TILE, barL);
+  }
+  rect(ctx, 0, 0, TILE, 1, barL); rect(ctx, 0, TILE - 1, TILE, 1, barD);
+  rect(ctx, 0, 0, 1, TILE, barL); rect(ctx, TILE - 1, 0, 1, TILE, barD);
+  for (let i = 0; i < 10; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, [180, 60, 40, 200]);
+});
+
 tile('obsidian', (ctx, rng) => {
   fillNoise(ctx, rng, [[[24, 18, 38], 7], [[16, 12, 26], 4], [[42, 30, 62], 3]]);
   speckle(ctx, rng, [96, 70, 140], 4);
@@ -802,6 +837,21 @@ const TOOL_MAPS = {
   ],
 };
 
+TOOL_MAPS.spear = [
+  '............mM..',
+  '...........MMMm.',
+  '...........MMm..',
+  '..........hm....',
+  '.........Hh.....',
+  '........Hh......',
+  '.......Hh.......',
+  '......Hh........',
+  '.....Hh.........',
+  '....Hh..........',
+  '...Hh...........',
+  '..Hh............',
+];
+
 TOOL_MAPS.hoe = [
   '....mMMMm.......',
   '...MMm.Hh.......',
@@ -840,6 +890,26 @@ for (const mat of Object.keys(TOOL_MATERIALS)) {
     });
   }
 }
+
+// the Ancient Blade: a temple-only sword, dark glassy blade on a gilded hilt
+tile('ancient_sword', (ctx) => {
+  const cols = { H: [246, 204, 62], h: [190, 146, 36], M: [150, 92, 220], m: [92, 52, 150] };
+  const map = TOOL_MAPS.sword;
+  const yOff = 16 - map.length - 1;
+  map.forEach((row, y) => [...row].forEach((ch, x) => { if (cols[ch]) px(ctx, x, y + yOff, cols[ch]); }));
+  px(ctx, 11, yOff, [226, 196, 255]); px(ctx, 10, yOff + 1, [226, 196, 255]);
+});
+
+tile('golden_apple', (ctx) => {
+  const g = [246, 204, 62], gD = [196, 150, 36], gL = [255, 240, 150];
+  rect(ctx, 5, 6, 6, 6, g);
+  rect(ctx, 4, 7, 8, 4, g);
+  px(ctx, 6, 7, gL); px(ctx, 6, 8, gL); px(ctx, 7, 7, gL);
+  rect(ctx, 6, 12, 4, 1, gD);
+  px(ctx, 10, 9, gD); px(ctx, 10, 10, gD);
+  px(ctx, 8, 5, P.barkOak); px(ctx, 8, 4, P.barkOak);
+  px(ctx, 9, 4, P.grassD); px(ctx, 10, 3, P.grassD);
+});
 
 // --- armour: M=material, m=shade, L=highlight ---
 const ARMOR_MAPS = {

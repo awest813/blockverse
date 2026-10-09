@@ -93,6 +93,20 @@ export class Sfx {
       case 'hit':
         this.noise({ ...m, freq: m.freq * detune, dur: 0.06, gain: 0.22 });
         break;
+      case 'crit':     // sharp crack with a bright ring
+        this.noise({ freq: 2600 * detune, q: 2, dur: 0.07, gain: 0.35 });
+        this.tone({ freq: 1400, endFreq: 900, dur: 0.12, gain: 0.08, type: 'triangle' });
+        break;
+      case 'sweep':    // a blade swishing through the air
+        this.noise({ freq: 1800 * detune, q: 0.8, dur: 0.18, gain: 0.22, pitchDrop: 1200 });
+        break;
+      case 'weak':     // an uncharged swing: a soft thud
+        this.noise({ freq: 380 * detune, q: 1, dur: 0.05, gain: 0.12 });
+        break;
+      case 'spawner':  // something stirs in the cage
+        this.tone({ freq: 110 * detune, endFreq: 70, dur: 0.5, gain: 0.07 * vol, type: 'sawtooth' });
+        this.noise({ freq: 600, q: 1, dur: 0.3, gain: 0.08 * vol, pitchDrop: 300 });
+        break;
       case 'break':
         this.noise({ ...m, freq: m.freq * detune, dur: 0.16, gain: 0.5, pitchDrop: m.freq * 0.4 });
         break;

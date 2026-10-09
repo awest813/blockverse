@@ -2,7 +2,7 @@
 // furnace, and the creative item palette. Handles cursor stack drag logic,
 // right-click split, shift-click quick move, and tooltips.
 
-import { itemInfo, maxStack, makeStack } from '../items/items.js';
+import { itemInfo, maxStack, makeStack, WEAPON_STATS } from '../items/items.js';
 import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
 import { B, BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
@@ -139,7 +139,15 @@ export class Containers {
     if (info?.food) {
       const d = document.createElement('div');
       d.className = 'tooltip-sub';
-      d.textContent = `Restores ${info.food / 2} hunger`;
+      d.textContent = `Restores ${info.food / 2} hunger` + (info.heal ? ` and ${info.heal / 2} hearts` : '');
+      t.appendChild(d);
+    }
+    if (info?.tool && WEAPON_STATS[info.tool.class]) {
+      const w = WEAPON_STATS[info.tool.class];
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      const extra = [w.reach ? `+${w.reach} reach` : '', info.tool.class === 'sword' ? 'sweeps' : ''].filter(Boolean);
+      d.textContent = `${info.tool.damage} attack damage, ${(1 / w.cooldown).toFixed(1)} hits/s` + (extra.length ? ` · ${extra.join(', ')}` : '');
       t.appendChild(d);
     }
     t.classList.remove('hidden');

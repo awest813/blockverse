@@ -30,21 +30,22 @@ shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL], S: [I.STICK] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
 shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 
-// tools: [material group, pickaxe head, axe, shovel, sword]
+// tools: [material group, pickaxe, axe, shovel, sword, hoe, spear]
 const TOOL_MATS = [
-  [ANY_PLANKS, I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE],
-  [[B.COBBLESTONE], I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE],
-  [[I.IRON_INGOT], I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE],
-  [[I.GOLD_INGOT], I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE],
-  [[I.DIAMOND], I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE],
+  [ANY_PLANKS, I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE, I.WOOD_SPEAR],
+  [[B.COBBLESTONE], I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE, I.STONE_SPEAR],
+  [[I.IRON_INGOT], I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE, I.IRON_SPEAR],
+  [[I.GOLD_INGOT], I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE, I.GOLD_SPEAR],
+  [[I.DIAMOND], I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE, I.DIAMOND_SPEAR],
 ];
-for (const [mat, pick, axe, shovel, sword, hoe] of TOOL_MATS) {
+for (const [mat, pick, axe, shovel, sword, hoe, spear] of TOOL_MATS) {
   const keys = { X: mat, S: [I.STICK] };
   shaped(pick, 1, ['XXX', '.S.', '.S.'], keys);
   shaped(axe, 1, ['XX', 'XS', '.S'], keys);
   shaped(shovel, 1, ['X', 'S', 'S'], keys);
   shaped(sword, 1, ['X', 'X', 'S'], keys);
   shaped(hoe, 1, ['XX', '.S', '.S'], keys);
+  shaped(spear, 1, ['..X', '.S.', 'S..'], keys);
 }
 
 // armour
@@ -90,6 +91,9 @@ shaped(B.TNT, 1, ['GSG', 'SGS', 'GSG'], { G: [I.GUNPOWDER], S: [B.SAND] });
 // building blocks
 shaped(B.STONE_BRICKS, 4, ['XX', 'XX'], { X: [B.STONE] });
 shaped(B.SANDSTONE, 1, ['XX', 'XX'], { X: [B.SAND] });
+shaped(B.CHISELED_SANDSTONE, 1, ['X', 'X'], { X: [B.SANDSTONE] });
+shapeless(B.MOSSY_STONE_BRICKS, 2, [[B.STONE_BRICKS], [B.MOSSY_COBBLE]]);
+shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });
 shapeless(B.MOSSY_COBBLE, 1, [[B.COBBLESTONE], [B.TALL_GRASS]]);
