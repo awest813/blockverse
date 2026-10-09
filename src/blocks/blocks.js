@@ -68,6 +68,8 @@ export const B = {
   COAL_BLOCK: 62,
   BOOKSHELF: 63,
   JACK_O_LANTERN: 64,
+  CAMPFIRE: 65,
+  CAMPFIRE_OFF: 66,
 };
 
 // Tool classes
@@ -271,6 +273,10 @@ reg(def(B.JACK_O_LANTERN, 'jack_o_lantern', "Jack o'Lantern", {
   hardness: 1, tool: TOOL_AXE, sound: 'wood', lightEmit: 15,
   textures: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face_lit' },
 }));
+// campfire: walk-through like a plant, lit variant glows; both drop a campfire
+const campfire = { solid: false, render: R_CROSS, opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', drop: B.CAMPFIRE };
+reg(def(B.CAMPFIRE, 'campfire', 'Campfire', { ...campfire, lightEmit: 15 }));
+reg(def(B.CAMPFIRE_OFF, 'campfire_off', 'Campfire (unlit)', campfire));
 
 export function blockInfo(id) {
   return BLOCKS[id] ?? BLOCKS[B.AIR];

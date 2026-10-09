@@ -9,6 +9,8 @@ import { GAMEMODE_CREATIVE } from '../core/constants.js';
 const SEEN_KEY = 'blockverse-hints';
 const LOGS = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG];
 const PLANKS = [B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS];
+const cap = (t) => t[0].toUpperCase() + t.slice(1);
+const RAW_FOOD = [I.PORKCHOP_RAW, I.MUTTON_RAW, I.BEEF_RAW, I.CHICKEN_RAW, I.FISH_RAW];
 const SAPLINGS = () => [B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING];
 
 function loadSeen() {
@@ -75,6 +77,8 @@ export class Hints {
         'A wild animal', `Tame dogs with bones and cats with raw fish (${k('use')} them). Dogs guard you; creepers fear cats.`],
       ['leather', () => has([I.LEATHER], 3), I.LEATHER_CHESTPLATE,
         'Leather armour', 'Cow leather makes light armour — a good start before iron.'],
+      ['campfire', () => RAW_FOOD.some((id) => has([id])), B.CAMPFIRE,
+        'Cook on a campfire', `3 sticks, coal or charcoal and 3 logs make a Campfire. ${cap(k('use'))} it with raw meat or fish to cook — no fuel needed.`],
       ['bed', () => has([B.WOOL], 3), B.BED,
         'Bed', '3 wool + 3 planks make a Bed. Sleep to skip the night and set your respawn point.'],
     ];

@@ -454,6 +454,28 @@ tile('torch', (ctx, rng) => {
   px(ctx, 7, 2, [255, 140, 40]);
 });
 
+// --- campfire: crossed logs (drawn as a cross sprite) with flames or ash ---
+function campfireLogs(ctx) {
+  rect(ctx, 1, 12, 14, 3, P.barkOak);
+  rect(ctx, 1, 12, 14, 1, P.barkOakL);
+  rect(ctx, 3, 14, 10, 2, P.barkOakD);
+  rect(ctx, 6, 11, 4, 1, [70, 52, 32]);
+}
+tile('campfire', (ctx, rng) => {
+  const flame = [[255, 200, 60], [255, 150, 40], [255, 236, 140]];
+  for (let x = 3; x < 13; x++) {
+    const h = 4 + ((rng() * 7) | 0) - Math.abs(x - 8);
+    for (let y = 12 - h; y < 12; y++) px(ctx, x, y, flame[y > 9 ? 1 : (rng() * 3) | 0]);
+  }
+  rect(ctx, 6, 9, 4, 3, [255, 244, 190]);   // hot core
+  campfireLogs(ctx);
+});
+tile('campfire_off', (ctx) => {
+  campfireLogs(ctx);
+  rect(ctx, 4, 11, 8, 1, [90, 90, 90]);     // ash
+  px(ctx, 6, 10, [120, 120, 120]); px(ctx, 9, 10, [110, 110, 110]);
+});
+
 tile('crafting_table_top', (ctx, rng) => {
   planks(ctx, rng, P.woodOak);
   rect(ctx, 0, 0, TILE, 1, P.barkOakD);

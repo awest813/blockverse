@@ -6,6 +6,7 @@ import { B, BLOCKS, blockInfo, R_CROSS, isSolid } from '../blocks/blocks.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
 import { growCrop, cropTime } from '../world/saplings.js';
+import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
@@ -15,13 +16,15 @@ const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS]);
+const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const CAMPFIRES = new Set([B.CAMPFIRE, B.CAMPFIRE_OFF]);
 
 // item stacks stored in a block entity (furnace slots, chest slots)
 export function entityContents(st) {
   if (!st) return [];
   if (st.kind === 'furnace') return [st.input, st.fuel, st.output].filter(Boolean);
   if (st.kind === 'chest') return st.slots.filter(Boolean);
+  if (st.kind === 'campfire') return st.slots.filter(Boolean).map((s) => ({ id: s.id, count: 1 }));
   return [];
 }
 
@@ -269,6 +272,29 @@ export class Interaction {
       return true;
     }
     if (!t) return false;
+
+    // campfires: cook food on them, put them out with a shovel, relight with a torch
+    if (CAMPFIRES.has(t.id)) {
+      if (campfireCookable(held.id)) {
+        if (addToCampfire(this.world, t.x, t.y, t.z, held.id)) {
+          if (!creative) p.consumeHeld(1);
+          this.cb.playSound('place', { block: 'wood' });
+        } else {
+          this.cb.notify?.('The campfire is full — wait for something to finish cooking.');
+        }
+        this.useCooldown = 0.25;
+        return true;
+      }
+      const lit = t.id === B.CAMPFIRE;
+      if ((lit && info?.tool?.class === 'shovel') || (!lit && held.id === B.TORCH)) {
+        const st = campfireState(this.world, t.x, t.y, t.z);
+        this.world.setBlock(t.x, t.y, t.z, lit ? B.CAMPFIRE_OFF : B.CAMPFIRE);
+        this.world.setBlockEntity(t.x, t.y, t.z, st);   // setBlock cleared it; keep the food
+        this.cb.playSound(lit ? 'splash' : 'place', { block: 'wood' });
+        if (lit && !creative) p.damageHeldTool(1);
+        return true;
+      }
+    }
     const above = this.world.getBlockW(t.x, t.y + 1, t.z);
     const aboveFree = above === B.AIR || blockInfo(above).replaceable;
 

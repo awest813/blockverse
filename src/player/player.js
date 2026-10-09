@@ -9,7 +9,7 @@ import { moveEntity, entityInBlock, pointInWater } from '../core/physics.js';
 import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
-const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command']);
+const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire']);
 
 export class Player {
   constructor(world) {

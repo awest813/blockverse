@@ -15,6 +15,8 @@ import { Sky } from './render/sky.js';
 import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { tickSaplings } from './world/saplings.js';
+import { tickCampfires } from './items/campfire.js';
+import { CampfireFx } from './render/campfireFx.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, I } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
@@ -54,6 +56,7 @@ export class Game {
       onChunkEvicted: store ? (c) => { store.saveChunk(worldMeta.id, c); c.modified = false; } : null,
     });
     this.scene.add(this.world.group);
+    this.campfireFx = new CampfireFx(this.scene, this.world, atlas);
 
     this.player = new Player(this.world);
     this.player.mode = worldMeta.mode ?? GAMEMODE_SURVIVAL;
@@ -78,6 +81,7 @@ export class Game {
       },
       primeTnt: (x, y, z) => this.primeTnt(x, y, z, 3),
       fireBow: (power) => this.fireBow(power),
+      notify: (text) => this.hud.showLabel(text),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         this.sfx?.play(name, opts);
@@ -341,6 +345,22 @@ export class Game {
       pet.sitting = !!p.sitting;
       pet.health = p.health ?? pet.maxTamedHealth;
       this.entities.addMob(pet);
+    }
+  }
+
+  // standing in a lit campfire burns (players and mobs alike)
+  burnInCampfires(dt) {
+    this._fireTimer = (this._fireTimer ?? 0) - dt;
+    if (this._fireTimer > 0) return;
+    this._fireTimer = 0.8;
+    const lit = (x, y, z) => this.world.getBlockW(Math.floor(x), Math.floor(y), Math.floor(z)) === B.CAMPFIRE;
+    const p = this.player;
+    if (!p.dead && (lit(p.x, p.y + 0.1, p.z) || lit(p.x, p.y + 1, p.z))) {
+      p.hurtCooldown = 0;
+      p.damage(1, 'fire');
+    }
+    for (const m of this.entities.mobs) {
+      if (!m.dead && m.kind !== 'tnt' && lit(m.x, m.y + 0.1, m.z)) { m.hurtCooldown = 0; m.damage(1, null); }
     }
   }
 
@@ -625,6 +645,7 @@ export class Game {
 
     this.highlight.update(this.interaction.target, this.interaction.breakProgress);
     this.updateBlasts(dt);
+    this.campfireFx.update(gamePaused ? 0 : dt, this.player);
 
     // camera follows player eye
     this.camera.position.set(this.player.x, this.player.eyeY, this.player.z);
@@ -714,6 +735,8 @@ export class Game {
   tickBlockEntities(dt) {
     tickFurnaces(this.world, dt);
     tickSaplings(this.world, dt);
+    tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
+    this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;
       if (this._furnaceUiTimer > 0.25) {
@@ -790,6 +813,7 @@ export class Game {
     this.chat.dispose();
     this.touch.dispose();
     this.viewModel.dispose();
+    this.campfireFx.dispose();
     this.hud.hide();
     document.removeEventListener('visibilitychange', this._onVisibility);
     window.removeEventListener('resize', this._onResize);

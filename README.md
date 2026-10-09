@@ -38,6 +38,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Item drops with physics that magnetize toward you and merge into your inventory
 - **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
 - **Recipe book** beside every crafting grid: search and categories, shape previews, ghost layouts for recipes you can't make yet, and one-click grid filling
+- **Campfire** (sticks, coal/charcoal, logs): cooks four raw foods at once with no fuel, glows, smokes, and burns anyone standing in it; shovel to put out, torch to relight
 - **Smelting guide** beside the furnace that loads ingredients and the right amount of fuel in one click
 - Inventory comforts: drag to split stacks across slots, double-click to gather a stack, shift-click quick moves
 - Storage blocks (iron, gold, diamond, coal), paper → books → bookshelves, jack o'lanterns, bowls and mushroom stew, charcoal

@@ -75,6 +75,10 @@ shaped(I.PAPER, 3, ['SSS'], { S: [B.SUGAR_CANE] });
 shapeless(I.BOOK, 1, [[I.PAPER], [I.PAPER], [I.PAPER], [I.LEATHER]]);
 shaped(B.BOOKSHELF, 1, ['PPP', 'BBB', 'PPP'], { P: ANY_PLANKS, B: [I.BOOK] });
 shapeless(B.JACK_O_LANTERN, 1, [[B.PUMPKIN], [B.TORCH]]);
+shaped(B.CAMPFIRE, 1, ['.S.', 'SCS', 'LLL'], { S: [I.STICK], C: [I.COAL, I.CHARCOAL], L: ANY_LOG });
+
+// what a campfire can cook: the raw foods the furnace cooks
+export const CAMPFIRE_TIME = 20;   // seconds per item (furnace: SMELT_TIME, but needs fuel)
 shaped(I.BOWL, 4, ['P.P', '.P.'], { P: ANY_PLANKS });
 shapeless(I.MUSHROOM_STEW, 1, [[I.BOWL], [B.MUSHROOM_BROWN], [B.MUSHROOM_RED]]);
 shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
