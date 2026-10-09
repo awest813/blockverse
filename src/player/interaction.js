@@ -4,17 +4,20 @@ import { REACH_DISTANCE, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
 import { B, BLOCKS, blockInfo, R_CROSS, isSolid } from '../blocks/blocks.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
+import { I } from '../items/itemIds.js';
+import { growCrop, cropTime } from '../world/saplings.js';
 import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
 const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.BED]);
 const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING]);
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
+const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS]);
+const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS]);
 
 // item stacks stored in a block entity (furnace slots, chest slots)
-function entityContents(st) {
+export function entityContents(st) {
   if (!st) return [];
   if (st.kind === 'furnace') return [st.input, st.fuel, st.output].filter(Boolean);
   if (st.kind === 'chest') return st.slots.filter(Boolean);
@@ -177,7 +180,10 @@ export class Interaction {
       }
     }
 
-    // 3) place a block
+    // 3) item actions: equip armour, till, plant, fertilise, light TNT
+    if (held && this.useItem(held, t)) return;
+
+    // 4) place a block
     if (!t || !held || !isBlockItem(held.id)) return;
     const info = blockInfo(held.id);
 
@@ -218,6 +224,73 @@ export class Interaction {
     if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
     this.cb.playSound('place', { block: info.sound });
     if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+  }
+
+  // Returns true if the held item did something special.
+  useItem(held, t) {
+    const p = this.player;
+    const info = itemInfo(held.id);
+    const creative = p.mode === GAMEMODE_CREATIVE;
+
+    // armour: put it on (swapping with what's worn)
+    if (info?.armor) {
+      const slot = info.armor.slot;
+      const worn = p.armor[slot];
+      p.armor[slot] = held;
+      p.inventory[p.selected] = worn;
+      p.events.dispatchEvent(new CustomEvent('inventory'));
+      this.cb.playSound('equip', {});
+      this.useCooldown = 0.3;
+      return true;
+    }
+    if (!t) return false;
+    const above = this.world.getBlockW(t.x, t.y + 1, t.z);
+    const aboveFree = above === B.AIR || blockInfo(above).replaceable;
+
+    // hoe: grass / dirt -> farmland
+    if (info?.tool?.class === 'hoe') {
+      if (!SOIL.has(t.id) || !aboveFree || t.ny < 0) return false;
+      if (above !== B.AIR) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
+      this.world.setBlock(t.x, t.y, t.z, B.FARMLAND);
+      this.cb.playSound('place', { block: 'dirt' });
+      if (!creative) p.damageHeldTool(1);
+      return true;
+    }
+
+    // seeds: plant on top of farmland
+    if (info?.places) {
+      if (t.id !== B.FARMLAND || t.ny !== 1 || above !== B.AIR) return true;
+      this.world.setBlock(t.x, t.y + 1, t.z, info.places);
+      this.world.setBlockEntity(t.x, t.y + 1, t.z, { kind: 'crop', grow: cropTime(this.world, t.x, t.y + 1, t.z, this.dropRng) });
+      this.cb.playSound('place', { block: 'leaf' });
+      if (!creative) p.consumeHeld(1);
+      return true;
+    }
+
+    // bone meal: ripen a crop, or make a sapling grow right away
+    if (held.id === I.BONE_MEAL) {
+      if (CROPS.has(t.id) && t.id !== B.WHEAT_3) {
+        growCrop(this.world, t.x, t.y, t.z, 2, this.dropRng);
+      } else if (SAPLINGS.has(t.id)) {
+        const st = this.world.blockEntityAt(t.x, t.y, t.z);
+        if (st) st.grow = 0;
+        else this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'sapling', grow: 0 });
+      } else {
+        return false;
+      }
+      this.cb.playSound('place', { block: 'leaf' });
+      this.cb.sparkle?.(t.x + 0.5, t.y + 0.5, t.z + 0.5);
+      if (!creative) p.consumeHeld(1);
+      return true;
+    }
+
+    // torch on TNT: light the fuse
+    if (held.id === B.TORCH && t.id === B.TNT) {
+      this.world.setBlock(t.x, t.y, t.z, B.AIR);
+      this.cb.primeTnt?.(t.x + 0.5, t.y, t.z + 0.5);
+      return true;
+    }
+    return false;
   }
 
   intersectsPlayer(bx, by, bz) {

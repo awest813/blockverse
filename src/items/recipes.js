@@ -32,19 +32,39 @@ shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 
 // tools: [material group, pickaxe head, axe, shovel, sword]
 const TOOL_MATS = [
-  [ANY_PLANKS, I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD],
-  [[B.COBBLESTONE], I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD],
-  [[I.IRON_INGOT], I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD],
-  [[I.GOLD_INGOT], I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD],
-  [[I.DIAMOND], I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD],
+  [ANY_PLANKS, I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE],
+  [[B.COBBLESTONE], I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE],
+  [[I.IRON_INGOT], I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE],
+  [[I.GOLD_INGOT], I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE],
+  [[I.DIAMOND], I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE],
 ];
-for (const [mat, pick, axe, shovel, sword] of TOOL_MATS) {
+for (const [mat, pick, axe, shovel, sword, hoe] of TOOL_MATS) {
   const keys = { X: mat, S: [I.STICK] };
   shaped(pick, 1, ['XXX', '.S.', '.S.'], keys);
   shaped(axe, 1, ['XX', 'XS', '.S'], keys);
   shaped(shovel, 1, ['X', 'S', 'S'], keys);
   shaped(sword, 1, ['X', 'X', 'S'], keys);
+  shaped(hoe, 1, ['XX', '.S', '.S'], keys);
 }
+
+// armour
+for (const [mat, helmet, chest, legs, boots] of [
+  [I.IRON_INGOT, I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS],
+  [I.GOLD_INGOT, I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS],
+  [I.DIAMOND, I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS],
+]) {
+  const keys = { X: [mat] };
+  shaped(helmet, 1, ['XXX', 'X.X'], keys);
+  shaped(chest, 1, ['X.X', 'XXX', 'XXX'], keys);
+  shaped(legs, 1, ['XXX', 'X.X', 'X.X'], keys);
+  shaped(boots, 1, ['X.X', 'X.X'], keys);
+}
+
+// farming and mob drops
+shaped(I.BREAD, 1, ['WWW'], { W: [I.WHEAT] });
+shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
+shaped(B.WOOL, 1, ['SS', 'SS'], { S: [I.STRING] });
+shaped(B.TNT, 1, ['GSG', 'SGS', 'GSG'], { G: [I.GUNPOWDER], S: [B.SAND] });
 
 // building blocks
 shaped(B.STONE_BRICKS, 4, ['XX', 'XX'], { X: [B.STONE] });

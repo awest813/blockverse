@@ -1,9 +1,11 @@
-// Concrete mob types: pig, sheep (passive), zombie (hostile).
+// Concrete mob types: pig, sheep (passive); zombie, skeleton, spider,
+// creeper (hostile); plus primed TNT, which reuses mob physics.
 // Original box-model designs built from shaded colored parts.
 
+import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { I } from '../items/itemIds.js';
-import { B } from '../blocks/blocks.js';
+import { B, isSolid } from '../blocks/blocks.js';
 
 export class Pig extends Mob {
   constructor(scene, world, x, y, z) {
@@ -126,19 +128,7 @@ export class Zombie extends Mob {
   think(dt, player, playerDist) {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
 
-    // burn in direct daylight
-    const day = this.world.materials.uniforms.uDay.value;
-    const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + 1.5), Math.floor(this.z));
-    if (day > 0.8 && sky >= 14) {
-      this.burnTimer += dt;
-      this.flashTime = 0.1;
-      if (this.burnTimer > 1) {
-        this.burnTimer = 0;
-        this.hurtCooldown = 0;
-        this.damage(2, null);
-        if (this.dead) return;
-      }
-    }
+    if (this.burnInDaylight(dt)) return;
 
     if (!player.dead && playerDist < 18) {
       this.state = 'chase';
@@ -165,4 +155,267 @@ export class Zombie extends Mob {
   onDeath() {
     this.dropFn?.([{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }]);
   }
+}
+
+// Line of sight from a mob's eyes to the player's chest: march the segment
+// and stop at solid blocks only (grass and flowers don't block a shot).
+function canSee(mob, player, eyeY) {
+  const ox = mob.x, oy = mob.y + eyeY, oz = mob.z;
+  const dx = player.x - ox, dy = player.y + 1.2 - oy, dz = player.z - oz;
+  const steps = Math.ceil(Math.hypot(dx, dy, dz) / 0.3);
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    if (isSolid(mob.world.getBlockW(Math.floor(ox + dx * t), Math.floor(oy + dy * t), Math.floor(oz + dz * t)))) return false;
+  }
+  return true;
+}
+
+export class Skeleton extends Mob {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.6;
+    this.h = 1.9;
+    this.health = 20;
+    this.hostile = true;
+    this.speed = 1.2;
+    this.fleeSpeed = 2.4;
+    this.shootCooldown = 1 + Math.random();
+    this.kind = 'skeleton';
+  }
+
+  buildModel() {
+    const bone = 0xd8d6cc, boneD = 0xb4b2a8;
+    this.part(0.46, 0.7, 0.22, boneD, 0, 1.12, 0);            // ribcage
+    this.part(0.42, 0.42, 0.42, bone, 0, 1.72, 0);            // skull
+    this.part(0.1, 0.1, 0.02, 0x1a1a1a, -0.1, 1.76, -0.22);   // eye sockets
+    this.part(0.1, 0.1, 0.02, 0x1a1a1a, 0.1, 1.76, -0.22);
+    this.part(0.1, 0.1, 0.62, bone, -0.3, 1.38, -0.26);       // bow arm
+    this.part(0.1, 0.1, 0.62, bone, 0.3, 1.38, -0.26);
+    this.part(0.06, 0.7, 0.06, 0x6b4a2a, 0, 1.38, -0.58);     // bow
+    this.legs = [this.legPart(bone, -0.12), this.legPart(bone, 0.12)];
+  }
+
+  legPart(color, x) {
+    const leg = this.part(0.12, 0.76, 0.12, color, x, 0.76, 0);
+    leg.geometry = leg.geometry.clone();
+    leg.geometry.translate(0, -0.38, 0);
+    leg.position.y = 0.76;
+    return leg;
+  }
+
+  think(dt, player, playerDist) {
+    if (this.burnInDaylight(dt)) return;
+    this.shootCooldown -= dt;
+    if (player.dead || playerDist > 16) {
+      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+      super.think(dt, player, playerDist);
+      return;
+    }
+    // keep a shooting distance: close in when far, back off when crowded
+    this.state = 'chase';
+    if (playerDist > 10) { this.steer(player, 1); this.moving = true; }
+    else if (playerDist < 5) { this.steer(player, -1); this.moving = true; }
+    else { this.steer(player, 1); this.moving = false; }
+
+    if (this.shootCooldown <= 0 && canSee(this, player, 1.6)) {
+      this.shootCooldown = 1.6 + Math.random() * 0.8;
+      if (!this.moving || playerDist < 5) this.steer(player, 1);
+      const ox = this.x, oy = this.y + 1.5, oz = this.z;
+      const dx = player.x - ox, dy = player.y + 1.1 - oy, dz = player.z - oz;
+      const flat = Math.hypot(dx, dz);
+      const speed = 18;
+      const t = flat / speed;
+      // lob to cancel gravity over the flight time, plus a little inaccuracy
+      const spread = () => (Math.random() - 0.5) * 0.9;
+      this.fx?.shoot(ox, oy, oz,
+        (dx / flat) * speed + spread(), dy / t + 10 * t + spread(), (dz / flat) * speed + spread(),
+        2 + ((Math.random() * 2) | 0));
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.BONE, count: (Math.random() * 3) | 0 }]);
+  }
+}
+
+export class Spider extends Mob {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 1.2;
+    this.h = 0.9;
+    this.health = 16;
+    this.hostile = true;
+    this.climber = true;
+    this.speed = 1.6;
+    this.fleeSpeed = 3.8;
+    this.attackCooldown = 0;
+    this.angry = 0;          // seconds of aggression after being hit in daylight
+    this.kind = 'spider';
+  }
+
+  buildModel() {
+    const body = 0x2e2a28, bodyL = 0x4a4440;
+    this.part(0.7, 0.55, 0.9, body, 0, 0.55, 0.3);            // abdomen
+    this.part(0.5, 0.45, 0.45, bodyL, 0, 0.55, -0.35);        // head
+    for (const x of [-0.13, 0.13]) this.part(0.09, 0.07, 0.02, 0xd02020, x, 0.62, -0.58);   // red eyes
+    for (const x of [-0.2, 0.2]) this.part(0.06, 0.05, 0.02, 0xd02020, x, 0.52, -0.58);
+    this.legs = [];
+    for (let i = 0; i < 4; i++) {
+      for (const side of [-1, 1]) {
+        const leg = this.part(0.9, 0.08, 0.08, body, side * 0.5, 0.55, -0.25 + i * 0.22);
+        leg.rotation.z = side * 0.45;
+        this.legs.push(leg);
+      }
+    }
+  }
+
+  animate() {
+    const swing = Math.sin(this.walkPhase * 1.5) * (this.moving ? 0.35 : 0);
+    this.legs.forEach((leg, i) => { leg.rotation.y = (i % 2 ? swing : -swing) * (i % 4 < 2 ? 1 : -1); });
+  }
+
+  damage(amount, source) {
+    if (source) this.angry = 10;
+    return super.damage(amount, source);
+  }
+
+  think(dt, player, playerDist) {
+    this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.angry = Math.max(0, this.angry - dt);
+    // spiders only hunt in the dark, unless you started it
+    const day = this.world.materials.uniforms.uDay.value;
+    const hunting = !player.dead && playerDist < 16 && (day < 0.6 || this.angry > 0);
+    if (hunting) {
+      this.state = 'chase';
+      this.moving = true;
+      this.steer(player, 1);
+      if (playerDist < 1.6 && this.attackCooldown <= 0 && Math.abs(player.y - this.y) < 1.6) {
+        player.damage(2, 'spider');
+        this.attackCooldown = 1;
+        // pounce
+        if (this.onGround) this.vy = 5;
+      }
+    } else {
+      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+      super.think(dt, player, playerDist);
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.STRING, count: (Math.random() * 3) | 0 }]);
+  }
+}
+
+const FUSE_TIME = 1.5;
+
+export class Creeper extends Mob {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.6;
+    this.h = 1.7;
+    this.health = 20;
+    this.hostile = true;
+    this.speed = 1.2;
+    this.fleeSpeed = 2.4;
+    this.fuse = 0;
+    this.kind = 'creeper';
+  }
+
+  buildModel() {
+    const green = 0x4fae3c, greenD = 0x3a8a2c;
+    this.body = this.part(0.5, 0.8, 0.3, green, 0, 0.82, 0);
+    this.part(0.46, 0.46, 0.46, green, 0, 1.45, 0);
+    // the face
+    this.part(0.1, 0.1, 0.02, 0x152a12, -0.1, 1.52, -0.24);
+    this.part(0.1, 0.1, 0.02, 0x152a12, 0.1, 1.52, -0.24);
+    this.part(0.1, 0.16, 0.02, 0x152a12, 0, 1.4, -0.24);
+    this.legs = [
+      this.legPart(greenD, -0.13, -0.12), this.legPart(greenD, 0.13, -0.12),
+      this.legPart(greenD, -0.13, 0.12), this.legPart(greenD, 0.13, 0.12),
+    ];
+  }
+
+  legPart(color, x, z) {
+    const leg = this.part(0.2, 0.42, 0.2, color, x, 0.42, z);
+    leg.geometry = leg.geometry.clone();
+    leg.geometry.translate(0, -0.21, 0);
+    leg.position.y = 0.42;
+    return leg;
+  }
+
+  think(dt, player, playerDist) {
+    if (player.dead || playerDist > 16) {
+      this.fuse = Math.max(0, this.fuse - dt);
+      if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+      super.think(dt, player, playerDist);
+      return;
+    }
+    this.state = 'chase';
+    this.steer(player, 1);
+    if (playerDist < 3 || (this.fuse > 0 && playerDist < 7)) {
+      // stop and hiss; walking away far enough defuses it
+      if (this.fuse === 0) this.fx?.sound('fuse');
+      this.moving = false;
+      this.fuse += dt;
+      if (this.fuse >= FUSE_TIME) {
+        this.kill();   // first, so the blast doesn't also "kill" it for drops
+        this.fx?.explode(this.x, this.y + 0.8, this.z, 3);
+        return;
+      }
+    } else {
+      this.fuse = Math.max(0, this.fuse - dt);
+      this.moving = true;
+    }
+  }
+
+  update(dt, player) {
+    super.update(dt, player);
+    if (this.dead) return;
+    // swell and flash white while the fuse burns
+    const f = this.fuse / FUSE_TIME;
+    this.group.scale.setScalar(1 + f * 0.25);
+    if (f > 0 && Math.floor(this.fuse * 8) % 2 === 0) {
+      for (const { mat } of this.materials) mat.color.lerp(new THREE.Color(0xffffff), 0.7);
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.GUNPOWDER, count: (Math.random() * 3) | 0 }]);
+  }
+}
+
+// A lit TNT block: falls like a block, flashes, then explodes.
+export class PrimedTnt extends Mob {
+  constructor(scene, world, x, y, z, fuse = 3) {
+    super(scene, world, x, y, z);
+    this.w = 0.98;
+    this.h = 0.98;
+    this.fuse = fuse;
+    this.kind = 'tnt';
+    this.countsForCap = false;
+    this.vy = 3;
+  }
+
+  buildModel() {
+    this.part(0.98, 0.98, 0.98, 0xcc3024, 0, 0.49, 0);
+    this.part(1.0, 0.36, 1.0, 0xece8dc, 0, 0.49, 0);
+  }
+
+  think(dt) {
+    this.moving = false;
+    this.fuse -= dt;
+    if (this.fuse <= 0) {
+      this.kill();
+      this.fx?.explode(this.x, this.y + 0.5, this.z, 4);
+    }
+  }
+
+  update(dt, player) {
+    super.update(dt, player);
+    if (!this.dead && Math.floor(this.fuse * 4) % 2 === 0) {
+      for (const { mat } of this.materials) mat.color.lerp(new THREE.Color(0xffffff), 0.6);
+    }
+  }
+
+  damage() { return false; }   // can't be punched out
 }

@@ -743,6 +743,18 @@ const TOOL_MAPS = {
   ],
 };
 
+TOOL_MAPS.hoe = [
+  '....mMMMm.......',
+  '...MMm.Hh.......',
+  '......Hh........',
+  '.....Hh.........',
+  '....Hh..........',
+  '...Hh...........',
+  '..Hh............',
+  '.Hh.............',
+  'Hh..............',
+];
+
 const TOOL_MATERIALS = {
   wood: { M: [158, 122, 74], m: [122, 94, 56] },
   stone: { M: [136, 136, 136], m: [100, 100, 100] },
@@ -769,6 +781,138 @@ for (const mat of Object.keys(TOOL_MATERIALS)) {
     });
   }
 }
+
+// --- armour: M=material, m=shade, L=highlight ---
+const ARMOR_MAPS = {
+  helmet: [
+    '................',
+    '................',
+    '....mMMMMMMm....',
+    '...mMLLMMMMMm...',
+    '...MML....MMM...',
+    '...MM......MM...',
+    '...mm......mm...',
+  ],
+  chestplate: [
+    '..mMm......mMm..',
+    '..MMMm....mMMM..',
+    '..MMLMMMMMMMMM..',
+    '...mMLMMMMMMm...',
+    '....MLMMMMMM....',
+    '....MMMMMMMM....',
+    '....MMMMMMMM....',
+    '....mMMMMMMm....',
+    '....mmmmmmmm....',
+  ],
+  leggings: [
+    '....mMMMMMMm....',
+    '....MLMMMMMM....',
+    '....MLMmmMMM....',
+    '....MLM..MMM....',
+    '....MLM..MMM....',
+    '....MMM..MMM....',
+    '....MMm..mMM....',
+    '....mmm..mmm....',
+  ],
+  boots: [
+    '................',
+    '...mMm....mMm...',
+    '...MLM....MLM...',
+    '...MLM....MLM...',
+    '..mMMM...mMMM...',
+    '..MMMMm..MMMMm..',
+    '..mmmmm..mmmmm..',
+  ],
+};
+const ARMOR_MATERIALS = {
+  iron: { M: [214, 214, 220], m: [158, 158, 168], L: [244, 244, 248] },
+  gold: { M: [240, 196, 58], m: [190, 146, 36], L: [255, 236, 130] },
+  diamond: { M: [92, 220, 214], m: [52, 170, 172], L: [176, 250, 244] },
+};
+for (const mat of Object.keys(ARMOR_MATERIALS)) {
+  for (const piece of Object.keys(ARMOR_MAPS)) {
+    tile(`${mat}_${piece}`, (ctx) => {
+      const map = ARMOR_MAPS[piece];
+      const yOff = Math.floor((16 - map.length) / 2);
+      map.forEach((row, y) => [...row].forEach((ch, x) => {
+        const col = ARMOR_MATERIALS[mat][ch];
+        if (col) px(ctx, x, y + yOff, col);
+      }));
+    });
+  }
+}
+
+// --- farming ---
+tile('farmland_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[P.dirtD, 5], [P.dirt, 3], [[92, 64, 38], 2]]);
+  for (let y = 1; y < TILE; y += 4) rect(ctx, 0, y, TILE, 1, [74, 50, 28]);   // furrows
+  for (let y = 2; y < TILE; y += 4) rect(ctx, 0, y, TILE, 1, shade(P.dirt, 1.12));
+});
+const WHEAT_GREEN = [[76, 150, 52], [96, 172, 64], [60, 124, 40]];
+const WHEAT_GOLD = [[204, 172, 72], [226, 196, 96], [172, 140, 52]];
+for (let stage = 0; stage < 4; stage++) {
+  tile(`wheat_stage_${stage}`, (ctx, rng) => {
+    const height = 4 + stage * 4;          // stalks get taller
+    const cols = stage === 3 ? WHEAT_GOLD : WHEAT_GREEN;
+    for (const x of [1, 4, 7, 10, 13]) {
+      const h = height - ((rng() * 3) | 0);
+      for (let y = TILE - h; y < TILE; y++) px(ctx, x + (y % 3 === 0 ? 1 : 0), y, cols[(rng() * 3) | 0]);
+      if (stage >= 2) {                     // seed heads
+        const top = TILE - h;
+        rect(ctx, x, top, 2, 3, stage === 3 ? [214, 180, 80] : [140, 170, 70]);
+        px(ctx, x + 1, top + 1, stage === 3 ? [240, 214, 120] : [160, 190, 90]);
+      }
+    }
+  });
+}
+tile('wheat_seeds', (ctx, rng) => {
+  for (let i = 0; i < 9; i++) {
+    const x = 4 + ((rng() * 8) | 0), y = 5 + ((rng() * 7) | 0);
+    px(ctx, x, y, [108, 150, 58]);
+    px(ctx, x + 1, y, [80, 120, 44]);
+  }
+});
+tile('wheat', (ctx, rng) => {
+  for (let i = 0; i < 4; i++) {
+    for (let k = 0; k < 10; k++) px(ctx, 3 + i * 2 + (k > 6 ? 1 : 0), 14 - k, [196, 164, 70]);
+    rect(ctx, 3 + i * 2, 2, 2, 4, WHEAT_GOLD[i % 3]);
+  }
+  rect(ctx, 3, 10, 8, 1, [150, 110, 50]);   // binding
+});
+tile('bread', (ctx) => {
+  rect(ctx, 2, 6, 12, 6, [176, 112, 48]);
+  rect(ctx, 3, 5, 10, 1, [196, 134, 64]);
+  rect(ctx, 2, 11, 12, 1, [138, 84, 34]);
+  for (const x of [4, 7, 10]) rect(ctx, x, 6, 1, 3, [226, 180, 110]);   // scored top
+});
+tile('bone', (ctx) => {
+  for (let i = 0; i < 8; i++) { px(ctx, 4 + i, 11 - i, [232, 228, 214]); px(ctx, 5 + i, 11 - i, [204, 198, 180]); }
+  rect(ctx, 2, 11, 3, 2, [232, 228, 214]); rect(ctx, 3, 12, 2, 2, [214, 208, 192]);
+  rect(ctx, 11, 2, 3, 2, [232, 228, 214]); rect(ctx, 12, 3, 2, 2, [214, 208, 192]);
+});
+tile('bone_meal', (ctx, rng) => blobIcon(ctx, rng, [[236, 234, 226], [214, 210, 198], [250, 250, 246]]));
+tile('string', (ctx) => {
+  for (let i = 0; i < 12; i++) px(ctx, 2 + i, 8 + Math.round(Math.sin(i * 0.9) * 3), [236, 236, 236]);
+});
+tile('gunpowder', (ctx, rng) => blobIcon(ctx, rng, [[86, 86, 86], [60, 60, 60], [116, 116, 116]]));
+
+// --- TNT ---
+tile('tnt_side', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[204, 48, 36], 6], [[176, 36, 28], 3]]);
+  rect(ctx, 0, 5, TILE, 6, [236, 232, 220]);
+  rect(ctx, 0, 5, TILE, 1, [200, 196, 186]);
+  // "TNT" in 3x5 pixel letters
+  const C = [40, 40, 40];
+  rect(ctx, 2, 6, 3, 1, C); rect(ctx, 3, 6, 1, 4, C);
+  rect(ctx, 6, 6, 1, 4, C); rect(ctx, 9, 6, 1, 4, C); px(ctx, 7, 7, C); px(ctx, 8, 8, C);
+  rect(ctx, 11, 6, 3, 1, C); rect(ctx, 12, 6, 1, 4, C);
+});
+tile('tnt_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[204, 48, 36], 6], [[176, 36, 28], 3]]);
+  rect(ctx, 6, 6, 4, 4, [60, 60, 60]);   // fuse
+  rect(ctx, 7, 7, 2, 2, [140, 140, 140]);
+});
+tile('tnt_bottom', (ctx, rng) => fillNoise(ctx, rng, [[[176, 36, 28], 6], [[150, 30, 24], 3]]));
 
 // --- breaking crack overlays (5 stages) ---
 for (let stage = 0; stage < 5; stage++) {

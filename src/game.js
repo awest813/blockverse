@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { World } from './world/world.js';
 import { Player } from './player/player.js';
-import { Interaction } from './player/interaction.js';
+import { Interaction, entityContents } from './player/interaction.js';
+import { PrimedTnt } from './entities/mobs.js';
 import { Input } from './core/input.js';
 import { BlockHighlight } from './render/highlight.js';
 import { ViewModel } from './render/viewmodel.js';
@@ -58,6 +59,9 @@ export class Game {
 
     this.entities = new EntityManager(this.scene, this.world);
     this.entities.onPickup = () => this.sfx?.play('pickup');
+    this.entities.fx.explode = (x, y, z, power) => this.explode(x, y, z, power);
+    this.entities.fx.sound = (name) => this.sfx?.play(name);
+    this.blasts = [];   // expanding explosion flashes
 
     this.input = new Input(canvas);
     this.highlight = new BlockHighlight(this.scene);
@@ -70,6 +74,7 @@ export class Game {
         else if (kind === 'chest') this.containers.openChest(pos);
         else if (kind === 'bed') this.useBed(pos);
       },
+      primeTnt: (x, y, z) => this.primeTnt(x, y, z, 3),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         this.sfx?.play(name, opts);
@@ -305,6 +310,86 @@ export class Game {
     this.hud.flashDamage();
   }
 
+  // ---------- explosions ----------
+
+  primeTnt(x, y, z, fuse) {
+    this.entities.addMob(new PrimedTnt(this.scene, this.world, x, y, z, fuse));
+    this.sfx?.play('fuse');
+  }
+
+  // Blow a roughly spherical hole, hurt and knock back everything nearby.
+  explode(x, y, z, power) {
+    this.sfx?.play('explode');
+    const r = power;
+    const cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const d = Math.hypot(dx, dy, dz);
+          if (d > r * (0.65 + Math.random() * 0.35)) continue;
+          const bx = cx + dx, by = cy + dy, bz = cz + dz;
+          const id = this.world.getBlockW(bx, by, bz);
+          if (id === B.AIR || id === B.WATER || id === B.BEDROCK || id === B.OBSIDIAN) continue;
+          if (id === B.TNT) {   // chain reaction
+            this.world.setBlock(bx, by, bz, B.AIR);
+            this.primeTnt(bx + 0.5, by, bz + 0.5, 0.5 + Math.random() * 1);
+            continue;
+          }
+          const contents = entityContents(this.world.blockEntityAt(bx, by, bz));
+          if (contents.length) this.entities.spawnDrops(bx + 0.5, by + 0.5, bz + 0.5, contents.map((s) => ({ ...s })));
+          this.world.setBlock(bx, by, bz, B.AIR);
+          // a third of the blocks survive as drops
+          if (Math.random() < 0.3) this.interaction.spawnBlockDrops(bx, by, bz, blockInfo(id), true);
+        }
+      }
+    }
+    // damage falls off over twice the blast radius
+    const reach = power * 2;
+    const hurt = (ex, ey, ez) => {
+      const d = Math.hypot(ex - x, ey - y, ez - z);
+      return d < reach ? { d, dmg: Math.round((1 - d / reach) * (power * 4 + 2)) } : null;
+    };
+    const p = this.player;
+    const ph = hurt(p.x, p.y + 0.9, p.z);
+    if (ph && ph.dmg > 0) {
+      p.hurtCooldown = 0;
+      p.damage(ph.dmg, 'explosion');
+      const k = (1 - ph.d / reach) * 9;
+      p.vx += ((p.x - x) / (ph.d || 1)) * k;
+      p.vz += ((p.z - z) / (ph.d || 1)) * k;
+      p.vy = Math.max(p.vy, k * 0.7);
+    }
+    for (const m of this.entities.mobs) {
+      const mh = hurt(m.x, m.y + m.h / 2, m.z);
+      if (mh && mh.dmg > 0) { m.hurtCooldown = 0; m.damage(mh.dmg, { x, z }); }
+    }
+    this.addBlast(x, y, z, power);
+  }
+
+  addBlast(x, y, z, power) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+    mesh.position.set(x, y, z);
+    this.scene.add(mesh);
+    this.blasts.push({ mesh, t: 0, power });
+  }
+
+  updateBlasts(dt) {
+    for (const b of this.blasts) {
+      b.t += dt;
+      const f = b.t / 0.45;
+      b.mesh.scale.setScalar(0.5 + f * b.power * 1.4);
+      b.mesh.material.opacity = Math.max(0, 0.85 * (1 - f));
+      if (f >= 1) {
+        this.scene.remove(b.mesh);
+        b.mesh.geometry.dispose();
+        b.mesh.material.dispose();
+      }
+    }
+    this.blasts = this.blasts.filter((b) => b.t < 0.45);
+  }
+
   // ---------- survival ----------
 
   newDay() {
@@ -351,10 +436,11 @@ export class Game {
   dropInventoryOnDeath() {
     const p = this.player;
     if (this.worldMeta.keepInventory || p.mode === GAMEMODE_CREATIVE) return null;
-    const stacks = p.inventory.filter(Boolean);
+    const stacks = [...p.inventory, ...p.armor].filter(Boolean);
     if (!stacks.length) return null;
     this.entities.spawnDrops(p.x, p.y + 0.5, p.z, stacks.map((s) => ({ ...s })));
     p.inventory.fill(null);
+    p.armor.fill(null);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     return { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
   }
@@ -484,6 +570,7 @@ export class Game {
     }
 
     this.highlight.update(this.interaction.target, this.interaction.breakProgress);
+    this.updateBlasts(dt);
 
     // camera follows player eye
     this.camera.position.set(this.player.x, this.player.eyeY, this.player.z);

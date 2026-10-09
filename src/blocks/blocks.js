@@ -56,6 +56,12 @@ export const B = {
   SPRUCE_SAPLING: 50,
   CHEST: 51,
   BED: 52,
+  FARMLAND: 53,
+  WHEAT_0: 54,
+  WHEAT_1: 55,
+  WHEAT_2: 56,
+  WHEAT_3: 57,
+  TNT: 58,
 };
 
 // Tool classes
@@ -169,7 +175,8 @@ reg(def(B.CACTUS, 'cactus', 'Cactus', {
   textures: { top: 'cactus_top', bottom: 'cactus_top', side: 'cactus' },
 }));
 reg(def(B.TALL_GRASS, 'tall_grass', 'Tall Grass', {
-  solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, replaceable: true, sound: 'leaf', drop: null,
+  solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, replaceable: true, sound: 'leaf',
+  drop: (rng) => (rng() < 0.125 ? [{ id: I.WHEAT_SEEDS, count: 1 }] : []),
 }));
 reg(def(B.DANDELION, 'dandelion', 'Dandelion', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.POPPY, 'poppy', 'Poppy', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
@@ -226,6 +233,23 @@ reg(def(B.CHEST, 'chest', 'Chest', {
 reg(def(B.BED, 'bed', 'Bed', {
   hardness: 0.3, sound: 'cloth',
   textures: { top: 'bed_top', bottom: 'oak_planks', side: 'bed_side', front: 'bed_foot' },
+}));
+reg(def(B.FARMLAND, 'farmland', 'Farmland', {
+  hardness: 0.6, tool: TOOL_SHOVEL, sound: 'dirt', drop: B.DIRT,
+  textures: { top: 'farmland_top', bottom: 'dirt', side: 'dirt' },
+}));
+// wheat: four growth stages; only the ripe stage gives wheat
+for (let stage = 0; stage < 4; stage++) {
+  reg(def(B.WHEAT_0 + stage, `wheat_${stage}`, 'Wheat Crops', {
+    ...plant, hardness: 0, textures: `wheat_stage_${stage}`,
+    drop: stage < 3
+      ? () => [{ id: I.WHEAT_SEEDS, count: 1 }]
+      : (rng) => [{ id: I.WHEAT, count: 1 }, { id: I.WHEAT_SEEDS, count: 1 + ((rng() * 3) | 0) }],
+  }));
+}
+reg(def(B.TNT, 'tnt', 'TNT', {
+  hardness: 0, sound: 'leaf',
+  textures: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
 }));
 
 export function blockInfo(id) {

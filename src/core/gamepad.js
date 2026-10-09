@@ -21,6 +21,16 @@ export const PAD_LAYOUT = [
 const deadzone = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
 
 const FOCUSABLE = 'button:not(:disabled), input, select, .world-entry, .inv-window .slot';
+const SCROLLERS = '.recipe-grid, .creative-grid, .world-list, .settings-panel';
+
+// Is the element scrolled out of view inside its scrolling list?
+function scrolledAway(el) {
+  const box = el.closest(SCROLLERS);
+  if (!box) return false;
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+  const cy = r.top + r.height / 2;
+  return cy < b.top || cy > b.bottom;
+}
 
 export class GamepadController {
   constructor({ getGame, uiRoot }) {
@@ -210,9 +220,12 @@ export class GamepadController {
     // nearest element that lies entirely past the current one in the pressed
     // direction; overlap on the other axis is preferred (no diagonal jumps)
     const r = cur.getBoundingClientRect();
+    const curBox = cur.closest(SCROLLERS);
     let best = null, bestScore = Infinity;
     for (const el of list) {
       if (el === cur) continue;
+      // hidden list items are only reachable by moving within that list (it then scrolls)
+      if (scrolledAway(el) && el.closest(SCROLLERS) !== curBox) continue;
       const q = el.getBoundingClientRect();
       const gap = dir === 'down' ? q.top - r.bottom : dir === 'up' ? r.top - q.bottom
         : dir === 'right' ? q.left - r.right : r.left - q.right;

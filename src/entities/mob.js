@@ -107,9 +107,10 @@ export class Mob {
     const before = this.y;
     const r = moveEntity(this.world, this, dt);
     this.onGround = r.onGround;
-    // hop up single blocks when walking into a wall
-    if (r.hitWall && this.onGround && this.moving && !inWater) {
-      this.vy = 7.2;
+    // hop up single blocks when walking into a wall; climbers (spiders) scale it
+    if (r.hitWall && this.moving && !inWater) {
+      if (this.climber) this.vy = Math.max(this.vy, 3.6);
+      else if (this.onGround) this.vy = 7.2;
     }
 
     // fall damage
@@ -137,6 +138,27 @@ export class Mob {
       mat.color.copy(base).multiplyScalar(light);
       if (this.flashTime > 0) mat.color.lerp(new THREE.Color(0xff3333), 0.55);
     }
+  }
+
+  // undead burn in direct daylight; returns true if this killed the mob
+  burnInDaylight(dt) {
+    const day = this.world.materials.uniforms.uDay.value;
+    const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + this.h - 0.3), Math.floor(this.z));
+    if (day <= 0.8 || sky < 14) return false;
+    this.burnTimer = (this.burnTimer ?? 0) + dt;
+    this.flashTime = 0.1;
+    if (this.burnTimer > 1) {
+      this.burnTimer = 0;
+      this.hurtCooldown = 0;
+      this.damage(2, null);
+    }
+    return this.dead;
+  }
+
+  // face the player and walk toward (dir 1) or away from (dir -1) them
+  steer(player, dir = 1) {
+    const dx = player.x - this.x, dz = player.z - this.z;
+    this.targetYaw = Math.atan2(-dx, -dz) + (dir < 0 ? Math.PI : 0);
   }
 
   // default wander AI; subclasses extend

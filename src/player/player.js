@@ -9,6 +9,8 @@ import { moveEntity, entityInBlock, pointInWater } from '../core/physics.js';
 import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
+const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command']);
+
 export class Player {
   constructor(world) {
     this.world = world;
@@ -43,6 +45,7 @@ export class Player {
     // inventory: 36 slots (0-8 hotbar), stacks are {id, count, dur?} | null
     this.inventory = new Array(36).fill(null);
     this.selected = 0;
+    this.armor = [null, null, null, null];   // helmet, chestplate, leggings, boots
 
     this.spawnPoint = { x: 8, y: 80, z: 8 };   // where respawn() puts you (bed or world spawn)
     this.worldSpawn = { ...this.spawnPoint };
@@ -245,10 +248,22 @@ export class Player {
     if (this.mode === GAMEMODE_SURVIVAL) this.exhaustion += v;
   }
 
+  armorPoints() {
+    return this.armor.reduce((n, s) => n + (s ? itemInfo(s.id)?.armor?.points ?? 0 : 0), 0);
+  }
+
   damage(amount, cause = 'generic') {
     if (this.dead || this.mode === GAMEMODE_CREATIVE) return;
     if (this.hurtCooldown > 0) return;
     this.hurtCooldown = 0.5;
+    // armour soaks up to 80% of attacks and explosions (not falls, hunger, drowning)
+    if (!UNARMORED_DAMAGE.has(cause)) {
+      const pts = this.armorPoints();
+      if (pts > 0) {
+        amount = Math.max(0.5, Math.round(amount * (1 - Math.min(20, pts) / 25) * 2) / 2);
+        this.wearArmor(Math.max(1, Math.floor(amount / 2)));
+      }
+    }
     this.health -= amount;
     this.events.dispatchEvent(new CustomEvent('hurt', { detail: { amount, cause } }));
     if (this.health <= 0) {
@@ -256,6 +271,21 @@ export class Player {
       this.dead = true;
       this.events.dispatchEvent(new CustomEvent('death', { detail: { cause } }));
     }
+  }
+
+  wearArmor(n) {
+    let changed = false;
+    for (let i = 0; i < 4; i++) {
+      const s = this.armor[i];
+      if (!s) continue;
+      s.dur -= n;
+      changed = true;
+      if (s.dur <= 0) {
+        this.armor[i] = null;
+        this.events.dispatchEvent(new CustomEvent('toolbreak', { detail: { id: s.id } }));
+      }
+    }
+    if (changed) this.events.dispatchEvent(new CustomEvent('inventory'));
   }
 
   eat(foodValue) {
@@ -355,6 +385,7 @@ export class Player {
       health: this.health, hunger: this.hunger, saturation: this.saturation, air: this.air,
       mode: this.mode, flying: this.flying,
       inventory: this.inventory,
+      armor: this.armor,
       selected: this.selected,
       spawnPoint: this.spawnPoint,
       worldSpawn: this.worldSpawn,
@@ -371,6 +402,7 @@ export class Player {
       selected: d.selected ?? 0,
     });
     if (Array.isArray(d.inventory)) this.inventory = d.inventory.map((s) => (s ? { ...s } : null));
+    if (Array.isArray(d.armor)) this.armor = d.armor.map((s) => (s ? { ...s } : null));
     if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
     // saves from before beds: the spawn point was always the world spawn
     this.worldSpawn = { ...(d.worldSpawn ?? this.spawnPoint) };

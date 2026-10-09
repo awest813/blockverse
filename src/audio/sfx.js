@@ -117,6 +117,21 @@ export class Sfx {
       case 'toolbreak':
         this.tone({ freq: 500, endFreq: 120, dur: 0.3, gain: 0.35, type: 'square' });
         break;
+      case 'explode':
+        this.noise({ freq: 700, q: 0.3, dur: 1.1, gain: 0.9, type: 'lowpass', pitchDrop: 600 });
+        this.tone({ freq: 70, endFreq: 28, dur: 0.7, gain: 0.5, type: 'sine' });
+        break;
+      case 'fuse':
+        this.noise({ freq: 3200, q: 0.5, dur: 1.4, gain: 0.16, type: 'highpass' });
+        break;
+      case 'shoot':
+        this.tone({ freq: 900 * detune, endFreq: 260, dur: 0.12, gain: 0.14, type: 'triangle' });
+        this.noise({ freq: 2000, q: 0.8, dur: 0.08, gain: 0.12, type: 'bandpass' });
+        break;
+      case 'equip':
+        this.tone({ freq: 340, endFreq: 520, dur: 0.08, gain: 0.16, type: 'square' });
+        this.noise({ freq: 2600, q: 2, dur: 0.12, gain: 0.18, type: 'bandpass' });
+        break;
       case 'splash':
         this.noise({ freq: 1100, q: 0.4, dur: 0.25, gain: 0.35, type: 'highpass', pitchDrop: 600 });
         break;

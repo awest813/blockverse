@@ -15,6 +15,9 @@ const DEATH_MESSAGES = {
   drown: 'You drowned',
   starve: 'You starved to death',
   zombie: 'You were slain by a Zombie',
+  skeleton: 'You were shot by a Skeleton',
+  spider: 'You were slain by a Spider',
+  explosion: 'You blew up',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

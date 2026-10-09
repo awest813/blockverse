@@ -32,6 +32,8 @@ function item(id, name, display, opts = {}) {
     tool: opts.tool ?? null,   // {class, tier, speed, durability, damage}
     food: opts.food ?? 0,      // hunger points restored
     burnTime: opts.burnTime ?? 0, // furnace fuel, in seconds
+    armor: opts.armor ?? null,  // {slot: 0 head .. 3 feet, points, durability}
+    places: opts.places ?? null, // block this item plants/places (seeds)
   });
 }
 
@@ -65,19 +67,44 @@ item(I.MUTTON_RAW, 'mutton_raw', 'Raw Mutton', { food: 2 });
 item(I.MUTTON_COOKED, 'mutton_cooked', 'Cooked Mutton', { food: 6 });
 item(I.BRICK_ITEM, 'brick_item', 'Brick');
 item(I.CLAY_BALL, 'clay_ball', 'Clay Ball');
+item(I.WHEAT_SEEDS, 'wheat_seeds', 'Wheat Seeds', { places: B.WHEAT_0 });
+item(I.WHEAT, 'wheat', 'Wheat');
+item(I.BREAD, 'bread', 'Bread', { food: 5 });
+item(I.BONE, 'bone', 'Bone');
+item(I.BONE_MEAL, 'bone_meal', 'Bone Meal');
+item(I.STRING, 'string', 'String');
+item(I.GUNPOWDER, 'gunpowder', 'Gunpowder');
+
+// armour: [material, durability multiplier, points head/chest/legs/feet]
+export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
+const ARMOR_BASE_DURABILITY = [11, 16, 15, 13];
+for (const [mat, mult, points, ids] of [
+  ['iron', 15, [2, 6, 5, 2], [I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS]],
+  ['gold', 7, [2, 5, 3, 1], [I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS]],
+  ['diamond', 33, [3, 8, 6, 3], [I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS]],
+]) {
+  ARMOR_SLOTS.forEach((piece, slot) => {
+    const display = `${mat[0].toUpperCase()}${mat.slice(1)} ${piece[0].toUpperCase()}${piece.slice(1)}`;
+    item(ids[slot], `${mat}_${piece}`, display, {
+      stack: 1,
+      armor: { slot, points: points[slot], durability: ARMOR_BASE_DURABILITY[slot] * mult },
+    });
+  });
+}
 
 for (const [mat, ids] of [
-  ['wood', [I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD]],
-  ['stone', [I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD]],
-  ['iron', [I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD]],
-  ['gold', [I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD]],
-  ['diamond', [I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD]],
+  ['wood', [I.WOOD_PICKAXE, I.WOOD_AXE, I.WOOD_SHOVEL, I.WOOD_SWORD, I.WOOD_HOE]],
+  ['stone', [I.STONE_PICKAXE, I.STONE_AXE, I.STONE_SHOVEL, I.STONE_SWORD, I.STONE_HOE]],
+  ['iron', [I.IRON_PICKAXE, I.IRON_AXE, I.IRON_SHOVEL, I.IRON_SWORD, I.IRON_HOE]],
+  ['gold', [I.GOLD_PICKAXE, I.GOLD_AXE, I.GOLD_SHOVEL, I.GOLD_SWORD, I.GOLD_HOE]],
+  ['diamond', [I.DIAMOND_PICKAXE, I.DIAMOND_AXE, I.DIAMOND_SHOVEL, I.DIAMOND_SWORD, I.DIAMOND_HOE]],
 ]) {
-  const [pick, axe, shovel, sword] = ids;
+  const [pick, axe, shovel, sword, hoe] = ids;
   toolItem(pick, mat, 'pickaxe');
   toolItem(axe, mat, 'axe');
   toolItem(shovel, mat, 'shovel');
   toolItem(sword, mat, 'sword');
+  toolItem(hoe, mat, 'hoe');
 }
 
 // Burn times for block fuels
@@ -122,6 +149,7 @@ export function makeStack(id, count = 1) {
   const info = itemInfo(id);
   const s = { id, count };
   if (info?.tool) s.dur = info.tool.durability;
+  else if (info?.armor) s.dur = info.armor.durability;
   return s;
 }
 

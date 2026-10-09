@@ -1,6 +1,14 @@
 // Runtime mob spawning and despawning around the player.
 
-import { Pig, Sheep, Zombie } from './mobs.js';
+import { Pig, Sheep, Zombie, Skeleton, Spider, Creeper } from './mobs.js';
+
+// night spawn mix: [class, weight]
+const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
+function pickHostile() {
+  let r = Math.random() * HOSTILE_TABLE.reduce((n, [, w]) => n + w, 0);
+  for (const [cls, w] of HOSTILE_TABLE) if ((r -= w) < 0) return cls;
+  return Zombie;
+}
 import { B, isSolid } from '../blocks/blocks.js';
 import { BIOME } from '../world/worldgen.js';
 
@@ -21,7 +29,7 @@ export class MobSpawner {
     this.timer = 0;
 
     const mobs = this.entities.mobs;
-    const passives = mobs.filter((m) => !m.hostile).length;
+    const passives = mobs.filter((m) => !m.hostile && m.countsForCap !== false).length;
     const hostiles = mobs.filter((m) => m.hostile).length;
 
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
@@ -49,7 +57,7 @@ export class MobSpawner {
         const bl = this.world.getBlockLightW(wx, y, wz);
         const light = Math.max((sky / 15) * dayFactor * 15, bl);
         if (light > 7) continue;
-        this.spawnMob(Zombie, wx + 0.5, y, wz + 0.5);
+        this.spawnMob(pickHostile(), wx + 0.5, y, wz + 0.5);
         return;
       }
 
@@ -64,7 +72,6 @@ export class MobSpawner {
 
   spawnMob(Cls, x, y, z) {
     const mob = new Cls(this.scene, this.world, x, y, z);
-    mob.dropFn = (drops) => this.entities.spawnDrops(mob.x, mob.y + 0.4, mob.z, drops);
     this.entities.addMob(mob);
     return mob;
   }

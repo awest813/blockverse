@@ -25,6 +25,18 @@ const FOOD = [
   '.X.......',
 ];
 
+const ARMOR = [
+  '.XX...XX.',
+  'XAAX.XAAX',
+  'XALAXAAAX',
+  'XAAAAAAAX',
+  '.XALAAAX.',
+  '.XAAAAAX.',
+  '.XAAAAAX.',
+  '.XAAAAAX.',
+  '..XXXXX..',
+];
+
 const BUBBLE = [
   '..XXXXX..',
   '.XBBBBBX.',
@@ -41,10 +53,12 @@ const FULL = {
   heart: { X: '#2b0b0b', R: '#e0302c', W: '#ffb3ad' },
   food: { X: '#2e1a0a', M: '#c8702e', H: '#f0a060', D: '#8a4418', W: '#f2ead8' },
   bubble: { X: '#1d4f86', B: '#7fc4ff', W: '#ffffff' },
+  armor: { X: '#2a2a2e', A: '#c9cbd2', L: '#f2f3f6' },
 };
 const EMPTY = {
   heart: { X: '#1a1a1a', R: '#3c3434', W: '#4a4040' },
   food: { X: '#1a1a1a', M: '#3c3836', H: '#46413e', D: '#332f2d', W: '#5a5753' },
+  armor: { X: '#1a1a1a', A: '#3a3a3e', L: '#44444a' },
 };
 
 function draw(grid, palette, half = null) {
@@ -74,4 +88,7 @@ export const HUD_ICONS = {
   foodHalf: draw(FOOD, FULL.food, rightHalf),
   foodEmpty: draw(FOOD, EMPTY.food),
   bubble: draw(BUBBLE, FULL.bubble),
+  armorFull: draw(ARMOR, FULL.armor),
+  armorHalf: draw(ARMOR, FULL.armor, Object.assign((x) => x <= 4, { kind: 'armor' })),
+  armorEmpty: draw(ARMOR, EMPTY.armor),
 };

@@ -1,6 +1,7 @@
 // Holds and updates all non-player entities (drops, mobs).
 
 import { ItemDrop } from './itemDrop.js';
+import { Arrow } from './projectile.js';
 
 export class EntityManager {
   constructor(scene, world) {
@@ -8,7 +9,17 @@ export class EntityManager {
     this.world = world;
     this.drops = [];
     this.mobs = [];
+    this.projectiles = [];
     this.onPickup = null; // callback for pickup sound
+    // effects mobs can trigger; explode/sound are filled in by the game
+    this.fx = {
+      shoot: (x, y, z, vx, vy, vz, dmg) => {
+        this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg));
+        this.fx.sound('shoot');
+      },
+      explode: () => {},
+      sound: () => {},
+    };
   }
 
   spawnDrops(x, y, z, drops) {
@@ -25,6 +36,8 @@ export class EntityManager {
   }
 
   addMob(mob) {
+    mob.fx = this.fx;
+    mob.dropFn ??= (drops) => this.spawnDrops(mob.x, mob.y + 0.4, mob.z, drops);
     this.mobs.push(mob);
   }
 
@@ -37,6 +50,9 @@ export class EntityManager {
 
     for (const m of this.mobs) m.update(dt, player);
     this.mobs = this.mobs.filter((m) => !m.dead);
+
+    for (const a of this.projectiles) a.update(dt, player);
+    this.projectiles = this.projectiles.filter((a) => !a.dead);
   }
 
   mobsNear(x, y, z, r) {
@@ -51,7 +67,9 @@ export class EntityManager {
   dispose() {
     for (const d of this.drops) d.kill();
     for (const m of this.mobs) m.kill?.();
+    for (const a of this.projectiles) a.kill();
     this.drops = [];
     this.mobs = [];
+    this.projectiles = [];
   }
 }

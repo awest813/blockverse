@@ -1,5 +1,6 @@
-// Saplings grow into trees after a few minutes of being in a loaded chunk.
-// Each planted sapling has a block entity {kind: 'sapling', grow: seconds}.
+// Plant growth in loaded chunks. Saplings grow into trees after a few
+// minutes; wheat advances one stage at a time, twice as fast on farmland
+// with water nearby. Each plant has a block entity {kind, grow: seconds}.
 
 import { B, blockInfo } from '../blocks/blocks.js';
 import { CHUNK_Y } from '../core/constants.js';
@@ -13,7 +14,7 @@ export function tickSaplings(world, dt) {
   for (const chunk of world.chunks.values()) {
     if (!chunk.blockEntities.size) continue;
     for (const [idx, st] of chunk.blockEntities) {
-      if (st.kind !== 'sapling') continue;
+      if (st.kind !== 'sapling' && st.kind !== 'crop') continue;
       st.grow -= dt;
       if (st.grow > 0) continue;
       const y = idx % CHUNK_Y;
@@ -23,7 +24,35 @@ export function tickSaplings(world, dt) {
     }
   }
   // grow after iterating: building a tree rewrites block entities
-  for (const [x, y, z, st] of ready) growTree(world, x, y, z, st);
+  for (const [x, y, z, st] of ready) {
+    if (st.kind === 'crop') growCrop(world, x, y, z, 1, Math.random);
+    else growTree(world, x, y, z, st);
+  }
+}
+
+// is there water within 4 blocks of the farmland under this crop?
+function hydrated(world, x, y, z) {
+  for (let dx = -4; dx <= 4; dx++) {
+    for (let dz = -4; dz <= 4; dz++) {
+      if (world.getBlockW(x + dx, y - 1, z + dz) === B.WATER) return true;
+    }
+  }
+  return false;
+}
+
+// seconds until the next growth stage
+export function cropTime(world, x, y, z, rng) {
+  const base = 40 + rng() * 40;
+  return hydrated(world, x, y, z) ? base / 2 : base;
+}
+
+// advance a wheat crop by `steps` stages (bone meal uses 2)
+export function growCrop(world, x, y, z, steps, rng) {
+  const id = world.getBlockW(x, y, z);
+  if (id < B.WHEAT_0 || id > B.WHEAT_3) { world.setBlockEntity(x, y, z, null); return; }
+  const next = Math.min(B.WHEAT_3, id + steps);
+  world.setBlock(x, y, z, next);   // clears the block entity
+  if (next < B.WHEAT_3) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
 }
 
 function growTree(world, x, y, z, st) {

@@ -27,11 +27,12 @@ export function fillSlot(el, stack, atlas) {
   }
   if (stack.dur !== undefined) {
     const info = itemInfo(stack.id);
-    if (info?.tool && stack.dur < info.tool.durability) {
+    const max = info?.tool?.durability ?? info?.armor?.durability;
+    if (max && stack.dur < max) {
       const bar = document.createElement('div');
       bar.className = 'durability';
       const fill = document.createElement('div');
-      const frac = stack.dur / info.tool.durability;
+      const frac = stack.dur / max;
       fill.style.width = `${Math.round(frac * 100)}%`;
       fill.style.background = durabilityColor(frac);
       bar.appendChild(fill);
@@ -49,6 +50,7 @@ export class Hud {
     this.healthEl = document.getElementById('health-bar');
     this.hungerEl = document.getElementById('hunger-bar');
     this.airEl = document.getElementById('air-bar');
+    this.armorEl = document.getElementById('armor-bar');
     this.labelEl = document.getElementById('held-item-label');
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
@@ -130,13 +132,15 @@ export class Hud {
     const p = this.player;
     const creative = p.mode === GAMEMODE_CREATIVE;
     // called several times a second; only touch the DOM when something changed
-    const key = creative ? 'c' : `${p.health}|${p.hunger}|${p.air}`;
+    const armor = p.armorPoints();
+    const key = creative ? 'c' : `${p.health}|${p.hunger}|${p.air}|${armor}`;
     if (key === this._statsKey) return;
     this._statsKey = key;
 
     this.healthEl.innerHTML = '';
     this.hungerEl.innerHTML = '';
     this.airEl.innerHTML = '';
+    this.armorEl.innerHTML = '';
     if (creative) { this.setLowHealth(false); return; }
 
     const icon = (src) => {
@@ -155,6 +159,14 @@ export class Hud {
     }
     this.healthEl.classList.toggle('low', p.health <= 4);
     this.setLowHealth(p.health <= 4);
+
+    // armour bar only appears once something is worn
+    if (armor > 0) {
+      for (let i = 0; i < 10; i++) {
+        const v = armor - i * 2;
+        this.armorEl.appendChild(icon(v >= 2 ? I.armorFull : v >= 1 ? I.armorHalf : I.armorEmpty));
+      }
+    }
 
     // hunger drains from the left, like the bar it mirrors
     for (let i = 9; i >= 0; i--) {

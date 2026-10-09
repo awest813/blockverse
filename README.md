@@ -44,12 +44,18 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Chests** (27 slots) for storage; containers spill their contents when broken
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
+- **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal
+- **Armour**: iron, gold and diamond helmets, chestplates, leggings and boots, with an armour bar, damage reduction and wear
+- **TNT** from gunpowder and sand, lit with a torch — chain reactions included
 - Dying drops your inventory where you fell (or keep it — chosen per world); a day counter tracks how long you've survived
 - **Creative mode**: flight (double-tap space), instant breaking, a searchable item palette with categories, no damage
 
 ### 🐷 Mobs
 - **Pigs and sheep** wander the grasslands, flee when hit, and drop porkchops, mutton, and wool
 - **Zombies** spawn in darkness, chase you, hit hard, and burn in the morning sun
+- **Skeletons** keep their distance and shoot arrows (and burn in daylight); they drop bones
+- **Spiders** are fast and climb walls; they only hunt in the dark unless provoked, and drop string
+- **Creepers** sneak up, hiss and explode, blasting holes in the terrain; they drop gunpowder
 - Original box-model creatures with walk animations, knockback, fall damage, and voxel-light-aware shading
 
 ### 🌗 Living environment

@@ -12,12 +12,12 @@ import { fillSlot } from './hud.js';
 
 const CREATIVE_TABS = [
   ['all', 'All'], ['blocks', 'Blocks'], ['decor', 'Plants & Decor'],
-  ['tools', 'Tools'], ['food', 'Food'], ['materials', 'Materials'],
+  ['tools', 'Tools & Armour'], ['food', 'Food'], ['materials', 'Materials'],
 ];
 
 function creativeCategory(id) {
   const info = itemInfo(id);
-  if (info?.tool) return 'tools';
+  if (info?.tool || info?.armor) return 'tools';
   if (info?.food) return 'food';
   if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH ? 'decor' : 'blocks';
   return 'materials';
@@ -41,6 +41,8 @@ function loadFlag(key, fallback) {
 function saveFlag(key, on) {
   try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* storage unavailable */ }
 }
+
+const ARMOR_GHOSTS = [I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS];
 
 function groupLabel(group) {
   return group.label ?? itemInfo(group[0])?.display ?? '?';
@@ -105,10 +107,23 @@ export class Containers {
     const info = itemInfo(stack.id);
     const t = this.tooltipEl;
     t.textContent = info?.display ?? '?';
-    if (stack.dur !== undefined && info?.tool) {
+    const max = info?.tool?.durability ?? info?.armor?.durability;
+    if (stack.dur !== undefined && max) {
       const d = document.createElement('div');
       d.className = 'tooltip-sub';
-      d.textContent = `Durability ${stack.dur} / ${info.tool.durability}`;
+      d.textContent = `Durability ${stack.dur} / ${max}`;
+      t.appendChild(d);
+    }
+    if (info?.armor) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      d.textContent = `+${info.armor.points} armour`;
+      t.appendChild(d);
+    }
+    if (info?.food) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      d.textContent = `Restores ${info.food / 2} hunger`;
       t.appendChild(d);
     }
     t.classList.remove('hidden');
@@ -279,6 +294,15 @@ export class Containers {
     el.className = 'slot';
     fillSlot(el, ref.get(), this.atlas);
     if (ref.output && ref.get()) el.classList.add('ready');
+    if (ref.armorSlot !== undefined && !ref.get()) {
+      // faint outline of the piece that goes here
+      const ghost = document.createElement('img');
+      ghost.className = 'ghost';
+      ghost.src = this.atlas.icon(ARMOR_GHOSTS[ref.armorSlot]);
+      ghost.alt = '';
+      el.appendChild(ghost);
+      el.title = ['Helmet', 'Chestplate', 'Leggings', 'Boots'][ref.armorSlot];
+    }
     // mousemove (not mouseenter) so the tooltip comes back after a re-render
     el.addEventListener('mousemove', (e) => {
       this.hovered = ref;
@@ -357,6 +381,14 @@ export class Containers {
     const row = document.createElement('div');
     row.className = 'row';
     row.style.marginBottom = '12px';
+
+    // survival inventory: armour column beside the 2x2 grid
+    if (this.open === 'inventory') {
+      const armor = document.createElement('div');
+      armor.className = 'inv-grid cols-1 armor-col';
+      for (let i = 0; i < 4; i++) armor.appendChild(this.slotEl(this.armorRef(i)));
+      row.appendChild(armor);
+    }
 
     const grid = document.createElement('div');
     grid.className = `inv-grid cols-${size}`;
@@ -673,6 +705,16 @@ export class Containers {
     };
   }
 
+  armorRef(i) {
+    return {
+      get: () => this.player.armor[i],
+      set: (s) => { this.player.armor[i] = s; },
+      area: 'armor',
+      armorSlot: i,
+      filter: (id) => itemInfo(id)?.armor?.slot === i,
+    };
+  }
+
   craftRef(i) {
     return {
       get: () => this.craftGrid[i],
@@ -861,6 +903,13 @@ export class Containers {
       }
       if (this.open === 'chest') {
         this.moveIntoSlots(ref, stack, this.chestState().slots);
+        return;
+      }
+      // armour pieces jump into their empty slot
+      const armor = itemInfo(stack.id)?.armor;
+      if (this.open === 'inventory' && armor && !this.player.armor[armor.slot]) {
+        this.player.armor[armor.slot] = stack;
+        ref.set(null);
         return;
       }
       // hotbar <-> main swap region

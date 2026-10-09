@@ -119,7 +119,7 @@ html, body {
   width: 424px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-areas: ". air" "health hunger";
+  grid-template-areas: "armor air" "health hunger";
   row-gap: 2px;
   pointer-events: none;
 }
@@ -128,6 +128,7 @@ html, body {
 #health-bar { grid-area: health; justify-content: flex-start; }
 #hunger-bar { grid-area: hunger; justify-content: flex-end; }
 #air-bar { grid-area: air; justify-content: flex-end; }
+#armor-bar { grid-area: armor; justify-content: flex-start; }
 /* low health / hunger: icons jitter out of step with each other */
 #health-bar.low .stat-icon, #hunger-bar.low .stat-icon { animation: icon-jitter 0.36s steps(2) infinite; }
 #health-bar.low .stat-icon:nth-child(odd), #hunger-bar.low .stat-icon:nth-child(odd) { animation-delay: -0.18s; }
@@ -394,6 +395,9 @@ html, body {
 .inv-grid.cols-9 { grid-template-columns: repeat(9, var(--slot-size)); }
 .inv-grid.cols-3 { grid-template-columns: repeat(3, var(--slot-size)); }
 .inv-grid.cols-2 { grid-template-columns: repeat(2, var(--slot-size)); }
+.inv-grid.cols-1 { grid-template-columns: var(--slot-size); }
+.armor-col { margin-right: 18px; }
+.slot img.ghost { opacity: 0.22; filter: grayscale(1) brightness(0.4); }
 
 .inv-window .slot {
   background: var(--ui-bg-dark);

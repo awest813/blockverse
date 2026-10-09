@@ -60,6 +60,11 @@ Touch controls appear automatically on the first touch.
 | Right click | Place the held block |
 | Right click on crafting table / furnace | Open it (sneak to place a block against it instead) |
 | Right click with food | Eat |
+| Right click grass/dirt with a hoe | Till it into farmland |
+| Right click farmland with seeds | Plant wheat |
+| Right click a crop or sapling with bone meal | Make it grow |
+| Right click with armour | Wear it (swaps with what you have on) |
+| Right click TNT while holding a torch | Light the fuse — run! |
 | Q | Drop one of the held item (Ctrl+Q: the whole stack) |
 | Middle click | Pick block: select the targeted block in your hotbar (creative: get a stack) |
 | 1–9 / mouse wheel | Select hotbar slot |
