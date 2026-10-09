@@ -117,8 +117,14 @@ export class Player {
     const creative = this.mode === GAMEMODE_CREATIVE;
     if (!creative) this.flying = false;
 
+    // sprinting underwater swims (fast, in the look direction); dolphins nearby
+    // lend a burst of speed (graceTime)
+    this.graceTime = Math.max(0, (this.graceTime ?? 0) - dt);
+    const grace = this.graceTime > 0 ? 1.6 : 1;
+    this.swimming = !this.flying && this.inWater && this.headInWater && this.sprinting && fwd > 0;
     let speed = this.flying ? FLY_SPEED :
-      this.inWater ? SWIM_SPEED :
+      this.swimming ? SWIM_SPEED * 2 * grace :
+      this.inWater ? SWIM_SPEED * grace :
       this.sneaking ? SNEAK_SPEED :
       this.sprinting ? SPRINT_SPEED : WALK_SPEED;
 
@@ -130,6 +136,7 @@ export class Player {
     // keys give full speed; a half-tilted stick walks at half speed
     const throttle = Math.min(1, Math.hypot(fwd, strafe));
     if (len > 0) { dvx = (dvx / len) * speed * throttle; dvz = (dvz / len) * speed * throttle; }
+    if (this.swimming) { const c = Math.cos(this.pitch); dvx *= c; dvz *= c; }
 
     // acceleration: snappy on ground, floatier in air/water
     const accel = this.flying ? 24 : this.onGround ? 40 : this.inWater ? 12 : 8;
@@ -141,10 +148,21 @@ export class Player {
       if (!paused && input.action('jump')) vy += FLY_SPEED;
       if (!paused && input.action('sneak')) vy -= FLY_SPEED;
       this.vy += (vy - this.vy) * Math.min(1, 24 * dt);
+    } else if (this.swimming) {
+      // dive and climb with the camera pitch
+      const want = Math.sin(this.pitch) * speed;
+      this.vy += (want - this.vy) * Math.min(1, 10 * dt);
+      if (!paused && input.action('jump')) this.vy = Math.min(this.vy + 24 * dt, 3.2);
+      this.addExhaustion(0.6 * dt);
     } else if (this.inWater) {
       this.vy -= GRAVITY * 0.25 * dt;
-      this.vy = Math.max(this.vy, -3.5);
-      if (!paused && input.action('jump')) this.vy = Math.min(this.vy + 24 * dt, 3.2);
+      this.vy = Math.max(this.vy, this.sneaking ? -5 : -3.5);
+      if (!paused && this.sneaking) this.vy -= 6 * dt;   // dive
+      if (!paused && input.action('jump')) {
+        this.vy = Math.min(this.vy + 24 * dt, 3.2);
+        // pushing against a ledge at the surface: hop out
+        if (this.hitWall && !this.headInWater) this.vy = Math.max(this.vy, 5.2);
+      }
     } else {
       this.vy -= GRAVITY * dt;
       this.vy = Math.max(this.vy, -60);
@@ -156,11 +174,13 @@ export class Player {
 
     // integrate with collision (substep for high speeds)
     const steps = Math.max(1, Math.ceil((Math.hypot(this.vx, this.vy, this.vz) * dt) / 0.4));
-    let onGround = false;
+    let onGround = false, hitWall = false;
     for (let i = 0; i < steps; i++) {
-      const r = moveEntity(this.world, this, dt / steps, this.sneaking);
+      const r = moveEntity(this.world, this, dt / steps, this.sneaking && !this.inWater);
       onGround = onGround || r.onGround;
+      hitWall = hitWall || r.hitWall;
     }
+    this.hitWall = hitWall;
     this.onGround = onGround;
 
     // fall damage tracking
@@ -186,7 +206,7 @@ export class Player {
     if (!creative) this.updateSurvival(dt);
 
     // sprint exhaustion
-    if (this.sprinting) this.addExhaustion(0.1 * dt * 7);
+    if (this.sprinting && !this.inWater) this.addExhaustion(0.1 * dt * 7);   // swimming has its own cost
   }
 
   tapSpace(now) {
@@ -215,6 +235,11 @@ export class Player {
     }
 
     // regen / starve
+    // peaceful: health and hunger refill on their own
+    if (this.difficulty === 0) {
+      this.hunger = Math.min(20, this.hunger + dt * 0.5);
+      if (this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + dt * 0.5);
+    }
     if (this.hunger >= 18 && this.health < this.maxHealth) {
       this.regenTimer += dt;
       if (this.regenTimer >= 2.5) {
@@ -226,7 +251,9 @@ export class Player {
       this.starveTimer += dt;
       if (this.starveTimer >= 3) {
         this.starveTimer = 0;
-        if (this.health > 2) this.damage(1, 'starve');
+        // easy stops at 5 hearts, normal at half a heart; hard starves you outright
+        const floor = this.difficulty === 1 ? 10 : this.difficulty === 3 ? 0 : 1;
+        if (this.health > floor) this.damage(1, 'starve');
       }
     } else {
       this.regenTimer = 0;
@@ -311,6 +338,10 @@ export class Player {
     this.air = 20;
     this.dead = false;
     this.fallStart = null;
+    this.exhaustion = 0;
+    this.regenTimer = 0;
+    this.airTimer = 0;
+    this.graceTime = 0;
   }
 
   // ---- inventory helpers ----

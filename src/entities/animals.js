@@ -48,6 +48,7 @@ export class Cow extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
     this.w = 0.9; this.h = 1.3; this.health = 10; this.speed = 1.2; this.kind = 'cow';
+    this.breedItem = I.WHEAT;
   }
 
   buildModel() {
@@ -76,6 +77,7 @@ export class Chicken extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
     this.w = 0.45; this.h = 0.75; this.health = 4; this.speed = 1.1; this.fleeSpeed = 2.6; this.kind = 'chicken';
+    this.breedItem = I.WHEAT_SEEDS;
   }
 
   buildModel() {
@@ -318,6 +320,158 @@ export class Whale extends Swimmer {
 
   animate() {
     this.flukes.rotation.x = Math.sin(this.age * 1.6) * 0.35;
+  }
+}
+
+// Playful pod animals of the open ocean. They swim over to players in the
+// water, leap from the waves, and lend swimmers near them a burst of speed.
+// Feeding one a raw fish makes it escort you for a while.
+export class Dolphin extends Swimmer {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.9; this.h = 0.6; this.health = 10; this.speed = 2.6; this.fleeSpeed = 4.5;
+    this.minDepth = 1;
+    this.kind = 'dolphin';
+    this.leapTime = 0;
+    this.escort = 0;    // seconds left following a player who fed it
+  }
+
+  buildModel() {
+    const back = 0x6c8aa8, belly = 0xdfe6ec;
+    this.part(0.7, 0.55, 1.5, back, 0, 0.3, 0);
+    this.part(0.6, 0.18, 1.3, belly, 0, 0.08, -0.05);
+    this.part(0.5, 0.42, 0.5, back, 0, 0.3, -0.95);          // head
+    this.part(0.22, 0.14, 0.4, belly, 0, 0.2, -1.3);          // beak
+    this.part(0.06, 0.08, 0.04, 0x111111, -0.26, 0.38, -1.05);
+    this.part(0.06, 0.08, 0.04, 0x111111, 0.26, 0.38, -1.05);
+    this.part(0.1, 0.35, 0.3, back, 0, 0.7, 0.05);            // dorsal fin
+    this.part(0.45, 0.06, 0.25, back, -0.45, 0.15, -0.3);     // flippers
+    this.part(0.45, 0.06, 0.25, back, 0.45, 0.15, -0.3);
+    this.tail = this.part(0.8, 0.08, 0.3, back, 0, 0.3, 0.9);
+  }
+
+  interact(player, held) {
+    if (held?.id !== I.FISH_RAW && held?.id !== I.FISH_COOKED) return false;
+    if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+    this.escort = 45;
+    this.health = 10;
+    player.graceTime = Math.max(player.graceTime ?? 0, 10);
+    this.fx?.notify('The dolphin clicks happily and swims beside you');
+    this.fx?.sound('pickup');
+    return true;
+  }
+
+  think(dt, player, playerDist) {
+    this.escort = Math.max(0, this.escort - dt);
+    if (this.leapTime > 0) {          // mid-leap: keep going, gravity does the rest
+      this.leapTime -= dt;
+      this.moving = true;
+      return;
+    }
+    if (!this.inWater) { super.think(dt, player, playerDist); return; }
+    // swimmers close by get a burst of speed
+    if (player.inWater && playerDist < 6 && !player.dead) player.graceTime = Math.max(player.graceTime ?? 0, 4);
+    if (this.state === 'flee' && this.stateTime > 0) { this.stateTime -= dt; this.moving = true; return; }
+    // drawn to players in the water (and anyone who fed it)
+    const range = this.escort > 0 ? 40 : 16;
+    if ((player.inWater || this.escort > 0) && playerDist < range && playerDist > 2.5 && !player.dead) {
+      this.state = 'follow';
+      this.moving = true;
+      this.face(player.x, player.z);
+      this.targetVy = Math.max(-1.5, Math.min(1.5, (player.y - this.y) * 0.8));
+      if (this.depthBelowSurface() < 1 && this.targetVy > 0) this.targetVy = 0;
+      return;
+    }
+    // leap from the waves now and then
+    if (this.moving && this.depthBelowSurface() <= 1 && Math.random() < dt * 0.25) {
+      this.vy = 7.5;
+      this.leapTime = 1.1;
+      this.fx?.sound('splash', { vol: 0.6 });
+      return;
+    }
+    super.think(dt, player, playerDist);
+    // pods play near the surface
+    if (this.state === 'wander' && this.depthBelowSurface() > 3) this.targetVy = 0.8;
+  }
+
+  animate() {
+    this.tail.rotation.x = Math.sin(this.age * (this.moving ? 9 : 3)) * 0.4;
+    this.group.rotation.x = this.leapTime > 0 ? Math.max(-0.7, Math.min(0.7, this.vy * 0.1)) : 0;
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.FISH_RAW, count: (Math.random() * 2) | 0 }]);
+  }
+}
+
+// Gentle giants of warm rivers, swamps and shallow coasts. They graze slowly
+// along the bottom and drift up to breathe; they never fight back. Feed one
+// wheat or sugar cane and it will nuzzle up and follow you for a while.
+export class Manatee extends Swimmer {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 1.2; this.h = 0.8; this.health = 20; this.speed = 0.6; this.fleeSpeed = 1.3;
+    this.minDepth = 0;
+    this.kind = 'manatee';
+    this.breath = rand(10, 25);   // seconds until it surfaces to breathe
+    this.escort = 0;
+  }
+
+  buildModel() {
+    const hide = 0x7d7a72, belly = 0x9c978c;
+    this.part(1.1, 0.75, 1.8, hide, 0, 0.4, 0);
+    this.part(0.95, 0.2, 1.5, belly, 0, 0.1, -0.05);
+    this.part(0.8, 0.6, 0.6, hide, 0, 0.38, -1.1);            // head
+    this.part(0.6, 0.35, 0.25, belly, 0, 0.25, -1.45);        // whiskery snout
+    this.part(0.07, 0.07, 0.04, 0x111111, -0.36, 0.5, -1.25);
+    this.part(0.07, 0.07, 0.04, 0x111111, 0.36, 0.5, -1.25);
+    this.part(0.5, 0.08, 0.3, hide, -0.7, 0.2, -0.6);         // flippers
+    this.part(0.5, 0.08, 0.3, hide, 0.7, 0.2, -0.6);
+    this.tail = this.part(1.1, 0.1, 0.8, hide, 0, 0.35, 1.25); // round paddle tail
+  }
+
+  interact(player, held) {
+    if (held?.id !== I.WHEAT && held?.id !== B.SUGAR_CANE) return false;
+    if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+    this.escort = 40;
+    this.health = 20;
+    this.fx?.notify('The manatee nuzzles your hand');
+    this.fx?.sound('eat');
+    return true;
+  }
+
+  think(dt, player, playerDist) {
+    if (!this.inWater) { super.think(dt, player, playerDist); return; }
+    this.escort = Math.max(0, this.escort - dt);
+    this.breath -= dt;
+    const depth = this.depthBelowSurface();
+    if (this.breath <= 0) {
+      // rise for a breath, linger at the top, then sink again
+      this.targetVy = depth > 0 ? 0.9 : 0;
+      this.moving = false;
+      if (depth === 0 && this.breath < -3) this.breath = rand(15, 30);
+      return;
+    }
+    if (this.state === 'flee' && this.stateTime > 0) { this.stateTime -= dt; this.moving = true; this.targetVy = -0.4; return; }
+    if (this.escort > 0 && playerDist > 2.5 && playerDist < 30) {
+      this.state = 'follow';
+      this.moving = true;
+      this.face(player.x, player.z);
+      this.targetVy = Math.max(-0.6, Math.min(0.6, (player.y - this.y) * 0.5));
+      return;
+    }
+    this.stateTime -= dt;
+    if (this.stateTime <= 0) {
+      this.state = 'wander';
+      this.stateTime = rand(3, 7);
+      this.targetYaw = this.yaw + rand(-1.2, 1.2);
+      this.moving = Math.random() < 0.6;   // often just grazing in place
+    }
+    this.targetVy = -0.3;   // settle toward the bottom
+  }
+
+  animate() {
+    this.tail.rotation.x = Math.sin(this.age * (this.moving ? 3 : 1.2)) * 0.25;
   }
 }
 

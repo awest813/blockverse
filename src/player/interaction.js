@@ -328,6 +328,21 @@ export class Interaction {
         const st = this.world.blockEntityAt(t.x, t.y, t.z);
         if (st) st.grow = 0;
         else this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'sapling', grow: 0 });
+      } else if (t.id === B.GRASS) {
+        // scatter tall grass and the odd flower on open grass nearby
+        let grew = 0;
+        for (let i = 0; i < 24; i++) {
+          const x = t.x + Math.round((this.dropRng() - 0.5) * 6), z = t.z + Math.round((this.dropRng() - 0.5) * 6);
+          for (let y = t.y + 2; y >= t.y - 2; y--) {
+            if (this.world.getBlockW(x, y, z) !== B.GRASS) continue;
+            if (this.world.getBlockW(x, y + 1, z) !== B.AIR) break;
+            const r = this.dropRng();
+            this.world.setBlock(x, y + 1, z, r < 0.1 ? B.DANDELION : r < 0.2 ? B.POPPY : B.TALL_GRASS);
+            grew++;
+            break;
+          }
+        }
+        if (!grew) return false;
       } else {
         return false;
       }

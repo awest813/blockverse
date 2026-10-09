@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { I } from '../items/itemIds.js';
 import { B } from '../blocks/blocks.js';
+import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 export class Pig extends Mob {
   constructor(scene, world, x, y, z) {
@@ -14,6 +15,7 @@ export class Pig extends Mob {
     this.h = 0.9;
     this.health = 10;
     this.kind = 'pig';
+    this.breedItem = I.APPLE;
   }
 
   buildModel() {
@@ -55,6 +57,7 @@ export class Sheep extends Mob {
     this.health = 8;
     this.speed = 1.3;
     this.kind = 'sheep';
+    this.breedItem = I.WHEAT;
   }
 
   buildModel() {
@@ -199,7 +202,10 @@ export class Skeleton extends Mob {
       this.shootCooldown = 1.6 + Math.random() * 0.8;
       if (!this.moving || playerDist < 5) this.steer(player, 1);
       const ox = this.x, oy = this.y + 1.5, oz = this.z;
-      const dx = player.x - ox, dy = player.y + 1.1 - oy, dz = player.z - oz;
+      // lead a moving target a little (capped, so strafing still works)
+      const lead = Math.min(0.6, Math.hypot(player.x - ox, player.z - oz) / 18);
+      const dx = player.x + Math.max(-3, Math.min(3, player.vx * lead)) - ox, dy = player.y + 1.1 - oy;
+      const dz = player.z + Math.max(-3, Math.min(3, player.vz * lead)) - oz;
       const flat = Math.hypot(dx, dz);
       if (flat < 0.5) return;   // straight up/down: no sensible lob
       const speed = 18;
@@ -335,7 +341,7 @@ export class Creeper extends Mob {
     const sees = this.senses(player, 16, dt);
     const d = this.dist3(player);
     // a lit fuse keeps burning while you're within 7 blocks, seen or not
-    if (!sees && !(this.fuse > 0 && d < 7 && !player.dead)) {
+    if (!sees && !(this.fuse > 0 && d < 7 && !player.dead && player.mode !== GAMEMODE_CREATIVE)) {
       this.fuse = Math.max(0, this.fuse - dt);
       this.loseTarget();
       super.think(dt, player, playerDist);

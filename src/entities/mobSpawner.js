@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Skeleton, Spider, Creeper } from './mobs.js';
-import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat } from './animals.js';
+import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
@@ -18,6 +18,8 @@ const HOSTILE_CAP = 8;
 const BIRD_CAP = 4;
 const FISH_CAP = 6;
 const WHALE_CAP = 1;
+const DOLPHIN_CAP = 4;
+const MANATEE_CAP = 2;
 
 // land animals per biome: [class, weight]
 const LAND_TABLE = {
@@ -51,7 +53,7 @@ export class MobSpawner {
     this.timer = 0;
 
     const mobs = this.entities.mobs;
-    const passives = mobs.filter((m) => !m.hostile && m.countsForCap !== false && !m.flier && !m.swimmer && !m.tamed).length;
+    const passives = mobs.filter((m) => !m.hostile && m.countsForCap !== false && !m.flier && !m.swimmer && !m.tamed && !m.persistent).length;
     const hostiles = mobs.filter((m) => m.hostile).length;
 
     // peaceful: monsters vanish; otherwise far-away ones slowly despawn
@@ -62,12 +64,14 @@ export class MobSpawner {
     }
 
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
-    const cap = this.difficulty === 3 ? HOSTILE_CAP + 4 : HOSTILE_CAP;
+    const cap = this.difficulty === 3 ? HOSTILE_CAP + 4 : this.difficulty === 1 ? HOSTILE_CAP - 3 : HOSTILE_CAP;
     // the surface spawns monsters at night; caves are dark at any hour
     if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
     if (dayFactor > 0.5 && count(mobs, Bird) < BIRD_CAP) this.trySpawnBird(player);
     if (count(mobs, Fish) < FISH_CAP) this.trySpawnWater(player, Fish, 1);
     if (count(mobs, Whale) < WHALE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Whale, 7);
+    if (count(mobs, Dolphin) < DOLPHIN_CAP && Math.random() < 0.2) this.trySpawnWater(player, Dolphin, 4);
+    if (count(mobs, Manatee) < MANATEE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Manatee, 2);
   }
 
   // a random column 20-44 blocks away
@@ -99,12 +103,21 @@ export class MobSpawner {
       const col = this.randomColumn(player);
       if (!col) continue;
       const [wx, wz] = col;
-      if (Cls === Whale && this.world.biomeAt(wx, wz) !== BIOME.OCEAN) continue;
+      const biome = this.world.biomeAt(wx, wz);
+      if ((Cls === Whale || Cls === Dolphin) && biome !== BIOME.OCEAN) continue;
+      // manatees like warm, calm water: rivers, swamps and warm coasts
+      if (Cls === Manatee) {
+        const t = this.world.gen.columnAt(wx, wz).t;
+        if (t < 0.45 || !(biome === BIOME.RIVER || biome === BIOME.SWAMP || (t > 0.55 && (biome === BIOME.OCEAN || biome === BIOME.BEACH)))) continue;
+      }
       const floor = this.world.surfaceHeight(wx, wz) + 1;
       let depth = 0;
       while (depth < 20 && this.world.getBlockW(wx, floor + depth, wz) === B.WATER) depth++;
       if (depth < minDepth) continue;
-      this.spawnMob(Cls, wx + 0.5, floor + Math.max(0, depth / 2 - 1), wz + 0.5);
+      const y = floor + Math.max(0, depth / 2 - 1);
+      this.spawnMob(Cls, wx + 0.5, y, wz + 0.5);
+      // dolphins come in pods
+      if (Cls === Dolphin) for (let k = 0; k < 1 + ((Math.random() * 2) | 0); k++) this.spawnMob(Cls, wx + 0.5 + (Math.random() - 0.5) * 3, y, wz + 0.5 + (Math.random() - 0.5) * 3);
       return;
     }
   }
@@ -150,6 +163,8 @@ export class MobSpawner {
       if (y <= 1 || y > 120) continue;
       const ground = this.world.getBlockW(wx, y - 1, wz);
       if (!isSolid(ground) || ground === B.WATER) continue;
+      // not on tree canopies
+      if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES) continue;
       // need 2 blocks of air
       if (this.world.getBlockW(wx, y, wz) !== B.AIR || this.world.getBlockW(wx, y + 1, wz) !== B.AIR) continue;
 

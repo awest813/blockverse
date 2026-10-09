@@ -61,6 +61,70 @@ export class Mob {
   // subclass hook — assemble boxes into this.group, push materials
   buildModel() {}
 
+  // ---- breeding (animals with a breedItem) ----
+
+  // right-click with its food: fall in love (or help a baby grow)
+  interact(player, held) {
+    if (!this.breedItem || this.tamed || held?.id !== this.breedItem) return false;
+    if (this.baby) {
+      this.grow = Math.max(0, this.grow - 60);
+    } else {
+      if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return true;   // not hungry yet
+      this.love = 30;
+    }
+    this.persistent = true;
+    if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+    this.fx?.hearts?.(this.x, this.y + this.h, this.z);
+    this.fx?.sound('eat', { vol: 0.6 });
+    return true;
+  }
+
+  breedTick(dt) {
+    this.breedCooldown = Math.max(0, (this.breedCooldown ?? 0) - dt);
+    if (this.baby) {
+      this.grow -= dt;
+      if (this.grow <= 0) this.setBaby(false);
+      return;
+    }
+    if (!(this.love > 0)) return;
+    this.love -= dt;
+    if (Math.random() < dt * 1.5) this.fx?.hearts?.(this.x, this.y + this.h, this.z, 1);
+    // seek a partner of the same kind that's also in love
+    let mate = null, best = 10;
+    for (const m of this.fx?.mobs() ?? []) {
+      if (m === this || m.kind !== this.kind || !(m.love > 0) || m.baby || m.dead || m.dying !== undefined) continue;
+      const d = Math.hypot(m.x - this.x, m.z - this.z);
+      if (d < best) { best = d; mate = m; }
+    }
+    if (!mate) return;
+    if (best > 1.4) {
+      this.targetYaw = Math.atan2(-(mate.x - this.x), -(mate.z - this.z));
+      this.moving = true;
+      this.state = 'wander';
+      return;
+    }
+    // a baby!
+    this.love = mate.love = 0;
+    this.breedCooldown = mate.breedCooldown = 300;
+    const baby = new this.constructor(this.scene, this.world, (this.x + mate.x) / 2, this.y + 0.2, (this.z + mate.z) / 2);
+    baby.setBaby(true);
+    baby.persistent = true;
+    this.fx?.spawn?.(baby);
+    this.fx?.hearts?.(baby.x, baby.y + 0.6, baby.z, 6);
+  }
+
+  // babies are half size, can't breed and drop nothing; they grow up in 5 minutes
+  setBaby(on, grow = 300) {
+    if (on === !!this.baby) return;
+    this.baby = on;
+    if (!this.adultSize) this.adultSize = { w: this.w, h: this.h };
+    const k = on ? 0.55 : 1;
+    this.w = this.adultSize.w * k;
+    this.h = this.adultSize.h * k;
+    this.group.scale.setScalar(k);
+    this.grow = on ? grow : 0;
+  }
+
   part(w, h, d, color, x, y, z) {
     const mat = new THREE.MeshBasicMaterial({ color, vertexColors: true });
     const m = new THREE.Mesh(shadedBox(w, h, d), mat);
@@ -81,7 +145,8 @@ export class Mob {
     const pdx = this.x - player.x, pdz = this.z - player.z;
     const playerDistSq = pdx * pdx + pdz * pdz;
     if (playerDistSq > 80 * 80) {
-      if (!this.tamed) { this.kill(); return; }
+      // animals the player has fed are kept (stashed) rather than lost
+      if (!this.tamed) { if (this.persistent) this.fx?.stash?.(this); this.kill(); return; }
     }
     // pets left far behind catch up by appearing next to the player
     // (only once the player is on the ground, so pets aren't dropped from the sky)
@@ -97,6 +162,7 @@ export class Mob {
 
     this.think(dt, player, Math.sqrt(playerDistSq));
     if (this.dead || this.dying !== undefined) return;
+    if (this.breedItem) this.breedTick(dt);
     this.avoidHazards(dt);
     this.ambient(dt, player);
 
@@ -143,6 +209,13 @@ export class Mob {
     if (r.hitWall && this.moving && !inWater && !this.flier && !this.swimmer) {
       if (this.climber) this.vy = Math.max(this.vy, 3.6);
       else if (this.onGround) this.vy = 7.2;
+    }
+    // land mobs paddling into a bank climb out instead of bobbing there forever
+    if (r.hitWall && this.moving && inWater && !this.swimmer && !this.flier) this.vy = Math.max(this.vy, 5.5);
+    // swimmers and fliers bumping a wall turn away
+    if (r.hitWall && (this.swimmer || this.flier) && !this.detour) {
+      this.targetYaw = this.yaw + Math.PI * (0.5 + Math.random());
+      if (this.flier) this.targetVy = 2;
     }
 
     // fall damage (fliers and swimmers don't take it)
@@ -220,6 +293,7 @@ export class Mob {
   // a melee hit with knockback away from the mob
   meleeHit(player, dmg, cause) {
     if (player.hurtCooldown > 0 || player.dead) return false;
+    if (!this.canSee(player)) return false;   // no hitting through block corners
     player.damage(dmg, cause);
     const dx = player.x - this.x, dz = player.z - this.z;
     const d = Math.hypot(dx, dz) || 1;
@@ -273,7 +347,7 @@ export class Mob {
   burnInDaylight(dt) {
     const day = this.world.materials.uniforms.uDay.value;
     const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + this.h - 0.3), Math.floor(this.z));
-    if (day <= 0.8 || sky < 14) return false;
+    if (day <= 0.8 || sky < 14 || this.inWater) return false;
     this.burnTimer = (this.burnTimer ?? 0) + dt;
     this.flashTime = 0.1;
     if (this.burnTimer > 1) {
@@ -350,7 +424,7 @@ export class Mob {
 
   die() {
     if (this.dying !== undefined) return;
-    this.onDeath?.();
+    if (!this.baby) this.onDeath?.();
     this.fx?.sound('mobdeath');
     // tip over briefly before vanishing; no longer a threat or a target
     this.dying = DEATH_TIME;

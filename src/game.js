@@ -68,6 +68,8 @@ export class Game {
     this.entities.fx.explode = (x, y, z, power) => this.explode(x, y, z, power);
     this.entities.fx.sound = (name, opts) => this.sfx?.play(name, opts);
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
+    this.entities.fx.hearts = (x, y, z, n = 4) => this.sparks(x, y, z, 0xff6a8a, n);
+    this.entities.stash = (worldMeta.animals ?? []).slice();
     this.blasts = [];   // expanding explosion flashes
     this.sparkList = [];  // crit / sweep flecks
     this.sinceAttack = 10; // seconds since the last landed hit (weapon charge)
@@ -297,6 +299,8 @@ export class Game {
     const best = this.mobUnderCrosshair(w.reach);
     if (!best) return false;
     const p = this.player;
+    // don't swat your own pets (sneak to mean it)
+    if (best.tamed && !p.sneaking) return true;
     const charge = this.attackCharge();
     const base = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
     // spamming does little; a full swing does full damage
@@ -535,6 +539,7 @@ export class Game {
     this.difficulty = Math.max(0, Math.min(3, level | 0));
     this.mobSpawner.difficulty = this.difficulty;
     this.player.mobDamageScale = [0, 0.5, 1, 1.5][this.difficulty];
+    this.player.difficulty = this.difficulty;
   }
 
   newDay() {
@@ -879,6 +884,7 @@ export class Game {
       pets: this.entities.mobs.filter((m) => m.tamed && !m.dead).map((m) => ({
         kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health,
       })),
+      animals: this.entities.keptAnimals(),
       timeOfDay: this.time,
       day: this.day,
       difficulty: this.difficulty,

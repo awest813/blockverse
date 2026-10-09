@@ -65,6 +65,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🐷 Mobs
 - **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food
+- **Breeding**: feed two animals their favourite food (wheat for cows and sheep, seeds for chickens, apples for pigs) and they'll have a baby that grows up in a few minutes; animals you've fed are kept and saved with your world instead of wandering off
+- **Dolphins** play in the open ocean in pods: they swim over to you, leap from the waves and give swimmers near them a burst of speed (feed one a fish and it escorts you). Gentle **manatees** graze in warm rivers, swamps and shallow coasts, drifting up to breathe
 - **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean
 - **Pets**: tame dogs with bones and cats with raw fish. Pets follow you, sit on command, are saved with your world, and catch up if you leave them behind. Dogs fight monsters near you; creepers flee from cats
 - **Zombies** spawn in darkness, chase you, hit hard, and burn in the morning sun
@@ -105,8 +107,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 | **Left click** | Mine block / attack |
 | **Right click** | Place block / use (crafting table, furnace) / eat |
 | **Space** | Jump / swim up (double-tap in creative: toggle flight) |
-| **Ctrl** / double-tap **W** | Sprint |
-| **Shift** | Sneak (you won't fall off edges) / fly down |
+| **Ctrl** / double-tap **W** | Sprint (underwater: swim fast where you look) |
+| **Shift** | Sneak (you won't fall off edges) / fly down / dive |
 | **1–9 / mouse wheel** | Select hotbar slot |
 | **E** | Inventory (creative: item palette) |
 | **Q** | Drop held item (Ctrl+Q: whole stack) |

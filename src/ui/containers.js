@@ -10,6 +10,22 @@ import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 import { fillSlot } from './hud.js';
 
+// fuels the smelting guide may load automatically
+const AUTO_FUELS = new Set([
+  I.COAL, I.CHARCOAL, I.STICK, B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS,
+]);
+
+// how many of this stack the player's inventory could take
+function roomFor(player, stack) {
+  const max = maxStack(stack.id);
+  let room = 0;
+  for (const s of player.inventory) {
+    if (!s) room += max;
+    else if (s.id === stack.id && s.dur === undefined && stack.dur === undefined) room += max - s.count;
+  }
+  return room;
+}
+
 const CREATIVE_TABS = [
   ['all', 'All'], ['blocks', 'Blocks'], ['decor', 'Plants'],
   ['tools', 'Gear'], ['food', 'Food'], ['materials', 'Items'],
@@ -565,12 +581,17 @@ export class Containers {
     const n = p.take(input, room);
     if (n > 0) st.input = { id: input, count: (st.input?.count ?? 0) + n };
 
-    // fuel: the longest-burning thing in the inventory that isn't the input
+    // fuel: only everyday fuels (never a coal block, chest or bookshelf), the
+    // smallest one that covers the whole job, else the longest-burning
     if (!st.fuel || st.fuel.id !== input) {
+      const job = st.input.count * SMELT_TIME - st.burnLeft;
       let best = null;
       for (const s of p.inventory) {
-        const burn = s ? itemInfo(s.id)?.burnTime ?? 0 : 0;
-        if (burn > 0 && s.id !== input && s.dur === undefined && (!best || burn > best.burn)) best = { id: s.id, burn };
+        if (!s || !AUTO_FUELS.has(s.id) || s.id === input) continue;
+        const burn = itemInfo(s.id).burnTime;
+        const covers = burn * p.countOf(s.id) >= job;
+        const better = !best || (covers && !best.covers) || (covers === best.covers && (covers ? burn < best.burn : burn > best.burn));
+        if (better) best = { id: s.id, burn, covers };
       }
       if (best && (!st.fuel || st.fuel.id === best.id)) {
         const needed = Math.ceil((st.input.count * SMELT_TIME - st.burnLeft) / best.burn);
@@ -781,9 +802,13 @@ export class Containers {
       for (const c of cells) n = Math.min(n, maxStack(avail.pick.get(c.group)));
     }
     for (const { x, y, group } of cells) {
-      const id = avail.pick.get(group);
-      this.player.take(id, n);
-      this.craftGrid[y * this.craftSize + x] = { id, count: n };
+      // whichever variant of the group is most plentiful right now
+      let id = avail.pick.get(group), most = -1;
+      for (const g of group) { const c = this.player.countOf(g); if (c > most) { most = c; id = g; } }
+      const count = Math.min(n, most);
+      if (count <= 0) continue;
+      this.player.take(id, count);
+      this.craftGrid[y * this.craftSize + x] = { id, count };
     }
     this.afterChange();
   }
@@ -1122,8 +1147,14 @@ export class Containers {
       while (guard++ < 64) {
         const out = ref.get();
         if (!out) break;
+        // crafting: only craft when the whole result fits, or it would be free
+        if (ref.output === 'craft' && roomFor(this.player, out) < out.count) break;
         const left = this.player.give(out.id, out.count);
-        if (left > 0) break;
+        if (left > 0) {
+          // furnace: keep whatever didn't fit in the output slot
+          if (ref.output !== 'craft') ref.set(left === out.count ? out : { ...out, count: left });
+          break;
+        }
         if (ref.output === 'craft') {
           for (let i = 0; i < this.craftGrid.length; i++) {
             const s = this.craftGrid[i];

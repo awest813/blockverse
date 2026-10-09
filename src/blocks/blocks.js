@@ -149,7 +149,7 @@ reg(def(B.WATER, 'water', 'Water', {
   solid: false, render: R_BLEND, opacity: 2, hardness: -1, replaceable: true,
   drop: null, fluid: true,
 }));
-reg(def(B.ICE, 'ice', 'Ice', { render: R_BLEND, opacity: 2, hardness: 0.5, tool: TOOL_PICKAXE, drop: null, sound: 'glass' }));
+reg(def(B.ICE, 'ice', 'Ice', { render: R_BLEND, opacity: 2, hardness: 0.5, tool: TOOL_PICKAXE, sound: 'glass' }));
 reg(def(B.SNOW_BLOCK, 'snow_block', 'Snow Block', { hardness: 0.2, tool: TOOL_SHOVEL, sound: 'cloth' }));
 reg(def(B.SNOWY_GRASS, 'snowy_grass', 'Snowy Grass', {
   hardness: 0.6, tool: TOOL_SHOVEL, drop: B.DIRT, sound: 'dirt',

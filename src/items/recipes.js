@@ -26,7 +26,7 @@ shapeless(B.SPRUCE_PLANKS, 4, [[B.SPRUCE_LOG]]);
 shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
-shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL], S: [I.STICK] });
+shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL, I.CHARCOAL], S: [I.STICK] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
 shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 
@@ -96,7 +96,8 @@ shapeless(B.MOSSY_STONE_BRICKS, 2, [[B.STONE_BRICKS], [B.MOSSY_COBBLE]]);
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });
-shapeless(B.MOSSY_COBBLE, 1, [[B.COBBLESTONE], [B.TALL_GRASS]]);
+shapeless(B.MOSSY_COBBLE, 1, [[B.COBBLESTONE], [I.WHEAT_SEEDS]]);
+shaped(B.CLAY, 1, ['XX', 'XX'], { X: [I.CLAY_BALL] });
 
 // ---- matching ----
 
@@ -190,19 +191,21 @@ export function recipeNeeds(r) {
 }
 
 // For each ingredient group, the item id to use given the player's counts
-// (the variant they have most of), or null if they can't afford one craft.
+// (the variant they have most of), and how many crafts the whole group affords.
 // Returns {ok, pick: Map<group, id>, times: crafts affordable}.
 export function recipeAvailability(r, countOf) {
   const pick = new Map();
   let times = Infinity;
   for (const { group, count } of recipeNeeds(r)) {
-    let best = group[0], bestN = -1;
+    // variants in a group mix freely (2 oak + 2 birch planks make a table)
+    let best = group[0], bestN = -1, total = 0;
     for (const id of group) {
       const n = countOf(id);
+      total += n;
       if (n > bestN) { best = id; bestN = n; }
     }
     pick.set(group, best);
-    times = Math.min(times, Math.floor(bestN / count));
+    times = Math.min(times, Math.floor(total / count));
   }
   return { ok: times > 0, pick, times };
 }
