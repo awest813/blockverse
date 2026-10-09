@@ -114,3 +114,15 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [ ] One material per mob part: bake colours into vertex colours, one material per mob
 - [ ] Slabs, stairs and other shaped blocks are lit flat (no smooth light / AO)
 - [x] Water drifts gently (animated texture)
+
+## Saving & stability
+- [x] Furnace, chest and campfire changes mark their chunk for saving (taking items out could duplicate them after a reload)
+- [x] Chunks and the world entry save in one transaction; a failed save is retried and reported
+- [x] Saves when the tab is hidden (phones close background tabs without warning)
+- [x] Items on the cursor or in the crafting grid are saved with the inventory
+- [x] Items on the ground (your things after a death) are saved and come back
+- [x] A world saved on the death screen loads with you respawned (it used to soft-lock)
+- [x] One renderer for the page: quitting and loading worlds no longer leaks GPU textures; the block highlight and particles are freed
+- [x] A hidden tab keeps the world ticking but stops drawing
+- [x] Natural cane/cactus growth no longer makes untouched chunks save
+- [x] Doors and gates won't shut on you; ladders, signs and torches fall with their support (and in explosions)

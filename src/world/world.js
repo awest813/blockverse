@@ -113,6 +113,13 @@ export class World {
     return old;
   }
 
+  // something in the chunk changed that setBlock didn't see (a container's
+  // contents): make sure the next save writes it
+  markModified(wx, wz) {
+    const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
+    if (c) c.modified = true;
+  }
+
   blockEntityAt(wx, wy, wz) {
     const c = this.chunks.get(chunkKey(wx >> 4, wz >> 4));
     if (!c) return null;

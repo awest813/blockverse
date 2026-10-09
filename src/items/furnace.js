@@ -50,6 +50,7 @@ export function tickFurnaces(world, dt) {
           st.burnTotal = burn;
           st.fuel.count--;
           if (st.fuel.count <= 0) st.fuel = null;
+          chunk.modified = true;
           changed = true;
         }
       }
@@ -65,6 +66,7 @@ export function tickFurnaces(world, dt) {
             if (st.input.count <= 0) st.input = null;
             if (st.output) st.output.count += smeltable.count;
             else st.output = { id: smeltable.id, count: smeltable.count };
+            chunk.modified = true;
             changed = true;
           }
         } else {

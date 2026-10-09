@@ -62,4 +62,13 @@ export class BlockHighlight {
       this.crack.visible = false;
     }
   }
+
+  dispose() {
+    for (const m of [this.outline, this.crack]) {
+      m.removeFromParent();
+      m.geometry.dispose();
+      m.material.dispose();
+    }
+    for (const t of this.crackTextures) t.dispose();
+  }
 }

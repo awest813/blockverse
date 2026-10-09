@@ -53,6 +53,7 @@ function bubbleTexture() {
   return tex;
 }
 
+const RENDERERS = new WeakMap();
 const BLAST_GEO = new THREE.SphereGeometry(1, 16, 12);   // shared by every explosion flash
 
 export class Game {
@@ -64,7 +65,13 @@ export class Game {
     this.sfx = sfx;
     this.onExit = onExit;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    // one renderer per canvas for the page's lifetime: a new one on the same
+    // canvas would share the GL context and strand the old one's resources
+    this.renderer = RENDERERS.get(canvas);
+    if (!this.renderer) {
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+      RENDERERS.set(canvas, this.renderer);
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -193,12 +200,20 @@ export class Game {
     this.bindKeys();
     this.setupSpawn();
     this.restorePets(worldMeta.pets ?? []);
+    const p0 = this.player;
+    this.entities.restoreDrops([...(worldMeta.drops ?? []),
+      ...(p0.extraStacks ?? []).map((st) => ({ ...st, x: p0.x, y: p0.y + 0.5, z: p0.z }))]);
 
     // hidden-tab ticker (page timers are throttled; a worker's are not)
-    this.ticker = new Worker(URL.createObjectURL(new Blob(
-      ['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' })));
+    const tickUrl = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' }));
+    this.ticker = new Worker(tickUrl);
+    URL.revokeObjectURL(tickUrl);
     this.ticker.onmessage = () => { if (document.hidden && this.running) this.loop(); };
-    this._onVisibility = () => { if (!document.hidden && this.running) requestAnimationFrame(this._loopBound); };
+    this._onVisibility = () => {
+      if (!this.running) return;
+      if (document.hidden) this.save();   // phones often close a hidden tab without warning
+      else requestAnimationFrame(this._loopBound);
+    };
     document.addEventListener('visibilitychange', this._onVisibility);
     this._loopBound = () => this.loop();
   }
@@ -207,6 +222,8 @@ export class Game {
     const saved = this.worldMeta.playerData;
     if (saved) {
       this.player.deserialize(saved);
+      // saved on the death screen: wake up at the spawn point
+      if (this.player.dead) this.player.respawn();
       return;
     }
     // find a dry spawn column near origin
@@ -881,8 +898,9 @@ export class Game {
     fog.near = fu.uFogNear.value;
     fog.far = fu.uFogFar.value;
 
-    this.world.update(this.player.x, this.player.z, now, document.hidden ? 8 : 1);
-    this.renderer.render(this.scene, this.camera);
+    // a hidden tab keeps the world ticking (and loading) but draws nothing
+    this.world.update(this.player.x, this.player.z, now, document.hidden ? 3 : 1);
+    if (!document.hidden) this.renderer.render(this.scene, this.camera);
 
     // prompt the player to click when the game is live but the mouse isn't captured
     // (gamepad and touch players don't need the mouse captured)
@@ -1080,10 +1098,10 @@ export class Game {
 
   save() {
     if (!this.store) return;
-    for (const c of this.world.modifiedChunks()) {
-      this.store.saveChunk(this.worldMeta.id, c);
-      c.modified = false;
-    }
+    // chunks and the world entry go in one transaction: all of it lands or
+    // none does (a chest and your inventory can't disagree after a crash)
+    const dirty = [...this.world.modifiedChunks()];
+    for (const c of dirty) c.modified = false;
     // the world entry is already in memory: update it and write it straight
     // out (no read first), so a save made while the tab closes still lands
     Object.assign(this.worldMeta, {
@@ -1095,10 +1113,17 @@ export class Game {
       timeOfDay: this.time,
       day: this.day,
       difficulty: this.difficulty,
-      playerData: this.player.serialize(),
+      playerData: this.player.serialize(this.containers.heldStacks()),
+      drops: this.entities.savedDrops(),
       lastPlayed: Date.now(),
     });
-    this.store.putWorldMeta(this.worldMeta);
+    this.store.saveWorld(this.worldMeta, dirty).catch((err) => {
+      for (const c of dirty) c.modified = true;   // try again next time
+      if (!this._saveWarned) {
+        this._saveWarned = true;
+        this.hud?.showLabel?.(`Couldn't save the world (${err?.name ?? 'error'}) — is storage full?`, true);
+      }
+    });
   }
 
   stop({ save = true } = {}) {
@@ -1120,6 +1145,9 @@ export class Game {
     window.removeEventListener('resize', this._onResize);
     this.entities.dispose();
     this.world.dispose();
-    this.renderer.dispose();
+    this.highlight.dispose();
+    for (const s of [...this.sparkList, ...(this.bubbles ?? [])]) { s.sprite.removeFromParent(); s.sprite.material.dispose(); }
+    this.bubbleTex?.dispose();
+    this.renderer.renderLists.dispose();
   }
 }

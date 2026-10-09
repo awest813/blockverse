@@ -56,6 +56,7 @@ export function tickCampfires(world, dt, spawnDrops) {
       if (s.t < CAMPFIRE_TIME) return;
       const out = SMELTING.get(s.id);
       st.slots[i] = null;
+      world.markModified(x, z);
       spawnDrops(x + 0.5, y + 0.6, z + 0.5, [{ id: out.id, count: out.count }]);
     });
   });

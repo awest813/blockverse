@@ -90,10 +90,16 @@ export class SaveStore {
     await req(this.tx('worlds', 'readwrite').put(meta));
   }
 
-  async deleteWorld(id) {
-    await req(this.tx('worlds', 'readwrite').delete(id));
-    const range = IDBKeyRange.bound(`${id}:`, `${id}:￿`);
-    await req(this.tx('chunks', 'readwrite').delete(range));
+  // the entry and its chunks go together (no orphaned chunks on a failure)
+  deleteWorld(id) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
+      tx.objectStore('worlds').delete(id);
+      tx.objectStore('chunks').delete(IDBKeyRange.bound(`${id}:`, `${id}:\uffff`));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('delete aborted'));
+    });
   }
 
   // every saved chunk of a world, as [key suffix "cx,cz", value]
@@ -111,6 +117,23 @@ export class SaveStore {
       tx.objectStore('worlds').put(meta);
       const store = tx.objectStore('chunks');
       for (const [suffix, v] of chunks) store.put(v, `${meta.id}:${suffix}`);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('save aborted'));
+    });
+  }
+
+  // Save a running world: the changed chunks and the world entry together.
+  // The chunk arrays are copied when put() is called, so later edits are safe.
+  saveWorld(meta, chunks) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
+      const store = tx.objectStore('chunks');
+      for (const c of chunks) {
+        store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()] },
+          this.chunkKey(meta.id, c.cx, c.cz));
+      }
+      tx.objectStore('worlds').put(meta);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error ?? new Error('save aborted'));
@@ -213,5 +236,5 @@ export function loadSettings() {
 }
 
 export function saveSettings(s) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode / full: settings last this session */ }
 }

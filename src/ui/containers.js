@@ -192,6 +192,12 @@ export class Containers {
 
   isOpen() { return this.open !== null; }
 
+  // stacks the player is holding outside the inventory right now (saved with it)
+  heldStacks() {
+    if (!this.open) return [];
+    return [this.cursor, ...this.craftGrid].filter(Boolean);
+  }
+
   // is a chest / furnace UI showing the block at this position?
   isOpenAt(x, y, z) {
     const p = this.open === 'chest' ? this.chestPos : this.open === 'furnace' ? this.furnacePos : null;
@@ -1364,6 +1370,9 @@ export class Containers {
   }
 
   afterChange() {
+    // an open chest or furnace may just have changed: save its chunk too
+    const pos = this.open === 'chest' ? this.chestPos : this.open === 'furnace' ? this.furnacePos : null;
+    if (pos) this.game.world.markModified(pos.x, pos.z);
     this.player.events.dispatchEvent(new CustomEvent('inventory'));
     this.renderCursor();
     this.render();

@@ -461,13 +461,25 @@ export class Player {
     this.events.dispatchEvent(new CustomEvent('inventory'));
   }
 
-  serialize() {
+  // carried: stacks in hand outside the inventory (the cursor, a crafting
+  // grid) — saved as part of it so a closed tab doesn't lose them
+  serialize(carried = []) {
+    let inventory = this.inventory;
+    if (carried.length) {
+      inventory = inventory.map((s) => (s ? { ...s } : null));
+      const extra = [];
+      for (const st of carried) {
+        const i = inventory.indexOf(null);
+        if (i >= 0) inventory[i] = { ...st }; else extra.push({ ...st });
+      }
+      if (extra.length) return { ...this.serialize(), inventory, extra };
+    }
     return {
       x: this.x, y: this.y, z: this.z,
       yaw: this.yaw, pitch: this.pitch,
       health: this.health, hunger: this.hunger, saturation: this.saturation, air: this.air,
       mode: this.mode, flying: this.flying,
-      inventory: this.inventory,
+      inventory,
       armor: this.armor,
       selected: this.selected,
       spawnPoint: this.spawnPoint,
@@ -485,6 +497,7 @@ export class Player {
       selected: d.selected ?? 0,
     });
     if (Array.isArray(d.inventory)) this.inventory = d.inventory.map((s) => (s ? { ...s } : null));
+    this.extraStacks = d.extra ?? [];   // carried stacks that didn't fit: dropped at your feet on load
     if (Array.isArray(d.armor)) this.armor = d.armor.map((s) => (s ? { ...s } : null));
     if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
     // saves from before beds: the spawn point was always the world spawn

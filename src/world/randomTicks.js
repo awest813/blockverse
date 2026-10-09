@@ -34,7 +34,10 @@ export function tickRandomGrowth(world, player, dt) {
           let top = y;
           while (top + 1 < CHUNK_Y && world.getBlockW(wx, top + 1, wz) === id) top++;
           if (top - y + 1 < MAX_HEIGHT && world.getBlockW(wx, top + 1, wz) === B.AIR && Math.random() < GROW_CHANCE) {
+            // natural growth alone doesn't make an untouched chunk worth saving
+            const was = chunk.modified;
             world.setBlock(wx, top + 1, wz, id);
+            chunk.modified = was;
           }
           break;
         }

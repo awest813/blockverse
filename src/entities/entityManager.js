@@ -1,6 +1,7 @@
 // Holds and updates all non-player entities (drops, mobs).
 
 import { ItemDrop } from './itemDrop.js';
+import { chunkKey } from '../world/chunk.js';
 import { Arrow } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
@@ -61,7 +62,29 @@ export class EntityManager {
     this.mobs.push(mob);
   }
 
+  // Items lying on the ground travel with the save (your things after a
+  // death included), up to a sane number.
+  savedDrops() {
+    return this.drops.filter((d) => !d.dead).slice(-200).map((d) => ({
+      id: d.id, count: d.count, dur: d.dur, x: d.x, y: d.y, z: d.z, age: d.age,
+    }));
+  }
+
+  // Put saved drops back once the ground under them has loaded.
+  restoreDrops(list) { this.pendingDrops = [...(list ?? [])]; }
+
   update(dt, player) {
+    if (this.pendingDrops?.length) {
+      this.pendingDrops = this.pendingDrops.filter((s) => {
+        const c = this.world.chunks.get(chunkKey(Math.floor(s.x) >> 4, Math.floor(s.z) >> 4));
+        if (!c?.hasBlocks) return true;
+        const d = new ItemDrop(this.scene, this.world, s.id, s.count, s.x, s.y, s.z, 0, 0, 0, s.dur);
+        d.age = s.age ?? 0;
+        d.pickupDelay = 0;
+        this.drops.push(d);
+        return false;
+      });
+    }
     for (const d of this.drops) {
       d.update(dt, player);
       if (d.pickedUp) this.onPickup?.();
