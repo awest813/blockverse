@@ -3,8 +3,8 @@
 import { B } from '../blocks/blocks.js';
 import { I } from './itemIds.js';
 
-const ANY_PLANKS = [B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS];
-const ANY_LOG = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG];
+const ANY_PLANKS = Object.assign([B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS], { label: 'Any Planks' });
+const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG], { label: 'Any Log' });
 
 // Shaped: pattern rows with keys; '.' = empty. Matched anywhere in the grid,
 // plus horizontally mirrored variants.
@@ -27,6 +27,8 @@ shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
 shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL], S: [I.STICK] });
+shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
+shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 
 // tools: [material group, pickaxe head, axe, shovel, sword]
 const TOOL_MATS = [
@@ -110,6 +112,54 @@ export function matchRecipe(grid, w, h) {
     }
   }
   return null;
+}
+
+// ---- recipe book helpers ----
+
+// Grid footprint of a recipe: {w, h}. Shapeless recipes are laid out in a row-major block.
+export function recipeSize(r) {
+  if (r.type === 'shaped') return { w: Math.max(...r.pattern.map((row) => row.length)), h: r.pattern.length };
+  const n = r.ingredients.length;
+  return n <= 2 ? { w: n, h: 1 } : n <= 4 ? { w: 2, h: 2 } : { w: 3, h: Math.ceil(n / 3) };
+}
+
+// Cells as [{x, y, group}] in the recipe's own coordinates.
+export function recipeCells(r) {
+  const cells = [];
+  if (r.type === 'shaped') {
+    r.pattern.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch !== '.') cells.push({ x, y, group: r.keys[ch] });
+    }));
+  } else {
+    const { w } = recipeSize(r);
+    r.ingredients.forEach((group, i) => cells.push({ x: i % w, y: Math.floor(i / w), group }));
+  }
+  return cells;
+}
+
+// What a recipe needs, merged per ingredient group: [{group, count}]
+export function recipeNeeds(r) {
+  const needs = new Map();
+  for (const { group } of recipeCells(r)) needs.set(group, (needs.get(group) ?? 0) + 1);
+  return [...needs].map(([group, count]) => ({ group, count }));
+}
+
+// For each ingredient group, the item id to use given the player's counts
+// (the variant they have most of), or null if they can't afford one craft.
+// Returns {ok, pick: Map<group, id>, times: crafts affordable}.
+export function recipeAvailability(r, countOf) {
+  const pick = new Map();
+  let times = Infinity;
+  for (const { group, count } of recipeNeeds(r)) {
+    let best = group[0], bestN = -1;
+    for (const id of group) {
+      const n = countOf(id);
+      if (n > bestN) { best = id; bestN = n; }
+    }
+    pick.set(group, best);
+    times = Math.min(times, Math.floor(bestN / count));
+  }
+  return { ok: times > 0, pick, times };
 }
 
 // ---- smelting ----

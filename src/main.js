@@ -62,11 +62,11 @@ async function startWorld(id) {
     showPause: () => {
       if (game.paused || game.player.dead || game.chat.open) return;
       game.pause();
-      screens.showPause(game.input.altInput);
+      screens.showPause(game.input.altInput, `Day ${game.day} · ${game.clockTime()}`);
     },
-    showDeath: (cause) => {
+    showDeath: (cause, dropped) => {
       game.setUiOpen(true);
-      screens.showDeath(cause);
+      screens.showDeath(cause, dropped);
     },
     handleKey: (code) => {
       if (code === 'Escape' && (screens.current === 'pause' || screens.current === 'settings-pause')) {
@@ -117,7 +117,7 @@ function resumeGame() {
 function respawn() {
   if (!game) return;
   screens.clear();
-  game.player.respawn();
+  game.respawnPlayer();
   game.hud.renderStats();
   game.hud.renderHotbar();
   game.setUiOpen(false);

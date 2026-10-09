@@ -283,6 +283,65 @@ tile('oak_leaves', (ctx, rng) => leaves(ctx, rng, P.leafOak, P.leafOakD, P.leafO
 tile('birch_leaves', (ctx, rng) => leaves(ctx, rng, P.leafBirch, P.leafBirchD, P.leafBirchL));
 tile('spruce_leaves', (ctx, rng) => leaves(ctx, rng, P.leafSpruce, P.leafSpruceD, P.leafSpruceL));
 
+// --- saplings: a short stem with a little leafy crown ---
+function sapling(ctx, rng, stem, leaf, leafD, leafL, conical) {
+  for (let y = 9; y < TILE; y++) px(ctx, 7 + (y > 12 ? 1 : 0), y, stem);
+  const rows = conical
+    ? [[7, 1], [6, 3], [5, 5], [6, 3], [4, 7], [5, 5]]
+    : [[6, 3], [4, 7], [3, 9], [3, 9], [4, 7], [6, 3]];
+  rows.forEach(([x0, w], i) => {
+    for (let x = x0; x < x0 + w; x++) {
+      if (rng() < 0.12) continue;
+      const r = rng();
+      px(ctx, x, 3 + i, r < 0.25 ? leafD : r > 0.8 ? leafL : leaf);
+    }
+  });
+}
+tile('oak_sapling', (ctx, rng) => sapling(ctx, rng, P.barkOak, P.leafOak, P.leafOakD, P.leafOakL, false));
+tile('birch_sapling', (ctx, rng) => sapling(ctx, rng, P.birch, P.leafBirch, P.leafBirchD, P.leafBirchL, false));
+tile('spruce_sapling', (ctx, rng) => sapling(ctx, rng, P.spruceBark, P.leafSpruce, P.leafSpruceD, P.leafSpruceL, true));
+
+// --- chest: planks with dark trim and an iron latch on the front ---
+function chestBase(ctx, rng) {
+  planks(ctx, rng, P.woodOak);
+  rect(ctx, 0, 0, TILE, 1, P.barkOakD);
+  rect(ctx, 0, TILE - 1, TILE, 1, P.barkOakD);
+  rect(ctx, 0, 0, 1, TILE, P.barkOakD);
+  rect(ctx, TILE - 1, 0, 1, TILE, P.barkOakD);
+}
+tile('chest_top', (ctx, rng) => chestBase(ctx, rng));
+tile('chest_side', (ctx, rng) => {
+  chestBase(ctx, rng);
+  rect(ctx, 1, 5, TILE - 2, 1, P.barkOakD);   // lid seam
+});
+tile('chest_front', (ctx, rng) => {
+  generators['chest_side'](ctx, rng);
+  rect(ctx, 6, 4, 4, 4, [70, 70, 74]);         // latch
+  rect(ctx, 7, 5, 2, 2, [196, 196, 204]);
+});
+
+// --- bed: red blanket over a wooden frame, white pillow at the head ---
+const BED_RED = [176, 38, 38], BED_RED_D = [140, 26, 28], BED_RED_L = [204, 64, 60];
+tile('bed_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[BED_RED, 7], [BED_RED_D, 2], [BED_RED_L, 2]]);
+  rect(ctx, 2, 1, 12, 4, [236, 234, 228]);     // pillow
+  rect(ctx, 2, 4, 12, 1, [204, 200, 192]);
+  rect(ctx, 0, 6, TILE, 1, BED_RED_D);         // blanket fold
+});
+tile('bed_side', (ctx, rng) => {
+  planks(ctx, rng, P.woodOak);
+  fillNoiseRegion(ctx, rng, 0, 2, TILE, 7, [[BED_RED, 7], [BED_RED_D, 3]]);
+  rect(ctx, 0, 2, 4, 3, [236, 234, 228]);      // pillow end
+  rect(ctx, 0, 13, 2, 3, P.barkOakD);          // legs
+  rect(ctx, TILE - 2, 13, 2, 3, P.barkOakD);
+});
+tile('bed_foot', (ctx, rng) => {
+  planks(ctx, rng, P.woodOak);
+  fillNoiseRegion(ctx, rng, 0, 2, TILE, 7, [[BED_RED, 7], [BED_RED_D, 3]]);
+  rect(ctx, 0, 13, 2, 3, P.barkOakD);
+  rect(ctx, TILE - 2, 13, 2, 3, P.barkOakD);
+});
+
 // --- desert plants ---
 tile('cactus', (ctx, rng) => {
   const g = [58, 128, 48], gD = [44, 102, 38], gL = [82, 150, 62];

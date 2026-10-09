@@ -3,7 +3,7 @@
 // right-click split, shift-click quick move, and tooltips.
 
 import { itemInfo, maxStack, makeStack } from '../items/items.js';
-import { matchRecipe, SMELTING, SMELT_TIME } from '../items/recipes.js';
+import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
 import { BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
@@ -35,6 +35,17 @@ function creativeItems(tab) {
   return tab === 'all' ? creativeIdsCache : creativeIdsCache.filter((id) => creativeCategory(id) === tab);
 }
 
+function loadFlag(key, fallback) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch { return fallback; }
+}
+function saveFlag(key, on) {
+  try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* storage unavailable */ }
+}
+
+function groupLabel(group) {
+  return group.label ?? itemInfo(group[0])?.display ?? '?';
+}
+
 // Slot abstraction: {get: () => stack|null, set: (stack) => void, filter?: (id)=>bool, output?: bool}
 
 export class Containers {
@@ -52,6 +63,8 @@ export class Containers {
     this.creativeTab = 'all';
     this.creativeQuery = '';
     this.creativeFocusSearch = false;
+    this.bookOpen = loadFlag('blockverse-recipe-book', true);
+    this.bookCraftableOnly = false;
 
     this.cursorEl = document.createElement('div');
     this.cursorEl.id = 'cursor-stack';
@@ -102,6 +115,20 @@ export class Containers {
     this.positionTooltip(x, y);
   }
 
+  // plain text tooltip: a title plus dimmer detail lines
+  showTooltipLines(title, lines, x, y) {
+    const t = this.tooltipEl;
+    t.textContent = title;
+    for (const line of lines) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      d.textContent = line;
+      t.appendChild(d);
+    }
+    t.classList.remove('hidden');
+    this.positionTooltip(x, y);
+  }
+
   hideTooltip() {
     this.tooltipEl.classList.add('hidden');
   }
@@ -132,6 +159,22 @@ export class Containers {
     this.show();
   }
 
+  openChest(pos) {
+    this.chestPos = { x: pos.x, y: pos.y, z: pos.z };
+    this.open = 'chest';
+    this.show();
+  }
+
+  chestState() {
+    const { x, y, z } = this.chestPos;
+    let st = this.game.world.blockEntityAt(x, y, z);
+    if (!st || st.kind !== 'chest') {
+      st = { kind: 'chest', slots: new Array(27).fill(null) };
+      this.game.world.setBlockEntity(x, y, z, st);
+    }
+    return st;
+  }
+
   close() {
     if (!this.open) return;
     // return craft grid + cursor stack to the inventory (or drop leftovers)
@@ -148,8 +191,11 @@ export class Containers {
       if (left > 0) this.dropStack({ ...this.cursor, count: left });
       this.cursor = null;
     }
+    // chest contents changed: make sure the chunk is saved
+    if (this.open === 'chest') this.game.world.setBlockEntity(this.chestPos.x, this.chestPos.y, this.chestPos.z, this.chestState());
     this.open = null;
     this.furnacePos = null;
+    this.chestPos = null;
     this.hovered = null;
     this.root.innerHTML = '';
     this.renderCursor();
@@ -168,6 +214,7 @@ export class Containers {
   // ---------- rendering ----------
 
   show() {
+    this.game.hints?.markInventoryOpened();
     this.game.setUiOpen(true);
     this.render();
   }
@@ -180,7 +227,7 @@ export class Containers {
     const screen = document.createElement('div');
     screen.className = 'screen dim';
     screen.addEventListener('mousedown', (e) => {
-      if (e.target === screen) {
+      if (e.target === screen || e.target === row) {
         // click outside: drop cursor stack
         if (this.cursor) {
           this.dropStack(this.cursor);
@@ -192,9 +239,16 @@ export class Containers {
     });
     // right-click splits stacks; never let the browser menu open over the UI
     screen.addEventListener('contextmenu', (e) => e.preventDefault());
+    const row = document.createElement('div');
+    row.className = 'inv-row';
     const win = document.createElement('div');
     win.className = 'inv-window';
-    screen.appendChild(win);
+    // the recipe book sits beside survival crafting screens
+    if (this.craftSize > 0 && (this.open === 'crafting' || this.open === 'inventory') && this.bookOpen) {
+      row.appendChild(this.renderRecipeBook());
+    }
+    row.appendChild(win);
+    screen.appendChild(row);
     this.root.appendChild(screen);
 
     if (this.open === 'inventory' && this.player.mode === GAMEMODE_CREATIVE) {
@@ -205,6 +259,8 @@ export class Containers {
       this.renderCraftArea(win, 3, 'Crafting Table');
     } else if (this.open === 'furnace') {
       this.renderFurnace(win);
+    } else if (this.open === 'chest') {
+      this.renderChest(win);
     }
 
     this.renderPlayerInv(win);
@@ -269,6 +325,7 @@ export class Containers {
     const main = document.createElement('div');
     main.className = 'inv-grid cols-9';
     for (let i = 9; i < 36; i++) main.appendChild(this.slotEl(this.invRef(i)));
+    main.firstChild.dataset.padStart = '';   // where a gamepad highlight begins
     win.appendChild(main);
 
     const hot = document.createElement('div');
@@ -279,9 +336,23 @@ export class Containers {
   }
 
   renderCraftArea(win, size, title) {
+    const head = document.createElement('div');
+    head.className = 'craft-head';
     const h3 = document.createElement('h3');
     h3.textContent = title;
-    win.appendChild(h3);
+    head.appendChild(h3);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'book-toggle';
+    toggle.textContent = this.bookOpen ? '◀ Hide recipes' : '▶ Recipes';
+    toggle.setAttribute('aria-expanded', String(this.bookOpen));
+    toggle.addEventListener('click', () => {
+      this.bookOpen = !this.bookOpen;
+      saveFlag('blockverse-recipe-book', this.bookOpen);
+      this.render();
+    });
+    head.appendChild(toggle);
+    win.appendChild(head);
 
     const row = document.createElement('div');
     row.className = 'row';
@@ -301,6 +372,145 @@ export class Containers {
 
     row.appendChild(this.slotEl(this.craftResultRef()));
     win.appendChild(row);
+  }
+
+  renderChest(win) {
+    const st = this.chestState();
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Chest';
+    win.appendChild(h3);
+    const grid = document.createElement('div');
+    grid.className = 'inv-grid cols-9';
+    grid.style.marginBottom = '12px';
+    for (let i = 0; i < 27; i++) {
+      grid.appendChild(this.slotEl({
+        get: () => st.slots[i],
+        set: (v) => { st.slots[i] = v; },
+        area: 'chest',
+      }));
+    }
+    win.appendChild(grid);
+  }
+
+  // ---------- recipe book ----------
+
+  renderRecipeBook() {
+    const book = document.createElement('div');
+    book.className = 'inv-window recipe-book';
+    const head = document.createElement('div');
+    head.className = 'craft-head';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Recipes';
+    head.appendChild(h3);
+    const filter = document.createElement('button');
+    filter.type = 'button';
+    filter.className = 'book-toggle';
+    filter.textContent = this.bookCraftableOnly ? 'Showing: can make' : 'Showing: all';
+    filter.setAttribute('aria-pressed', String(this.bookCraftableOnly));
+    filter.addEventListener('click', () => {
+      this.bookCraftableOnly = !this.bookCraftableOnly;
+      this.render();
+    });
+    head.appendChild(filter);
+    book.appendChild(head);
+
+    // ingredients already in the grid go back to the inventory on fill, so they count
+    const countOf = (id) => this.player.countOf(id)
+      + this.craftGrid.reduce((n, s) => n + (s?.id === id ? s.count : 0), 0);
+    const size = this.craftSize;
+    const entries = RECIPES.map((r, order) => {
+      const avail = recipeAvailability(r, countOf);
+      const { w, h } = recipeSize(r);
+      const fits = w <= size && h <= size;
+      const state = avail.ok ? (fits ? 'craftable' : 'needs-table') : 'missing';
+      return { r, avail, fits, state, order };
+    }).filter((e) => !this.bookCraftableOnly || e.state === 'craftable');
+    const rank = { craftable: 0, 'needs-table': 1, missing: 2 };
+    entries.sort((a, b) => rank[a.state] - rank[b.state] || a.order - b.order);
+
+    const grid = document.createElement('div');
+    grid.className = 'recipe-grid';
+    for (const e of entries) grid.appendChild(this.recipeButton(e, countOf));
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'creative-empty';
+      empty.textContent = 'Nothing you can make yet — gather more materials.';
+      grid.appendChild(empty);
+    }
+    book.appendChild(grid);
+
+    const hint = document.createElement('div');
+    hint.className = 'inv-hint';
+    hint.textContent = 'Click a recipe to fill the grid · Shift-click: as many as you can';
+    book.appendChild(hint);
+    return book;
+  }
+
+  recipeButton({ r, avail, fits, state }, countOf) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `recipe ${state}`;
+    const img = document.createElement('img');
+    img.src = this.atlas.icon(r.result);
+    img.alt = '';
+    img.draggable = false;
+    b.appendChild(img);
+    if (r.count > 1) {
+      const c = document.createElement('span');
+      c.className = 'count';
+      c.textContent = r.count;
+      b.appendChild(c);
+    }
+    const name = itemInfo(r.result)?.display ?? '?';
+    b.setAttribute('aria-label', `${name}${state === 'craftable' ? '' : state === 'needs-table' ? ' (needs a crafting table)' : ' (missing ingredients)'}`);
+
+    const needs = recipeNeeds(r);
+    b.addEventListener('mousemove', (ev) => {
+      const lines = [`Needs: ${needs.map((n) => `${n.count} × ${groupLabel(n.group)}`).join(', ')}`];
+      if (state === 'craftable') lines.push(avail.times > 1 ? `Click to fill the grid (enough for ${avail.times})` : 'Click to fill the grid');
+      else if (state === 'needs-table') lines.push('Needs a Crafting Table (3×3 grid)');
+      else {
+        const missing = needs.map((n) => {
+          const have = Math.max(...n.group.map(countOf));
+          return have < n.count ? `${n.count - have} × ${groupLabel(n.group)}` : null;
+        }).filter(Boolean);
+        lines.push(`Missing: ${missing.join(', ')}`);
+      }
+      this.showTooltipLines(r.count > 1 ? `${name} ×${r.count}` : name, lines, ev.clientX, ev.clientY);
+    });
+    b.addEventListener('mouseleave', () => this.hideTooltip());
+    b.addEventListener('click', (ev) => {
+      if (state !== 'craftable' || !fits) return;
+      this.game.sfx?.play('click');
+      this.fillRecipe(r, ev.shiftKey);
+    });
+    return b;
+  }
+
+  // Move a recipe's ingredients from the inventory into the craft grid.
+  fillRecipe(r, max) {
+    // clear the grid back into the inventory first
+    for (let i = 0; i < this.craftGrid.length; i++) {
+      const s = this.craftGrid[i];
+      if (!s) continue;
+      const left = this.player.give(s.id, s.count);
+      if (left > 0) this.dropStack({ ...s, count: left });
+      this.craftGrid[i] = null;
+    }
+    const avail = recipeAvailability(r, (id) => this.player.countOf(id));
+    if (!avail.ok) { this.afterChange(); return; }
+    const cells = recipeCells(r);
+    let n = 1;
+    if (max) {
+      n = avail.times;
+      for (const c of cells) n = Math.min(n, maxStack(avail.pick.get(c.group)));
+    }
+    for (const { x, y, group } of cells) {
+      const id = avail.pick.get(group);
+      this.player.take(id, n);
+      this.craftGrid[y * this.craftSize + x] = { id, count: n };
+    }
+    this.afterChange();
   }
 
   renderFurnace(win) {
@@ -649,6 +859,10 @@ export class Containers {
           }
         }
       }
+      if (this.open === 'chest') {
+        this.moveIntoSlots(ref, stack, this.chestState().slots);
+        return;
+      }
       // hotbar <-> main swap region
       const from = ref.index;
       const targetRange = from < 9 ? [9, 36] : [0, 9];
@@ -658,6 +872,22 @@ export class Containers {
       const left = this.player.give(stack.id, stack.count);
       ref.set(left > 0 ? { ...stack, count: left } : null);
     }
+  }
+
+  // shift-click into a container's slot array: merge, then fill empties
+  moveIntoSlots(ref, stack, slots) {
+    for (const s of slots) {
+      if (stack.count <= 0) break;
+      if (s && s.id === stack.id && s.dur === undefined && stack.dur === undefined) {
+        const moved = Math.min(maxStack(s.id) - s.count, stack.count);
+        s.count += moved;
+        stack.count -= moved;
+      }
+    }
+    for (let i = 0; i < slots.length && stack.count > 0; i++) {
+      if (!slots[i]) { slots[i] = { ...stack }; stack.count = 0; }
+    }
+    ref.set(stack.count > 0 ? stack : null);
   }
 
   moveIntoRange(ref, stack, [a, b]) {

@@ -51,6 +51,11 @@ export const B = {
   PUMPKIN: 45,
   MUSHROOM_BROWN: 46,
   MUSHROOM_RED: 47,
+  OAK_SAPLING: 48,
+  BIRCH_SAPLING: 49,
+  SPRUCE_SAPLING: 50,
+  CHEST: 51,
+  BED: 52,
 };
 
 // Tool classes
@@ -93,6 +98,16 @@ function def(id, name, display, opts = {}) {
 export const BLOCKS = [];
 function reg(block) { BLOCKS[block.id] = block; }
 
+// leaves occasionally drop a sapling of their species, or a stick
+function leafDrops(sapling) {
+  return (rng) => {
+    const drops = [];
+    if (rng() < 0.08) drops.push({ id: sapling, count: 1 });
+    if (rng() < 0.08) drops.push({ id: I.STICK, count: 1 });
+    return drops;
+  };
+}
+
 reg(def(B.AIR, 'air', 'Air', { solid: false, render: R_NONE, opacity: 0, hardness: -1, replaceable: true, drop: null }));
 reg(def(B.STONE, 'stone', 'Stone', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, drop: B.COBBLESTONE }));
 reg(def(B.GRASS, 'grass', 'Grass Block', {
@@ -132,6 +147,7 @@ reg(def(B.OAK_LEAVES, 'oak_leaves', 'Oak Leaves', {
     const drops = [];
     if (rng() < 0.05) drops.push({ id: I.APPLE, count: 1 });
     if (rng() < 0.1) drops.push({ id: I.STICK, count: 1 });
+    if (rng() < 0.08) drops.push({ id: B.OAK_SAPLING, count: 1 });
     return drops;
   },
 }));
@@ -140,13 +156,13 @@ reg(def(B.BIRCH_LOG, 'birch_log', 'Birch Log', {
   hardness: 2, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'birch_log_top', bottom: 'birch_log_top', side: 'birch_log' },
 }));
-reg(def(B.BIRCH_LEAVES, 'birch_leaves', 'Birch Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: null }));
+reg(def(B.BIRCH_LEAVES, 'birch_leaves', 'Birch Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: leafDrops(B.BIRCH_SAPLING) }));
 reg(def(B.BIRCH_PLANKS, 'birch_planks', 'Birch Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
 reg(def(B.SPRUCE_LOG, 'spruce_log', 'Spruce Log', {
   hardness: 2, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'spruce_log_top', bottom: 'spruce_log_top', side: 'spruce_log' },
 }));
-reg(def(B.SPRUCE_LEAVES, 'spruce_leaves', 'Spruce Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: null }));
+reg(def(B.SPRUCE_LEAVES, 'spruce_leaves', 'Spruce Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: leafDrops(B.SPRUCE_SAPLING) }));
 reg(def(B.SPRUCE_PLANKS, 'spruce_planks', 'Spruce Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
 reg(def(B.CACTUS, 'cactus', 'Cactus', {
   hardness: 0.4, sound: 'cloth',
@@ -199,6 +215,18 @@ reg(def(B.PUMPKIN, 'pumpkin', 'Pumpkin', {
 }));
 reg(def(B.MUSHROOM_BROWN, 'mushroom_brown', 'Brown Mushroom', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.MUSHROOM_RED, 'mushroom_red', 'Red Mushroom', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
+const plant = { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' };
+reg(def(B.OAK_SAPLING, 'oak_sapling', 'Oak Sapling', plant));
+reg(def(B.BIRCH_SAPLING, 'birch_sapling', 'Birch Sapling', plant));
+reg(def(B.SPRUCE_SAPLING, 'spruce_sapling', 'Spruce Sapling', plant));
+reg(def(B.CHEST, 'chest', 'Chest', {
+  hardness: 2.5, tool: TOOL_AXE, sound: 'wood',
+  textures: { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' },
+}));
+reg(def(B.BED, 'bed', 'Bed', {
+  hardness: 0.3, sound: 'cloth',
+  textures: { top: 'bed_top', bottom: 'oak_planks', side: 'bed_side', front: 'bed_foot' },
+}));
 
 export function blockInfo(id) {
   return BLOCKS[id] ?? BLOCKS[B.AIR];

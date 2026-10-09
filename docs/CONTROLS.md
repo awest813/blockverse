@@ -74,6 +74,13 @@ Touch controls appear automatically on the first touch.
 | F1 | Hide the HUD |
 | F3 | Debug overlay |
 
+### Recipe book
+
+- Shown beside the crafting grid in your inventory and at a crafting table (toggle with "Hide recipes")
+- Green: you can make it now — click to fill the grid, Shift-click for as many as you can afford
+- "3×3": you have the ingredients but need a crafting table
+- Grey: hover to see what's missing
+
 ### Creative item palette
 
 - Category tabs (All, Blocks, Plants & Decor, Tools, Food, Materials) and a search box

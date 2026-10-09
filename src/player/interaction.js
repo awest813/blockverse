@@ -7,9 +7,19 @@ import { itemInfo, isBlockItem } from '../items/items.js';
 import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
-const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT]);
+const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.BED]);
+const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING]);
+const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH]);
+const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS]);
+
+// item stacks stored in a block entity (furnace slots, chest slots)
+function entityContents(st) {
+  if (!st) return [];
+  if (st.kind === 'furnace') return [st.input, st.fuel, st.output].filter(Boolean);
+  if (st.kind === 'chest') return st.slots.filter(Boolean);
+  return [];
+}
 
 export class Interaction {
   constructor(world, player, callbacks) {
@@ -110,6 +120,10 @@ export class Interaction {
     const p = this.player;
     const info = blockInfo(t.id);
 
+    // spill a container's contents before setBlock clears its block entity
+    const contents = entityContents(this.world.blockEntityAt(t.x, t.y, t.z));
+    if (contents.length) this.cb.spawnDrops(t.x + 0.5, t.y + 0.5, t.z + 0.5, contents.map((s) => ({ ...s })));
+
     this.world.setBlock(t.x, t.y, t.z, B.AIR);
     this.cb.playSound('break', { block: info.sound });
 
@@ -146,7 +160,8 @@ export class Interaction {
 
     // 1) use a block (crafting table, furnace) — unless sneaking
     if (t && USABLE.has(t.id) && !p.sneaking) {
-      this.cb.openUI(t.id === B.CRAFTING_TABLE ? 'crafting' : 'furnace', t);
+      const kind = { [B.CRAFTING_TABLE]: 'crafting', [B.CHEST]: 'chest', [B.BED]: 'bed' }[t.id] ?? 'furnace';
+      this.cb.openUI(kind, t);
       return;
     }
 
@@ -179,6 +194,7 @@ export class Interaction {
     if (NEEDS_GROUND.has(info.id)) {
       const below = this.world.getBlockW(px, py - 1, pz);
       if (!isSolid(below)) return;
+      if (SAPLINGS.has(info.id) && !SOIL.has(below)) return;
     }
 
     // don't place a solid block inside the player
@@ -198,6 +214,8 @@ export class Interaction {
     const old = this.world.setBlock(px, py, pz, info.id, meta);
     if (old === -1) return;
     if (info.id === B.FURNACE) this.world.setBlockEntity(px, py, pz, null);
+    // saplings remember when to grow (seconds of loaded time)
+    if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
     this.cb.playSound('place', { block: info.sound });
     if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
   }

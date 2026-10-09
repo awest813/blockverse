@@ -53,6 +53,11 @@ export class Hud {
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
     this.fpsEl = document.getElementById('fps-counter');
+    this.toastsEl = document.getElementById('toasts');
+    this.toastsEl.innerHTML = '';
+    this.invHintEl = document.getElementById('inventory-hint');
+    this.invHintEl.classList.add('hidden');
+    document.getElementById('sleep-fade').classList.remove('on');
     this.vignetteEl = document.getElementById('vignette');
     // drop the flash class afterwards so the low-health pulse can resume
     this.vignetteEl.onanimationend = (e) => {
@@ -176,8 +181,54 @@ export class Hud {
     v.classList.add('hit');
   }
 
+  sleepFade(on) {
+    document.getElementById('sleep-fade').classList.toggle('on', on);
+  }
+
   setLowHealth(on) {
     this.vignetteEl.classList.toggle('low', on);
+  }
+
+  // pop-up card (top right) for tips and milestones
+  toast(title, text, iconId = null, ms = 9000) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    if (iconId) {
+      const img = document.createElement('img');
+      img.src = this.atlas.icon(iconId);
+      img.alt = '';
+      el.appendChild(img);
+    }
+    const body = document.createElement('div');
+    const t = document.createElement('div');
+    t.className = 'toast-title';
+    t.textContent = title;
+    body.appendChild(t);
+    if (text) {
+      const d = document.createElement('div');
+      d.className = 'toast-text';
+      d.textContent = text;
+      body.appendChild(d);
+    }
+    el.appendChild(body);
+    this.toastsEl.appendChild(el);
+    setTimeout(() => el.classList.add('out'), ms);
+    setTimeout(() => el.remove(), ms + 400);
+  }
+
+  toastBusy() {
+    return this.toastsEl.childElementCount > 0;
+  }
+
+  // "E  Inventory & crafting" chip beside the hotbar until the player has found it
+  setInventoryHint(label) {
+    this.invHintEl.classList.toggle('hidden', !label);
+    this.root.classList.toggle('inv-hint-on', !!label);   // also pulses the touch ▦ button
+    if (!label || this.invHintEl.dataset.label === label) return;
+    this.invHintEl.dataset.label = label;
+    const kbd = document.createElement('kbd');
+    kbd.textContent = label;
+    this.invHintEl.replaceChildren(kbd, ' Inventory & crafting');
   }
 
   showFps(on) {

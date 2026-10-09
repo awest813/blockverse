@@ -12,12 +12,14 @@ import { Hud } from './ui/hud.js';
 import { Sky } from './render/sky.js';
 import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
+import { tickSaplings } from './world/saplings.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
 import { TouchControls } from './ui/touch.js';
+import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -65,6 +67,8 @@ export class Game {
       openUI: (kind, pos) => {
         if (kind === 'crafting') this.containers.openCrafting();
         else if (kind === 'furnace') this.containers.openFurnace(pos);
+        else if (kind === 'chest') this.containers.openChest(pos);
+        else if (kind === 'bed') this.useBed(pos);
       },
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
@@ -79,6 +83,7 @@ export class Game {
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.chat = new Chat(this);
     this.touch = new TouchControls(this);
+    this.hints = new Hints(this);
     this._stepDistance = 0;
     canvas.addEventListener('mousedown', () => this.sfx?.resume(), { signal: this.input.signal });
 
@@ -91,6 +96,8 @@ export class Game {
     };
 
     this.time = worldMeta.timeOfDay ?? 0.05; // fraction of a day; 0 = sunrise
+    this.day = worldMeta.day ?? 1;           // days survived, shown at each sunrise
+    this.sleeping = false;
     this.paused = false;
     this.uiOpen = false;
     this.uiHooks = null;   // set by ui/screens module
@@ -111,7 +118,8 @@ export class Game {
       this.hud.showLabel(`${itemInfo(e.detail.id)?.display ?? 'Tool'} broke!`, true);
     });
     this.player.events.addEventListener('death', (e) => {
-      this.uiHooks?.showDeath?.(e.detail?.cause);
+      const dropped = this.dropInventoryOnDeath();
+      this.uiHooks?.showDeath?.(e.detail?.cause, dropped);
     });
 
     this._onResize = () => {
@@ -150,12 +158,14 @@ export class Game {
     const sy = Math.floor(gen.heightAt(sx, sz)) + 2;
     this.player.x = sx + 0.5; this.player.y = sy; this.player.z = sz + 0.5;
     this.player.spawnPoint = { x: sx + 0.5, y: sy + 1, z: sz + 0.5 };
+    this.player.worldSpawn = { ...this.player.spawnPoint };
   }
 
   bindKeys() {
     const input = this.input;
     this.input.onKeyDown = (code, e) => {
       if (this.uiHooks?.handleKey?.(code, e)) return true;
+      if (this.sleeping) return true;   // no inventory / chat / pause mid-fade
 
       // inventory-style screens: E / Esc close, 1-9 and drop act on the hovered slot
       if (this.containers.isOpen()) {
@@ -295,6 +305,76 @@ export class Game {
     this.hud.flashDamage();
   }
 
+  // ---------- survival ----------
+
+  newDay() {
+    this.day++;
+    if (this.player.mode !== GAMEMODE_CREATIVE) this.hud.toast(`Day ${this.day}`, 'You made it through the night.', B.BED, 5000);
+  }
+
+  isNight() {
+    return this.time > 0.51 && this.time < 0.985;
+  }
+
+  // Right-click a bed: set the respawn point, and sleep through the night if it's safe.
+  useBed(pos) {
+    const p = this.player;
+    p.bedPos = { x: pos.x, y: pos.y, z: pos.z };
+    if (!this.isNight()) {
+      this.hud.showLabel('Respawn point set. You can only sleep at night.');
+      return;
+    }
+    const threat = this.entities.mobs.some((m) => m.hostile && !m.dead
+      && Math.abs(m.x - (pos.x + 0.5)) < 8 && Math.abs(m.z - (pos.z + 0.5)) < 8 && Math.abs(m.y - pos.y) < 5);
+    if (threat) {
+      this.hud.showLabel('You may not rest now — there are monsters nearby.', true);
+      return;
+    }
+    // fade out, skip to morning, fade back in (input frozen, mouse stays captured)
+    this.sleeping = true;
+    this.input.captured = true;
+    this.input.releaseVirtual();
+    this.hud.sleepFade(true);
+    setTimeout(() => {
+      if (!this.running) return;
+      this.time = 0;
+      this.newDay();
+      this.sleeping = false;
+      this.input.captured = this.uiOpen;
+      this.hud.sleepFade(false);
+      this.hud.showLabel('Respawn point set.');
+    }, 1800);
+  }
+
+  // Scatter the inventory where the player died (unless the world keeps it).
+  // Returns the drop position, or null if nothing was dropped.
+  dropInventoryOnDeath() {
+    const p = this.player;
+    if (this.worldMeta.keepInventory || p.mode === GAMEMODE_CREATIVE) return null;
+    const stacks = p.inventory.filter(Boolean);
+    if (!stacks.length) return null;
+    this.entities.spawnDrops(p.x, p.y + 0.5, p.z, stacks.map((s) => ({ ...s })));
+    p.inventory.fill(null);
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    return { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
+  }
+
+  // Respawn at the bed if it's still there, otherwise at the world spawn.
+  respawnPlayer() {
+    const p = this.player;
+    const bed = p.bedPos;
+    let note = null;
+    if (bed && this.world.getBlockW(bed.x, bed.y, bed.z) === B.BED) {
+      p.spawnPoint = { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    } else {
+      if (bed) note = 'Your bed was missing, so you woke up at the world spawn.';
+      p.bedPos = null;
+      p.spawnPoint = { ...p.worldSpawn ?? p.spawnPoint };
+    }
+    p.respawn();
+    if (note) this.hud.showLabel(note, true);
+  }
+
   // a few starter hints in chat, shown once when a brand-new world loads
   showWelcomeTips() {
     const k = (id) => keyLabel(this.input.bindings[id]);
@@ -315,6 +395,17 @@ export class Game {
       'Esc pauses and shows all controls.',
     ];
     tips.forEach((t, i) => setTimeout(() => { if (this.running) this.chat.message(t, '#ffe9a8', 15000); }, 600 + i * 1600));
+  }
+
+  // how to perform an action with the current input, for tips
+  controlLabel(what) {
+    const mode = this.input.altInput;
+    const table = {
+      inventory: { touch: '▦', gamepad: 'Y', key: keyLabel(this.input.bindings.inventory) },
+      mine: { touch: 'touch and hold', gamepad: 'hold RT on', key: 'hold left-click on' },
+      use: { touch: 'tap', gamepad: 'press LT on', key: 'right-click' },
+    }[what];
+    return table[mode === 'touch' ? 'touch' : mode === 'gamepad' ? 'gamepad' : 'key'];
   }
 
   // in-game clock, "HH:MM" (time 0 is sunrise at 06:00)
@@ -354,9 +445,13 @@ export class Game {
       this._fpsFrames = 0; this._fpsTime = 0;
     }
 
-    const gamePaused = this.paused || this.uiOpen;
+    const gamePaused = this.paused || this.uiOpen || this.sleeping;
 
-    this.time = (this.time + dt / DAY_LENGTH_SECONDS) % 1;
+    this.time += dt / DAY_LENGTH_SECONDS;
+    if (this.time >= 1) {
+      this.time %= 1;
+      this.newDay();
+    }
     const day = this.dayFactor();
     this.world.materials.uniforms.uDay.value = day;
 
@@ -416,6 +511,7 @@ export class Game {
       this.statTimer = 0;
       this.hud.renderStats();
       this.hud.setFps(this.fps);
+      this.hints.update(0.25);
       this.updateDebug();
     }
 
@@ -467,6 +563,7 @@ export class Game {
 
   tickBlockEntities(dt) {
     tickFurnaces(this.world, dt);
+    tickSaplings(this.world, dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;
       if (this._furnaceUiTimer > 0.25) {
@@ -523,6 +620,7 @@ export class Game {
     }
     this.store.saveWorldMeta(this.worldMeta.id, {
       timeOfDay: this.time,
+      day: this.day,
       playerData: this.player.serialize(),
     });
   }

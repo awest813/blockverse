@@ -375,6 +375,15 @@ export class Screens {
     modeSel.addEventListener('change', updateModeHint);
     updateModeHint();
 
+    const keepSel = document.createElement('select');
+    for (const [v, label] of [['0', 'Drop items on death'], ['1', 'Keep inventory on death']]) {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = label;
+      keepSel.appendChild(o);
+    }
+    mkField('When you die', keepSel, 'Dropped items can be picked up again for 5 minutes.');
+
     const createBtn = this.btn('Create World', () => {}, 'btn primary');
     createBtn.type = 'submit';
     form.appendChild(createBtn);
@@ -395,6 +404,7 @@ export class Screens {
         seed,
         mode: parseInt(modeSel.value, 10),
         renderDistance: this.settings.renderDistance,
+        keepInventory: keepSel.value === '1',
       });
       this.onPlay(meta.id);
     });
@@ -444,12 +454,18 @@ export class Screens {
   // ---------- pause ----------
 
   // altInput: 'gamepad' | 'touch' | null — picks which cheat sheet to show
-  showPause(altInput = null) {
+  showPause(altInput = null, subtitle = '') {
     const el = this.screen('screen dim');
     this.current = 'pause';
     this.heading(el, 'Game Paused');
+    if (subtitle) {
+      const sub = document.createElement('div');
+      sub.className = 'pause-sub';
+      sub.textContent = subtitle;
+      el.appendChild(sub);
+    }
     el.appendChild(this.btn('Back to Game', () => this.onResume()));
-    el.appendChild(this.btn('Settings', () => this.showSettings(() => this.showPause(altInput))));
+    el.appendChild(this.btn('Settings', () => this.showSettings(() => this.showPause(altInput, subtitle))));
     el.appendChild(this.btn('Save & Quit to Title', () => this.onQuitToTitle()));
 
     const rows = altInput === 'gamepad' ? PAD_LAYOUT
@@ -649,7 +665,8 @@ export class Screens {
 
   // ---------- death ----------
 
-  showDeath(cause) {
+  // dropped: where the inventory was scattered ({x, y, z}) or null if kept
+  showDeath(cause, dropped = null) {
     const el = this.screen('screen death');
     this.current = 'death';
     const h = document.createElement('h1');
@@ -660,6 +677,12 @@ export class Screens {
     why.className = 'death-cause';
     why.textContent = DEATH_MESSAGES[cause] ?? 'You were slain';
     el.appendChild(why);
+    if (dropped) {
+      const items = document.createElement('div');
+      items.className = 'death-items';
+      items.textContent = `Your items were dropped at ${dropped.x}, ${dropped.y}, ${dropped.z} — get back within 5 minutes to recover them.`;
+      el.appendChild(items);
+    }
     // no autofocus: a held Space/Enter from gameplay must not trigger Respawn
     el.appendChild(this.btn('Respawn', () => this.onRespawn()));
     el.appendChild(this.btn('Title Screen', () => this.onQuitToTitle()));

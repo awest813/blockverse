@@ -44,7 +44,9 @@ export class Player {
     this.inventory = new Array(36).fill(null);
     this.selected = 0;
 
-    this.spawnPoint = { x: 8, y: 80, z: 8 };
+    this.spawnPoint = { x: 8, y: 80, z: 8 };   // where respawn() puts you (bed or world spawn)
+    this.worldSpawn = { ...this.spawnPoint };
+    this.bedPos = null;
 
     // double-tap space tracking for fly toggle
     this._lastSpace = -1;
@@ -355,6 +357,8 @@ export class Player {
       inventory: this.inventory,
       selected: this.selected,
       spawnPoint: this.spawnPoint,
+      worldSpawn: this.worldSpawn,
+      bedPos: this.bedPos,
     };
   }
 
@@ -368,6 +372,9 @@ export class Player {
     });
     if (Array.isArray(d.inventory)) this.inventory = d.inventory.map((s) => (s ? { ...s } : null));
     if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
+    // saves from before beds: the spawn point was always the world spawn
+    this.worldSpawn = { ...(d.worldSpawn ?? this.spawnPoint) };
+    this.bedPos = d.bedPos ?? null;
     this.dead = this.health <= 0;
   }
 }

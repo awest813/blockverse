@@ -36,10 +36,15 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### ⛏️ Survival gameplay
 - Break any block with correct per-block hardness, tool classes (pickaxe / axe / shovel / sword) and five tool tiers (wood, stone, iron, gold, diamond) with durability
 - Item drops with physics that magnetize toward you and merge into your inventory
-- **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, building blocks and more
+- **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
+- **Recipe book** beside every crafting grid: see what you can make, what's missing, and fill the grid with one click
+- First-time **survival tips** that guide you from punching a tree to your first pickaxe, furnace, chest and bed
 - **Furnace** with fuel + smelt time, live progress bars, and a lit block state that emits light: smelt iron, gold, glass, stone, bricks, and cook food
 - Health, hunger, saturation & exhaustion, drowning with an air meter, fall damage, starvation — plus food to eat
-- Death screen and respawn at your spawn point
+- **Chests** (27 slots) for storage; containers spill their contents when broken
+- **Beds**: sleep through the night when no monsters are near, and respawn at your bed
+- **Saplings** drop from leaves and grow into new trees
+- Dying drops your inventory where you fell (or keep it — chosen per world); a day counter tracks how long you've survived
 - **Creative mode**: flight (double-tap space), instant breaking, a searchable item palette with categories, no damage
 
 ### 🐷 Mobs

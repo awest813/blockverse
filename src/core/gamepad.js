@@ -139,7 +139,7 @@ export class GamepadController {
     }
     if (!list.length) return;
     // highlight something right away so the first D-pad press moves, not just selects
-    if (!this.target && !this.current(list)) this.setTarget(list[0], list);
+    if (!this.target && !this.current(list)) this.setTarget(list.find((el) => 'padStart' in el.dataset) ?? list[0], list);
     // re-renders (inventory clicks, furnace ticks) replace elements; follow by index
     if (this.target && !this.target.isConnected && list[this.targetIndex]) this.setTarget(list[this.targetIndex], list);
 
@@ -207,17 +207,24 @@ export class GamepadController {
       cur.dispatchEvent(new Event('change', { bubbles: true }));
       return;
     }
-    // nearest element in the pressed direction, favouring straight lines
+    // nearest element that lies entirely past the current one in the pressed
+    // direction; overlap on the other axis is preferred (no diagonal jumps)
     const r = cur.getBoundingClientRect();
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     let best = null, bestScore = Infinity;
     for (const el of list) {
       if (el === cur) continue;
       const q = el.getBoundingClientRect();
-      const x = q.left + q.width / 2 - cx, y = q.top + q.height / 2 - cy;
-      const [main, cross] = dir === 'up' ? [-y, x] : dir === 'down' ? [y, x] : dir === 'left' ? [-x, y] : [x, y];
-      if (main <= 2) continue;
-      const score = main + Math.abs(cross) * 2.5;
+      const gap = dir === 'down' ? q.top - r.bottom : dir === 'up' ? r.top - q.bottom
+        : dir === 'right' ? q.left - r.right : r.left - q.right;
+      if (gap < -4) continue;
+      const vertical = dir === 'up' || dir === 'down';
+      const crossGap = vertical
+        ? Math.max(0, q.left - r.right, r.left - q.right)
+        : Math.max(0, q.top - r.bottom, r.top - q.bottom);
+      const crossCenter = vertical
+        ? Math.abs(q.left + q.width / 2 - (r.left + r.width / 2))
+        : Math.abs(q.top + q.height / 2 - (r.top + r.height / 2));
+      const score = Math.max(0, gap) + crossGap * 3 + crossCenter * 0.1;
       if (score < bestScore) { best = el; bestScore = score; }
     }
     if (best) this.setTarget(best, list);
