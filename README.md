@@ -45,13 +45,16 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal
-- **Armour**: iron, gold and diamond helmets, chestplates, leggings and boots, with an armour bar, damage reduction and wear
+- **Bow and arrows**: draw to charge, release to fire; arrows are crafted from flint (from gravel), sticks and feathers, and can be picked back up
+- **Armour**: leather, iron, gold and diamond helmets, chestplates, leggings and boots, with an armour bar, damage reduction and wear
 - **TNT** from gunpowder and sand, lit with a torch — chain reactions included
 - Dying drops your inventory where you fell (or keep it — chosen per world); a day counter tracks how long you've survived
 - **Creative mode**: flight (double-tap space), instant breaking, a searchable item palette with categories, no damage
 
 ### 🐷 Mobs
-- **Pigs and sheep** wander the grasslands, flee when hit, and drop porkchops, mutton, and wool
+- **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food
+- **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean
+- **Pets**: tame dogs with bones and cats with raw fish. Pets follow you, sit on command, are saved with your world, and catch up if you leave them behind. Dogs fight monsters near you; creepers flee from cats
 - **Zombies** spawn in darkness, chase you, hit hard, and burn in the morning sun
 - **Skeletons** keep their distance and shoot arrows (and burn in daylight); they drop bones
 - **Spiders** are fast and climb walls; they only hunt in the dark unless provoked, and drop string

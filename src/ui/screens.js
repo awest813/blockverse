@@ -18,6 +18,7 @@ const DEATH_MESSAGES = {
   skeleton: 'You were shot by a Skeleton',
   spider: 'You were slain by a Spider',
   explosion: 'You blew up',
+  dog: 'You were mauled by a Dog',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

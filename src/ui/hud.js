@@ -27,7 +27,7 @@ export function fillSlot(el, stack, atlas) {
   }
   if (stack.dur !== undefined) {
     const info = itemInfo(stack.id);
-    const max = info?.tool?.durability ?? info?.armor?.durability;
+    const max = info?.tool?.durability ?? info?.armor?.durability ?? info?.bow?.durability;
     if (max && stack.dur < max) {
       const bar = document.createElement('div');
       bar.className = 'durability';
@@ -191,6 +191,13 @@ export class Hud {
     v.classList.remove('hit');
     void v.offsetWidth;
     v.classList.add('hit');
+  }
+
+  setBowCharge(f) {
+    const el = document.getElementById('bow-charge');
+    el.classList.toggle('hidden', f <= 0);
+    el.firstChild.style.width = `${Math.round(f * 100)}%`;
+    el.classList.toggle('full', f >= 1);
   }
 
   sleepFade(on) {

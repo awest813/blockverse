@@ -83,7 +83,7 @@ export class ViewModel {
   }
 
   // held: item id or 0; light: 0..1 brightness at the player's eyes
-  update(dt, { held, mining, speed, onGround, light, visible }) {
+  update(dt, { held, draw = 0, mining, speed, onGround, light, visible }) {
     this.root.visible = visible;
     if (!visible) return;
 
@@ -117,8 +117,10 @@ export class ViewModel {
     const equipDrop = (1 - this.equipT / EQUIP_TIME) * 0.35;
 
     this.root.position.set(0.36, -0.3, -0.6);
-    this.pivot.position.set(bobX - s * 0.12, bobY - equipDrop + s * 0.06, -s * 0.12);
-    this.pivot.rotation.set(-s * 0.9, s * 0.35, s * 0.25);
+    // a drawn bow comes in toward the centre of the view and trembles at full draw
+    const shake = draw >= 1 ? Math.sin(performance.now() / 30) * 0.004 : 0;
+    this.pivot.position.set(bobX - s * 0.12 - draw * 0.22 + shake, bobY - equipDrop + s * 0.06 + draw * 0.1, -s * 0.12 + draw * 0.1);
+    this.pivot.rotation.set(-s * 0.9, s * 0.35 + draw * 0.5, s * 0.25 - draw * 0.3);
   }
 
   dispose() {

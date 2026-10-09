@@ -350,6 +350,15 @@ export class Creeper extends Mob {
       super.think(dt, player, playerDist);
       return;
     }
+    // creepers keep well away from cats
+    const cat = (this.fx?.mobs() ?? []).find((m) => m.kind === 'cat' && !m.dead && Math.hypot(m.x - this.x, m.z - this.z) < 6);
+    if (cat) {
+      this.fuse = 0;
+      this.state = 'flee';
+      this.moving = true;
+      this.targetYaw = Math.atan2(-(cat.x - this.x), -(cat.z - this.z)) + Math.PI;
+      return;
+    }
     this.state = 'chase';
     this.steer(player, 1);
     if (playerDist < 3 || (this.fuse > 0 && playerDist < 7)) {

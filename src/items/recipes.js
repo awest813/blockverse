@@ -49,6 +49,7 @@ for (const [mat, pick, axe, shovel, sword, hoe] of TOOL_MATS) {
 
 // armour
 for (const [mat, helmet, chest, legs, boots] of [
+  [I.LEATHER, I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS],
   [I.IRON_INGOT, I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS],
   [I.GOLD_INGOT, I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS],
   [I.DIAMOND, I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS],
@@ -63,6 +64,8 @@ for (const [mat, helmet, chest, legs, boots] of [
 // farming and mob drops
 shaped(I.BREAD, 1, ['WWW'], { W: [I.WHEAT] });
 shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
+shaped(I.BOW, 1, ['.SX', 'S.X', '.SX'], { S: [I.STICK], X: [I.STRING] });
+shaped(I.ARROW, 4, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
 shaped(B.WOOL, 1, ['SS', 'SS'], { S: [I.STRING] });
 shaped(B.TNT, 1, ['GSG', 'SGS', 'GSG'], { G: [I.GUNPOWDER], S: [B.SAND] });
 
@@ -192,6 +195,9 @@ export const SMELTING = new Map([
   [I.CLAY_BALL, { id: I.BRICK_ITEM, count: 1 }],
   [I.PORKCHOP_RAW, { id: I.PORKCHOP_COOKED, count: 1 }],
   [I.MUTTON_RAW, { id: I.MUTTON_COOKED, count: 1 }],
+  [I.BEEF_RAW, { id: I.BEEF_COOKED, count: 1 }],
+  [I.CHICKEN_RAW, { id: I.CHICKEN_COOKED, count: 1 }],
+  [I.FISH_RAW, { id: I.FISH_COOKED, count: 1 }],
 ]);
 
 export const SMELT_TIME = 10; // seconds per item

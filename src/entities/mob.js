@@ -76,7 +76,17 @@ export class Mob {
     // despawn far from player
     const pdx = this.x - player.x, pdz = this.z - player.z;
     const playerDistSq = pdx * pdx + pdz * pdz;
-    if (playerDistSq > 80 * 80) { this.kill(); return; }
+    if (playerDistSq > 80 * 80) {
+      if (!this.tamed) { this.kill(); return; }
+    }
+    // pets left far behind catch up by appearing next to the player
+    if (this.tamed && !this.sitting && playerDistSq > 24 * 24 && !player.dead) {
+      this.x = player.x + (Math.random() - 0.5) * 2;
+      this.y = player.y + 0.5;
+      this.z = player.z + (Math.random() - 0.5) * 2;
+      this.vx = this.vy = this.vz = 0;
+      this.fallStart = undefined;
+    }
     // freeze in unloaded chunks
     if (!this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) return;
 
@@ -97,24 +107,30 @@ export class Mob {
     this.vx += (dvx - this.vx) * Math.min(1, accel * dt);
     this.vz += (dvz - this.vz) * Math.min(1, accel * dt);
 
-    if (inWater) {
+    if (this.flier || (this.swimmer && inWater)) {
+      // fliers and swimmers steer vertically toward targetVy (set by think)
+      this.vy += ((this.targetVy ?? 0) - this.vy) * Math.min(1, 3 * dt);
+    } else if (inWater) {
       this.vy += (1.6 - this.vy) * Math.min(1, 3 * dt); // float up
     } else {
       this.vy -= 26 * dt;
       this.vy = Math.max(this.vy, -40);
     }
+    this.inWater = inWater;
 
     const before = this.y;
     const r = moveEntity(this.world, this, dt);
     this.onGround = r.onGround;
     // hop up single blocks when walking into a wall; climbers (spiders) scale it
-    if (r.hitWall && this.moving && !inWater) {
+    if (r.hitWall && this.moving && !inWater && !this.flier && !this.swimmer) {
       if (this.climber) this.vy = Math.max(this.vy, 3.6);
       else if (this.onGround) this.vy = 7.2;
     }
 
-    // fall damage
-    if (!this.onGround && this.vy < 0 && !inWater) {
+    // fall damage (fliers and swimmers don't take it)
+    if (this.flier || this.swimmer) {
+      this.fallStart = undefined;
+    } else if (!this.onGround && this.vy < 0 && !inWater) {
       this.fallStart = Math.max(this.fallStart ?? this.y, this.y);
     } else if ((this.onGround || inWater) && this.fallStart !== undefined) {
       const d = this.fallStart - this.y;

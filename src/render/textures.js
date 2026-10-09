@@ -825,6 +825,7 @@ const ARMOR_MAPS = {
   ],
 };
 const ARMOR_MATERIALS = {
+  leather: { M: [150, 96, 54], m: [112, 68, 36], L: [184, 128, 80] },
   iron: { M: [214, 214, 220], m: [158, 158, 168], L: [244, 244, 248] },
   gold: { M: [240, 196, 58], m: [190, 146, 36], L: [255, 236, 130] },
   diamond: { M: [92, 220, 214], m: [52, 170, 172], L: [176, 250, 244] },
@@ -895,6 +896,46 @@ tile('string', (ctx) => {
   for (let i = 0; i < 12; i++) px(ctx, 2 + i, 8 + Math.round(Math.sin(i * 0.9) * 3), [236, 236, 236]);
 });
 tile('gunpowder', (ctx, rng) => blobIcon(ctx, rng, [[86, 86, 86], [60, 60, 60], [116, 116, 116]]));
+
+// --- bow, arrows, animal drops ---
+tile('bow', (ctx) => {
+  const wood = [122, 86, 50], woodD = [92, 62, 34], str = [224, 224, 224];
+  const arc = [[11, 1], [9, 2], [7, 3], [6, 4], [5, 5], [4, 6], [3, 7], [2, 9], [1, 11]];
+  for (const [x, y] of arc) { px(ctx, x + 2, y + 2, wood); px(ctx, x + 3, y + 2, woodD); }
+  for (let i = 0; i < 11; i++) px(ctx, 13 - i, 3 + i, str);   // string
+});
+tile('arrow', (ctx) => {
+  for (let i = 0; i < 9; i++) px(ctx, 3 + i, 12 - i, [122, 94, 56]);
+  rect(ctx, 11, 2, 3, 2, [150, 150, 156]); px(ctx, 12, 4, [150, 150, 156]); px(ctx, 13, 1, [190, 190, 196]);  // head
+  px(ctx, 2, 12, [236, 236, 236]); px(ctx, 3, 13, [236, 236, 236]); px(ctx, 2, 13, [210, 210, 210]);  // fletching
+  px(ctx, 4, 13, [210, 210, 210]); px(ctx, 2, 11, [210, 210, 210]);
+});
+tile('flint', (ctx, rng) => blobIcon(ctx, rng, [[52, 52, 58], [36, 36, 40], [86, 86, 96]]));
+tile('feather', (ctx) => {
+  for (let i = 0; i < 10; i++) {
+    px(ctx, 4 + i, 13 - i, [200, 200, 204]);
+    if (i > 1 && i < 9) { px(ctx, 5 + i, 13 - i, [244, 244, 246]); px(ctx, 4 + i, 12 - i, [244, 244, 246]); }
+  }
+});
+tile('leather', (ctx, rng) => {
+  fillNoiseRegion(ctx, rng, 3, 3, 10, 10, [[[150, 96, 54], 5], [[128, 80, 42], 3], [[170, 112, 66], 2]]);
+});
+tile('beef_raw', (ctx, rng) => meat(ctx, rng, [200, 56, 52], [170, 40, 38], [232, 150, 140]));
+tile('beef_cooked', (ctx, rng) => meat(ctx, rng, [120, 72, 40], [92, 52, 28], [160, 108, 66]));
+function drumstick(ctx, meatC, meatD) {
+  rect(ctx, 5, 3, 7, 7, meatC); rect(ctx, 6, 2, 5, 1, meatC); rect(ctx, 5, 9, 6, 1, meatD);
+  for (let i = 0; i < 4; i++) px(ctx, 5 - i, 10 + i, [236, 230, 214]);   // bone
+  rect(ctx, 1, 13, 2, 2, [236, 230, 214]);
+}
+tile('chicken_raw', (ctx) => drumstick(ctx, [236, 190, 170], [210, 160, 140]));
+tile('chicken_cooked', (ctx) => drumstick(ctx, [196, 128, 60], [160, 96, 40]));
+function fishIcon(ctx, body, belly, fin) {
+  rect(ctx, 3, 6, 8, 4, body); rect(ctx, 4, 5, 6, 1, body); rect(ctx, 4, 10, 6, 1, belly);
+  rect(ctx, 11, 5, 2, 6, fin); px(ctx, 13, 4, fin); px(ctx, 13, 11, fin);   // tail
+  px(ctx, 5, 7, [20, 20, 20]);   // eye
+}
+tile('fish_raw', (ctx) => fishIcon(ctx, [112, 140, 168], [200, 210, 220], [88, 112, 140]));
+tile('fish_cooked', (ctx) => fishIcon(ctx, [170, 120, 70], [204, 160, 100], [130, 88, 50]));
 
 // --- TNT ---
 tile('tnt_side', (ctx, rng) => {

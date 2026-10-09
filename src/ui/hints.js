@@ -69,6 +69,12 @@ export class Hints {
         'Armour', 'Ingots or diamonds make helmets, chestplates, leggings and boots. Wear them to take less damage.'],
       ['creeper', () => g.entities.mobs.some((m) => m.kind === 'creeper' && Math.hypot(m.x - p.x, m.z - p.z) < 14), I.GUNPOWDER,
         'Creeper!', 'It hisses before it explodes — back away fast, or hit it first.'],
+      ['bow', () => has([I.STRING], 3), I.BOW,
+        'Bow', '3 sticks + 3 string make a Bow. Arrows need flint (from gravel), a stick and a feather (from chickens).'],
+      ['tame', () => g.entities.mobs.some((m) => (m.kind === 'dog' || m.kind === 'cat') && !m.tamed && Math.hypot(m.x - p.x, m.z - p.z) < 12), I.BONE,
+        'A wild animal', `Tame dogs with bones and cats with raw fish (${k('use')} them). Dogs guard you; creepers fear cats.`],
+      ['leather', () => has([I.LEATHER], 3), I.LEATHER_CHESTPLATE,
+        'Leather armour', 'Cow leather makes light armour — a good start before iron.'],
       ['bed', () => has([B.WOOL], 3), B.BED,
         'Bed', '3 wool + 3 planks make a Bed. Sleep to skip the night and set your respawn point.'],
     ];

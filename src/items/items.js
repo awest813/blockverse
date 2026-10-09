@@ -33,6 +33,7 @@ function item(id, name, display, opts = {}) {
     food: opts.food ?? 0,      // hunger points restored
     burnTime: opts.burnTime ?? 0, // furnace fuel, in seconds
     armor: opts.armor ?? null,  // {slot: 0 head .. 3 feet, points, durability}
+    bow: opts.bow ?? null,      // {durability}
     places: opts.places ?? null, // block this item plants/places (seeds)
   });
 }
@@ -74,11 +75,23 @@ item(I.BONE, 'bone', 'Bone');
 item(I.BONE_MEAL, 'bone_meal', 'Bone Meal');
 item(I.STRING, 'string', 'String');
 item(I.GUNPOWDER, 'gunpowder', 'Gunpowder');
+item(I.BOW, 'bow', 'Bow', { stack: 1, bow: { durability: 384 }, burnTime: 10 });
+item(I.ARROW, 'arrow', 'Arrow');
+item(I.FLINT, 'flint', 'Flint');
+item(I.FEATHER, 'feather', 'Feather');
+item(I.LEATHER, 'leather', 'Leather');
+item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3 });
+item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8 });
+item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2 });
+item(I.CHICKEN_COOKED, 'chicken_cooked', 'Cooked Chicken', { food: 6 });
+item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2 });
+item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5 });
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
 const ARMOR_BASE_DURABILITY = [11, 16, 15, 13];
 for (const [mat, mult, points, ids] of [
+  ['leather', 5, [1, 3, 2, 1], [I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]],
   ['iron', 15, [2, 6, 5, 2], [I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS]],
   ['gold', 7, [2, 5, 3, 1], [I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS]],
   ['diamond', 33, [3, 8, 6, 3], [I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS]],
@@ -150,6 +163,7 @@ export function makeStack(id, count = 1) {
   const s = { id, count };
   if (info?.tool) s.dur = info.tool.durability;
   else if (info?.armor) s.dur = info.armor.durability;
+  else if (info?.bow) s.dur = info.bow.durability;
   return s;
 }
 

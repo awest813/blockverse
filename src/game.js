@@ -5,6 +5,7 @@ import { World } from './world/world.js';
 import { Player } from './player/player.js';
 import { Interaction, entityContents } from './player/interaction.js';
 import { PrimedTnt } from './entities/mobs.js';
+import { PET_CLASSES } from './entities/animals.js';
 import { Input } from './core/input.js';
 import { BlockHighlight } from './render/highlight.js';
 import { ViewModel } from './render/viewmodel.js';
@@ -15,7 +16,7 @@ import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { tickSaplings } from './world/saplings.js';
 import { MobSpawner } from './entities/mobSpawner.js';
-import { itemInfo, isBlockItem, makeStack, maxStack } from './items/items.js';
+import { itemInfo, isBlockItem, makeStack, maxStack, I } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
@@ -61,6 +62,7 @@ export class Game {
     this.entities.onPickup = () => this.sfx?.play('pickup');
     this.entities.fx.explode = (x, y, z, power) => this.explode(x, y, z, power);
     this.entities.fx.sound = (name) => this.sfx?.play(name);
+    this.entities.fx.notify = (text) => this.hud.showLabel(text);
     this.blasts = [];   // expanding explosion flashes
 
     this.input = new Input(canvas);
@@ -75,6 +77,7 @@ export class Game {
         else if (kind === 'bed') this.useBed(pos);
       },
       primeTnt: (x, y, z) => this.primeTnt(x, y, z, 3),
+      fireBow: (power) => this.fireBow(power),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         this.sfx?.play(name, opts);
@@ -96,6 +99,15 @@ export class Game {
     this.input.onMouseDown = (button) => {
       if ((button === 0 || button === 2) && !this.uiOpen && !this.player.dead) this.viewModel.swing();
       if (button === 1 && !this.uiOpen && !this.player.dead) { this.pickBlock(); return; }
+      // right-click an animal: tame / sit / follow
+      if (button === 2 && !this.uiOpen && !this.player.dead) {
+        const m = this.mobUnderCrosshair();
+        if (m?.interact?.(this.player, this.player.heldStack())) {
+          this.interaction.placeCooldown = 0.35;
+          this.interaction.useCooldown = 0.35;
+        }
+        return;
+      }
       if (button !== 0 || this.uiOpen || this.player.dead) return;
       this.attackMob();
     };
@@ -136,6 +148,7 @@ export class Game {
 
     this.bindKeys();
     this.setupSpawn();
+    this.restorePets(worldMeta.pets ?? []);
 
     // hidden-tab ticker (page timers are throttled; a worker's are not)
     this.ticker = new Worker(URL.createObjectURL(new Blob(
@@ -247,7 +260,8 @@ export class Game {
 
   // Hit the mob under the crosshair, if one is closer than the targeted block.
   // Returns true when a mob was in reach (touch taps fall back to "use" otherwise).
-  attackMob() {
+  // the mob under the crosshair within reach, unless a block is in front of it
+  mobUnderCrosshair() {
     const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
     const dir = this.player.lookDir();
     let best = null, bestDist = Infinity;
@@ -255,8 +269,13 @@ export class Game {
       const d = m.rayHit(origin, dir, REACH_DISTANCE);
       if (d !== null && d < bestDist) { best = m; bestDist = d; }
     }
-    // don't attack through walls
-    if (!best || (this.interaction.target && bestDist >= this.interaction.target.dist)) return false;
+    if (!best || (this.interaction.target && bestDist >= this.interaction.target.dist)) return null;
+    return best;
+  }
+
+  attackMob() {
+    const best = this.mobUnderCrosshair();
+    if (!best) return false;
     const held = this.player.heldStack();
     const dmg = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
     if (best.damage(dmg, this.player)) {
@@ -308,6 +327,36 @@ export class Game {
 
   flashDamage() {
     this.hud.flashDamage();
+  }
+
+  restorePets(pets) {
+    for (const p of pets) {
+      const Cls = PET_CLASSES[p.kind];
+      if (!Cls) continue;
+      const pet = new Cls(this.scene, this.world, p.x, p.y, p.z);
+      pet.tamed = true;
+      pet.onTamed();
+      pet.sitting = !!p.sitting;
+      pet.health = p.health ?? pet.maxTamedHealth;
+      this.entities.addMob(pet);
+    }
+  }
+
+  // ---------- bow ----------
+
+  fireBow(power) {
+    const p = this.player;
+    if (power < 0.15) return;   // a twitch isn't a shot
+    const creative = p.mode === GAMEMODE_CREATIVE;
+    if (!creative && p.take(I.ARROW, 1) === 0) return;
+    const dir = p.lookDir();
+    const speed = 8 + 32 * power;
+    this.entities.fx.fire(
+      p.x + dir.x * 0.5, p.eyeY - 0.1 + dir.y * 0.5, p.z + dir.z * 0.5,
+      dir.x * speed, dir.y * speed, dir.z * speed,
+      Math.round(1 + 8 * power * power), !creative);
+    if (!creative) p.damageHeldTool(1);
+    this.viewModel.swing();
   }
 
   // ---------- explosions ----------
@@ -578,6 +627,14 @@ export class Game {
     this.camera.rotateY(this.player.yaw);
     this.camera.rotateX(this.player.pitch);
     this.updateViewModel(dt, gamePaused);
+    // drawing a bow zooms in a little and fills a meter under the crosshair
+    const charge = this.interaction.bowCharge;
+    if (charge !== this._lastCharge) {
+      this._lastCharge = charge;
+      this.camera.fov = (this.baseFov ?? 75) * (1 - 0.12 * charge);
+      this.camera.updateProjectionMatrix();
+      this.hud.setBowCharge(charge);
+    }
 
     // underwater tint
     this.applyUnderwaterEffect();
@@ -620,6 +677,7 @@ export class Game {
     const light = Math.max((sky / 15) * this.world.materials.uniforms.uDay.value, block / 15) || 0;
     this.viewModel.update(paused ? 0 : dt, {
       held: p.heldStack()?.id ?? 0,
+      draw: this.interaction.bowCharge,
       mining: !paused && !!this.interaction.breakTarget && this.input.mouseDown(0),
       speed: Math.hypot(p.vx, p.vz),
       onGround: p.onGround && !p.flying,
@@ -679,6 +737,7 @@ export class Game {
   applySettings(s) {
     this.world.renderDistance = s.renderDistance;
     this.world.centerCx = Infinity; // force re-stream at the new radius
+    this.baseFov = s.fov;
     this.camera.fov = s.fov;
     this.camera.updateProjectionMatrix();
     this.player.sensitivity = s.sensitivity;
@@ -706,6 +765,10 @@ export class Game {
       c.modified = false;
     }
     this.store.saveWorldMeta(this.worldMeta.id, {
+      // tamed pets travel with the save
+      pets: this.entities.mobs.filter((m) => m.tamed && !m.dead).map((m) => ({
+        kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health,
+      })),
       timeOfDay: this.time,
       day: this.day,
       playerData: this.player.serialize(),

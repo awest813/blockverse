@@ -68,6 +68,13 @@ html, body {
 /* F1: hide the HUD except chat and the click prompt */
 #hud.bare > :not(#chat-log):not(#chat-input-row):not(#click-to-play):not(#vignette):not(#sleep-fade) { visibility: hidden; }
 
+#bow-charge {
+  position: absolute; left: 50%; top: calc(50% + 16px); transform: translateX(-50%);
+  width: 40px; height: 4px; background: rgba(0, 0, 0, 0.5);
+}
+#bow-charge > div { height: 100%; background: #e8e8e8; }
+#bow-charge.full > div { background: #ffd83d; }
+
 #hotbar {
   position: absolute; left: 50%; bottom: 8px;
   transform: translateX(-50%);

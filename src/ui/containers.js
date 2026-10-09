@@ -107,7 +107,7 @@ export class Containers {
     const info = itemInfo(stack.id);
     const t = this.tooltipEl;
     t.textContent = info?.display ?? '?';
-    const max = info?.tool?.durability ?? info?.armor?.durability;
+    const max = info?.tool?.durability ?? info?.armor?.durability ?? info?.bow?.durability;
     if (stack.dur !== undefined && max) {
       const d = document.createElement('div');
       d.className = 'tooltip-sub';

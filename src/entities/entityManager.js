@@ -17,8 +17,15 @@ export class EntityManager {
         this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg));
         this.fx.sound('shoot');
       },
+      // the player's bow
+      fire: (x, y, z, vx, vy, vz, dmg, pickup) => {
+        this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player', pickup));
+        this.fx.sound('shoot');
+      },
       explode: () => {},
       sound: () => {},
+      notify: () => {},
+      mobs: () => this.mobs,
     };
   }
 
@@ -51,7 +58,7 @@ export class EntityManager {
     for (const m of this.mobs) m.update(dt, player);
     this.mobs = this.mobs.filter((m) => !m.dead);
 
-    for (const a of this.projectiles) a.update(dt, player);
+    for (const a of this.projectiles) a.update(dt, player, this.mobs, this.onPickup);
     this.projectiles = this.projectiles.filter((a) => !a.dead);
   }
 

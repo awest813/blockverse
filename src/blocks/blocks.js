@@ -128,7 +128,8 @@ reg(def(B.SANDSTONE, 'sandstone', 'Sandstone', {
   hardness: 0.8, tool: TOOL_PICKAXE, minTier: 1,
   textures: { top: 'sandstone_top', bottom: 'sandstone_top', side: 'sandstone' },
 }));
-reg(def(B.GRAVEL, 'gravel', 'Gravel', { hardness: 0.6, tool: TOOL_SHOVEL, sound: 'sand' }));
+reg(def(B.GRAVEL, 'gravel', 'Gravel', {
+  drop: (rng) => [{ id: rng() < 0.15 ? I.FLINT : B.GRAVEL, count: 1 }], hardness: 0.6, tool: TOOL_SHOVEL, sound: 'sand' }));
 reg(def(B.CLAY, 'clay', 'Clay', {
   hardness: 0.6, tool: TOOL_SHOVEL, sound: 'dirt',
   drop: () => [{ id: I.CLAY_BALL, count: 4 }],

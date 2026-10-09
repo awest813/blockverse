@@ -12,6 +12,7 @@ import { mulberry32 } from '../core/rng.js';
 const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.BED]);
 const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING]);
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
+const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
 const NEEDS_GROUND = new Set([B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS]);
@@ -38,6 +39,7 @@ export class Interaction {
     this.breakCooldown = 0;
     this.useCooldown = 0;
     this.dropRng = mulberry32((Math.random() * 2 ** 31) | 0);
+    this.bowCharge = 0;         // 0..1 while drawing a bow
   }
 
   update(input, dt, uiOpen) {
@@ -82,6 +84,20 @@ export class Interaction {
     } else {
       this.resetBreaking();
     }
+
+    // ---- bow: hold right mouse to draw, release to shoot ----
+    const held = p.heldStack();
+    if (held && itemInfo(held.id)?.bow) {
+      const hasArrows = p.mode === GAMEMODE_CREATIVE || p.countOf(I.ARROW) > 0;
+      if (input.mouseDown(2) && hasArrows) {
+        this.bowCharge = Math.min(1, this.bowCharge + dt / BOW_DRAW_TIME);
+      } else if (this.bowCharge > 0) {
+        this.cb.fireBow?.(this.bowCharge);
+        this.bowCharge = 0;
+      }
+      return;
+    }
+    this.bowCharge = 0;
 
     // ---- using / placing (right mouse, button 2) ----
     if (input.mouseDown(2) && this.placeCooldown <= 0 && this.useCooldown <= 0) {

@@ -64,6 +64,9 @@ Touch controls appear automatically on the first touch.
 | Right click farmland with seeds | Plant wheat |
 | Right click a crop or sapling with bone meal | Make it grow |
 | Right click with armour | Wear it (swaps with what you have on) |
+| Hold right click with a bow | Draw (longer = stronger, meter under the crosshair); release to shoot. Needs arrows in survival |
+| Right click a dog with a bone / a cat with raw fish | Try to tame it (about 1 in 3 per item) |
+| Right click your pet | Sit / follow |
 | Right click TNT while holding a torch | Light the fuse — run! |
 | Q | Drop one of the held item (Ctrl+Q: the whole stack) |
 | Middle click | Pick block: select the targeted block in your hotbar (creative: get a stack) |
