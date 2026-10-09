@@ -14,6 +14,8 @@ for (const mod of [MOBS, ANIMALS]) {
   }
 }
 
+const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper']);
+
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];
 const ARGS = {
@@ -51,6 +53,7 @@ export class Chat {
     send.textContent = 'Send';
     send.addEventListener('click', () => this.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })));
     this.rowEl.appendChild(send);
+    this.sendEl = send;
     this.inputEl.addEventListener('input', () => this.suggest(), { signal: game.input.signal });
 
     this.inputEl.addEventListener('keydown', (e) => {
@@ -82,6 +85,8 @@ export class Chat {
 
   dispose() {
     this.open = false;
+    this.suggestEl.remove();
+    this.sendEl.remove();
     this.rowEl.classList.add('hidden');
     this.logEl.classList.remove('open');
     this.logEl.innerHTML = '';
@@ -229,6 +234,9 @@ export class Chat {
       case 'summon': {
         const Cls = SUMMONABLE[(args[0] ?? '').toLowerCase()];
         if (!Cls) throw new Error(`usage: /summon <${Object.keys(SUMMONABLE).slice(0, 6).join('|')}|…>`);
+        if (g.difficulty === 0 && HOSTILE_NAMES.has(args[0].toLowerCase())) {
+          throw new Error('monsters can\'t be summoned in Peaceful');
+        }
         const dir = p.lookDir();
         const mob = g.mobSpawner.spawnMob(Cls, p.x + dir.x * 3, p.y + 0.2, p.z + dir.z * 3);
         this.message(`Summoned a ${args[0].toLowerCase()}`, '#9fdcff');
@@ -260,14 +268,26 @@ export class Chat {
     this.suggestEl.textContent = show ? c.matches.slice(0, 8).join('   ') + (c.matches.length > 8 ? '   …' : '') : '';
   }
 
-  // Tab: finish the word (or as much as all the matches share)
+  // Tab: finish the word, or as much as all the matches share; pressing Tab
+  // again cycles through the matches one by one
   complete() {
+    if (this.cycle && this.inputEl.value === this.cycle.shown) {
+      const { before, matches } = this.cycle;
+      this.cycle.i = (this.cycle.i + 1) % matches.length;
+      this.inputEl.value = this.cycle.shown = before + matches[this.cycle.i];
+      return;
+    }
+    this.cycle = null;
     const c = this.candidates();
     if (!c || !c.matches.length) return;
-    let common = c.matches[0];
-    for (const m of c.matches) while (!m.startsWith(common)) common = common.slice(0, -1);
-    const done = c.matches.length === 1;
-    this.inputEl.value = c.before + (common.length > c.word.length ? common : c.matches[0]) + (done ? ' ' : '');
+    if (c.matches.length === 1) {
+      this.inputEl.value = c.before + c.matches[0] + ' ';
+    } else {
+      let common = c.matches[0];
+      for (const m of c.matches) while (!m.startsWith(common)) common = common.slice(0, -1);
+      if (common.length > c.word.length) this.inputEl.value = c.before + common;
+      else this.inputEl.value = (this.cycle = { before: c.before, matches: c.matches, i: 0, shown: c.before + c.matches[0] }).shown;
+    }
     this.suggest();
   }
 }

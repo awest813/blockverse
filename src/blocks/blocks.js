@@ -323,10 +323,11 @@ reg(def(B.OAK_DOOR_TOP, 'oak_door_top', 'Oak Door', { ...door, drop: null, textu
 reg(def(B.OAK_FENCE, 'oak_fence', 'Oak Fence', {
   render: R_SHAPE, shape: 'fence', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'oak_fence_item',
 }));
-// slabs: meta bit 0 = top half; two make the full block
-reg(def(B.OAK_SLAB, 'oak_slab', 'Oak Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', full: B.OAK_PLANKS }));
-reg(def(B.COBBLE_SLAB, 'cobble_slab', 'Cobblestone Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone', full: B.COBBLESTONE }));
-reg(def(B.STONE_BRICK_SLAB, 'stone_brick_slab', 'Stone Brick Slab', { render: R_SHAPE, shape: 'slab', opacity: 0, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks', full: B.STONE_BRICKS }));
+// slabs: meta bit 0 = top half; two make the full block. Opacity 1: they
+// still render lit, but a slab or stair roof breaks direct skylight (shade)
+reg(def(B.OAK_SLAB, 'oak_slab', 'Oak Slab', { render: R_SHAPE, shape: 'slab', opacity: 1, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', full: B.OAK_PLANKS }));
+reg(def(B.COBBLE_SLAB, 'cobble_slab', 'Cobblestone Slab', { render: R_SHAPE, shape: 'slab', opacity: 1, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone', full: B.COBBLESTONE }));
+reg(def(B.STONE_BRICK_SLAB, 'stone_brick_slab', 'Stone Brick Slab', { render: R_SHAPE, shape: 'slab', opacity: 1, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks', full: B.STONE_BRICKS }));
 reg(def(B.LAVA, 'lava', 'Lava', {
   solid: false, render: R_BLEND, opacity: 2, lightEmit: 15, hardness: -1, replaceable: true, drop: null, fluid: true,
 }));
@@ -339,9 +340,9 @@ reg(def(B.SNOW_LAYER, 'snow_layer', 'Snow', {
   textures: 'snow_block', drop: () => [{ id: I.SNOWBALL, count: 1 }],
 }));
 // stairs: meta bits 0-1 = the high (back) edge, bit 2 = upside down
-reg(def(B.OAK_STAIRS, 'oak_stairs', 'Oak Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks' }));
-reg(def(B.COBBLE_STAIRS, 'cobble_stairs', 'Cobblestone Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone' }));
-reg(def(B.STONE_BRICK_STAIRS, 'stone_brick_stairs', 'Stone Brick Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 0, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks' }));
+reg(def(B.OAK_STAIRS, 'oak_stairs', 'Oak Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 1, hardness: 2, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks' }));
+reg(def(B.COBBLE_STAIRS, 'cobble_stairs', 'Cobblestone Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 1, hardness: 2, tool: TOOL_PICKAXE, minTier: 1, textures: 'cobblestone' }));
+reg(def(B.STONE_BRICK_STAIRS, 'stone_brick_stairs', 'Stone Brick Stairs', { render: R_SHAPE, shape: 'stairs', opacity: 1, hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1, textures: 'stone_bricks' }));
 reg(def(B.GLASS_PANE, 'glass_pane', 'Glass Pane', { render: R_SHAPE, shape: 'pane', opacity: 0, hardness: 0.3, drop: null, sound: 'glass', textures: 'glass', icon: 'glass' }));
 // fence gates: meta bit 0 = runs along z (else x), bit 2 = open
 reg(def(B.OAK_FENCE_GATE, 'oak_fence_gate', 'Oak Fence Gate', {

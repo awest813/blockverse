@@ -96,7 +96,7 @@ export class Sheep extends Mob {
     if (this.sheared || this.baby) return true;
     this.setSheared(true);
     this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
-    player.damageHeldTool(1);
+    if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('place', { block: 'cloth' });
     return true;
   }
@@ -234,11 +234,14 @@ export class Drowned extends Zombie {
   buildModel() { super.buildModel(0x4f9a8e, 0x2d6b6a, 0x2b4a5a); }
 
   think(dt, player, playerDist) {
+    this.landSpeed ??= this.fleeSpeed;
+    this.fleeSpeed = this.landSpeed;
     super.think(dt, player, playerDist);
     if (!this.inWater || this.dead || this.dying !== undefined) return;
     if (this.state === 'chase') {
       this.targetVy = Math.max(-2.2, Math.min(2.2, (player.y + 0.4 - this.y) * 1.5));
-      this.fleeSpeed = 2.4;
+      this.fleeSpeed = Math.min(this.landSpeed, 2.4);   // a little slower swimming
+      if (this.lastHitWall) this.vy = Math.max(this.vy, 5.5);   // scramble up the bank after you
     } else {
       this.targetVy = (Math.random() - 0.5) * 0.4;
     }

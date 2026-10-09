@@ -245,9 +245,10 @@ export class Sfx {
       case 'mobdeath': // soft poof
         this.noise({ freq: 900, q: 0.6, dur: 0.35, gain: 0.3, type: 'lowpass', pitchDrop: 600 });
         break;
-      case 'shoot':
-        this.tone({ freq: 900 * detune, endFreq: 260, dur: 0.12, gain: 0.14, type: 'triangle' });
-        this.noise({ freq: 2000, q: 0.8, dur: 0.08, gain: 0.12, type: 'bandpass' });
+      case 'shoot':      // a skeleton's arrow
+      case 'throw':      // the player's own bow, throws and casts (player volume)
+        this.tone({ freq: 900 * detune, endFreq: 260, dur: 0.12, gain: 0.14 * vol, type: 'triangle' });
+        this.noise({ freq: 2000, q: 0.8, dur: 0.08, gain: 0.12 * vol, type: 'bandpass' });
         break;
       case 'equip':
         this.tone({ freq: 340, endFreq: 520, dur: 0.08, gain: 0.16, type: 'square' });

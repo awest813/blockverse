@@ -369,7 +369,7 @@ export class Game {
       this.sfx?.play('sweep');
       this.sparks(best.x, best.y + best.h * 0.5, best.z, 0xffffff, swept ? 10 : 5);
     }
-    p.damageHeldTool(1);
+    if (p.mode !== GAMEMODE_CREATIVE) p.damageHeldTool(1);
     p.addExhaustion(0.1);
     this.interaction.breakCooldown = 0.3;
     this.interaction.resetBreaking();
@@ -405,7 +405,8 @@ export class Game {
     if (!t) return;
     let id = t.id === B.FURNACE_LIT ? B.FURNACE : t.id;
     if (id >= B.WHEAT_0 && id <= B.WHEAT_3) id = I.WHEAT_SEEDS;   // crops pick their seeds
-    else if (!isBlockItem(id) || id === B.WATER) return;
+    else if (id === B.OAK_DOOR_TOP) id = B.OAK_DOOR;
+    else if (!isBlockItem(id) || id === B.WATER || id === B.LAVA || id === B.FIRE) return;
     const p = this.player;
     const inv = p.inventory;
     const hot = inv.findIndex((s, i) => i < 9 && s?.id === id);
@@ -504,7 +505,7 @@ export class Game {
         chick.persistent = true;
         this.entities.addMob(chick);
       }));
-    this.sfx?.play('shoot', { vol: 0.5 });
+    this.sfx?.play('throw', { vol: 0.5 });
     this.viewModel.swing();
   }
 
@@ -535,7 +536,7 @@ export class Game {
     b.onBite = () => this.sfx?.play('splash', { vol: 0.8 });
     this.bobber = b;
     this.entities.projectiles.push(b);
-    this.sfx?.play('shoot', { vol: 0.4 });
+    this.sfx?.play('throw', { vol: 0.4 });
   }
 
   fireBow(power) {
@@ -572,7 +573,7 @@ export class Game {
           if (d > r * (0.65 + Math.random() * 0.35)) continue;
           const bx = cx + dx, by = cy + dy, bz = cz + dz;
           const id = this.world.getBlockW(bx, by, bz);
-          if (id === B.AIR || id === B.WATER || id === B.BEDROCK || id === B.OBSIDIAN) continue;
+          if (id === B.AIR || id === B.WATER || id === B.LAVA || id === B.BEDROCK || id === B.OBSIDIAN) continue;
           if (id === B.TNT) {   // chain reaction
             this.world.setBlock(bx, by, bz, B.AIR);
             this.primeTnt(bx + 0.5, by, bz + 0.5, 0.5 + Math.random() * 1);
@@ -581,7 +582,11 @@ export class Game {
           if (this.containers.isOpenAt(bx, by, bz)) this.containers.close();   // don't keep editing a destroyed chest
           const contents = entityContents(this.world.blockEntityAt(bx, by, bz));
           if (contents.length) this.entities.spawnDrops(bx + 0.5, by + 0.5, bz + 0.5, contents.map((s) => ({ ...s })));
-          this.world.setBlock(bx, by, bz, B.AIR);
+          // kelp and seagrass leave their water behind
+          this.world.setBlock(bx, by, bz, blockInfo(id).waterlogged ? B.WATER : B.AIR);
+          // a door goes as a whole
+          if (id === B.OAK_DOOR && this.world.getBlockW(bx, by + 1, bz) === B.OAK_DOOR_TOP) this.world.setBlock(bx, by + 1, bz, B.AIR);
+          if (id === B.OAK_DOOR_TOP && this.world.getBlockW(bx, by - 1, bz) === B.OAK_DOOR) this.world.setBlock(bx, by - 1, bz, B.AIR);
           // a third of the blocks survive as drops
           if (Math.random() < 0.3) this.interaction.spawnBlockDrops(bx, by, bz, blockInfo(id), true);
         }
@@ -1034,9 +1039,11 @@ export class Game {
       this.store.saveChunk(this.worldMeta.id, c);
       c.modified = false;
     }
-    this.store.saveWorldMeta(this.worldMeta.id, {
+    // the world entry is already in memory: update it and write it straight
+    // out (no read first), so a save made while the tab closes still lands
+    Object.assign(this.worldMeta, {
       // tamed pets travel with the save
-      pets: this.entities.mobs.filter((m) => m.tamed && !m.dead).map((m) => ({
+      pets: this.entities.mobs.filter((m) => m.tamed && !m.dead && m.dying === undefined).map((m) => ({
         kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health,
       })),
       animals: this.entities.keptAnimals(),
@@ -1044,13 +1051,15 @@ export class Game {
       day: this.day,
       difficulty: this.difficulty,
       playerData: this.player.serialize(),
+      lastPlayed: Date.now(),
     });
+    this.store.putWorldMeta(this.worldMeta);
   }
 
-  stop() {
+  stop({ save = true } = {}) {
     this.running = false;
     this.sfx?.setUnderwater(false);
-    if (this.store) this.save();
+    if (this.store && save) this.save();
     this.ticker.terminate();
     // drop every document/window listener so a later world doesn't inherit them
     this.input.dispose();

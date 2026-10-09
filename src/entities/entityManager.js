@@ -29,7 +29,7 @@ export class EntityManager {
       // the player's bow
       fire: (x, y, z, vx, vy, vz, dmg, pickup) => {
         this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player', pickup));
-        this.fx.sound('shoot');
+        this.fx.sound('throw');
       },
       explode: () => {},
       sound: () => {},

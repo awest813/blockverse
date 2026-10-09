@@ -104,10 +104,23 @@ export class SaveStore {
     return keys.map((k, i) => [k.slice(id.length + 1), values[i]]);
   }
 
-  async putWorld(meta, chunks) {
-    await req(this.tx('worlds', 'readwrite').put(meta));
-    const store = this.tx('chunks', 'readwrite');
-    await Promise.all(chunks.map(([suffix, v]) => req(store.put(v, `${meta.id}:${suffix}`))));
+  // the world entry and all its chunks in one transaction: all or nothing
+  putWorld(meta, chunks) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
+      tx.objectStore('worlds').put(meta);
+      const store = tx.objectStore('chunks');
+      for (const [suffix, v] of chunks) store.put(v, `${meta.id}:${suffix}`);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('save aborted'));
+    });
+  }
+
+  // Write a whole world entry we already hold in memory: no read first, so
+  // it is queued at once (it can still land while the page is unloading).
+  putWorldMeta(meta) {
+    return req(this.tx('worlds', 'readwrite').put(meta));
   }
 
   newId() {
@@ -135,6 +148,8 @@ export class SaveStore {
 
   async importWorld(data) {
     if (data?.format !== 'blockverse-world' || !data.meta) throw new Error('Not a BlockVerse world file');
+    const m = data.meta;
+    if (typeof m.name !== 'string' || m.seed === undefined || !Array.isArray(data.chunks)) throw new Error('The world file is damaged or incomplete');
     const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
     const chunks = data.chunks.map(([suffix, v]) => [suffix, {
       blocks: new Uint16Array(fromB64(v.blocks).buffer),

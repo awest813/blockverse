@@ -2,7 +2,8 @@
 
 import { REACH_DISTANCE, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
-import { B, BLOCKS, blockInfo, R_CROSS, isSolid } from '../blocks/blocks.js';
+import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid } from '../blocks/blocks.js';
+import { worldBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
 import { growCrop, cropTime } from '../world/saplings.js';
@@ -257,6 +258,7 @@ export class Interaction {
     // doors open and shut (both halves)
     if (t && DOORS.has(t.id) && !p.sneaking) {
       const lowerY = t.id === B.OAK_DOOR_TOP ? t.y - 1 : t.y;
+      if (this.world.getBlockW(t.x, lowerY, t.z) !== B.OAK_DOOR) return;   // a stray top half (blown off its base)
       const meta = this.world.getMetaW(t.x, lowerY, t.z) ^ 4;
       this.world.setBlock(t.x, lowerY, t.z, B.OAK_DOOR, meta);
       if (this.world.getBlockW(t.x, lowerY + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, lowerY + 1, t.z, B.OAK_DOOR_TOP, meta);
@@ -285,6 +287,7 @@ export class Interaction {
 
     // 3) item actions: equip armour, till, plant, fertilise, light TNT
     if (held && this.useItem(held, t)) return;
+    if (held?.id === B.LILY_PAD) return;   // only ever floats on water (handled above)
 
     // 4) place a block
     if (!t || !held || !isBlockItem(held.id)) return;
@@ -293,7 +296,7 @@ export class Interaction {
     // a slab on its matching half-slab completes the full block
     if (SLABS.has(info.id) && t.id === info.id) {
       const top = this.world.getMetaW(t.x, t.y, t.z) & 1;
-      if ((t.ny === 1 && !top) || (t.ny === -1 && top)) {
+      if (((t.ny === 1 && !top) || (t.ny === -1 && top)) && !this.intersectsPlayer(t.x, t.y, t.z)) {
         this.world.setBlock(t.x, t.y, t.z, info.full);
         this.cb.playSound('place', { block: info.sound });
         if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
@@ -310,6 +313,7 @@ export class Interaction {
     const existing = this.world.getBlockW(px, py, pz);
     // ...or into the empty half of a slab of the same kind
     if (SLABS.has(info.id) && existing === info.id) {
+      if (this.intersectsPlayer(px, py, pz)) return;
       this.world.setBlock(px, py, pz, info.full);
       this.cb.playSound('place', { block: info.sound });
       if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
@@ -323,7 +327,7 @@ export class Interaction {
     // support requirement for plants/torches
     if (NEEDS_GROUND.has(info.id)) {
       const below = this.world.getBlockW(px, py - 1, pz);
-      if (!isSolid(below) && !(info.id === B.KELP && below === B.KELP)) return;
+      if (!this.supportsTop(px, py - 1, pz) && !(info.id === B.KELP && below === B.KELP)) return;
       if (SAPLINGS.has(info.id) && !SOIL.has(below)) return;
     }
 
@@ -379,6 +383,7 @@ export class Interaction {
     if (info.id === B.FURNACE) this.world.setBlockEntity(px, py, pz, null);
     // saplings remember when to grow (seconds of loaded time)
     if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
+    if (info.id === B.FIRE) this.world.setBlockEntity(px, py, pz, { kind: 'fire', t: 8 });   // fire always burns out
     if (info.id === B.OAK_SIGN) {
       this.world.setBlockEntity(px, py, pz, { kind: 'sign', lines: ['', '', '', ''], rev: 0 });
       this.cb.editSign?.(px, py, pz);
@@ -405,6 +410,15 @@ export class Interaction {
     this.cb.playSound('pickup', {});
   }
 
+  // Can something sit on top of this block? Solid, and (for part-blocks)
+  // with a box reaching the top: a top slab yes, a bottom slab no.
+  supportsTop(x, y, z) {
+    const id = this.world.getBlockW(x, y, z);
+    if (!isSolid(id)) return false;
+    if (BLOCKS[id].render !== R_SHAPE) return true;
+    return worldBoxes(this.world, x, y, z, id).some((b) => b[4] >= 1 && b[0] <= 0.25 && b[3] >= 0.75 && b[2] <= 0.25 && b[5] >= 0.75);
+  }
+
   // Buckets scoop and pour water and lava; lily pads go on a water surface.
   useFluidItem(held) {
     const p = this.player;
@@ -413,7 +427,11 @@ export class Interaction {
     if (!ft) return false;
     const swapHeld = (id) => {
       if (creative) return;
-      if (held.count > 1) { p.consumeHeld(1); p.give(id, 1); } else p.inventory[p.selected] = { id, count: 1 };
+      if (held.count > 1) {
+        p.consumeHeld(1);
+        // no room: drop the filled bucket rather than lose it
+        if (p.give(id, 1) > 0) this.cb.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: 1 }]);
+      } else p.inventory[p.selected] = { id, count: 1 };
       p.events.dispatchEvent(new CustomEvent('inventory'));
     };
     this.useCooldown = 0.3;
@@ -489,7 +507,7 @@ export class Interaction {
         this.world.setBlockEntity(t.x, t.y, t.z, st);
       } else {
         const fx = t.x + t.nx, fy = t.y + t.ny, fz = t.z + t.nz;
-        if (this.world.getBlockW(fx, fy, fz) !== B.AIR || !isSolid(this.world.getBlockW(fx, fy - 1, fz))) return false;
+        if (this.world.getBlockW(fx, fy, fz) !== B.AIR || !this.supportsTop(fx, fy - 1, fz)) return false;
         this.world.setBlock(fx, fy, fz, B.FIRE);
         this.world.setBlockEntity(fx, fy, fz, { kind: 'fire', t: 5 + this.dropRng() * 5 });
       }

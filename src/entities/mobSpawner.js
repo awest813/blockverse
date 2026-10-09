@@ -121,7 +121,8 @@ export class MobSpawner {
       const y = floor + Math.max(0, depth / 2 - 1);
       this.spawnMob(Cls, wx + 0.5, y, wz + 0.5);
       // dolphins come in pods
-      if (Cls === Dolphin) for (let k = 0; k < 1 + ((Math.random() * 2) | 0); k++) this.spawnMob(Cls, wx + 0.5 + (Math.random() - 0.5) * 3, y, wz + 0.5 + (Math.random() - 0.5) * 3);
+      const room = DOLPHIN_CAP - count(this.entities.mobs, Dolphin);
+      if (Cls === Dolphin) for (let k = 0; k < Math.min(room, 1 + ((Math.random() * 2) | 0)); k++) this.spawnMob(Cls, wx + 0.5 + (Math.random() - 0.5) * 3, y, wz + 0.5 + (Math.random() - 0.5) * 3);
       return;
     }
   }

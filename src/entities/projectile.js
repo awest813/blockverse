@@ -202,5 +202,6 @@ export class Bobber extends Arrow {
     super.kill();
     this.scene.remove(this.line);
     this.line.geometry.dispose();
+    this.line.material.dispose();
   }
 }

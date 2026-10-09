@@ -204,6 +204,8 @@ export class Mob {
     if (this.flier || (this.swimmer && inWater)) {
       // fliers and swimmers steer vertically toward targetVy (set by think)
       this.vy += ((this.targetVy ?? 0) - this.vy) * Math.min(1, 3 * dt);
+    } else if (inWater && this.undead) {
+      this.vy += (-1.6 - this.vy) * Math.min(1, 3 * dt); // the undead sink and walk the bottom
     } else if (inWater) {
       this.vy += (1.6 - this.vy) * Math.min(1, 3 * dt); // float up
     } else {
@@ -215,6 +217,7 @@ export class Mob {
     const before = this.y;
     const r = moveEntity(this.world, this, dt);
     this.onGround = r.onGround;
+    this.lastHitWall = r.hitWall;
     // pressing against a wall it can't hop for a while: sidestep for a moment
     if (r.hitWall && this.moving && !this.flier && !this.swimmer && !this.climber) {
       this.stuckTime = (this.stuckTime ?? 0) + dt;
@@ -417,15 +420,19 @@ export class Mob {
   // (a spot whose sky light is blocked: under trees, overhangs, caves).
   seekShade(dt) {
     if (!(this.fireTime > 0) || this.fireproofSun) return false;
+    // keep heading for the spot picked until it's reached (or turns out sunny)
     this.shadeTimer = (this.shadeTimer ?? 0) - dt;
-    if (this.shadeTimer <= 0 || !this.shade) {
-      this.shadeTimer = 1;
-      this.shade = null;
+    if (this.shade && this.shadeTimer <= 0) {
+      this.shadeTimer = 2;
+      if (this.world.getSkyW(Math.floor(this.shade.x), this.shade.y + 1, Math.floor(this.shade.z)) >= 13) this.shade = null;
+    }
+    if (!this.shade) {
+      this.shadeTimer = 2;
       for (let i = 0; i < 12; i++) {
         const x = Math.floor(this.x + (Math.random() - 0.5) * 16), z = Math.floor(this.z + (Math.random() - 0.5) * 16);
         for (let y = Math.floor(this.y) + 2; y >= Math.floor(this.y) - 2; y--) {
           if (this.world.getBlockW(x, y, z) !== B.AIR || !isSolid(this.world.getBlockW(x, y - 1, z))) continue;
-          if (this.world.getSkyW(x, y + 1, z) < 13) { this.shade = { x: x + 0.5, z: z + 0.5 }; break; }
+          if (this.world.getSkyW(x, y + 1, z) < 13) { this.shade = { x: x + 0.5, y, z: z + 0.5 }; break; }
         }
         if (this.shade) break;
       }
@@ -515,6 +522,9 @@ export class Mob {
     this.dead = true;
     this.scene.remove(this.group);
     for (const { mat } of this.materials) mat.dispose();
+    // every part has its own geometry; flames have their own material
+    this.group.traverse((o) => o.geometry?.dispose());
+    this.flames?.material.dispose();
   }
 
   // ray vs this mob's AABB; returns distance or null

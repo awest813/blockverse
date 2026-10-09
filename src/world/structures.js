@@ -265,6 +265,11 @@ export function buildStructure(gen, blocks, cx, cz) {
       return blocks[blockIndex(x0 + lx, y, z0 + lz)];
     },
     entity(idx, data) { if (idx >= 0) out.push([idx, data]); },
+    // underwater sites: plain water from here up to the surface (no kelp
+    // left hanging over the wreck), leaving any sea ice on top alone
+    clearSea(dx, y0, dz) {
+      for (let yy = y0; yy <= SEA_LEVEL; yy++) if (this.get(dx, yy, dz) !== B.ICE) this.set(dx, yy, dz, B.WATER);
+    },
     // fill the ground under the footprint with `id` (no floating corners) and
     // clear everything above the floor
     site(y, id, clearTo) {
@@ -437,10 +442,9 @@ const SHIPWRECK_LOOT = [
 // The broken hull of a little ship on the sea floor, with its cargo chest.
 function shipwreck(b, { y }, rng) {
   const L = 13;
-  const water = (yy) => (yy <= SEA_LEVEL ? B.WATER : B.AIR);
   const plank = () => (rng() < 0.7 ? B.SPRUCE_PLANKS : B.OAK_PLANKS);
   // clear the sea above the wreck (kelp, seagrass) to plain water
-  for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) for (let dy = 0; dy <= 9; dy++) b.set(dx, y + dy, dz, water(y + dy));
+  for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) b.clearSea(dx, y, dz);
   for (let dz = 1; dz < L - 1; dz++) {
     const bow = dz < 3 || dz > L - 4;   // narrower at both ends
     const x0 = bow ? 5 : 4, x1 = bow ? 7 : 8;
@@ -466,7 +470,7 @@ const RUIN_LOOT = [
 function oceanRuin(b, { y }, rng) {
   const S = 7;
   const stone = () => [B.STONE_BRICKS, B.MOSSY_STONE_BRICKS, B.MOSSY_COBBLE, B.COBBLESTONE][(rng() * 4) | 0];
-  for (let dx = 0; dx < S; dx++) for (let dz = 0; dz < S; dz++) for (let dy = 0; dy <= 6; dy++) b.set(dx, y + dy, dz, y + dy <= SEA_LEVEL ? B.WATER : B.AIR);
+  for (let dx = 0; dx < S; dx++) for (let dz = 0; dz < S; dz++) b.clearSea(dx, y, dz);
   for (let dx = 0; dx < S; dx++) {
     for (let dz = 0; dz < S; dz++) {
       b.set(dx, y - 1, dz, rng() < 0.3 ? B.GRAVEL : stone());

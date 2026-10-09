@@ -46,7 +46,7 @@ function creativeItems(tab) {
     creativeIdsCache = [];
     for (const b of BLOCKS) {
       // skip technical states: lit furnace, water, growing wheat
-      if (b && b.id !== 0 && b.id !== B.FURNACE_LIT && b.id !== B.WATER && !(b.id >= B.WHEAT_0 && b.id <= B.WHEAT_3) && b.id !== B.CAMPFIRE_OFF && b.id !== B.LAVA && b.id !== B.OAK_DOOR_TOP) creativeIdsCache.push(b.id);
+      if (b && b.id !== 0 && b.id !== B.FURNACE_LIT && b.id !== B.WATER && !(b.id >= B.WHEAT_0 && b.id <= B.WHEAT_3) && b.id !== B.CAMPFIRE_OFF && b.id !== B.LAVA && b.id !== B.OAK_DOOR_TOP && b.id !== B.FIRE) creativeIdsCache.push(b.id);
     }
     for (const id of Object.values(I)) creativeIdsCache.push(id);
   }

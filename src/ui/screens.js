@@ -160,6 +160,7 @@ export class Screens {
     this.worldQuery ??= '';
     this.worldSort ??= 'played';
     const SORTS = { played: 'Last played', name: 'Name', created: 'Newest' };
+    if (worlds.length <= 2) this.worldQuery = '';   // no search box: never filter by a stale query
     if (worlds.length > 2) {
       const tools = document.createElement('div');
       tools.className = 'world-tools';
@@ -205,8 +206,13 @@ export class Screens {
     const dupBtn = this.btn('Duplicate', async () => {
       if (!selected) return;
       dupBtn.disabled = true;
-      const copy = await this.store.duplicateWorld(selected);
-      this.showMain(copy?.id ?? selected);
+      try {
+        const copy = await this.store.duplicateWorld(selected);
+        this.showMain(copy?.id ?? selected);
+      } catch (err) {
+        const id = selected;
+        this.showConfirm('Couldn\u2019t duplicate that world', `${err.message ?? err} — the browser may be out of storage space.`, 'OK', () => this.showMain(id), () => this.showMain(id));
+      }
     }, 'btn small');
     const exportBtn = this.btn('Export', async () => {
       const w = worlds.find((x) => x.id === selected);

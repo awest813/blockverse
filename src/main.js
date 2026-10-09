@@ -64,7 +64,7 @@ async function startWorld(id) {
   game = new Game({
     canvas,
     atlas,
-    worldMeta: { ...meta, renderDistance: settings.renderDistance },
+    worldMeta: meta,   // applySettings() below sets the render distance from settings
     store,
     sfx,
   });
@@ -124,7 +124,7 @@ async function startWorld(id) {
 
   screens.onCancelLoading = null;
   clearTimeout(screens._loadingSlow);
-  if (cancelled) { quitToTitle(); return; }
+  if (cancelled) { quitToTitle({ save: false }); return; }   // nothing was played: leave the save untouched
   screens.clear();
   game.setUiOpen(false);
   game.updateDebug();
@@ -147,9 +147,9 @@ function respawn() {
   game.input.requestLock();
 }
 
-function quitToTitle() {
+function quitToTitle({ save = true } = {}) {
   if (game) {
-    game.stop();
+    game.stop({ save });
     game = null;
   }
   hudEl.classList.add('hidden');
