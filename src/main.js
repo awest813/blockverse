@@ -105,6 +105,7 @@ async function startWorld(id) {
   screens.clear();
   game.setUiOpen(false);
   game.updateDebug();
+  if (!meta.playerData) game.showWelcomeTips();
 }
 
 function resumeGame() {

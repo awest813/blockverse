@@ -5,10 +5,35 @@
 import { itemInfo, maxStack, makeStack } from '../items/items.js';
 import { matchRecipe, SMELTING, SMELT_TIME } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
-import { BLOCKS } from '../blocks/blocks.js';
+import { BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 import { fillSlot } from './hud.js';
+
+const CREATIVE_TABS = [
+  ['all', 'All'], ['blocks', 'Blocks'], ['decor', 'Plants & Decor'],
+  ['tools', 'Tools'], ['food', 'Food'], ['materials', 'Materials'],
+];
+
+function creativeCategory(id) {
+  const info = itemInfo(id);
+  if (info?.tool) return 'tools';
+  if (info?.food) return 'food';
+  if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH ? 'decor' : 'blocks';
+  return 'materials';
+}
+
+let creativeIdsCache = null;
+function creativeItems(tab) {
+  if (!creativeIdsCache) {
+    creativeIdsCache = [];
+    for (const b of BLOCKS) {
+      if (b && b.id !== 0 && b.name !== 'furnace_lit' && b.name !== 'water') creativeIdsCache.push(b.id);
+    }
+    for (const id of Object.values(I)) creativeIdsCache.push(id);
+  }
+  return tab === 'all' ? creativeIdsCache : creativeIdsCache.filter((id) => creativeCategory(id) === tab);
+}
 
 // Slot abstraction: {get: () => stack|null, set: (stack) => void, filter?: (id)=>bool, output?: bool}
 
@@ -24,6 +49,9 @@ export class Containers {
     this.craftSize = 2;
     this.furnacePos = null;
     this.hovered = null;          // slot ref under the mouse, for 1-9 / drop keys
+    this.creativeTab = 'all';
+    this.creativeQuery = '';
+    this.creativeFocusSearch = false;
 
     this.cursorEl = document.createElement('div');
     this.cursorEl.id = 'cursor-stack';
@@ -184,7 +212,7 @@ export class Containers {
     const hint = document.createElement('div');
     hint.className = 'inv-hint';
     hint.textContent = this.open === 'inventory' && this.player.mode === GAMEMODE_CREATIVE
-      ? 'Left-click: stack · Right-click: one · Click outside: drop · E: close'
+      ? 'Left-click: stack · Right-click: one · ✕: destroy · E: close'
       : 'Right-click: split · Shift-click: move · Click outside: drop · E: close';
     win.appendChild(hint);
     this.renderCursor();
@@ -194,6 +222,7 @@ export class Containers {
     const el = document.createElement('div');
     el.className = 'slot';
     fillSlot(el, ref.get(), this.atlas);
+    if (ref.output && ref.get()) el.classList.add('ready');
     // mousemove (not mouseenter) so the tooltip comes back after a re-render
     el.addEventListener('mousemove', (e) => {
       this.hovered = ref;
@@ -325,30 +354,84 @@ export class Containers {
   }
 
   renderCreative(win) {
-    const h3 = document.createElement('h3');
-    h3.textContent = 'All Items';
-    win.appendChild(h3);
+    const head = document.createElement('div');
+    head.className = 'creative-head';
+    const tabs = document.createElement('div');
+    tabs.className = 'creative-tabs';
+    tabs.setAttribute('role', 'tablist');
+    for (const [id, label] of CREATIVE_TABS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'creative-tab';
+      b.textContent = label;
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(id === this.creativeTab));
+      b.addEventListener('click', () => {
+        this.creativeTab = id;
+        this.creativeQuery = '';
+        this.render();
+      });
+      tabs.appendChild(b);
+    }
+    head.appendChild(tabs);
+
+    const search = document.createElement('input');
+    search.className = 'creative-search';
+    search.type = 'search';
+    search.placeholder = 'Search…';
+    search.setAttribute('aria-label', 'Search items');
+    search.value = this.creativeQuery;
+    search.autocomplete = 'off';
+    search.spellcheck = false;
+    // typing must not reach gameplay keys (E closes the inventory, 1-9 swap...)
+    search.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
+    search.addEventListener('input', () => {
+      this.creativeQuery = search.value;
+      this.fillCreativeGrid(grid);
+    });
+    head.appendChild(search);
+
+    // trash: drop the carried stack in here to delete it
+    const trash = document.createElement('div');
+    trash.className = 'slot trash';
+    trash.title = 'Destroy item';
+    trash.textContent = '✕';
+    trash.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.cursor) return;
+      this.cursor = null;
+      this.afterChange();
+    });
+    head.appendChild(trash);
+    win.appendChild(head);
+
     const grid = document.createElement('div');
-    grid.className = 'inv-grid cols-9';
-    grid.style.maxHeight = '260px';
-    grid.style.overflowY = 'auto';
-    grid.style.marginBottom = '12px';
-
-    const ids = [];
-    for (const b of BLOCKS) {
-      if (b && b.id !== 0 && b.name !== 'furnace_lit' && b.name !== 'water') ids.push(b.id);
-    }
-    for (const id of Object.values(I)) ids.push(id);
-
-    for (const id of ids) {
-      const ref = {
-        get: () => ({ id, count: 1 }),
-        set: () => {},
-        creative: id,
-      };
-      grid.appendChild(this.slotEl(ref));
-    }
+    grid.className = 'inv-grid cols-9 creative-grid';
     win.appendChild(grid);
+    this.fillCreativeGrid(grid);
+    if (this.creativeFocusSearch) search.focus();
+    search.addEventListener('focus', () => { this.creativeFocusSearch = true; });
+    search.addEventListener('blur', () => { this.creativeFocusSearch = false; });
+  }
+
+  fillCreativeGrid(grid) {
+    grid.innerHTML = '';
+    const q = this.creativeQuery.trim().toLowerCase();
+    const ids = creativeItems(this.creativeTab).filter((id) => {
+      if (!q) return true;
+      const info = itemInfo(id);
+      return info && (info.display.toLowerCase().includes(q) || info.name.includes(q.replace(/ /g, '_')));
+    });
+    for (const id of ids) {
+      grid.appendChild(this.slotEl({ get: () => ({ id, count: 1 }), set: () => {}, creative: id }));
+    }
+    if (!ids.length) {
+      const empty = document.createElement('div');
+      empty.className = 'creative-empty';
+      empty.textContent = 'No matching items';
+      grid.appendChild(empty);
+    }
   }
 
   renderCursor() {

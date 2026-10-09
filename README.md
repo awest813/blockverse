@@ -40,7 +40,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Furnace** with fuel + smelt time, live progress bars, and a lit block state that emits light: smelt iron, gold, glass, stone, bricks, and cook food
 - Health, hunger, saturation & exhaustion, drowning with an air meter, fall damage, starvation — plus food to eat
 - Death screen and respawn at your spawn point
-- **Creative mode**: flight (double-tap space), instant breaking, a full item palette, no damage
+- **Creative mode**: flight (double-tap space), instant breaking, a searchable item palette with categories, no damage
 
 ### 🐷 Mobs
 - **Pigs and sheep** wander the grasslands, flee when hit, and drop porkchops, mutton, and wool
@@ -56,7 +56,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Saving is automatic** (IndexedDB): modified chunks, player state, inventory, time of day, and furnace contents all persist
 - Pause menu with a controls cheat sheet, settings (render distance, FOV, volume, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
-- HUD: hotbar with icons & durability bars, hearts, hunger, air bubbles, crosshair, block-break cracks and selection outline
+- HUD: hotbar with icons & durability bars, pixel-art hearts / hunger / air bubbles, crosshair, block-break cracks and selection outline, damage and low-health vignette
+- First-person held item (or bare arm) with walk bob, swing and equip animations, lit by the surrounding light
 - **F3 debug overlay**: FPS, position, chunk, biome, light levels, draw calls, triangle count
 - **Chat & command console**: `/tp`, `/time set`, `/give`, `/gamemode`, `/seed`, `/heal`, `/rd`, and more
 

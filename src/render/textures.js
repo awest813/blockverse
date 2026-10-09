@@ -350,7 +350,8 @@ tile('dead_bush', (ctx, rng) => {
       if (y <= 4) continue;
       if (rng() < 0.35 && next.length < 5) next.push([x - 1, y - 1]);
       if (rng() < 0.35 && next.length < 5) next.push([x + 1, y - 1]);
-      if (rng() < 0.8) next.push([x, y - 1]);
+      // the first branch always keeps growing, so a bush is never a lone pixel
+      if (rng() < 0.8 || next.length === 0) next.push([x, y - 1]);
     }
     branches = next;
   }

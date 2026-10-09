@@ -74,6 +74,11 @@ Touch controls appear automatically on the first touch.
 | F1 | Hide the HUD |
 | F3 | Debug overlay |
 
+### Creative item palette
+
+- Category tabs (All, Blocks, Plants & Decor, Tools, Food, Materials) and a search box
+- Drop a carried stack on the red ✕ slot to destroy it
+
 ### Inventory mouse rules
 
 - Left click: pick up / swap / merge a stack

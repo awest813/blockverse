@@ -3,6 +3,7 @@
 
 import { itemInfo } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
+import { HUD_ICONS } from './icons.js';
 
 export function durabilityColor(frac) {
   return frac > 0.5 ? '#4caf50' : frac > 0.2 ? '#ffb300' : '#e53935';
@@ -52,6 +53,11 @@ export class Hud {
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
     this.fpsEl = document.getElementById('fps-counter');
+    this.vignetteEl = document.getElementById('vignette');
+    // drop the flash class afterwards so the low-health pulse can resume
+    this.vignetteEl.onanimationend = (e) => {
+      if (e.animationName === 'hurt-flash') this.vignetteEl.classList.remove('hit');
+    };
     this._labelTimer = null;
     this._lastSelected = -1;
     this._statsKey = '';
@@ -65,6 +71,8 @@ export class Hud {
       this.slots.push(el);
     }
 
+    // remember counts so pickups can flash the slot that grew
+    this._counts = new Array(9).fill(0);
     player.events.addEventListener('inventory', () => this.renderHotbar());
     this.renderHotbar();
     this.renderStats();
@@ -86,17 +94,28 @@ export class Hud {
     for (let i = 0; i < 9; i++) {
       const el = this.slots[i];
       el.classList.toggle('selected', i === p.selected);
-      fillSlot(el, p.inventory[i], this.atlas);
+      const s = p.inventory[i];
+      fillSlot(el, s, this.atlas);
+      const count = s?.count ?? 0;
+      if (this._primed && count > this._counts[i]) {
+        el.classList.remove('bump');
+        void el.offsetWidth;   // restart the animation
+        el.classList.add('bump');
+      }
+      this._counts[i] = count;
     }
+    this._primed = true;
     if (p.selected !== this._lastSelected) {
       this._lastSelected = p.selected;
       this.showLabel();
     }
   }
 
-  showLabel() {
+  // text defaults to the held item's name
+  showLabel(text = null, warn = false) {
     const s = this.player.heldStack();
-    this.labelEl.textContent = s ? itemInfo(s.id)?.display ?? '' : '';
+    this.labelEl.textContent = text ?? (s ? itemInfo(s.id)?.display ?? '' : '');
+    this.labelEl.classList.toggle('warn', warn);
     this.labelEl.style.opacity = '1';
     clearTimeout(this._labelTimer);
     this._labelTimer = setTimeout(() => { this.labelEl.style.opacity = '0'; }, 1600);
@@ -113,38 +132,52 @@ export class Hud {
     this.healthEl.innerHTML = '';
     this.hungerEl.innerHTML = '';
     this.airEl.innerHTML = '';
-    if (creative) return;
+    if (creative) { this.setLowHealth(false); return; }
 
-    const icon = (glyph) => {
-      const el = document.createElement('span');
+    const icon = (src) => {
+      const el = document.createElement('img');
       el.className = 'stat-icon';
-      el.textContent = glyph;
+      el.src = src;
+      el.alt = '';
+      el.draggable = false;
       return el;
     };
+    const I = HUD_ICONS;
 
     for (let i = 0; i < 10; i++) {
-      const heart = icon('❤');
       const v = p.health - i * 2;
-      heart.style.color = v >= 2 ? '#e53935' : v >= 1 ? '#ef9a9a' : '#3a3a3a';
-      this.healthEl.appendChild(heart);
+      this.healthEl.appendChild(icon(v >= 2 ? I.heartFull : v >= 1 ? I.heartHalf : I.heartEmpty));
     }
     this.healthEl.classList.toggle('low', p.health <= 4);
+    this.setLowHealth(p.health <= 4);
 
     // hunger drains from the left, like the bar it mirrors
     for (let i = 9; i >= 0; i--) {
-      const food = icon('🍗');
       const v = p.hunger - i * 2;
-      food.style.filter = v >= 2 ? 'none' : v >= 1 ? 'grayscale(50%) brightness(0.9)' : 'grayscale(100%) brightness(0.5)';
-      this.hungerEl.appendChild(food);
+      this.hungerEl.appendChild(icon(v >= 2 ? I.foodFull : v >= 1 ? I.foodHalf : I.foodEmpty));
     }
+    // too hungry to sprint or heal: the bar jitters
+    this.hungerEl.classList.toggle('low', p.hunger <= 6);
 
     if (p.air < 20) {
       for (let i = 9; i >= 0; i--) {
-        const bub = icon('🫧');
+        const bub = icon(I.bubble);
         bub.style.visibility = p.air - i * 2 >= 1 ? 'visible' : 'hidden';
         this.airEl.appendChild(bub);
       }
     }
+  }
+
+  // red edge flash when hurt
+  flashDamage() {
+    const v = this.vignetteEl;
+    v.classList.remove('hit');
+    void v.offsetWidth;
+    v.classList.add('hit');
+  }
+
+  setLowHealth(on) {
+    this.vignetteEl.classList.toggle('low', on);
   }
 
   showFps(on) {

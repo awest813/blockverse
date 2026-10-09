@@ -6,6 +6,7 @@ import { Player } from './player/player.js';
 import { Interaction } from './player/interaction.js';
 import { Input } from './core/input.js';
 import { BlockHighlight } from './render/highlight.js';
+import { ViewModel } from './render/viewmodel.js';
 import { EntityManager } from './entities/entityManager.js';
 import { Hud } from './ui/hud.js';
 import { Sky } from './render/sky.js';
@@ -13,7 +14,7 @@ import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack } from './items/items.js';
-import { resolveBindings } from './core/keybinds.js';
+import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
 import { TouchControls } from './ui/touch.js';
@@ -38,6 +39,8 @@ export class Game {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x8fbcec);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.08, 800);
+    this.scene.add(this.camera);   // so the held-item view model (a camera child) renders
+    this.viewModel = new ViewModel(this.camera);
 
     this.world = new World({
       seed: worldMeta.seed,
@@ -63,7 +66,10 @@ export class Game {
         if (kind === 'crafting') this.containers.openCrafting();
         else if (kind === 'furnace') this.containers.openFurnace(pos);
       },
-      playSound: (name, opts) => this.sfx?.play(name, opts),
+      playSound: (name, opts) => {
+        if (name === 'place' || name === 'eat') this.viewModel.swing();
+        this.sfx?.play(name, opts);
+      },
     });
 
     this.hud = new Hud(atlas, this.player);
@@ -78,6 +84,7 @@ export class Game {
 
     // attack mobs on left click (takes priority over starting to mine)
     this.input.onMouseDown = (button) => {
+      if ((button === 0 || button === 2) && !this.uiOpen && !this.player.dead) this.viewModel.swing();
       if (button === 1 && !this.uiOpen && !this.player.dead) { this.pickBlock(); return; }
       if (button !== 0 || this.uiOpen || this.player.dead) return;
       this.attackMob();
@@ -98,6 +105,10 @@ export class Game {
       this.sfx?.play('hurt');
       this.hud.renderStats();
       this.flashDamage();
+    });
+    this.player.events.addEventListener('toolbreak', (e) => {
+      this.sfx?.play('toolbreak');
+      this.hud.showLabel(`${itemInfo(e.detail.id)?.display ?? 'Tool'} broke!`, true);
     });
     this.player.events.addEventListener('death', (e) => {
       this.uiHooks?.showDeath?.(e.detail?.cause);
@@ -281,12 +292,35 @@ export class Game {
   }
 
   flashDamage() {
-    this.canvas.style.transition = 'none';
-    this.canvas.style.filter = 'sepia(0.4) hue-rotate(-30deg) saturate(2.5)';
-    setTimeout(() => {
-      this.canvas.style.transition = 'filter 0.3s';
-      this.canvas.style.filter = 'none';
-    }, 90);
+    this.hud.flashDamage();
+  }
+
+  // a few starter hints in chat, shown once when a brand-new world loads
+  showWelcomeTips() {
+    const k = (id) => keyLabel(this.input.bindings[id]);
+    const creative = this.player.mode === GAMEMODE_CREATIVE;
+    const tips = this.input.altInput === 'touch' ? [
+      'Welcome! Left stick moves, drag to look.',
+      'Tap to place or use, touch and hold to mine.',
+      creative ? 'Tap ▦ for every block and item.' : 'Punch a tree for wood, then tap ▦ to craft planks.',
+    ] : this.input.altInput === 'gamepad' ? [
+      'Welcome! Sticks move and look, RT mines, LT places.',
+      creative ? 'Y opens every block and item.' : 'Mine a tree for wood, then press Y to craft planks.',
+      'Start pauses and shows all controls.',
+    ] : [
+      `Welcome! ${k('forward')}${k('left')}${k('back')}${k('right')} to move, mouse to look.`,
+      'Hold left click to mine, right click to place or use.',
+      creative ? `Press ${k('inventory')} for every block and item. Double-tap ${k('jump')} to fly.`
+        : `Mine a tree for wood, then press ${k('inventory')} to craft planks.`,
+      'Esc pauses and shows all controls.',
+    ];
+    tips.forEach((t, i) => setTimeout(() => { if (this.running) this.chat.message(t, '#ffe9a8', 15000); }, 600 + i * 1600));
+  }
+
+  // in-game clock, "HH:MM" (time 0 is sunrise at 06:00)
+  clockTime() {
+    const h = (((this.time % 1) + 0.25) % 1) * 24;
+    return `${Math.floor(h).toString().padStart(2, '0')}:${Math.floor((h % 1) * 60).toString().padStart(2, '0')}`;
   }
 
   // Day factor: 1 at noon, 0 at night, smooth transitions at dawn/dusk.
@@ -361,6 +395,7 @@ export class Game {
     this.camera.rotation.set(0, 0, 0, 'YXZ');
     this.camera.rotateY(this.player.yaw);
     this.camera.rotateX(this.player.pitch);
+    this.updateViewModel(dt, gamePaused);
 
     // underwater tint
     this.applyUnderwaterEffect();
@@ -393,6 +428,21 @@ export class Game {
     }
 
     this.input.endFrame();
+  }
+
+  updateViewModel(dt, paused) {
+    const p = this.player;
+    const x = Math.floor(p.x), y = Math.floor(p.eyeY), z = Math.floor(p.z);
+    const sky = this.world.getSkyW(x, y, z) ?? 15, block = this.world.getBlockLightW(x, y, z) ?? 0;
+    const light = Math.max((sky / 15) * this.world.materials.uniforms.uDay.value, block / 15) || 0;
+    this.viewModel.update(paused ? 0 : dt, {
+      held: p.heldStack()?.id ?? 0,
+      mining: !paused && !!this.interaction.breakTarget && this.input.mouseDown(0),
+      speed: Math.hypot(p.vx, p.vz),
+      onGround: p.onGround && !p.flying,
+      light,
+      visible: !p.dead && !this.hud.root.classList.contains('bare'),
+    });
   }
 
   applyUnderwaterEffect() {
@@ -431,14 +481,11 @@ export class Game {
     const biome = this.world.biomeAt(Math.floor(p.x), Math.floor(p.z));
     const light = this.world.getSkyW(Math.floor(p.x), Math.floor(p.eyeY), Math.floor(p.z));
     const bl = this.world.getBlockLightW(Math.floor(p.x), Math.floor(p.eyeY), Math.floor(p.z));
-    const t = this.time % 1;
-    const hh = Math.floor(((t + 0.25) % 1) * 24).toString().padStart(2, '0');
-    const mm = Math.floor((((t + 0.25) % 1) * 24 % 1) * 60).toString().padStart(2, '0');
     this.hud.setDebug(
       `BlockVerse 1.0 | FPS ${this.fps}\n` +
       `XYZ ${p.x.toFixed(2)} / ${p.y.toFixed(2)} / ${p.z.toFixed(2)}\n` +
       `chunk ${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}  biome ${BIOME_NAMES[biome] ?? '?'}\n` +
-      `light sky ${light} block ${bl}  time ${hh}:${mm}\n` +
+      `light sky ${light} block ${bl}  time ${this.clockTime()}\n` +
       `chunks ${this.world.stats.chunks} genQ ${this.world.stats.genQueue} dirty ${this.world.dirtyMeshes.size}\n` +
       `draws ${this.renderer.info.render.calls} tris ${(this.renderer.info.render.triangles / 1000).toFixed(0)}k ` +
       `mode ${p.mode === GAMEMODE_CREATIVE ? 'creative' : 'survival'}${p.flying ? ' (fly)' : ''}`,
@@ -489,8 +536,8 @@ export class Game {
     this.containers.dispose();
     this.chat.dispose();
     this.touch.dispose();
+    this.viewModel.dispose();
     this.hud.hide();
-    this.canvas.style.filter = 'none';
     document.removeEventListener('visibilitychange', this._onVisibility);
     window.removeEventListener('resize', this._onResize);
     this.entities.dispose();

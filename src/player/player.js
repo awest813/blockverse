@@ -341,7 +341,7 @@ export class Player {
     s.dur -= n;
     if (s.dur <= 0) {
       this.inventory[this.selected] = null;
-      this.events.dispatchEvent(new CustomEvent('toolbreak'));
+      this.events.dispatchEvent(new CustomEvent('toolbreak', { detail: { id: s.id } }));
     }
     this.events.dispatchEvent(new CustomEvent('inventory'));
   }

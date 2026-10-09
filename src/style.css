@@ -66,7 +66,7 @@ html, body {
 @keyframes pulse { 50% { opacity: 0.55; } }
 
 /* F1: hide the HUD except chat and the click prompt */
-#hud.bare > :not(#chat-log):not(#chat-input-row):not(#click-to-play) { visibility: hidden; }
+#hud.bare > :not(#chat-log):not(#chat-input-row):not(#click-to-play):not(#vignette) { visibility: hidden; }
 
 #hotbar {
   position: absolute; left: 50%; bottom: 8px;
@@ -128,15 +128,34 @@ html, body {
 #health-bar { grid-area: health; justify-content: flex-start; }
 #hunger-bar { grid-area: hunger; justify-content: flex-end; }
 #air-bar { grid-area: air; justify-content: flex-end; }
-#health-bar.low .stat-icon { animation: heart-shake 0.5s steps(2) infinite; }
-@keyframes heart-shake { 50% { transform: translateY(-1px); } }
+/* low health / hunger: icons jitter out of step with each other */
+#health-bar.low .stat-icon, #hunger-bar.low .stat-icon { animation: icon-jitter 0.36s steps(2) infinite; }
+#health-bar.low .stat-icon:nth-child(odd), #hunger-bar.low .stat-icon:nth-child(odd) { animation-delay: -0.18s; }
+@keyframes icon-jitter { 50% { transform: translateY(-2px); } }
 
 .stat-icon {
   width: 18px; height: 18px;
   display: inline-block;
-  font-size: 15px; line-height: 18px; text-align: center;
-  text-shadow: 1px 1px 1px #000;
+  image-rendering: pixelated;
+  filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.5));
 }
+
+/* hotbar slot that just received items */
+#hotbar .slot.bump img { animation: slot-bump 0.25s ease-out; }
+@keyframes slot-bump { 40% { transform: scale(1.25); } }
+
+#held-item-label.warn { color: #ff8a80; }
+
+/* damage flash + persistent low-health edge glow */
+#vignette {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  /* closest-side: 100% is the screen edge, so the red reaches every side */
+  background: radial-gradient(ellipse closest-side at center, transparent 55%, rgba(200, 0, 0, 0.55) 100%);
+}
+#vignette.low { animation: low-health 1.4s ease-in-out infinite; }
+#vignette.hit { animation: hurt-flash 0.45s ease-out; }
+@keyframes hurt-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes low-health { 50% { opacity: 0.6; } }
 
 /* ---------- debug overlay ---------- */
 
@@ -341,6 +360,38 @@ html, body {
 }
 .inv-window .slot:hover { background: #a0a0a0; }
 
+.creative-head {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px;
+  width: 0; min-width: 100%;   /* follow the slot grid's width instead of setting it */
+}
+.creative-tabs { display: flex; flex-wrap: wrap; gap: 3px; width: 100%; }
+.creative-tab {
+  padding: 4px 8px;
+  background: #a9a9a9; border: 2px solid; border-color: #dcdcdc #6b6b6b #6b6b6b #dcdcdc;
+  color: #333; font: inherit; font-size: 12px; cursor: pointer;
+}
+.creative-tab:hover { background: #b8b8b8; }
+.creative-tab[aria-selected="true"] { background: #e2e2e2; color: #111; border-color: #6b6b6b #fff #fff #6b6b6b; }
+.creative-search {
+  flex: 1; min-width: 0; padding: 6px 8px;
+  background: #111; border: 2px solid #555; color: #fff; font: inherit; font-size: 13px; outline: none;
+}
+.creative-search:focus { border-color: var(--focus); }
+.inv-window .slot.trash { color: #8b1a1a; font-size: 20px; font-weight: 900; background: #b98c8c; }
+.inv-window .slot.trash:hover { background: #d29a9a; }
+.creative-grid {
+  /* exactly five rows, so no row is ever cut in half */
+  height: calc(var(--slot-size) * 5 + 3px * 4);
+  overflow-y: auto; overflow-x: hidden; align-content: start;
+  /* the scrollbar sits in the window padding instead of squeezing a column */
+  width: calc(100% + 12px); margin-right: -12px;
+  scrollbar-width: thin;
+  margin-bottom: 12px;
+}
+/* a craft / smelt result waiting to be taken */
+.inv-window .slot.ready { box-shadow: 0 0 0 2px #ffd83d, 0 0 10px rgba(255, 216, 61, 0.7); }
+.creative-empty { grid-column: 1 / -1; padding: 16px; text-align: center; color: #555; font-size: 13px; }
+
 .inv-hint {
   /* width:0 + min-width:100% wraps the hint to the grid width instead of widening the window */
   width: 0; min-width: 100%;
@@ -438,7 +489,8 @@ html, body {
 .loading-bar-track > div { height: 100%; background: #6fbf4a; width: 0%; transition: width 0.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  #click-to-play, #health-bar.low .stat-icon { animation: none; }
+  #click-to-play, .stat-icon, #hotbar .slot img, #vignette.low { animation: none !important; }
+  #vignette.low { opacity: 0.4; }
 }
 
 /* ---------- touch controls ---------- */

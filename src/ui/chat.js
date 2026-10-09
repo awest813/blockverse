@@ -73,7 +73,7 @@ export class Chat {
     this.game.input.requestLock();
   }
 
-  message(text, color = '#fff') {
+  message(text, color = '#fff', ms = 8000) {
     const el = document.createElement('div');
     el.className = 'msg';
     el.textContent = text;      // textContent: no HTML injection
@@ -81,7 +81,7 @@ export class Chat {
     this.logEl.appendChild(el);
     while (this.logEl.children.length > 30) this.logEl.firstChild.remove();
     // fade out of the HUD but stay in the log, visible again while chat is open
-    setTimeout(() => el.classList.add('faded'), 8000);
+    setTimeout(() => el.classList.add('faded'), ms);
   }
 
   submit(text) {
@@ -124,7 +124,7 @@ export class Chat {
         const v = presets[args[1]] ?? Number(args[1]);
         if (Number.isNaN(v)) throw new Error('unknown time value');
         g.time = ((v % 1) + 1) % 1;
-        this.message(`Time set to ${g.time.toFixed(2)}`, '#9fdcff');
+        this.message(`Time set to ${g.clockTime()}${presets[args[1]] !== undefined ? ` (${args[1]})` : ''}`, '#9fdcff');
         break;
       }
       case 'give': {
