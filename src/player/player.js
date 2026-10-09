@@ -221,6 +221,7 @@ export class Player {
     if (this.y < -12) this.damage(4, 'void');
 
     if (!creative) this.updateSurvival(dt);
+    else this.fireTime = 0;   // creative players don't burn (and the overlay goes out)
 
     // sprint exhaustion
     if (this.sprinting && !this.inWater) this.addExhaustion(0.1 * dt * 7);   // swimming has its own cost

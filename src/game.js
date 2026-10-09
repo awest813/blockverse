@@ -571,6 +571,7 @@ export class Game {
     this.sfx?.play('explode', { pos: { x, y, z } });
     const r = power;
     const cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
+    const removed = [];
     for (let dx = -r; dx <= r; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dz = -r; dz <= r; dz++) {
@@ -594,9 +595,12 @@ export class Game {
           if (id === B.OAK_DOOR_TOP && this.world.getBlockW(bx, by - 1, bz) === B.OAK_DOOR) this.world.setBlock(bx, by - 1, bz, B.AIR);
           // a third of the blocks survive as drops
           if (Math.random() < 0.3) this.interaction.spawnBlockDrops(bx, by, bz, blockInfo(id), true);
+          removed.push(bx, by, bz);
         }
       }
     }
+    // torches, ladders, doors and the like left hanging fall off
+    for (let i = 0; i < removed.length; i += 3) this.interaction.dropUnsupported(removed[i], removed[i + 1], removed[i + 2]);
     // damage falls off over twice the blast radius
     const reach = power * 2;
     const hurt = (ex, ey, ez) => {

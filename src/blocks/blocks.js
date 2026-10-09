@@ -376,6 +376,13 @@ export function isSolid(id) {
 
 // Blocks a face of `id` adjacent to `neighborId` need to be drawn?
 // water, or a plant standing in water
+// technical states that are never handed out as items (lit furnace, fluids,
+// growing wheat, a door's top half, fire)
+export function isTechnicalBlock(id) {
+  return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
+    id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE;
+}
+
 export function isWater(id) {
   return id === B.WATER || (BLOCKS[id]?.waterlogged ?? false);
 }

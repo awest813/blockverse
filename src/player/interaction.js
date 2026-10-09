@@ -3,7 +3,7 @@
 import { REACH_DISTANCE, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
 import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid } from '../blocks/blocks.js';
-import { worldBoxes } from '../blocks/shapes.js';
+import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
 import { growCrop, cropTime } from '../world/saplings.js';
@@ -18,6 +18,8 @@ const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 // Cross plants require solid ground below.
 const NEEDS_GROUND = new Set([B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+// the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
+const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const CAMPFIRES = new Set([B.CAMPFIRE, B.CAMPFIRE_OFF]);
 const DOORS = new Set([B.OAK_DOOR, B.OAK_DOOR_TOP]);
 const SLABS = new Set([B.OAK_SLAB, B.COBBLE_SLAB, B.STONE_BRICK_SLAB]);
@@ -204,16 +206,7 @@ export class Interaction {
       if (!creative) this.cb.spawnDrops(t.x + 0.5, t.y - 0.7, t.z + 0.5, [{ id: B.OAK_DOOR, count: 1 }]);
     }
 
-    // cascade: break unsupported plants above (a whole kelp stalk, a door on a broken floor)
-    for (let y = t.y + 1; y < t.y + 32; y++) {
-      const above = this.world.getBlockW(t.x, y, t.z);
-      if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR) break;
-      const ainfo = blockInfo(above);
-      if (above === B.OAK_DOOR) this.world.setBlock(t.x, y + 1, t.z, B.AIR);
-      this.world.setBlock(t.x, y, t.z, ainfo.waterlogged ? B.WATER : B.AIR);
-      if (!creative) this.spawnBlockDrops(t.x, y, t.z, ainfo, true);
-      if (above !== B.KELP) break;
-    }
+    this.dropUnsupported(t.x, t.y, t.z, !creative);
 
     if (!creative) {
       // shears snip leaves, grass and bushes off whole
@@ -223,6 +216,34 @@ export class Interaction {
       p.addExhaustion(0.03);
     }
     this.resetBreaking();
+  }
+
+  // A block at (x, y, z) has just gone: break whatever depended on it —
+  // plants, torches, doors and standing signs on top (a whole kelp stalk),
+  // ladders and wall signs hung on its sides.
+  dropUnsupported(x, y, z, drops = true) {
+    const w = this.world;
+    for (let yy = y + 1; yy < y + 32; yy++) {
+      const above = w.getBlockW(x, yy, z);
+      const standingSign = above === B.OAK_SIGN && !(w.getMetaW(x, yy, z) & 4);
+      if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR && !standingSign) break;
+      const ainfo = blockInfo(above);
+      if (above === B.OAK_DOOR) w.setBlock(x, yy + 1, z, B.AIR);
+      w.setBlock(x, yy, z, ainfo.waterlogged ? B.WATER : B.AIR);
+      if (drops) this.spawnBlockDrops(x, yy, z, ainfo, true);
+      if (above !== B.KELP) break;
+    }
+    for (let e = 0; e < 4; e++) {
+      const [dx, dz] = EDGE_DIRS[e];
+      const nx = x - dx, nz = z - dz;   // a neighbour hanging on its edge e would face us
+      const id = w.getBlockW(nx, y, nz);
+      if (id !== B.LADDER && id !== B.OAK_SIGN) continue;
+      const meta = w.getMetaW(nx, y, nz);
+      const edge = id === B.LADDER ? meta & 3 : (meta & 4) ? ((meta & 3) + 2) & 3 : -1;
+      if (edge !== e) continue;
+      w.setBlock(nx, y, nz, B.AIR);
+      if (drops) this.spawnBlockDrops(nx, y, nz, blockInfo(id), true);
+    }
   }
 
   spawnBlockDrops(x, y, z, info, harvest) {
@@ -250,6 +271,7 @@ export class Interaction {
     // fence gates swing open and shut
     if (t && t.id === B.OAK_FENCE_GATE && !p.sneaking) {
       const meta = this.world.getMetaW(t.x, t.y, t.z) ^ 4;
+      if (this.shapeHitsPlayer(t.x, t.y, t.z, B.OAK_FENCE_GATE, meta)) return;   // don't shut it on yourself
       this.world.setBlock(t.x, t.y, t.z, B.OAK_FENCE_GATE, meta);
       this.cb.playSound('door', { open: !!(meta & 4) });
       this.useCooldown = 0.25;
@@ -261,6 +283,7 @@ export class Interaction {
       const lowerY = t.id === B.OAK_DOOR_TOP ? t.y - 1 : t.y;
       if (this.world.getBlockW(t.x, lowerY, t.z) !== B.OAK_DOOR) return;   // a stray top half (blown off its base)
       const meta = this.world.getMetaW(t.x, lowerY, t.z) ^ 4;
+      if (this.shapeHitsPlayer(t.x, lowerY, t.z, B.OAK_DOOR, meta) || this.shapeHitsPlayer(t.x, lowerY + 1, t.z, B.OAK_DOOR, meta)) return;
       this.world.setBlock(t.x, lowerY, t.z, B.OAK_DOOR, meta);
       if (this.world.getBlockW(t.x, lowerY + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, lowerY + 1, t.z, B.OAK_DOOR_TOP, meta);
       this.cb.playSound('door', { open: !!(meta & 4) });
@@ -280,7 +303,8 @@ export class Interaction {
     if (held) {
       const info = itemInfo(held.id);
       const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
-      if ((info?.food || info?.drink) && wantsIt && p.mode !== GAMEMODE_CREATIVE) {
+      const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
+      if ((info?.food || info?.drink) && wantsIt && !cooking && p.mode !== GAMEMODE_CREATIVE) {
         this.eating = { id: held.id, slot: p.selected, t: 0, need: info.eatTime, auto: this.inputMode === 'touch' };
         this.cb.playSound('eat', {});
         return;
@@ -372,7 +396,7 @@ export class Interaction {
     }
     if (info.id === B.OAK_DOOR) {
       // two blocks tall, standing on something, panel on the far edge
-      if (!isSolid(this.world.getBlockW(px, py - 1, pz))) return;
+      if (!this.supportsTop(px, py - 1, pz)) return;
       if (!blockInfo(this.world.getBlockW(px, py + 1, pz)).replaceable) return;
       if (this.intersectsPlayer(px, py, pz) || this.intersectsPlayer(px, py + 1, pz)) return;
       const yaw = ((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -447,6 +471,11 @@ export class Interaction {
     if (held.id === I.BUCKET) {
       if (ft.id !== B.WATER && ft.id !== B.LAVA) return false;
       this.world.setBlock(ft.x, ft.y, ft.z, B.AIR);
+      // a lily pad has nothing left to float on
+      if (this.world.getBlockW(ft.x, ft.y + 1, ft.z) === B.LILY_PAD) {
+        this.world.setBlock(ft.x, ft.y + 1, ft.z, B.AIR);
+        if (!creative) this.spawnBlockDrops(ft.x, ft.y + 1, ft.z, blockInfo(B.LILY_PAD), true);
+      }
       swapHeld(ft.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET);
       this.cb.playSound('splash', {});
       return true;
@@ -457,6 +486,13 @@ export class Interaction {
     const here = this.world.getBlockW(x, y, z);
     if (!blockInfo(here).replaceable) return false;
     const fluid = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
+    // water poured straight onto lava sets it to obsidian
+    if (fluid === B.WATER && here === B.LAVA) {
+      this.world.setBlock(x, y, z, B.OBSIDIAN);
+      swapHeld(I.BUCKET);
+      this.cb.playSound('sizzle', {});
+      return true;
+    }
     this.world.setBlock(x, y, z, fluid);
     fluidContact(this.world, x, y, z, () => this.cb.playSound('splash', {}));
     swapHeld(I.BUCKET);
@@ -603,6 +639,15 @@ export class Interaction {
       return true;
     }
     return false;
+  }
+
+  // would a shaped block (with this meta) overlap the player?
+  shapeHitsPlayer(bx, by, bz, id, meta) {
+    const p = this.player, hw = p.w / 2;
+    const boxes = shapeBoxes(id, meta, (dx, dz) => this.world.getBlockW(bx + dx, by, bz + dz), true);
+    return boxes.some((b) => bx + b[3] > p.x - hw && bx + b[0] < p.x + hw &&
+      by + b[4] > p.y && by + b[1] < p.y + p.h &&
+      bz + b[5] > p.z - hw && bz + b[2] < p.z + hw);
   }
 
   intersectsPlayer(bx, by, bz) {

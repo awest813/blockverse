@@ -1,6 +1,6 @@
 // Chat log + command console. All user text is rendered with textContent.
 
-import { BLOCKS } from '../blocks/blocks.js';
+import { BLOCKS, isTechnicalBlock } from '../blocks/blocks.js';
 import { itemInfo, I } from '../items/items.js';
 import { GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL } from '../core/constants.js';
 import * as MOBS from '../entities/mobs.js';
@@ -26,7 +26,7 @@ const ARGS = {
 
 // name -> id lookup across blocks and items
 const NAME_TO_ID = new Map();
-for (const b of BLOCKS) if (b && b.id !== 0) NAME_TO_ID.set(b.name, b.id);
+for (const b of BLOCKS) if (b && b.id !== 0 && !isTechnicalBlock(b.id)) NAME_TO_ID.set(b.name, b.id);
 for (const id of Object.values(I)) {
   const info = itemInfo(id);
   if (info) NAME_TO_ID.set(info.name, id);
@@ -252,13 +252,14 @@ export class Chat {
     const text = this.inputEl.value;
     if (!text.startsWith('/')) return null;
     const parts = text.slice(1).split(' ');
+    const cmd = parts[0].toLowerCase();
     const word = parts[parts.length - 1].toLowerCase();
     const before = text.slice(0, text.length - parts[parts.length - 1].length);
     let options;
     if (parts.length === 1) options = COMMANDS;
-    else if (parts[0] === 'give' && parts.length === 2) options = [...NAME_TO_ID.keys()];
-    else if (parts[0] === 'summon' && parts.length === 2) options = Object.keys(SUMMONABLE);
-    else options = ARGS[parts[0]]?.[parts.length - 2] ?? [];
+    else if (cmd === 'give' && parts.length === 2) options = [...NAME_TO_ID.keys()];
+    else if (cmd === 'summon' && parts.length === 2) options = Object.keys(SUMMONABLE);
+    else options = ARGS[cmd]?.[parts.length - 2] ?? [];
     return { before, word, matches: options.filter((o) => o.startsWith(word)).sort() };
   }
 

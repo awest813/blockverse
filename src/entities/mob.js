@@ -407,8 +407,10 @@ export class Mob {
       if (!on) return;
       flameTex ??= makeFlameTexture();
       this.flames = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, fog: false }));
-      this.flames.scale.set(this.w * 1.6, this.h * 1.2, 1);
-      this.flames.position.y = this.h * 0.55;
+      // w and h are already the (baby) size; undo the model's own scale
+      const k = this.group.scale.x || 1;
+      this.flames.scale.set(this.w * 1.6 / k, this.h * 1.2 / k, 1);
+      this.flames.position.y = this.h * 0.55 / k;
       this.group.add(this.flames);
     }
     this.flames.visible = on;

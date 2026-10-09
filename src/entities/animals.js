@@ -56,7 +56,10 @@ export class Cow extends Animal {
   interact(player, held) {
     if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
     if (player.mode !== GAMEMODE_CREATIVE) {
-      if (held.count > 1) { player.consumeHeld(1); player.give(I.MILK_BUCKET, 1); } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
+      if (held.count > 1) {
+        player.consumeHeld(1);
+        if (player.give(I.MILK_BUCKET, 1) > 0) this.dropFn?.([{ id: I.MILK_BUCKET, count: 1 }]);   // no room: it drops by the cow
+      } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
       player.events.dispatchEvent(new CustomEvent('inventory'));
     }
     this.fx?.sound('cow', { vol: 0.8, pos: this });
