@@ -97,7 +97,7 @@ export class Sheep extends Mob {
     this.setSheared(true);
     this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
-    this.fx?.sound('place', { block: 'cloth' });
+    this.fx?.sound('place', { block: 'cloth', pos: this });
     return true;
   }
 
@@ -456,7 +456,7 @@ export class Creeper extends Mob {
     this.steer(player, 1);
     if ((d < 3 && this.canSee(player)) || (this.fuse > 0 && d < 7)) {
       // stop and hiss; walking away far enough defuses it
-      if (this.fuse === 0) this.fx?.sound('fuse', { vol: 1 });
+      if (this.fuse === 0) this.fx?.sound('fuse', { pos: this });
       this.moving = false;
       this.fuse += dt;
       if (this.fuse >= FUSE_TIME) {

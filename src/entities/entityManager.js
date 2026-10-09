@@ -24,7 +24,7 @@ export class EntityManager {
     this.fx = {
       shoot: (x, y, z, vx, vy, vz, dmg) => {
         this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg));
-        this.fx.sound('shoot');
+        this.fx.sound('shoot', { pos: { x, y, z } });
       },
       // the player's bow
       fire: (x, y, z, vx, vy, vz, dmg, pickup) => {

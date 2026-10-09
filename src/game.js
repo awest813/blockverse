@@ -164,8 +164,8 @@ export class Game {
     this._fpsFrames = 0;
     this._fpsTime = 0;
 
-    this.player.events.addEventListener('hurt', () => {
-      this.sfx?.play('hurt');
+    this.player.events.addEventListener('hurt', (e) => {
+      this.sfx?.play('hurt', { cause: e.detail?.cause });
       this.hud.renderStats();
       this.flashDamage();
     });
@@ -558,12 +558,12 @@ export class Game {
 
   primeTnt(x, y, z, fuse) {
     this.entities.addMob(new PrimedTnt(this.scene, this.world, x, y, z, fuse));
-    this.sfx?.play('fuse');
+    this.sfx?.play('fuse', { pos: { x, y, z } });
   }
 
   // Blow a roughly spherical hole, hurt and knock back everything nearby.
   explode(x, y, z, power) {
-    this.sfx?.play('explode');
+    this.sfx?.play('explode', { pos: { x, y, z } });
     const r = power;
     const cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
     for (let dx = -r; dx <= r; dx++) {
@@ -822,7 +822,9 @@ export class Game {
           this._stepDistance = 0;
           const ground = blockInfo(this.world.getBlockW(
             Math.floor(this.player.x), Math.floor(this.player.y) - 1, Math.floor(this.player.z)));
-          if (ground.id !== 0) this.sfx?.play('step', { block: ground.sound });
+          // left, right, left...; sneaking is silent
+          this._stepSide = -(this._stepSide ?? 0.15);
+          if (ground.id !== 0 && !this.player.sneaking) this.sfx?.play('step', { block: ground.sound, pan: this._stepSide });
         }
       }
       if (!wasInWater && this.player.inWater && this.player.vy < -3) this.sfx?.play('splash');
@@ -835,6 +837,7 @@ export class Game {
     if (this.bobber && (this.bobber.dead || this.player.heldStack()?.id !== I.FISHING_ROD)) { this.bobber.kill(); this.bobber = null; }
     this.updateBubbles(dt);
     this.sfx?.setUnderwater(this.player.headInWater && !this.player.dead && !this.paused);
+    if (!gamePaused) this.updateAmbience(dt);
     this.sinceAttack += dt;
     if (!this.fireEl) this.fireEl = document.getElementById('fire-overlay');
     this.fireEl?.classList.toggle('on', this.player.fireTime > 0 && !this.player.dead);
@@ -938,6 +941,36 @@ export class Game {
       this.scene.background.copy(UNDERWATER);
       u.uFogNear.value = 3;
       u.uFogFar.value = 24 - Math.min(1, dark) * 8;
+    }
+  }
+
+  // Sounds of the place you're in: the listener follows the camera; fires
+  // crackle and lava pops nearby; caves hum; crickets sing on summer nights;
+  // and your heart pounds when you're nearly dead.
+  updateAmbience(dt) {
+    const p = this.player, sfx = this.sfx;
+    if (!sfx) return;
+    sfx.setListener(p.x, p.eyeY, p.z, p.yaw);
+    if (p.dead) return;
+    const survival = p.mode !== GAMEMODE_CREATIVE;
+    this._beat = (this._beat ?? 0) - dt;
+    if (survival && p.health <= 4 && this._beat <= 0) { this._beat = p.health <= 2 ? 0.8 : 1.1; sfx.play('heartbeat'); }
+    this._ambT = (this._ambT ?? 0) - dt;
+    if (this._ambT > 0) return;
+    this._ambT = 0.35;
+    // a few random cells around you: anything burning nearby?
+    for (let i = 0; i < 10; i++) {
+      const x = Math.floor(p.x + (Math.random() - 0.5) * 14), y = Math.floor(p.y + (Math.random() - 0.5) * 8), z = Math.floor(p.z + (Math.random() - 0.5) * 14);
+      const id = this.world.getBlockW(x, y, z);
+      if ((id === B.FIRE || id === B.CAMPFIRE) && Math.random() < 0.7) sfx.play('crackle', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 } });
+      else if (id === B.LAVA && this.world.getBlockW(x, y + 1, z) === B.AIR && Math.random() < 0.35) sfx.play('lavapop', { pos: { x: x + 0.5, y: y + 1, z: z + 0.5 } });
+    }
+    const sky = this.world.getSkyW(Math.floor(p.x), Math.floor(p.eyeY), Math.floor(p.z));
+    if (sky === 0 && p.y < 50 && Math.random() < 0.35 / 60) sfx.play('drone');   // about once a minute, deep down
+    const day = this.dayFactor();
+    if (day < 0.3 && sky >= 12 && !p.headInWater && Math.random() < 0.12) {
+      const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10;
+      sfx.play('cricket', { pos: { x: p.x + Math.cos(a) * r, y: p.y, z: p.z + Math.sin(a) * r } });
     }
   }
 

@@ -51,7 +51,6 @@ function spawnAround(game, x, y, z, Cls) {
   }
   if (made) {
     game.sparks?.(x + 0.5, y + 0.5, z + 0.5, 0x5a2a20, 10);
-    const d = Math.hypot(x - game.player.x, z - game.player.z);
-    game.sfx?.play('spawner', { vol: Math.max(0.2, 1 - d / 16) });
+    game.sfx?.play('spawner', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 } });
   }
 }

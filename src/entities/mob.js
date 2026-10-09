@@ -93,7 +93,7 @@ export class Mob {
     this.persistent = true;
     if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
     this.fx?.hearts?.(this.x, this.y + this.h, this.z);
-    this.fx?.sound('eat', { vol: 0.6 });
+    this.fx?.sound('eat', { vol: 0.6, pos: this });
     return true;
   }
 
@@ -359,7 +359,7 @@ export class Mob {
     if (this.ambientTimer > 0) return;
     this.ambientTimer = this.hostile ? 7 + Math.random() * 10 : 14 + Math.random() * 20;
     const d = this.dist3(player);
-    if (d < 16) this.fx?.sound(this.ambientSound, { vol: 1 - d / 16 });
+    if (d < 20) this.fx?.sound(this.ambientSound, { pos: this });
   }
 
   animateDeath(dt) {
@@ -504,14 +504,14 @@ export class Mob {
       this.die();
       return true;
     }
-    this.fx?.sound('mobhurt', { vol: 0.8 });
+    this.fx?.sound('mobhurt', { vol: 0.8, pos: this });
     return true;
   }
 
   die() {
     if (this.dying !== undefined) return;
     if (!this.baby) this.onDeath?.();
-    this.fx?.sound('mobdeath');
+    this.fx?.sound('mobdeath', { pos: this });
     // tip over briefly before vanishing; no longer a threat or a target
     this.dying = DEATH_TIME;
     this.hostile = false;

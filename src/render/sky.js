@@ -44,6 +44,10 @@ function makeCloudTexture() {
   return tex;
 }
 
+const CLOUD_NIGHT = new THREE.Color(0x283044);
+const CLOUD_DUSK = new THREE.Color(0xffb38a);
+const WHITE = new THREE.Color(0xffffff);
+
 export class Sky {
   constructor(scene, worldUniforms) {
     this.scene = scene;
@@ -124,7 +128,12 @@ export class Sky {
       (p.x / 466 + performance.now() * 0.0000045) % 1,
       (p.z / 466) % 1,
     );
-    this.clouds.material.opacity = 0.25 + 0.6 * day;
+    this.clouds.material.opacity = 0.3 + 0.55 * day;
+    // clouds take the light of the hour: white by day, dark slate at night
+    // (so they don't glow against the stars), warm at dawn and dusk
+    const el = Math.sin(angle);
+    this.clouds.material.color.copy(CLOUD_NIGHT).lerp(WHITE, Math.min(1, day * 1.15))
+      .lerp(CLOUD_DUSK, Math.max(0, 1 - Math.abs(el) * 5) * 0.45);
 
     if (!underwater) {
       // sky color: day <-> night with a warm band at dawn/dusk

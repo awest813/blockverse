@@ -59,7 +59,7 @@ export class Cow extends Animal {
       if (held.count > 1) { player.consumeHeld(1); player.give(I.MILK_BUCKET, 1); } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
       player.events.dispatchEvent(new CustomEvent('inventory'));
     }
-    this.fx?.sound('cow', { vol: 0.8 });
+    this.fx?.sound('cow', { vol: 0.8, pos: this });
     return true;
   }
 
@@ -117,7 +117,7 @@ export class Chicken extends Animal {
     this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt;
     if (this.eggTimer <= 0) {
       this.eggTimer = 300 + Math.random() * 300;
-      if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6 }); }
+      if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }
     }
     // flap to fall gently
     const airborne = !this.onGround && this.vy < 0;
@@ -414,7 +414,7 @@ export class Dolphin extends Swimmer {
     if (this.moving && this.depthBelowSurface() <= 1 && Math.random() < dt * 0.25) {
       this.vy = 7.5;
       this.leapTime = 1.1;
-      this.fx?.sound('splash', { vol: 0.6 });
+      this.fx?.sound('splash', { vol: 0.6, pos: this });
       return;
     }
     super.think(dt, player, playerDist);
@@ -464,7 +464,7 @@ export class Manatee extends Swimmer {
     this.escort = 40;
     this.health = 20;
     this.fx?.notify('The manatee nuzzles your hand');
-    this.fx?.sound('eat');
+    this.fx?.sound('eat', { pos: this });
     return true;
   }
 

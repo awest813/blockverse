@@ -249,8 +249,9 @@ export class Interaction {
 
     // fence gates swing open and shut
     if (t && t.id === B.OAK_FENCE_GATE && !p.sneaking) {
-      this.world.setBlock(t.x, t.y, t.z, B.OAK_FENCE_GATE, this.world.getMetaW(t.x, t.y, t.z) ^ 4);
-      this.cb.playSound('place', { block: 'wood' });
+      const meta = this.world.getMetaW(t.x, t.y, t.z) ^ 4;
+      this.world.setBlock(t.x, t.y, t.z, B.OAK_FENCE_GATE, meta);
+      this.cb.playSound('door', { open: !!(meta & 4) });
       this.useCooldown = 0.25;
       return;
     }
@@ -262,7 +263,7 @@ export class Interaction {
       const meta = this.world.getMetaW(t.x, lowerY, t.z) ^ 4;
       this.world.setBlock(t.x, lowerY, t.z, B.OAK_DOOR, meta);
       if (this.world.getBlockW(t.x, lowerY + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, lowerY + 1, t.z, B.OAK_DOOR_TOP, meta);
-      this.cb.playSound('place', { block: 'wood' });
+      this.cb.playSound('door', { open: !!(meta & 4) });
       this.useCooldown = 0.25;
       return;
     }
@@ -270,6 +271,7 @@ export class Interaction {
     // 1) use a block (crafting table, furnace) — unless sneaking
     if (t && USABLE.has(t.id) && !p.sneaking) {
       const kind = { [B.CRAFTING_TABLE]: 'crafting', [B.CHEST]: 'chest', [B.BED]: 'bed' }[t.id] ?? 'furnace';
+      if (kind === 'chest') this.cb.playSound('chest', {});
       this.cb.openUI(kind, t);
       return;
     }
@@ -407,7 +409,7 @@ export class Interaction {
       else p.give(info.returns, 1);
     }
     p.events.dispatchEvent(new CustomEvent('inventory'));
-    this.cb.playSound('pickup', {});
+    this.cb.playSound(info.drink ? 'pickup' : 'burp', {});
   }
 
   // Can something sit on top of this block? Solid, and (for part-blocks)
@@ -534,7 +536,7 @@ export class Interaction {
         const st = campfireState(this.world, t.x, t.y, t.z);
         this.world.setBlock(t.x, t.y, t.z, lit ? B.CAMPFIRE_OFF : B.CAMPFIRE);
         this.world.setBlockEntity(t.x, t.y, t.z, st);   // setBlock cleared it; keep the food
-        this.cb.playSound(lit ? 'splash' : 'place', { block: 'wood' });
+        this.cb.playSound(lit ? 'sizzle' : 'place', { block: 'wood' });
         if (lit && !creative) p.damageHeldTool(1);
         return true;
       }
