@@ -35,6 +35,7 @@ function item(id, name, display, opts = {}) {
     armor: opts.armor ?? null,  // {slot: 0 head .. 3 feet, points, durability}
     bow: opts.bow ?? null,      // {durability}
     places: opts.places ?? null, // block this item plants/places (seeds)
+    returns: opts.returns ?? null, // item left behind after eating (bowl)
   });
 }
 
@@ -86,6 +87,11 @@ item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2 });
 item(I.CHICKEN_COOKED, 'chicken_cooked', 'Cooked Chicken', { food: 6 });
 item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2 });
 item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5 });
+item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
+item(I.PAPER, 'paper', 'Paper');
+item(I.BOOK, 'book', 'Book');
+item(I.BOWL, 'bowl', 'Bowl', { burnTime: 5 });
+item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, stack: 1, returns: I.BOWL });
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
@@ -125,6 +131,8 @@ const BLOCK_BURN = new Map([
   [B.OAK_PLANKS, 15], [B.BIRCH_PLANKS, 15], [B.SPRUCE_PLANKS, 15],
   [B.OAK_LOG, 15], [B.BIRCH_LOG, 15], [B.SPRUCE_LOG, 15],
   [B.CRAFTING_TABLE, 15], [B.COAL_ORE, 0], [B.DEAD_BUSH, 5],
+  [B.COAL_BLOCK, 800], [B.BOOKSHELF, 15], [B.CHEST, 15],
+  [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5],
 ]);
 
 // Unified item info for any id (block or item).

@@ -87,7 +87,14 @@ Touch controls appear automatically on the first touch.
 - Shown beside the crafting grid in your inventory and at a crafting table (toggle with "Hide recipes")
 - Green: you can make it now — click to fill the grid, Shift-click for as many as you can afford
 - "3×3": you have the ingredients but need a crafting table
-- Grey: hover to see what's missing
+- Grey: hover to see what's missing; click to see the layout as faint "ghost" items in the grid (red outline = you have none of that ingredient)
+- Tabs (All, Gear, Blocks, Food, Items) and a search box — searching an ingredient ("planks") finds everything made from it
+- Hovering any recipe shows a miniature of its shape
+
+### Furnace
+
+- The smelting guide beside the furnace lists everything that can be smelted; click one to load your whole stack plus just enough of your best fuel
+- Logs smelt into charcoal, a fuel as good as coal
 
 ### Creative item palette
 
@@ -101,6 +108,8 @@ Touch controls appear automatically on the first touch.
 - Shift+click: quick-move between areas (into furnace slots, hotbar ↔ backpack)
 - Shift+click a craft result: craft as many as fit into your inventory
 - Click outside the window: throw the cursor stack on the ground
+- Drag a carried stack across slots: split it evenly between them (right-drag: one item per slot)
+- Double-click a stack: gather every matching item onto the cursor
 - 1–9 while hovering a slot: swap it with that hotbar slot
 - Q while hovering a slot: drop one item (Ctrl+Q: the whole stack)
 

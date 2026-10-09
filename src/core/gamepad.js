@@ -249,10 +249,9 @@ export class GamepadController {
     if (!el) { this.setTarget(list[0], list); return; }
     if (el.classList.contains('slot')) {
       const r = el.getBoundingClientRect();
-      el.dispatchEvent(new MouseEvent('mousedown', {
-        bubbles: true, button, shiftKey: shift,
-        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
-      }));
+      const at = { bubbles: true, button, shiftKey: shift, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+      el.dispatchEvent(new MouseEvent('mousedown', at));
+      el.dispatchEvent(new MouseEvent('mouseup', at));   // completes the click (inventories wait for release)
     } else if (button !== 0) {
       // X/RB only mean something on slots
     } else if (el.classList.contains('world-entry') && el.classList.contains('selected')) {

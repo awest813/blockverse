@@ -62,6 +62,12 @@ export const B = {
   WHEAT_2: 56,
   WHEAT_3: 57,
   TNT: 58,
+  IRON_BLOCK: 59,
+  GOLD_BLOCK: 60,
+  DIAMOND_BLOCK: 61,
+  COAL_BLOCK: 62,
+  BOOKSHELF: 63,
+  JACK_O_LANTERN: 64,
 };
 
 // Tool classes
@@ -251,6 +257,19 @@ for (let stage = 0; stage < 4; stage++) {
 reg(def(B.TNT, 'tnt', 'TNT', {
   hardness: 0, sound: 'leaf',
   textures: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
+}));
+reg(def(B.IRON_BLOCK, 'iron_block', 'Block of Iron', { hardness: 5, tool: TOOL_PICKAXE, minTier: 2 }));
+reg(def(B.GOLD_BLOCK, 'gold_block', 'Block of Gold', { hardness: 3, tool: TOOL_PICKAXE, minTier: 3 }));
+reg(def(B.DIAMOND_BLOCK, 'diamond_block', 'Block of Diamond', { hardness: 5, tool: TOOL_PICKAXE, minTier: 3 }));
+reg(def(B.COAL_BLOCK, 'coal_block', 'Block of Coal', { hardness: 5, tool: TOOL_PICKAXE, minTier: 1 }));
+reg(def(B.BOOKSHELF, 'bookshelf', 'Bookshelf', {
+  hardness: 1.5, tool: TOOL_AXE, sound: 'wood',
+  textures: { top: 'oak_planks', bottom: 'oak_planks', side: 'bookshelf' },
+  drop: () => [{ id: I.BOOK, count: 3 }],
+}));
+reg(def(B.JACK_O_LANTERN, 'jack_o_lantern', "Jack o'Lantern", {
+  hardness: 1, tool: TOOL_AXE, sound: 'wood', lightEmit: 15,
+  textures: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face_lit' },
 }));
 
 export function blockInfo(id) {

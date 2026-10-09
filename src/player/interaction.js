@@ -193,6 +193,12 @@ export class Interaction {
       if (info?.food && p.hunger < 20 && p.mode !== GAMEMODE_CREATIVE) {
         p.eat(info.food);
         p.consumeHeld(1);
+        // stew and the like leave their container behind
+        if (info.returns) {
+          if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: info.returns, count: 1 };
+          else p.give(info.returns, 1);
+          p.events.dispatchEvent(new CustomEvent('inventory'));
+        }
         this.cb.playSound('eat', {});
         this.useCooldown = 0.4;
         return;

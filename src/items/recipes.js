@@ -63,6 +63,20 @@ for (const [mat, helmet, chest, legs, boots] of [
 
 // farming and mob drops
 shaped(I.BREAD, 1, ['WWW'], { W: [I.WHEAT] });
+
+// storage blocks (and back)
+for (const [item, block] of [[I.IRON_INGOT, B.IRON_BLOCK], [I.GOLD_INGOT, B.GOLD_BLOCK], [I.DIAMOND, B.DIAMOND_BLOCK], [I.COAL, B.COAL_BLOCK]]) {
+  shaped(block, 1, ['XXX', 'XXX', 'XXX'], { X: [item] });
+  shapeless(item, 9, [[block]]);
+}
+
+// books and decoration
+shaped(I.PAPER, 3, ['SSS'], { S: [B.SUGAR_CANE] });
+shapeless(I.BOOK, 1, [[I.PAPER], [I.PAPER], [I.PAPER], [I.LEATHER]]);
+shaped(B.BOOKSHELF, 1, ['PPP', 'BBB', 'PPP'], { P: ANY_PLANKS, B: [I.BOOK] });
+shapeless(B.JACK_O_LANTERN, 1, [[B.PUMPKIN], [B.TORCH]]);
+shaped(I.BOWL, 4, ['P.P', '.P.'], { P: ANY_PLANKS });
+shapeless(I.MUSHROOM_STEW, 1, [[I.BOWL], [B.MUSHROOM_BROWN], [B.MUSHROOM_RED]]);
 shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
 shaped(I.BOW, 1, ['.SX', 'S.X', '.SX'], { S: [I.STICK], X: [I.STRING] });
 shaped(I.ARROW, 4, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
@@ -198,6 +212,9 @@ export const SMELTING = new Map([
   [I.BEEF_RAW, { id: I.BEEF_COOKED, count: 1 }],
   [I.CHICKEN_RAW, { id: I.CHICKEN_COOKED, count: 1 }],
   [I.FISH_RAW, { id: I.FISH_COOKED, count: 1 }],
+  [B.OAK_LOG, { id: I.CHARCOAL, count: 1 }],
+  [B.BIRCH_LOG, { id: I.CHARCOAL, count: 1 }],
+  [B.SPRUCE_LOG, { id: I.CHARCOAL, count: 1 }],
 ]);
 
 export const SMELT_TIME = 10; // seconds per item

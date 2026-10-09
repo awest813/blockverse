@@ -570,6 +570,43 @@ tile('pumpkin_face', (ctx, rng) => {
   px(ctx, 3, 9, dark); px(ctx, 12, 9, dark); px(ctx, 7, 12, dark); px(ctx, 8, 12, dark);
 });
 
+tile('pumpkin_face_lit', (ctx, rng) => {
+  generators['pumpkin_side'](ctx, rng);
+  const glow = [255, 214, 90], hot = [255, 244, 170];
+  rect(ctx, 3, 5, 3, 2, glow); rect(ctx, 10, 5, 3, 2, glow);
+  px(ctx, 4, 4, glow); px(ctx, 11, 4, glow);
+  rect(ctx, 4, 10, 8, 2, glow);
+  px(ctx, 3, 9, glow); px(ctx, 12, 9, glow); px(ctx, 7, 12, glow); px(ctx, 8, 12, glow);
+  px(ctx, 4, 5, hot); px(ctx, 11, 5, hot); rect(ctx, 6, 10, 4, 1, hot);
+});
+
+// --- storage blocks: bevelled tiles in the material's colours ---
+function storageBlock(ctx, rng, base, light, dark) {
+  fillNoise(ctx, rng, [[base, 7], [shade(base, 1.05), 2], [shade(base, 0.95), 2]]);
+  rect(ctx, 0, 0, TILE, 1, light); rect(ctx, 0, 0, 1, TILE, light);
+  rect(ctx, 0, TILE - 1, TILE, 1, dark); rect(ctx, TILE - 1, 0, 1, TILE, dark);
+  rect(ctx, 3, 3, 10, 1, light); rect(ctx, 3, 3, 1, 10, light);
+  rect(ctx, 3, 12, 10, 1, dark); rect(ctx, 12, 3, 1, 10, dark);
+}
+tile('iron_block', (ctx, rng) => storageBlock(ctx, rng, [210, 210, 214], [240, 240, 244], [150, 150, 158]));
+tile('gold_block', (ctx, rng) => storageBlock(ctx, rng, [240, 200, 60], [255, 236, 130], [190, 146, 36]));
+tile('diamond_block', (ctx, rng) => storageBlock(ctx, rng, [100, 222, 214], [176, 250, 244], [52, 166, 168]));
+tile('coal_block', (ctx, rng) => storageBlock(ctx, rng, [34, 34, 38], [64, 64, 70], [16, 16, 18]));
+
+// --- bookshelf: two rows of coloured spines between plank shelves ---
+tile('bookshelf', (ctx, rng) => {
+  planks(ctx, rng, P.woodOak);
+  const spines = [[150, 40, 36], [44, 76, 140], [52, 112, 54], [170, 130, 50], [96, 52, 120], [120, 84, 52]];
+  for (const y0 of [2, 9]) {
+    rect(ctx, 0, y0, TILE, 5, [40, 28, 16]);
+    for (let x = 1; x < TILE - 1; x += 2) {
+      const h = 4 + ((rng() * 2) | 0) - 1;
+      rect(ctx, x, y0 + 5 - h, 2, h, spines[(rng() * spines.length) | 0]);
+      px(ctx, x, y0 + 5 - h, shade(spines[0], 1.3));
+    }
+  }
+});
+
 function mushroom(ctx, rng, cap, capD) {
   rect(ctx, 7, 9, 2, 6, [222, 214, 196]);  // stem
   rect(ctx, 5, 5, 6, 3, cap);              // cap
@@ -936,6 +973,30 @@ function fishIcon(ctx, body, belly, fin) {
 }
 tile('fish_raw', (ctx) => fishIcon(ctx, [112, 140, 168], [200, 210, 220], [88, 112, 140]));
 tile('fish_cooked', (ctx) => fishIcon(ctx, [170, 120, 70], [204, 160, 100], [130, 88, 50]));
+
+tile('charcoal', (ctx, rng) => blobIcon(ctx, rng, [[58, 46, 38], [40, 32, 26], [80, 64, 52]]));
+tile('paper', (ctx) => {
+  rect(ctx, 3, 2, 10, 12, [236, 236, 228]);
+  rect(ctx, 3, 13, 10, 1, [200, 200, 190]);
+  for (const y of [5, 8, 11]) rect(ctx, 5, y, 6, 1, [190, 190, 200]);
+});
+tile('book', (ctx) => {
+  rect(ctx, 3, 2, 10, 12, [150, 96, 54]);
+  rect(ctx, 3, 2, 2, 12, [112, 68, 36]);       // spine
+  rect(ctx, 12, 3, 1, 10, [236, 236, 228]);    // page edges
+  rect(ctx, 7, 6, 4, 2, [214, 180, 80]);       // title plate
+});
+function bowlShape(ctx, fill) {
+  rect(ctx, 2, 7, 12, 2, [122, 86, 50]);
+  rect(ctx, 3, 9, 10, 2, [104, 72, 40]);
+  rect(ctx, 5, 11, 6, 1, [86, 58, 32]);
+  if (fill) rect(ctx, 3, 6, 10, 2, fill);
+}
+tile('bowl', (ctx) => bowlShape(ctx, null));
+tile('mushroom_stew', (ctx) => {
+  bowlShape(ctx, [170, 120, 80]);
+  px(ctx, 5, 6, [214, 60, 50]); px(ctx, 9, 6, [214, 60, 50]); px(ctx, 7, 6, [200, 170, 140]);
+});
 
 // --- TNT ---
 tile('tnt_side', (ctx, rng) => {
