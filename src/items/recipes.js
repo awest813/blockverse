@@ -207,10 +207,17 @@ export function recipeCells(r) {
 }
 
 // What a recipe needs, merged per ingredient group: [{group, count}]
+// (grouped by contents: a book's three separate [paper] cells need 3 paper)
 export function recipeNeeds(r) {
   const needs = new Map();
-  for (const { group } of recipeCells(r)) needs.set(group, (needs.get(group) ?? 0) + 1);
-  return [...needs].map(([group, count]) => ({ group, count }));
+  for (const { group } of recipeCells(r)) {
+    const key = group.join(',');
+    const n = needs.get(key) ?? { group, count: 0, groups: new Set() };
+    n.count++;
+    n.groups.add(group);
+    needs.set(key, n);
+  }
+  return [...needs.values()].map(({ group, count, groups }) => ({ group, count, groups: [...groups] }));
 }
 
 // For each ingredient group, the item id to use given the player's counts
@@ -219,7 +226,7 @@ export function recipeNeeds(r) {
 export function recipeAvailability(r, countOf) {
   const pick = new Map();
   let times = Infinity;
-  for (const { group, count } of recipeNeeds(r)) {
+  for (const { group, count, groups } of recipeNeeds(r)) {
     // variants in a group mix freely (2 oak + 2 birch planks make a table)
     let best = group[0], bestN = -1, total = 0;
     for (const id of group) {
@@ -227,7 +234,7 @@ export function recipeAvailability(r, countOf) {
       total += n;
       if (n > bestN) { best = id; bestN = n; }
     }
-    pick.set(group, best);
+    for (const g of groups) pick.set(g, best);
     times = Math.min(times, Math.floor(total / count));
   }
   return { ok: times > 0, pick, times };

@@ -616,8 +616,9 @@ export class Dog extends Pet {
     };
     if (this.tamed) {
       // defend the owner from monsters that come close
+      // (only ones it can reach: not a zombie idling in a cave far below)
       const foe = !this.sitting && this.nearest((m) => m.hostile && m.kind !== 'creeper'
-        && Math.hypot(m.x - player.x, m.z - player.z) < 10, 14);
+        && Math.hypot(m.x - player.x, m.z - player.z) < 10 && Math.abs(m.y - this.y) < 3, 14);
       if (foe) { bite(foe, 4); return; }
       this.follow(player, playerDist);
       return;

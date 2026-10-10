@@ -70,6 +70,7 @@ function spawnerMob(rng) {
 // two loot chests. Only built where it cuts into a cave, so it can be found;
 // the cave keeps its openings into the room. Returns [index, entity] pairs.
 export function placeDungeon(gen, blocks, cx, cz, heightMap) {
+  if (gen.version < 3) return placeDungeonV2(gen, blocks, cx, cz, heightMap);
   const rng = coordRng(gen.seed, cx, cz, 4242);
   if (rng() > 0.05) return [];
   const W = rng() < 0.5 ? 7 : 9, D = rng() < 0.5 ? 7 : 9, H = 5;
@@ -140,6 +141,60 @@ export function placeDungeon(gen, blocks, cx, cz, heightMap) {
   return out;
 }
 
+// Generator 2's dungeon: a 7x7x5 room with one doorway, a chest and a torch.
+// Kept unchanged so version-2 worlds never seam.
+const DUNGEON_LOOT_V2 = [
+  [I.BREAD, 1, 3, 0.6], [I.WHEAT, 2, 5, 0.4], [I.WHEAT_SEEDS, 2, 6, 0.4], [I.APPLE, 1, 3, 0.4],
+  [I.COAL, 3, 8, 0.6], [I.IRON_INGOT, 1, 4, 0.5], [I.GOLD_INGOT, 1, 3, 0.3],
+  [I.STRING, 1, 4, 0.4], [I.BONE, 2, 5, 0.5], [I.ARROW, 4, 12, 0.4], [I.GUNPOWDER, 1, 3, 0.3],
+  [I.BOOK, 1, 2, 0.25], [I.DIAMOND, 1, 2, 0.15],
+  [I.IRON_PICKAXE, 1, 1, 0.12], [I.IRON_SWORD, 1, 1, 0.12], [I.BOW, 1, 1, 0.15],
+  [I.IRON_HELMET, 1, 1, 0.1], [I.LEATHER_CHESTPLATE, 1, 1, 0.15],
+];
+
+function dungeonLootV2(rng) {
+  const slots = new Array(27).fill(null);
+  for (const [id, lo, hi, chance] of DUNGEON_LOOT_V2) {
+    if (rng() > chance) continue;
+    const stack = makeStack(id, lo + ((rng() * (hi - lo + 1)) | 0));
+    let i = (rng() * 27) | 0;
+    while (slots[i]) i = (i + 1) % 27;
+    slots[i] = stack;
+  }
+  return slots;
+}
+
+function placeDungeonV2(gen, blocks, cx, cz, heightMap) {
+  const rng = coordRng(gen.seed, cx, cz, 4242);
+  if (rng() > 0.045) return [];
+  let minTop = CHUNK_Y;
+  for (let x = 3; x <= 12; x++) for (let z = 3; z <= 12; z++) minTop = Math.min(minTop, heightMap[x * CHUNK_Z + z]);
+  const hiY = Math.min(40, minTop - 8);
+  if (hiY < 12) return [];
+  const y0 = 10 + ((rng() * (hiY - 10)) | 0);   // floor level
+  const x0 = 4 + ((rng() * 2) | 0), z0 = 4 + ((rng() * 2) | 0);
+  const W = 7, H = 5;                           // outer size: 7 x 5 x 7
+  for (let dx = 0; dx < W; dx++) {
+    for (let dz = 0; dz < W; dz++) {
+      for (let dy = 0; dy < H; dy++) {
+        const edge = dx === 0 || dz === 0 || dx === W - 1 || dz === W - 1 || dy === 0 || dy === H - 1;
+        const idx = blockIndex(x0 + dx, y0 + dy, z0 + dz);
+        blocks[idx] = edge ? (rng() < 0.4 ? B.MOSSY_COBBLE : B.COBBLESTONE) : B.AIR;
+      }
+    }
+  }
+  // a doorway on one side so caves can connect
+  const side = (rng() * 4) | 0;
+  const door = [[3, 0], [3, W - 1], [0, 3], [W - 1, 3]][side];
+  for (const dy of [1, 2]) blocks[blockIndex(x0 + door[0], y0 + dy, z0 + door[1])] = B.AIR;
+  // the chest, against the wall opposite the door
+  const cpos = [[3, W - 2], [3, 1], [W - 2, 3], [1, 3]][side];
+  const cidx = blockIndex(x0 + cpos[0], y0 + 1, z0 + cpos[1]);
+  blocks[cidx] = B.CHEST;
+  blocks[blockIndex(x0 + 1, y0 + 1, z0 + 1)] = B.TORCH;   // a guttering torch in the corner
+  return [[cidx, { kind: 'chest', slots: dungeonLootV2(rng) }]];
+}
+
 // ---- surface structures ----
 
 // natural ground a foundation can rest on (anything else - air, water,
@@ -195,7 +250,7 @@ function makePlan(gen, cx, cz) {
   if (gen.version >= 6 && !type) {
     if (biome === 5 && roll > 0.8) type = 'well';
     else if (biome === 0 && roll < 0.05) type = 'shipwreck';
-    else if (biome === 0 && roll < 0.1) type = 'ocean_ruin';
+    else if (gen.version >= 7 && biome === 0 && roll < 0.1) type = 'ocean_ruin';   // generator 7
   }
   if (!type) return null;
   const size = SIZES[type];
@@ -287,7 +342,7 @@ export function buildStructure(gen, blocks, cx, cz) {
   if (plan.type === 'desert_temple') desertTemple(b, plan, rng);
   else if (plan.type === 'forest_temple') forestTemple(b, plan, rng);
   else if (plan.type === 'well') well(b, plan);
-  else if (plan.type === 'shipwreck') shipwreck(b, plan, rng);
+  else if (plan.type === 'shipwreck') shipwreck(b, plan, rng, gen.version);
   else if (plan.type === 'ocean_ruin') oceanRuin(b, plan, rng);
   else shrine(b, plan, rng);
   return out;
@@ -440,11 +495,17 @@ const SHIPWRECK_LOOT = [
 ];
 
 // The broken hull of a little ship on the sea floor, with its cargo chest.
-function shipwreck(b, { y }, rng) {
+function shipwreck(b, { y }, rng, version) {
   const L = 13;
   const plank = () => (rng() < 0.7 ? B.SPRUCE_PLANKS : B.OAK_PLANKS);
   // clear the sea above the wreck (kelp, seagrass) to plain water
-  for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) b.clearSea(dx, y, dz);
+  if (version >= 7) {
+    for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) b.clearSea(dx, y, dz);
+  } else {
+    // generator 6: a fixed 10-high box, water up to sea level and air above
+    const water = (yy) => (yy <= SEA_LEVEL ? B.WATER : B.AIR);
+    for (let dx = 2; dx <= 10; dx++) for (let dz = 0; dz < L; dz++) for (let dy = 0; dy <= 9; dy++) b.set(dx, y + dy, dz, water(y + dy));
+  }
   for (let dz = 1; dz < L - 1; dz++) {
     const bow = dz < 3 || dz > L - 4;   // narrower at both ends
     const x0 = bow ? 5 : 4, x1 = bow ? 7 : 8;
@@ -485,7 +546,7 @@ function oceanRuin(b, { y }, rng) {
 
 // Buried bones: a fossil spine with arched ribs, deep under deserts and swamps.
 export function placeFossil(gen, blocks, cx, cz, heightMap, biome) {
-  if (gen.version < 6 || (biome !== 5 && biome !== 8)) return;
+  if (gen.version < 7 || (biome !== 5 && biome !== 8)) return;   // generator 7
   const rng = coordRng(gen.seed, cx, cz, 7171);
   if (rng() > 0.12) return;
   let minTop = CHUNK_Y;

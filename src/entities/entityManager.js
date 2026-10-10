@@ -65,9 +65,10 @@ export class EntityManager {
   // Items lying on the ground travel with the save (your things after a
   // death included), up to a sane number.
   savedDrops() {
-    return this.drops.filter((d) => !d.dead).slice(-200).map((d) => ({
+    // (ones still waiting for their chunk to load are kept too)
+    return [...this.drops.filter((d) => !d.dead).map((d) => ({
       id: d.id, count: d.count, dur: d.dur, x: d.x, y: d.y, z: d.z, age: d.age,
-    }));
+    })), ...(this.pendingDrops ?? [])].slice(-200);
   }
 
   // Put saved drops back once the ground under them has loaded.

@@ -501,7 +501,7 @@ export class Player {
     if (Array.isArray(d.inventory)) {
       this.inventory = Array.from({ length: this.inventory.length }, (_, i) => stack(d.inventory[i]));
     }
-    this.extraStacks = (d.extra ?? []).map(stack).filter(Boolean);   // carried stacks that didn't fit: dropped at your feet on load
+    this.extraStacks = (Array.isArray(d.extra) ? d.extra : []).map(stack).filter(Boolean);   // carried stacks that didn't fit: dropped at your feet on load
     if (Array.isArray(d.armor)) this.armor = Array.from({ length: this.armor.length }, (_, i) => stack(d.armor[i]));
     if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
     // saves from before beds: the spawn point was always the world spawn

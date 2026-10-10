@@ -61,6 +61,10 @@ function growTree(world, x, y, z, st) {
   const rng = mulberry32((x * 73856093) ^ (z * 19349663) ^ (Date.now() & 0xffff));
   const size = 4 + ((rng() * 3) | 0);
   const height = size + (kind === 'birch' ? 2 : kind === 'spruce' ? 4 : 0) + 1;
+  // the whole canopy must be in loaded chunks (no half-tree at a border)
+  for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) {
+    if (!world.isLoaded(x + dx, z + dz)) { st.grow = 30; return; }
+  }
   // need open air (or leaves) for the trunk; otherwise try again a little later
   for (let i = 1; i <= height; i++) {
     const b = blockInfo(world.getBlockW(x, y + i, z));

@@ -6,6 +6,10 @@ import { isLowEndDevice } from '../ui/display.js';
 
 const CHUNK_SUFFIX = /^-?\d+,-?\d+$/;
 
+// block entities as [cell index, {kind, ...}] pairs; anything else is dropped
+const validEntities = (list) => (Array.isArray(list) ? list : []).filter((e) => Array.isArray(e) && e.length === 2
+  && Number.isInteger(e[0]) && e[0] >= 0 && e[0] < CHUNK_VOLUME && e[1] && typeof e[1] === 'object');
+
 const DB_NAME = 'blockverse';
 const DB_VERSION = 1;
 
@@ -191,7 +195,7 @@ export class SaveStore {
       return [suffix, {
         blocks: new Uint16Array(blocks.buffer),
         meta: cmeta,
-        blockEntities: Array.isArray(v.blockEntities) ? v.blockEntities : [],
+        blockEntities: validEntities(v.blockEntities),
       }];
     });
     await this.putWorld(meta, chunks);
@@ -218,7 +222,7 @@ export class SaveStore {
       console.warn(`chunk ${cx},${cz}: saved data is damaged; regenerating it`);
       return null;
     }
-    return { blocks, meta, blockEntities: Array.isArray(v.blockEntities) ? v.blockEntities : [] };
+    return { blocks, meta, blockEntities: validEntities(v.blockEntities) };
   }
 }
 

@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { World } from './world/world.js';
+import { chunkKey } from './world/chunk.js';
 import { Player } from './player/player.js';
 import { Interaction, entityContents } from './player/interaction.js';
 import { PrimedTnt } from './entities/mobs.js';
@@ -55,6 +56,11 @@ function bubbleTexture() {
 }
 
 const RENDERERS = new WeakMap();
+
+// three's fog measures depth along the view axis; the chunk shader uses true
+// distance. Use distance for mobs, drops and particles too, so nothing at the
+// edge of the screen stays sharp against fogged-out terrain.
+THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace('vFogDepth = - mvPosition.z;', 'vFogDepth = length( mvPosition.xyz );');
 
 // Where auto resolution starts: native on capable machines, plain 1× on
 // low-end ones (few cores or little memory: many Chromebooks) — it climbs
@@ -246,10 +252,9 @@ export class Game {
     this._onVisibility = () => {
       if (!this.running) return;
       if (document.hidden) this.save();   // phones often close a hidden tab without warning
-      else requestAnimationFrame(this._loopBound);
+      else this.queueFrame();
     };
     document.addEventListener('visibilitychange', this._onVisibility);
-    this._loopBound = () => this.loop();
   }
 
   setupSpawn() {
@@ -837,17 +842,27 @@ export class Game {
   start() {
     this.running = true;
     this.hud.show();
-    this.last = performance.now();
-    requestAnimationFrame(this._loopBound);
+    this.last = this._lastDraw = performance.now();
+    this.queueFrame();
+  }
+
+  // one animation-frame chain only (showing a hidden tab mustn't start a second)
+  queueFrame() {
+    if (!this._raf) this._raf = requestAnimationFrame(() => { this._raf = 0; this.loop(); });
   }
 
   loop() {
     if (!this.running) return;
-    if (!document.hidden) requestAnimationFrame(this._loopBound);
+    if (!document.hidden) this.queueFrame();
 
     const now = performance.now();
-    // frame rate limit (saves battery and heat on laptops and Chromebooks)
-    if (this.maxFps && !document.hidden && now - this.last < 1000 / this.maxFps - 3) return;
+    // frame rate limit (saves battery and heat on laptops and Chromebooks):
+    // keep a steady cadence, so a 60 cap on a 75 Hz screen still gives 60
+    if (this.maxFps && !document.hidden) {
+      const iv = 1000 / this.maxFps;
+      if (now - this._lastDraw < iv - 1.5) return;
+      this._lastDraw = now - this._lastDraw > iv * 2 ? now : this._lastDraw + iv;
+    }
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
 
@@ -996,14 +1011,8 @@ export class Game {
     const under = this.player.headInWater;
     if (under !== this._wasUnder) {
       this._wasUnder = under;
-      const u = this.world.materials.uniforms;
-      if (under) {
-        this.scene.background = new THREE.Color(0x1a4faa);
-        u.uFogColor.value.set(0x1a4faa);
-        u.uFogNear.value = 4;
-        u.uFogFar.value = 24;
-      }
-      this._forceSkyRefresh = true;
+      // a background of our own (the sky's colour object is left alone)
+      if (under) this.scene.background = this._waterBg ??= new THREE.Color();
     }
     if (under) {
       // deeper (and at night) the water gets darker and murkier
@@ -1075,7 +1084,7 @@ export class Game {
       pos.y += dt * (1.2 + b.t * 0.6);
       pos.x += Math.sin(b.t * 6 + b.phase) * dt * 0.25;
       // pop at the surface (or after a while)
-      if (b.t > 3 || this.world.getBlockW(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)) !== B.WATER) b.t = 99;
+      if (b.t > 3 || !isWater(this.world.getBlockW(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)))) b.t = 99;   // kelp counts as water
       if (b.t >= 99) { this.scene.remove(b.sprite); b.sprite.material.dispose(); }
     }
     this.bubbles = this.bubbles.filter((b) => b.t < 99);
@@ -1200,12 +1209,21 @@ export class Game {
     const done = this.store.saveWorld(this.worldMeta, [...loaded, ...evicted]).then(() => {
       for (const c of evicted) if (this.unsaved.get(`${c.cx},${c.cz}`) === c) this.unsaved.delete(`${c.cx},${c.cz}`);
       this._saveWarned = false;
+      return true;
     }, (err) => {
-      for (const c of loaded) c.modified = true;   // try again next time (evicted ones stay queued)
+      // try again next time: evicted ones stay queued, and a chunk unloaded
+      // while this save was in flight joins them
+      for (const c of loaded) {
+        c.modified = true;
+        const key = `${c.cx},${c.cz}`;
+        if (this.world.chunks.get(chunkKey(c.cx, c.cz)) !== c && !this.unsaved.has(key)) this.unsaved.set(key, c);
+      }
+      this.lastSaveError = err;
       if (!this._saveWarned) {
         this._saveWarned = true;
         this.hud?.showLabel?.(`Couldn't save the world (${err?.name ?? 'error'}) — is storage full?`, true);
       }
+      return false;
     });
     return done;
   }

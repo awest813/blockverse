@@ -31,8 +31,8 @@ function smoothstep(a, b, x) {
 // 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
 // (river-bank trees, cane by any water, boulders, sparse tundra spruce);
 // 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
-// 6 = desert wells, shipwrecks, ocean ruins and fossils.
-export const LATEST_GEN = 6;
+// 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils.
+export const LATEST_GEN = 7;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -146,7 +146,7 @@ export class WorldGen {
   isCave(wx, wy, wz, surface) {
     if (wy < 6 || wy > surface + 1) return false;
     // never breach a seabed, river bed or shoreline: water can't flow into the hole
-    if (surface < SEA_LEVEL + 2 && wy > surface - 4) return false;
+    if (this.version >= 2 && surface < SEA_LEVEL + 2 && wy > surface - 4) return false;
     // Spaghetti tunnels: intersection of two noise bands.
     const n1 = this.cave1.fbm3(wx / 26, wy / 20, wz / 26, 2);
     const n2 = this.cave2.fbm3(wx / 26, wy / 20, wz / 26, 2);
@@ -192,7 +192,8 @@ export class WorldGen {
           if (y > h) {
             id = y <= SEA_LEVEL ? B.WATER : B.AIR;
             // cold water freezes over, whatever the biome (oceans, rivers, lakes)
-            if (id === B.WATER && y === SEA_LEVEL && frozen) id = B.ICE;
+            // (generator 1: only snowy biomes, mountains excepted)
+            if (id === B.WATER && y === SEA_LEVEL && (this.version >= 2 ? frozen : snowy && biome !== BIOME.MOUNTAINS)) id = B.ICE;
           } else if (y === 0 || (y === 1 && bedrockRng() < 0.5)) {
             id = B.BEDROCK;
           } else if (this.isCave(wx, y, wz, h)) {
@@ -228,10 +229,10 @@ export class WorldGen {
     }
 
     this.placeOres(blocks, cx, cz, heightMap);
-    this.decorateCaves(blocks, cx, cz, heightMap);
+    if (this.version >= 2) this.decorateCaves(blocks, cx, cz, heightMap);
     placeFossil(this, blocks, cx, cz, heightMap, biomeMap[8 * CHUNK_Z + 8]);
     const plan = structurePlan(this, cx, cz);
-    const entities = plan ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
+    const entities = plan || this.version < 2 ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
     this.decorate(blocks, cx, cz);
     if (plan) entities.push(...buildStructure(this, blocks, cx, cz));
 
@@ -264,6 +265,7 @@ export class WorldGen {
 
   // Is the ground at a feature's spot real (not carved away by a cave mouth)?
   groundOk(wx, h, wz) {
+    if (this.version < 2) return true;   // generator 1 didn't check
     return !this.isCave(wx, h, wz, h) && !this.isCave(wx, h - 1, wz, h);
   }
 

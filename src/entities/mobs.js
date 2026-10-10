@@ -180,6 +180,10 @@ export class Zombie extends Mob {
       if (this.submerged > 30 && this.fx?.spawn) {
         const d = new Drowned(this.scene, this.world, this.x, this.y, this.z);
         if (this.small) d.makeBaby();
+        // the same zombie, just waterlogged: keep its wounds and heading
+        d.health = Math.min(d.health, this.health);
+        d.yaw = d.targetYaw = this.yaw;
+        if (this.fromSpawner) d.fromSpawner = true;
         this.fx.spawn(d);
         this.kill();
         return;

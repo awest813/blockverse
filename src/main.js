@@ -82,14 +82,27 @@ async function openWorld(id) {
   screens.showLoading(`Loading "${meta.name}"…`);
 
   const settings = screens.settings;
-  game = new Game({
-    canvas,
-    atlas,
-    worldMeta: meta,   // applySettings() below sets the render distance from settings
-    store,
-    sfx,
-  });
-  game.applySettings(settings);
+  try {
+    game = new Game({
+      canvas,
+      atlas,
+      worldMeta: meta,   // applySettings() below sets the render distance from settings
+      store,
+      sfx,
+    });
+    game.applySettings(settings);
+  } catch (err) {
+    // a broken save or a missing browser feature: don't leave the loading
+    // screen up, and let the world be opened again
+    console.error(err);
+    try { game?.stop({ save: false }); } catch { /* half-built */ }
+    game = null;
+    releaseWorld?.(); releaseWorld = null;
+    screens.onCancelLoading = null;
+    clearTimeout(screens._loadingSlow);
+    screens.showConfirm('Couldn\u2019t open that world', String(err?.message ?? err), 'OK', () => screens.showMain(id), () => screens.showMain(id));
+    return;
+  }
 
   game.uiHooks = {
     showPause: () => {
@@ -176,11 +189,11 @@ async function quitToTitle({ save = true } = {}) {
     // wait for the save to land before the world list (and the tab lock) move on
     const saving = g.stop({ save });
     if (saving) screens.showLoading('Saving world\u2026');
-    try {
-      await saving;
-    } catch (err) {
+    const ok = saving ? await saving : true;   // save() resolves false when the write failed
+    if (!ok) {
       releaseWorld?.(); releaseWorld = null;
-      screens.showConfirm('Couldn\u2019t save the world', `${err?.message ?? err} \u2014 the browser may be out of storage space.`, 'OK', () => screens.showMain(g.worldMeta.id), () => screens.showMain(g.worldMeta.id));
+      const err = g.lastSaveError;
+      screens.showConfirm('Couldn\u2019t save the world', `${err?.message ?? err ?? 'The write failed'} \u2014 the browser may be out of storage space. Changes since the last save are lost.`, 'OK', () => screens.showMain(g.worldMeta.id), () => screens.showMain(g.worldMeta.id));
       return;
     }
   }

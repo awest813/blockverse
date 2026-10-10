@@ -173,7 +173,8 @@ export class Sky {
     this.moon.lookAt(p.x, p.y, p.z);
 
     // the stars wheel overhead with the sun and moon
-    this.stars.rotation.z = angle;
+    // (offset so the star dome is overhead at midnight, not under the horizon at dusk)
+    this.stars.rotation.z = angle + Math.PI / 2;
     // nothing of the sky shows through water
     this.group.visible = this.clouds.visible = !underwater;
     // skylight tint for the terrain: cool at night, warm at dawn and dusk

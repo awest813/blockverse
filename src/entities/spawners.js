@@ -34,9 +34,9 @@ export function tickSpawners(game, dt) {
 
 function spawnAround(game, x, y, z, Cls) {
   const mobs = game.entities.mobs;
-  const near = mobs.filter((m) => m instanceof Cls && !m.dead && Math.hypot(m.x - x, m.y - y, m.z - z) < 9).length;
+  const near = mobs.filter((m) => m instanceof Cls && !m.dead && m.dying === undefined && Math.hypot(m.x - x, m.y - y, m.z - z) < 9).length;
   if (near >= NEARBY_CAP) return;
-  const want = 1 + (Math.random() < 0.5 ? 1 : 0);
+  const want = Math.min(NEARBY_CAP - near, 1 + (Math.random() < 0.5 ? 1 : 0));
   let made = 0;
   for (let attempt = 0; attempt < 10 && made < want; attempt++) {
     const sx = x + Math.round((Math.random() - 0.5) * 6);

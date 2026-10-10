@@ -1,6 +1,6 @@
 // Block interaction: targeting, breaking with progress, placing, using.
 
-import { REACH_DISTANCE, GAMEMODE_CREATIVE } from '../core/constants.js';
+import { REACH_DISTANCE, GAMEMODE_CREATIVE, CHUNK_Y } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
 import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid } from '../blocks/blocks.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
@@ -20,6 +20,7 @@ const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
 const NEEDS_GROUND = new Set([B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);
 const CAMPFIRES = new Set([B.CAMPFIRE, B.CAMPFIRE_OFF]);
 const DOORS = new Set([B.OAK_DOOR, B.OAK_DOOR_TOP]);
 const SLABS = new Set([B.OAK_SLAB, B.COBBLE_SLAB, B.STONE_BRICK_SLAB]);
@@ -229,9 +230,12 @@ export class Interaction {
       if (!NEEDS_GROUND.has(above) && above !== B.OAK_DOOR && !standing) break;
       const ainfo = blockInfo(above);
       if (above === B.OAK_DOOR) w.setBlock(x, yy + 1, z, B.AIR);
+      // a campfire's food spills before setBlock clears it
+      const contents = entityContents(w.blockEntityAt(x, yy, z));
+      if (contents.length) this.cb.spawnDrops(x + 0.5, yy + 0.5, z + 0.5, contents.map((s) => ({ ...s })));
       w.setBlock(x, yy, z, ainfo.waterlogged ? B.WATER : B.AIR);
       if (drops) this.spawnBlockDrops(x, yy, z, ainfo, true);
-      if (above !== B.KELP) break;
+      if (!STACKING.has(above)) break;   // whole stalks: kelp, cane, cactus
     }
     if (w.getBlockW(x, y - 1, z) === B.LANTERN && (w.getMetaW(x, y - 1, z) & 1)) {   // a hanging lantern
       w.setBlock(x, y - 1, z, B.AIR);
@@ -397,7 +401,7 @@ export class Interaction {
         if (!isSolid(t.id)) return;
         meta = (t.nz === -1 ? 0 : t.nx === 1 ? 1 : t.nz === 1 ? 2 : 3) | 4;
       } else {
-        if (t.ny !== 1) return;
+        if (t.ny !== 1 || !this.supportsTop(px, py - 1, pz)) return;
         meta = [2, 1, 0, 3][yawQuad];   // standing: text faces the player
       }
     }
@@ -409,6 +413,7 @@ export class Interaction {
     if (info.id === B.OAK_DOOR) {
       // two blocks tall, standing on something, panel on the far edge
       if (!this.supportsTop(px, py - 1, pz)) return;
+      if (py + 1 >= CHUNK_Y) return;   // no room for the top half
       if (!blockInfo(this.world.getBlockW(px, py + 1, pz)).replaceable) return;
       if (this.intersectsPlayer(px, py, pz) || this.intersectsPlayer(px, py + 1, pz)) return;
       const yaw = ((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
