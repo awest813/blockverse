@@ -141,3 +141,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Search/Meta keys can't be bound; top-row Back/Forward suppressed in game
 - [x] ChromeOS hints: Search + top row for F-keys, two-finger click, Ctrl+Space layout switching
 
+
+## Playthrough findings (newcomer, min-maxer, builder, chaos)
+- [x] Dying with the inventory open left the window on the death screen and lost the cursor stack — it now closes first, so everything drops
+- [x] Autosave counted game time (capped per frame), so a slow device saved every minute or more; it's wall-clock now (every 10 s, 3 s after a chunk unloads)
+- [x] Saves also on `pagehide`
+- [x] Thumb controls bled through the pause/settings/death screens (and sat under "Done"); hidden behind menus, restored on resume; hotbar and bars recede
+- [x] "Inventory & crafting" hint ran off the screen at a large GUI scale on laptops (horizontal scroll); it moves above the hotbar when room is tight
+- Checked, no problems: create → play → craft by clicking → die → respawn → reload; furnace/chest/cursor/bucket/drop/explosion item conservation; save mid-smelt; 961-block build identical after reload and after export → delete → import; resize, tab hide/show, key mashing, repeated quit/play

@@ -128,7 +128,7 @@ export class Game {
       onChunkEvicted: store ? (c) => {
         if (!needsSaving(c)) return;
         this.unsaved.set(`${c.cx},${c.cz}`, c);
-        this.autosaveTimer = Math.max(this.autosaveTimer, 15);   // written within a few seconds
+        this.saveEvery = Math.min(this.saveEvery, 3000);   // an evicted chunk is written within a few seconds
       } : null,
     });
     this.scene.add(this.world.group);
@@ -210,7 +210,8 @@ export class Game {
     this.uiHooks = null;   // set by ui/screens module
     this.running = false;
     this.statTimer = 0;
-    this.autosaveTimer = 0;
+    this.lastSaveAt = performance.now();
+    this.saveEvery = 10000;
     this.fps = 0;
     this._fpsFrames = 0;
     this._fpsTime = 0;
@@ -225,6 +226,9 @@ export class Game {
       this.hud.showLabel(`${itemInfo(e.detail.id)?.display ?? 'Tool'} broke!`, true);
     });
     this.player.events.addEventListener('death', (e) => {
+      // close any open window first: a stack on the cursor or in the crafting
+      // grid goes back into the inventory, so it drops with the rest
+      this.containers.close();
       const dropped = this.dropInventoryOnDeath();
       this.uiHooks?.showDeath?.(e.detail?.cause, dropped);
     });
@@ -980,9 +984,9 @@ export class Game {
     }
 
     if (this.store) {
-      this.autosaveTimer += dt;
-      if (this.autosaveTimer > 20) {
-        this.autosaveTimer = 0;
+      // real time, not game time: a slow device runs the game slowly, but the
+      // edits you made are just as worth keeping every 10 seconds
+      if (now - this.lastSaveAt > this.saveEvery) {   // only changed chunks are written, so this is cheap
         const saving = this.save();
         if (saving) this.hud.showSaving(saving);
       }
@@ -1186,6 +1190,8 @@ export class Game {
 
   save() {
     if (!this.store) return;
+    this.lastSaveAt = performance.now();
+    this.saveEvery = 10000;
     // chunks and the world entry go in one transaction: all of it lands or
     // none does (a chest and your inventory can't disagree after a crash)
     const loaded = [...this.world.chunks.values()].filter(needsSaving);

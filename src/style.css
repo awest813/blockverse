@@ -222,6 +222,8 @@ html, body {
   font: 700 12px/18px Consolas, monospace; text-shadow: none;
 }
 @media (max-width: 760px) { #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 112px; } }
+/* (the same when a big GUI scale leaves no room beside the hotbar) */
+[data-narrow] #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 112px; }
 #hud.touch #inventory-hint { display: none; }
 #hud.touch.inv-hint-on .tc-inv { animation: pulse 1s ease-in-out infinite; border-color: var(--focus); }
 
@@ -698,6 +700,17 @@ html, body {
 #hud.touch #chat-log { top: 76px; bottom: auto; }
 /* F3 info and chat would overlap at the top-left on touch: push chat below it */
 #hud.touch.debug-on #chat-log { top: 46%; }
+
+/* full-screen menus (pause, settings, death) hide the thumb controls, which
+   used to show through the dim overlay and sit under the buttons; the hotbar
+   and status bars recede so they don't crowd the menu. Inventories and the
+   sign editor keep them (the inventory button closes the window). */
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #touch-controls { visibility: hidden; }
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #hotbar,
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #health-bar,
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #hunger-bar,
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #air-bar,
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #armor-bar { opacity: 0.25; transition: opacity 0.15s; }
 
 /* menus and containers on top: fade the chat log and toasts behind them */
 #hud:has(~ #ui-root > .screen) #chat-log,

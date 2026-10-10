@@ -14,7 +14,10 @@ export function currentGuiScale() {
 
 export function applyGuiScale(setting) {
   guiSetting = setting;
-  document.documentElement.style.setProperty('--gui', currentGuiScale().toFixed(3));
+  const gui = currentGuiScale();
+  document.documentElement.style.setProperty('--gui', gui.toFixed(3));
+  // room left once the HUD is zoomed: a big GUI scale on a laptop is as tight as a phone
+  document.documentElement.toggleAttribute('data-narrow', window.innerWidth / gui < 760);
 }
 
 window.addEventListener('resize', () => applyGuiScale(guiSetting));

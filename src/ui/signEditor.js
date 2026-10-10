@@ -23,7 +23,7 @@ export class SignEditor {
     g.setUiOpen(true);
     this.root.innerHTML = '';
     const screen = document.createElement('div');
-    screen.className = 'screen dim';
+    screen.className = 'screen dim container-screen';
     const h = document.createElement('h2');
     h.className = 'sign-title';
     h.textContent = 'Edit Sign';

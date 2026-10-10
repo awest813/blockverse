@@ -19,6 +19,9 @@ let game = null;
 
 // Ctrl is the sprint key, so Ctrl+W can close the tab mid-game outside
 // fullscreen: save at once and let the browser ask "Leave site?"
+// a closing tab, a phone app switch: save while the page is still alive
+// (the write may not finish after unload, so the 10 s autosave matters too)
+window.addEventListener('pagehide', () => { if (game?.running) game.save(); });
 window.addEventListener('beforeunload', (e) => {
   if (!game?.running) return;
   game.save();

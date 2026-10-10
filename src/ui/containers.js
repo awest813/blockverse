@@ -299,7 +299,7 @@ export class Containers {
     // this.hovered survives: the pointer is still over the same slot position
     this.root.innerHTML = '';
     const screen = document.createElement('div');
-    screen.className = 'screen dim';
+    screen.className = 'screen dim container-screen';
     screen.addEventListener('mousedown', (e) => {
       if (e.target === screen || e.target === row) {
         // click outside: drop cursor stack
