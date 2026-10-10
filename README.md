@@ -98,7 +98,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
 - **Saving is automatic** (IndexedDB) every 20 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces and campfires, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
 - A world can only be open in one tab at a time (two copies would save over each other); damaged chunks are regenerated rather than crashing the world, and the browser is asked to keep the saves even when space runs low
-- Pause menu with a controls cheat sheet, settings (render distance, FOV, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
+- Pause menu with a controls cheat sheet, settings (render distance, FOV, resolution (Auto lowers it while frames are slow and restores it when there's headroom), frame rate limit, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
 - **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
 - HUD: hotbar with icons & durability bars, pixel-art hearts / hunger / air bubbles, crosshair, block-break cracks and selection outline, damage and low-health vignette
@@ -219,3 +219,12 @@ Contributions are welcome — the codebase is dependency-light (three.js + Vite 
 - Code: [MIT](LICENSE).
 - All textures, models, and sounds are procedurally generated originals created for this project, and are covered by the same MIT license.
 - BlockVerse is an original work inspired by the voxel-sandbox genre. It is **not** affiliated with, endorsed by, or connected to Mojang, Microsoft, or *Minecraft*. No assets, code, or other material from *Minecraft* are used.
+
+## Chromebooks and low-end laptops
+
+- **Auto resolution** starts at 1× on machines with few cores or little memory and adapts to the frame rate; a 30 FPS limit saves battery
+- First run on such a machine uses a render distance of 6
+- Two-finger touchpad scrolling steps the hotbar smoothly (a mouse wheel notch is still one slot)
+- **Pick block** has a key (R) as well as middle click; screenshot, debug and hide-HUD are rebindable, since F-keys need Search + the top row
+- The top-row Back / Forward keys don't navigate away mid-game; the Search key can't be bound (it opens the launcher)
+

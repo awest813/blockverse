@@ -34,6 +34,7 @@ import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
 import { B, isWater } from './blocks/blocks.js';
+import { isLowEndDevice, isChromeOS } from './ui/display.js';
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -54,6 +55,14 @@ function bubbleTexture() {
 }
 
 const RENDERERS = new WeakMap();
+
+// Where auto resolution starts: native on capable machines, plain 1× on
+// low-end ones (few cores or little memory: many Chromebooks) — it climbs
+// back up if there's headroom.
+function startPixelRatio() {
+  const native = Math.min(window.devicePixelRatio || 1, 2);
+  return isLowEndDevice() ? Math.min(native, 1) : native;
+}
 
 // Block entities that change on their own every tick (growth, fire, smelting,
 // cooking): their chunk is written with every save so progress isn't lost.
@@ -82,7 +91,10 @@ export class Game {
       this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
       RENDERERS.set(canvas, this.renderer);
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderScale = 'auto';   // 'auto' (adapts to the frame rate) or a fraction of native
+    this.maxFps = 0;             // 0 = as fast as the display refreshes
+    this.pixelRatio = startPixelRatio();
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.scene = new THREE.Scene();
@@ -212,7 +224,7 @@ export class Game {
     });
 
     this._onResize = () => {
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));   // e.g. moved to another screen
+      this.applyPixelRatio();   // e.g. moved to another screen
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
@@ -312,7 +324,11 @@ export class Game {
           return true;
         }
       }
-      if (code === 'F2') {
+      if (input.is(code, 'pickBlock') && !e.repeat) {
+        this.pickBlock();
+        return true;
+      }
+      if (input.is(code, 'screenshot')) {
         e.preventDefault();
         this.screenshot();
         return true;
@@ -785,7 +801,7 @@ export class Game {
       'Start pauses and shows all controls.',
     ] : [
       `Welcome! ${k('forward')}${k('left')}${k('back')}${k('right')} to move, mouse to look.`,
-      'Hold left click to mine, right click to place or use.',
+      isChromeOS() ? 'Click and hold to mine, two-finger click to place or use.' : 'Hold left click to mine, right click to place or use.',
       creative ? `Press ${k('inventory')} for every block and item. Double-tap ${k('jump')} to fly.`
         : `Mine a tree for wood, then press ${k('inventory')} to craft planks.`,
       'Esc pauses and shows all controls.',
@@ -830,6 +846,8 @@ export class Game {
     if (!document.hidden) requestAnimationFrame(this._loopBound);
 
     const now = performance.now();
+    // frame rate limit (saves battery and heat on laptops and Chromebooks)
+    if (this.maxFps && !document.hidden && now - this.last < 1000 / this.maxFps - 3) return;
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
 
@@ -839,6 +857,7 @@ export class Game {
     if (this._fpsTime >= 0.5) {
       this.fps = Math.round(this._fpsFrames / this._fpsTime);
       this._fpsFrames = 0; this._fpsTime = 0;
+      if (!document.hidden) this.adaptResolution();
     }
 
     const gamePaused = this.paused || this.uiOpen || this.sleeping;
@@ -1079,6 +1098,32 @@ export class Game {
     }
   }
 
+  // native pixel ratio we never go above (2× is plenty, even on sharp screens)
+  maxPixelRatio() { return Math.min(window.devicePixelRatio || 1, 2); }
+
+  applyPixelRatio() {
+    const max = this.maxPixelRatio();
+    if (this.renderScale !== 'auto') this.pixelRatio = Math.max(0.5, max * this.renderScale);
+    else this.pixelRatio = Math.min(max, Math.max(0.5, this.pixelRatio));
+    this.renderer.setPixelRatio(this.pixelRatio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  // Auto resolution: drop the render resolution while the frame rate is low,
+  // raise it back while there's headroom. Checked twice a second, moving in
+  // small steps once the frame rate has stayed low (or high) for a while.
+  adaptResolution() {
+    if (this.renderScale !== 'auto' || this.uiOpen) { this._lowFor = this._highFor = 0; return; }
+    const target = Math.min(60, this.maxFps || 60);
+    if (this.fps < target * 0.75) { this._lowFor = (this._lowFor ?? 0) + 1; this._highFor = 0; }
+    else if (this.fps >= target * 0.95) { this._highFor = (this._highFor ?? 0) + 1; this._lowFor = 0; }
+    else { this._lowFor = this._highFor = 0; }
+    let next = this.pixelRatio;
+    if (this._lowFor >= 3) { next = Math.max(0.5, this.pixelRatio - 0.15); this._lowFor = 0; }
+    else if (this._highFor >= 6) { next = Math.min(this.maxPixelRatio(), this.pixelRatio + 0.1); this._highFor = 0; }
+    if (Math.abs(next - this.pixelRatio) > 0.01) { this.pixelRatio = next; this.applyPixelRatio(); }
+  }
+
   updateDebug() {
     const p = this.player;
     const biome = this.world.biomeAt(Math.floor(p.x), Math.floor(p.z));
@@ -1091,6 +1136,7 @@ export class Game {
       `light sky ${light} block ${bl}  time ${this.clockTime()}\n` +
       `chunks ${this.world.stats.chunks} genQ ${this.world.stats.genQueue} dirty ${this.world.dirtyMeshes.size}\n` +
       `draws ${this.renderer.info.render.calls} tris ${(this.renderer.info.render.triangles / 1000).toFixed(0)}k ` +
+      `res ${Math.round(this.pixelRatio * 100)}%${this.renderScale === 'auto' ? ' (auto)' : ''} ` +
       `mode ${p.mode === GAMEMODE_CREATIVE ? 'creative' : 'survival'}${p.flying ? ' (fly)' : ''}`,
     );
   }
@@ -1108,6 +1154,12 @@ export class Game {
     this.sfx?.setVolume(s.volume);
     this.world.materials.uniforms.uBrightness.value = s.brightness ?? 0.3;
     this.viewModel.bobbing = s.viewBobbing !== false;
+    this.maxFps = s.maxFps ?? 0;
+    if ((s.renderScale ?? 'auto') !== this.renderScale) {
+      this.renderScale = s.renderScale ?? 'auto';
+      if (this.renderScale === 'auto') this.pixelRatio = startPixelRatio();
+      this.applyPixelRatio();
+    }
     const ch = document.getElementById('crosshair');
     if (ch) ch.dataset.style = s.crosshair ?? 'plus';
   }

@@ -11,14 +11,20 @@ export const ACTIONS = [
   { id: 'sprint', label: 'Sprint / swim', def: 'ControlLeft', group: 'Movement' },
   { id: 'inventory', label: 'Inventory', def: 'KeyE', group: 'Gameplay' },
   { id: 'drop', label: 'Drop item', def: 'KeyQ', group: 'Gameplay' },
+  // touchpads (Chromebooks, most laptops) have no middle button
+  { id: 'pickBlock', label: 'Pick block (also middle click)', def: 'KeyR', group: 'Gameplay' },
   { id: 'chat', label: 'Open chat', def: 'KeyT', group: 'Interface' },
   { id: 'command', label: 'Open command', def: 'Slash', group: 'Interface' },
   { id: 'hideHud', label: 'Hide HUD', def: 'F1', group: 'Interface' },
   { id: 'debug', label: 'Debug overlay', def: 'F3', group: 'Interface' },
+  { id: 'screenshot', label: 'Screenshot', def: 'F2', group: 'Interface' },
 ];
 
 // Keys that can't be bound: they're reserved for menus and the hotbar.
-export const RESERVED = new Set(['Escape', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9']);
+// The Search / Windows / Command keys belong to the system (on a Chromebook
+// Search opens the launcher), so they can't be bound either.
+export const RESERVED = new Set(['Escape', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+  'MetaLeft', 'MetaRight', 'OSLeft', 'OSRight']);
 
 export function resolveBindings(overrides = {}) {
   const out = {};

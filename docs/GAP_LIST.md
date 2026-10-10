@@ -131,3 +131,13 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Save & Quit waits for the save ("Saving world…") and reports a failure; a "Saving…" note shows during autosaves
 - [x] One tab per world (Web Locks); rename/delete refuse while it's open elsewhere
 - [x] Damaged chunks regenerate, unknown or broken item stacks are dropped, a bad saved position falls back to the spawn point; imports are checked chunk by chunk; export errors are reported
+
+## Chromebooks
+- [x] Resolution setting (Auto / Full / 75% / 50%); Auto steps down under 75% of the target frame rate and back up with headroom; starts at 1× on low-end hardware
+- [x] Frame rate limit (Off / 60 / 30)
+- [x] First run on low-end hardware (≤4 cores or ≤4 GB) defaults to render distance 6
+- [x] Touchpad scroll accumulates (~60px per hotbar step); sideways swipes ignored
+- [x] Pick block key (R) for touchpads without a middle button; screenshot rebindable
+- [x] Search/Meta keys can't be bound; top-row Back/Forward suppressed in game
+- [x] ChromeOS hints: Search + top row for F-keys, two-finger click, Ctrl+Space layout switching
+

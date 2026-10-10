@@ -33,7 +33,9 @@ export class Input {
     const opts = { signal: this._abort.signal };
 
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'F1' || e.code === 'F3' || e.code === 'F5') e.preventDefault();
+      // F-keys the game uses, and a Chromebook's top-row Back / Forward keys
+      // (where F1 / F2 sit), shouldn't do their browser thing mid-game
+      if (e.code === 'F1' || e.code === 'F3' || e.code === 'F5' || e.code === 'BrowserBack' || e.code === 'BrowserForward') e.preventDefault();
       if (this.onKeyDown && this.onKeyDown(e.code, e)) return;
       if (!this.captured) this.keys.add(e.code);
     }, opts);
@@ -61,10 +63,27 @@ export class Input {
       this.onMouseUp?.(e.button);
     }, opts);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault(), opts);
+    // A mouse wheel notch is one hotbar step; a touchpad's two-finger scroll
+    // sends a stream of small deltas, which add up to a step every ~60px
+    // instead of spinning the hotbar round on every event.
+    let acc = 0, lastWheel = 0;
     canvas.addEventListener('wheel', (e) => {
       if (this.captured) return;
-      this.wheel += Math.sign(e.deltaY);
-      this.onWheel?.(Math.sign(e.deltaY));
+      const dy = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      if (Math.abs(dy) < Math.abs(e.deltaX)) return;   // sideways swipe
+      const now = performance.now();
+      if (now - lastWheel > 250) acc = 0;   // a new gesture
+      lastWheel = now;
+      let steps;
+      if (Math.abs(dy) >= 50) { steps = Math.sign(dy); acc = 0; }
+      else {
+        acc += dy;
+        steps = Math.trunc(acc / 60);
+        acc -= steps * 60;
+      }
+      if (!steps) return;
+      this.wheel += steps;
+      for (let i = 0; i < Math.abs(steps); i++) this.onWheel?.(Math.sign(steps));
     }, { passive: true, signal: this._abort.signal });
 
     document.addEventListener('pointerlockchange', () => {

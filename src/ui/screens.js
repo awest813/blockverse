@@ -6,7 +6,7 @@ import { GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { loadSettings, saveSettings } from '../save/store.js';
 import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
 import { PAD_LAYOUT } from '../core/gamepad.js';
-import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale } from './display.js';
+import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale, isChromeOS } from './display.js';
 import { worldOpenElsewhere } from '../save/worldLock.js';
 
 const GUI_SCALES = [0, 0.75, 1, 1.25, 1.5, 2];   // 0 = auto
@@ -35,10 +35,10 @@ function controlsList(bindings) {
     [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Move'], ['Mouse', 'Look'],
     ['Left click', 'Mine / attack'], ['Right click', 'Place / use'],
     [k('jump'), 'Jump (double-tap: fly in creative)'], [`${k('sprint')} / ${k('sneak')}`, 'Sprint / sneak'],
-    ['Middle click', 'Pick block'], ['1–9 / wheel', 'Hotbar'],
+    [`Middle click / ${k('pickBlock')}`, 'Pick block'], ['1–9 / wheel', 'Hotbar'],
     [k('inventory'), 'Inventory'], [k('drop'), 'Drop item (Ctrl: stack)'],
     [`${k('chat')} or ${k('command')}`, 'Chat & commands'], [k('hideHud'), 'Hide HUD'],
-    [k('debug'), 'Debug info'], ['F2', 'Screenshot'], ['Esc', 'Pause'],
+    [k('debug'), 'Debug info'], [k('screenshot'), 'Screenshot'], ['Esc', 'Pause'],
   ];
 }
 
@@ -585,7 +585,7 @@ export class Screens {
         : `Tip: sprint (${keyLabel(keys.sprint)}) underwater to swim fast wherever you look.`,
       'Tip: break a dungeon\'s spawner cage to stop the monsters for good.',
       'Tip: pour a bucket of water onto lava to make obsidian.',
-      'Tip: F2 saves a screenshot.',
+      `Tip: ${keyLabel(keys.screenshot)} saves a screenshot.`,
     ];
     tip.textContent = tips[(Math.random() * tips.length) | 0];
     el.appendChild(tip);
@@ -710,11 +710,35 @@ export class Screens {
       return b;
     };
 
+    // a button that steps through a list of [value, label] choices
+    const cycle = (label, choices, get, set) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'toggle';
+      const paint = () => { b.textContent = (choices.find(([v]) => v === get()) ?? choices[0])[1]; };
+      paint();
+      b.addEventListener('click', () => {
+        const i = choices.findIndex(([v]) => v === get());
+        set(choices[(i + 1) % choices.length][0]);
+        paint();
+        this.sfx?.play('click');
+        this.applySettings();
+      });
+      row(label, b);
+      return b;
+    };
+
     const s = this.settings;
     let first;
     if (tab === 'general') {
       first = slider('Render distance', 2, 16, 1, s.renderDistance, (v) => `${v} chunks`, (v) => { s.renderDistance = v; });
       slider('Field of view', 60, 110, 1, s.fov, (v) => `${v}°`, (v) => { s.fov = v; });
+      // Auto drops the render resolution when frames slow down (integrated
+      // graphics, Chromebooks) and brings it back when there's headroom
+      cycle('Resolution', [['auto', 'Auto'], [1, 'Full'], [0.75, '75%'], [0.5, '50%']],
+        () => s.renderScale ?? 'auto', (v) => { s.renderScale = v; });
+      cycle('Frame rate limit', [[0, 'Off'], [60, '60 FPS'], [30, '30 FPS (saves battery)']],
+        () => s.maxFps ?? 0, (v) => { s.maxFps = v; });
       const pct = (v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`);
       slider('Brightness', 0, 1, 0.05, s.brightness, (v) => (v === 0 ? 'Moody' : v === 1 ? 'Bright' : `${Math.round(v * 100)}%`), (v) => { s.brightness = v; });
       slider('Volume', 0, 1, 0.05, s.volume, pct, (v) => { s.volume = v; });
@@ -832,8 +856,16 @@ export class Screens {
     const note = document.createElement('div');
     note.className = 'field-hint';
     note.textContent = 'Click a key to change it, then press the new key (Esc cancels). '
-      + 'Double-tap forward also sprints. Esc and 1–9 are fixed.';
+      + 'Double-tap forward also sprints. Esc, 1–9 and the Search / Windows key are fixed.';
     panel.appendChild(note);
+    if (isChromeOS()) {
+      const cros = document.createElement('div');
+      cros.className = 'field-hint';
+      cros.textContent = 'On a Chromebook: hold Search (\u{1F50D}) with a top-row key for F1\u2013F10, or rebind those actions to letter keys. '
+        + 'Two-finger click places blocks and two-finger scroll changes the hotbar slot. '
+        + 'Ctrl + Space may switch your keyboard layout, so sprint-jumping is easier with double-tap forward.';
+      panel.appendChild(cros);
+    }
 
     const pad = document.createElement('div');
     pad.className = 'setting-group';

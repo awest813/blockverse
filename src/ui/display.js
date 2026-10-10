@@ -43,3 +43,18 @@ export async function setFullscreen(on) {
 export function fullscreenSupported() {
   return !!document.documentElement.requestFullscreen;
 }
+
+// ChromeOS (Chromebooks): top-row keys are media keys (F1–F10 need Search),
+// touchpads have no middle button, and the launcher sits on the Search key.
+export function isChromeOS() {
+  return /\bCrOS\b/.test(navigator.userAgent) || navigator.userAgentData?.platform === 'Chrome OS';
+}
+
+// Few cores or little memory: likely an entry-level laptop or Chromebook
+// with integrated graphics. Used to pick gentler defaults, never to lock
+// anything away.
+export function isLowEndDevice() {
+  const cores = navigator.hardwareConcurrency ?? 8;
+  const mem = navigator.deviceMemory ?? 8;
+  return cores <= 4 || mem <= 4;
+}

@@ -2,6 +2,7 @@
 
 import { LATEST_GEN } from '../world/worldgen.js';
 import { CHUNK_VOLUME } from '../core/constants.js';
+import { isLowEndDevice } from '../ui/display.js';
 
 const CHUNK_SUFFIX = /^-?\d+,-?\d+$/;
 
@@ -238,14 +239,23 @@ export const DEFAULT_SETTINGS = {
   invertY: false,
   showFps: false,
   guiScale: 0,       // 0 = auto (fit the window), otherwise a multiplier
+  renderScale: 'auto',   // 'auto' (follows the frame rate) | 1 | 0.75 | 0.5
+  maxFps: 0,         // 0 = unlimited (display refresh), or 60 / 30
   keys: {},          // action id -> KeyboardEvent.code overrides (see core/keybinds.js)
 };
 
+// first run on a low-end machine (many Chromebooks): see a little less far
+function firstRunDefaults() {
+  return isLowEndDevice() ? { ...DEFAULT_SETTINGS, renderDistance: 6 } : { ...DEFAULT_SETTINGS };
+}
+
 export function loadSettings() {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw === null) return firstRunDefaults();
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return firstRunDefaults();
   }
 }
 
