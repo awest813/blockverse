@@ -53,7 +53,7 @@ const BossMixin = (Base) => class extends Base {
 
   // with nobody to fight, drift back toward the cage it guards (runs after
   // the normal AI, so an idle boss still notices you walking in)
-  leash() {
+  stayHome() {
     if (!this.home || this.state === 'chase') return false;
     const d = Math.hypot(this.home.x - this.x, this.home.z - this.z);
     if (d < LEASH) return false;
@@ -100,7 +100,7 @@ export class ZombieBrute extends BossMixin(Zombie) {
       return;
     }
     super.think(dt, player, playerDist);
-    this.leash();
+    this.stayHome();
   }
 
   slam(player) {
@@ -156,7 +156,7 @@ export class BoneArcher extends BossMixin(Skeleton) {
       player.vz += (dz / d) * 6;
     }
     super.think(dt, player, playerDist);
-    this.leash();
+    this.stayHome();
   }
 
   onDeath() {
@@ -214,7 +214,7 @@ export class BroodMother extends BossMixin(Spider) {
 
   think(dt, player, playerDist) {
     super.think(dt, player, playerDist);
-    this.leash();
+    this.stayHome();
   }
 
   onDeath() {

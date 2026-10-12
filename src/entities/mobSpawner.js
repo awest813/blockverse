@@ -193,9 +193,9 @@ export class MobSpawner {
       // land animals depend on the biome
       const table = LAND_TABLE[this.world.biomeAt(wx, wz)];
       if (!table) continue;
-      const goat = table.some(([c]) => c === Goat);
-      if (ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(goat && ground === B.STONE)) continue;
       const Cls = weighted(table);
+      // bare rock is for goats only
+      if (ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(Cls === Goat && ground === B.STONE)) continue;
       if (Cls === Goat && ground !== B.STONE && ground !== B.SNOW_BLOCK && ground !== B.SNOWY_GRASS && y < 80 && Math.random() < 0.6) continue;   // goats like it high and rocky
       // herds and flocks: horses, goats and ducks come in twos and threes
       const n = GROUP.get(Cls)?.() ?? 1;

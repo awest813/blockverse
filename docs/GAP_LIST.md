@@ -200,3 +200,5 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Luring: farm animals follow a player holding a food they like (within 10 blocks)
 - [x] Lead (2 from 3 string + leather): lead a farm animal (not pets or monsters), tie it to a fence post, take the lead back from the post, snaps past 12 blocks or if the post goes; drawn as a rope; ties are saved; climbing onto a leashed horse gives the lead back
 - [x] Goat horn: knocked off a goat charging into rock (the goat shows it, saved); blowing it calls your horses within 64 blocks
+- [x] Audit: dungeon bosses had a `leash()` method (stay near the cage) that collided with the new lead code: every frame of a boss fight threw, which stalled the game loop (the music never faded). Renamed to `stayHome()`; a check now runs a boss beside the lead code
+- [x] Audit: riding a horse off a cliff hurts the rider too; a lead doesn't snap when its fence post's chunk isn't loaded; ropes take the light around them (dark at night); only goats spawn on bare mountain stone; no placing a solid block inside an animal (it was squeezed out upward); a horse called by a horn keeps cantering until it reaches you

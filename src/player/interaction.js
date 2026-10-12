@@ -393,6 +393,7 @@ export class Interaction {
 
     // don't place a solid block inside the player
     if (info.solid && this.intersectsPlayer(px, py, pz)) return;
+    if (info.solid && this.cb.mobInBlock?.(px, py, pz)) return;   // not on top of an animal (it would be squeezed out upward)
 
     // orientation for blocks with a "front" face: face the player
     let meta = 0;

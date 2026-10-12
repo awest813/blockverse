@@ -188,6 +188,8 @@ export class Game {
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
       tieLeashes: (t) => this.tieLeashes(t),
+      mobInBlock: (x, y, z) => this.entities.mobs.some((m) => !m.dead && m.dying === undefined
+        && m.x + m.w / 2 > x && m.x - m.w / 2 < x + 1 && m.z + m.w / 2 > z && m.z - m.w / 2 < z + 1 && m.y + m.h > y && m.y < y + 1),
       blowHorn: () => this.blowHorn(),
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       playSound: (name, opts) => {

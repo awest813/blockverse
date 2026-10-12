@@ -284,6 +284,8 @@ export class Mob {
       const d = this.fallStart - this.y;
       const safe = this.safeFall ?? 4;   // goats shrug off long drops
       if (!inWater && d > safe) this.damage(Math.floor(d - safe + 1), null);
+      // whoever's riding comes down with it
+      if (!inWater && this.rider && d > 5 && this.rider.mode !== GAMEMODE_CREATIVE) this.rider.damage(Math.floor(d - 4), 'fall');
       this.fallStart = undefined;
     }
 
@@ -525,7 +527,7 @@ export class Mob {
   leashTo(holder) {
     this.leash = holder;
     this.persistent = true;
-    if (!this.rope) { this.rope = new THREE.Mesh(ROPE_GEO, ROPE_MAT); this.scene.add(this.rope); }
+    if (!this.rope) { this.rope = new THREE.Mesh(ROPE_GEO, ROPE_MAT.clone()); this.scene.add(this.rope); }
   }
 
   // let go; `drop` leaves the lead lying where it was
@@ -533,7 +535,7 @@ export class Mob {
     if (!this.leash) return;
     if (drop) this.dropFn?.([{ id: I.LEAD, count: 1 }]);
     this.leash = null;
-    if (this.rope) { this.scene.remove(this.rope); this.rope = null; }
+    if (this.rope) { this.scene.remove(this.rope); this.rope.material.dispose(); this.rope = null; }
   }
 
   // walk toward the holder once the lead goes taut
@@ -551,7 +553,7 @@ export class Mob {
   leashTick(dt) {
     const L = this.leash;
     // the post's gone, the holder's gone, or it's stretched too far: snap
-    if (L.knot && !FENCE_POSTS.has(this.world.getBlockW(L.knot.x, L.knot.y, L.knot.z))) { this.unleash(true); return; }
+    if (L.knot && this.world.isLoaded(L.knot.x, L.knot.z) && !FENCE_POSTS.has(this.world.getBlockW(L.knot.x, L.knot.y, L.knot.z))) { this.unleash(true); return; }
     if (L.player?.dead) { this.unleash(true); return; }
     const e = this.leashEnd();
     const dx = e.x - this.x, dy = e.y - (this.y + this.h * 0.7), dz = e.z - this.z, d = Math.hypot(dx, dy, dz);
@@ -563,6 +565,7 @@ export class Mob {
     this.rope.position.set((sx + e.x) / 2, (sy + e.y) / 2, (sz + e.z) / 2);
     this.rope.scale.set(1, 1, Math.max(0.01, Math.hypot(e.x - sx, e.y - sy, e.z - sz)));
     this.rope.lookAt(e.x, e.y, e.z);
+    this.rope.material.color.copy(ROPE_MAT.color).multiplyScalar(this.world.lightAt(this.rope.position.x, this.rope.position.y, this.rope.position.z));
   }
 
   tempted(player, playerDist) {
@@ -655,7 +658,7 @@ export class Mob {
   kill() {
     this.dead = true;
     this.scene.remove(this.group);
-    if (this.rope) { this.scene.remove(this.rope); this.rope = null; }
+    if (this.rope) { this.scene.remove(this.rope); this.rope.material.dispose(); this.rope = null; }
     for (const { mat } of this.materials) mat.dispose();
     // part boxes are shared; anything else built for this mob goes; flames have their own material
     this.group.traverse((o) => { if (o.geometry && !SHARED.has(o.geometry) && !o.isSprite) o.geometry.dispose(); });

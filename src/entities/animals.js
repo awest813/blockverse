@@ -524,8 +524,8 @@ export class Horse extends Animal {
       this.state = 'called';
       this.steer(player, 1);
       this.moving = true;
-      this.hurry = playerDist > 8;
-      this.fleeSpeed = Math.max(4, this.gallop * 0.7);
+      this.hurry = true;   // at a canter, slowing only for the last few steps
+      this.fleeSpeed = playerDist > 6 ? Math.max(4, this.gallop * 0.7) : 3;
       return;
     }
     if (!this.rider) return super.think(dt, player, playerDist);
