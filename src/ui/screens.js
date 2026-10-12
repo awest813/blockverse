@@ -6,7 +6,7 @@ import { GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { loadSettings, saveSettings } from '../save/store.js';
 import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
 import { PAD_LAYOUT } from '../core/gamepad.js';
-import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale, isChromeOS } from './display.js';
+import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale, isChromeOS, currentGuiScale, guiScaleSetting as guiSetting } from './display.js';
 import { worldOpenElsewhere } from '../save/worldLock.js';
 
 const GUI_SCALES = [0, 0.75, 1, 1.25, 1.5, 2];   // 0 = auto
@@ -79,6 +79,26 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+// Auto GUI scale shrinks everything to fit the tallest thing, the inventory.
+// A menu that needs less room (pause, the world list, dialogs) is grown back
+// toward its full size, so on a phone its buttons are big enough to tap.
+export function fitScreen(el) {
+  if (!el?.isConnected || guiSetting() > 0) { if (el) el.style.zoom = ''; return; }
+  el.style.zoom = '';
+  el.style.removeProperty('--mz');
+  const cs = getComputedStyle(el);
+  const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), gap = parseFloat(cs.rowGap) || 0;
+  const kids = [...el.children].filter((c) => c.offsetParent && !/absolute|fixed/.test(getComputedStyle(c).position));   // (not the footer)
+  if (!kids.length) return;
+  const needH = kids.reduce((h, c) => h + c.offsetHeight, 0) + gap * (kids.length - 1) + pad;
+  const needW = Math.max(...kids.map((c) => c.offsetWidth)) + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const gui = currentGuiScale();
+  const k = Math.min(el.clientHeight / needH, el.clientWidth / needW, 1 / gui);   // never past full size
+  if (k > 1.05) { el.style.zoom = k.toFixed(3); el.style.setProperty('--mz', k.toFixed(3)); }
+}
+
+window.addEventListener('resize', () => requestAnimationFrame(() => document.querySelectorAll('#ui-root > .screen').forEach(fitScreen)));
+
 export class Screens {
   constructor(root, { onPlay, onQuitToTitle, onRespawn, onResume, onApplySettings, store, sfx }) {
     this.root = root;
@@ -119,6 +139,11 @@ export class Screens {
     const el = document.createElement('div');
     el.className = className;
     this.root.appendChild(el);
+    // once it's filled in (and whenever it changes), grow it to fit (see fitScreen)
+    let queued = false;
+    const refit = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fitScreen(el); }); };
+    refit();
+    new MutationObserver(refit).observe(el, { childList: true, subtree: true });
     return el;
   }
 

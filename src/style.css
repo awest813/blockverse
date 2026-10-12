@@ -64,6 +64,8 @@ html, body {
   opacity: 0; transition: opacity 0.4s; pointer-events: none;
 }
 #save-indicator.on { opacity: 1; transition: none; }
+/* on touch the corner belongs to the pause button: sit just below the top buttons */
+#hud.touch #save-indicator { top: calc(72px / max(var(--gui), 0.85)); right: calc(12px / max(var(--gui), 0.85)); }
 
 #crosshair {
   position: absolute; left: 50%; top: 50%;
@@ -592,6 +594,7 @@ html, body {
   white-space: nowrap;
 }
 .tooltip-sub { color: #aaa; font-size: 12px; font-weight: 400; }
+.tooltip-use { color: #cfe6a8; max-width: 260px; white-space: normal; font-style: italic; }
 
 /* death screen */
 .death-title { font-size: 40px; color: #ffe1e1; text-shadow: 2px 2px 0 #7a0000, 0 0 18px rgba(255, 60, 60, 0.7); }
@@ -608,7 +611,7 @@ html, body {
   width: min(440px, 100%);
 }
 /* #ui-root is zoomed by --gui, so divide the viewport by it to get the real room left */
-.settings-panel { max-height: max(160px, min(520px, calc(100vh / var(--gui) - 190px))); overflow-y: auto; }
+.settings-panel { max-height: max(160px, min(520px, calc(100vh / (var(--gui) * var(--mz, 1)) - 190px))); overflow-y: auto; }
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
 .setting-row label, .setting-row .setting-label { flex: 1; font-size: 14px; }
 .setting-group {
@@ -791,3 +794,20 @@ html, body {
 #crosshair[data-style="big"] { font-size: 34px; }
 #crosshair[data-style="dot"] { font-size: 0; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); }
 #crosshair[data-style="off"] { display: none; }
+
+/* Touch screens: real thumb-sized targets (menus before a game starts too).
+   #ui-root is zoomed by --gui (and a menu screen by --mz on top), so divide
+   to get real pixels. */
+@media (pointer: coarse) {
+  #ui-root .btn { min-height: calc(36px / (var(--gui) * var(--mz, 1))); }
+  #ui-root .toggle, #ui-root .keybind, #ui-root .tab { min-height: calc(30px / (var(--gui) * var(--mz, 1))); }
+  #ui-root .settings-panel { gap: calc(6px / (var(--gui) * var(--mz, 1))); }
+  #ui-root .setting-row { min-height: calc(32px / (var(--gui) * var(--mz, 1))); }
+  /* where there's no room to grow (the inventory's tabs), widen the touch area instead */
+  #ui-root .creative-tab, #ui-root .book-toggle, #ui-root .w-copy { position: relative; }
+  #ui-root .creative-tab::after, #ui-root .book-toggle::after, #ui-root .w-copy::after {
+    content: ''; position: absolute; inset: calc(-8px / var(--gui)) calc(-2px / var(--gui));
+  }
+  #chat-input { min-height: 38px; }
+  .chat-send { min-width: 60px; }
+}

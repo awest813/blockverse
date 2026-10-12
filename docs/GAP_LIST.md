@@ -203,3 +203,10 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Audit: dungeon bosses had a `leash()` method (stay near the cage) that collided with the new lead code: every frame of a boss fight threw, which stalled the game loop (the music never faded). Renamed to `stayHome()`; a check now runs a boss beside the lead code
 - [x] Audit: riding a horse off a cliff hurts the rider too; a lead doesn't snap when its fence post's chunk isn't loaded; ropes take the light around them (dark at night); only goats spawn on bare mountain stone; no placing a solid block inside an animal (it was squeezed out upward); a horse called by a horn keeps cantering until it reaches you
 - [x] Audit: "every horse clears a fence" only held at a gallop; jump raised to 2.1-2.9 blocks so it holds at a trot too (older saves raised). A lead now pulls an animal along at the holder's pace (a sprint used to snap it: the tug was overwritten by the animal's own steering). A horse that comes when called waits for you for 20 seconds
+
+## UI/UX pass 3 (laptop, Chromebook 125%, 1024x600, phone)
+- [x] Automatic tour of every screen on four devices with layout checks (sideways scroll, clipped text, off-screen controls, tap-target sizes): laptop, Chromebook and 1024x600 clean
+- [x] Phones: Auto GUI scale shrank every menu to 60% to fit the inventory; menus that need less room (title, world list, pause, death, dialogs) now grow back toward full size (per-screen fit, re-fitted when content changes or the window resizes)
+- [x] Touch screens: buttons at least ~36px, settings toggles/tabs ~30px with spaced rows, enlarged tap areas for recipe-book tabs and "copy seed" (coarse-pointer media query, so the title screen gets it too); taller chat box
+- [x] "Saving…" covered the touch Pause button; it sits below the top buttons on touch
+- [x] Tooltips (items and recipes) say what the less obvious things are for: lead, goat horn, saddle, golden carrot, bone meal, seeds, carrots, potatoes, shears, bucket, hay bale, trough, composter, sprinkler, harvester, collector

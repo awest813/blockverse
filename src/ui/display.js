@@ -8,6 +8,10 @@ export function autoGuiScale(w = window.innerWidth, h = window.innerHeight) {
   return Math.max(0.6, Math.min(2, (w - 16) / 440, h / 720));
 }
 
+export function guiScaleSetting() {
+  return guiSetting;
+}
+
 export function currentGuiScale() {
   return guiSetting > 0 ? guiSetting : autoGuiScale();
 }

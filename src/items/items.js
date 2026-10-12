@@ -194,6 +194,27 @@ const BLOCK_BURN = new Map([
 ]);
 
 // Unified item info for any id (block or item).
+// One line on what a thing is for, shown in its tooltip (the less obvious ones)
+const USES = new Map([
+  [I.LEAD, 'Use on a farm animal to lead it; use a fence post to tie it up'],
+  [I.GOAT_HORN, 'Blow it to call your horses'],
+  [I.SADDLE, 'Put it on a horse that trusts you, then ride it'],
+  [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
+  [I.BONE_MEAL, 'Use on crops, saplings or grass to make them grow'],
+  [I.WHEAT_SEEDS, 'Plant on farmland (till grass with a hoe)'],
+  [I.CARROT, 'Plant on farmland, or eat; pigs love them'],
+  [I.POTATO, 'Plant on farmland, or bake in a furnace'],
+  [I.SHEARS, 'Shear sheep for wool'],
+  [I.BUCKET, 'Scoops water and lava; milks cows and goats'],
+  [B.HAY_BALE, 'Nine wheat; feeds a trough or calms a horse'],
+  [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed'],
+  [B.COMPOSTER, 'Plant scraps in, bone meal out'],
+  [B.SPRINKLER, 'Crops within 4 blocks grow much faster'],
+  [B.HARVESTER, 'Reaps and replants ripe crops within 4 blocks into a chest beside it'],
+  [B.COLLECTOR, 'Gathers items within 4 blocks into a chest beside it'],
+]);
+export const itemUse = (id) => USES.get(id) ?? null;
+
 // Rare finds: they glint where they lie, and picking one up is announced.
 const RARE = new Set([I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
   I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);

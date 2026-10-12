@@ -2,7 +2,7 @@
 // furnace, and the creative item palette. Handles cursor stack drag logic,
 // right-click split, shift-click quick move, and tooltips.
 
-import { itemInfo, maxStack, makeStack, WEAPON_STATS } from '../items/items.js';
+import { itemInfo, maxStack, makeStack, WEAPON_STATS, itemUse } from '../items/items.js';
 import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
 import { B, BLOCKS, R_CROSS, R_TORCH, isTechnicalBlock } from '../blocks/blocks.js';
@@ -165,6 +165,13 @@ export class Containers {
       d.className = 'tooltip-sub';
       const extra = [w.reach ? `+${w.reach} reach` : '', info.tool.class === 'sword' ? 'sweeps' : ''].filter(Boolean);
       d.textContent = `${info.tool.damage} attack damage, ${(1 / w.cooldown).toFixed(1)} hits/s` + (extra.length ? ` · ${extra.join(', ')}` : '');
+      t.appendChild(d);
+    }
+    const use = itemUse(stack.id);
+    if (use) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub tooltip-use';
+      d.textContent = use;
       t.appendChild(d);
     }
     t.classList.remove('hidden');
@@ -775,6 +782,8 @@ export class Containers {
     const needs = recipeNeeds(r);
     b.addEventListener('mousemove', (ev) => {
       const lines = [`Needs: ${needs.map((n) => `${n.count} × ${groupLabel(n.group)}`).join(', ')}`];
+      const use = itemUse(r.result);
+      if (use) lines.unshift(use);   // what it's for, first
       if (state === 'craftable') lines.push(avail.times > 1 ? `Click to fill the grid (enough for ${avail.times})` : 'Click to fill the grid');
       else if (fits) lines.push('Click to see where everything goes');
       else if (state === 'needs-table') lines.push('Needs a Crafting Table (3×3 grid)');
