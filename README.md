@@ -116,6 +116,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Inventory icons are rendered as tiny isometric cubes from the same tiles
 - All sound effects — digging, footsteps per material, hurt (by cause), eating, doors, chests, splashes, UI clicks — are **synthesized live with WebAudio**. There are no asset files in the repository at all.
 - Sounds are positional: they fade with distance and pan left/right; a limiter keeps a burst of explosions from clipping, and repeated sounds are throttled. Ambience: fires crackle, lava pops, caves drone, crickets sing on clear nights, and your heart pounds at low health. Audio pauses in a background tab.
+- **Music**: now and then a short generative piece drifts in — a soft pad and a wandering pentatonic melody through a long echo; brighter by day, darker at night, low and sparse in caves, and it fades out for boss fights (own volume slider)
+- Caves echo; your own block sounds (breaking, placing, doors, buckets) come from the block you're working on; flint and steel, shears, arrows landing, drawing a bow, dropping items, swimming strokes and lava buckets all have their own sounds
 
 ---
 

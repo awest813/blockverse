@@ -36,6 +36,7 @@ import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
 import { B, isWater } from './blocks/blocks.js';
 import { isLowEndDevice, isChromeOS } from './ui/display.js';
+import { Music } from './audio/music.js';
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -56,6 +57,7 @@ function bubbleTexture() {
 }
 
 const RENDERERS = new WeakMap();
+const BLOCK_SOUNDS = new Set(['break', 'place', 'door', 'chest', 'sizzle', 'splash', 'gloop', 'ignite']);
 
 // three's fog measures depth along the view axis; the chunk shader uses true
 // distance. Use distance for mobs, drops and particles too, so nothing at the
@@ -86,6 +88,7 @@ export class Game {
     this.atlas = atlas;
     this.worldMeta = worldMeta;
     this.store = store;
+    this.music = sfx ? new Music(sfx) : null;
     this.unsaved = new Map();   // "cx,cz" -> evicted chunk waiting for the next save
     this.sfx = sfx;
     this.onExit = onExit;
@@ -178,6 +181,10 @@ export class Game {
       notify: (text) => this.hud.showLabel(text),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
+        // block sounds come from the block you're working on (a little to the
+        // left or right), not from the middle of your head
+        const t = this.interaction.target ?? this.interaction.breakTarget;
+        if (!opts?.pos && t && BLOCK_SOUNDS.has(name)) opts = { ...opts, pos: { x: t.x + 0.5, y: t.y + 0.5, z: t.z + 0.5 } };
         this.sfx?.play(name, opts);
       },
     });
@@ -374,6 +381,7 @@ export class Game {
             this.player.x + dir.x, this.player.eyeY - 0.3, this.player.z + dir.z,
             [{ ...s, count }]);
           this.player.consumeHeld(count);
+          this.sfx?.play('drop');
         }
         return true;
       }
@@ -928,6 +936,11 @@ export class Game {
         }
       }
       if (!wasInWater && this.player.inWater && this.player.vy < -3) this.sfx?.play('splash');
+      // swimming: a stroke every couple of blocks
+      if (this.player.inWater && !this.player.onGround && !this.player.flying) {
+        this._swimDistance = (this._swimDistance ?? 0) + Math.hypot(this.player.x - px0, this.player.z - pz0, this.player.vy * dt * 0.5);
+        if (this._swimDistance > 2.4) { this._swimDistance = 0; this.sfx?.play('swim'); }
+      }
     }
 
     this.highlight.update(this.interaction.target, this.interaction.breakProgress, this.world);
@@ -1058,6 +1071,12 @@ export class Game {
     const p = this.player, sfx = this.sfx;
     if (!sfx) return;
     sfx.setListener(p.x, p.eyeY, p.z, p.yaw);
+    // underground: caves echo, and the music turns low and sparse
+    const sky = this.world.getSkyW(Math.floor(p.x), Math.floor(p.eyeY), Math.floor(p.z));
+    const cave = p.headInWater ? 0 : sky === 0 && p.y < 60 ? 1 : sky < 6 ? 0.4 : 0;
+    sfx.setCave(cave);
+    const bossNear = this.entities.mobs.some((m) => m.boss && !m.dead && m.dying === undefined && m.state === 'chase');
+    this.music?.update(dt, p.dead || bossNear ? null : cave >= 1 ? 'cave' : this.dayFactor() < 0.35 ? 'night' : 'day');
     if (p.dead) return;
     const survival = p.mode !== GAMEMODE_CREATIVE;
     this._beat = (this._beat ?? 0) - dt;
@@ -1072,7 +1091,6 @@ export class Game {
       if ((id === B.FIRE || id === B.CAMPFIRE) && Math.random() < 0.7) sfx.play('crackle', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 } });
       else if (id === B.LAVA && this.world.getBlockW(x, y + 1, z) === B.AIR && Math.random() < 0.35) sfx.play('lavapop', { pos: { x: x + 0.5, y: y + 1, z: z + 0.5 } });
     }
-    const sky = this.world.getSkyW(Math.floor(p.x), Math.floor(p.eyeY), Math.floor(p.z));
     if (sky === 0 && p.y < 50 && Math.random() < 0.35 / 60) sfx.play('drone');   // about once a minute, deep down
     const day = this.dayFactor();
     if (day < 0.3 && sky >= 12 && !p.headInWater && Math.random() < 0.12) {
@@ -1255,6 +1273,8 @@ export class Game {
   stop({ save = true } = {}) {
     this.running = false;
     this.sfx?.setUnderwater(false);
+    this.sfx?.setCave(0);
+    this.music?.stop(1);
     const saving = this.store && save ? this.save() : null;
     this.ticker.terminate();
     // drop every document/window listener so a later world doesn't inherit them

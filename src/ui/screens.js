@@ -749,6 +749,7 @@ export class Screens {
       slider('· Blocks & world', 0, 1, 0.05, s.blockVolume, pct, (v) => { s.blockVolume = v; });
       slider('· Creatures', 0, 1, 0.05, s.mobVolume, pct, (v) => { s.mobVolume = v; });
       slider('· Player & menus', 0, 1, 0.05, s.uiVolume, pct, (v) => { s.uiVolume = v; });
+      slider('· Music', 0, 1, 0.05, s.musicVolume ?? 0.5, pct, (v) => { s.musicVolume = v; });
       const gi = Math.max(0, GUI_SCALES.indexOf(s.guiScale));
       slider('GUI scale', 0, GUI_SCALES.length - 1, 1, gi,
         (i) => (GUI_SCALES[i] ? `${GUI_SCALES[i] * 100}%` : `Auto (${Math.round(autoGuiScale() * 100)}%)`),

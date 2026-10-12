@@ -26,12 +26,15 @@ export class EntityManager {
       shoot: (x, y, z, vx, vy, vz, dmg, cause = 'skeleton') => {
         const a = new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg);
         a.cause = cause;
+        a.onStick = (s) => this.fx.sound('arrowhit', { pos: s });
         this.projectiles.push(a);
         this.fx.sound('shoot', { pos: { x, y, z } });
       },
       // the player's bow
       fire: (x, y, z, vx, vy, vz, dmg, pickup) => {
-        this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player', pickup));
+        const a = new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player', pickup);
+        a.onStick = (s) => this.fx.sound('arrowhit', { pos: s });
+        this.projectiles.push(a);
         this.fx.sound('throw');
       },
       explode: () => {},

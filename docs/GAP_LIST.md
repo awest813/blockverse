@@ -157,3 +157,10 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Knockback resistance, difficulty-scaled health, leashed to their room, despawn past 64 blocks and return at full health; never in Peaceful or for creative players
 - [x] The cage remembers 'awake' / 'defeated' (saved with the chunk); guaranteed loot; roar on waking, fanfare on defeat; death messages; /summon support
 
+## Audio pass 2
+- [x] Generative music (day / night / cave moods, fades for boss fights, Music slider; nothing while muted)
+- [x] Cave echo (feedback-delay send, faded in when there's no sky above you)
+- [x] Block sounds positioned at the targeted block (panning)
+- [x] New sounds: ignite (flint and steel), shear, arrow thunk, bow draw, item drop, swim strokes, lava bucket gloop; lava meeting water sizzles instead of splashing
+- [x] Muted volume builds no audio nodes
+

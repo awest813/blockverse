@@ -5,15 +5,16 @@
 const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
+  arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20 };
+const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
-const LIMITS = { pickup: [2, 0.06], mobhurt: [3, 0.1], mobdeath: [3, 0.1], explode: [2, 0.12], hit: [3, 0.05], step: [2, 0.08], splash: [2, 0.1] };
+const LIMITS = { pickup: [2, 0.06], mobhurt: [3, 0.1], mobdeath: [3, 0.1], explode: [2, 0.12], hit: [3, 0.05], step: [2, 0.08], splash: [2, 0.1], arrowhit: [3, 0.06], swim: [1, 0.2] };
 
 export class Sfx {
   constructor() {
@@ -54,6 +55,23 @@ export class Sfx {
       const out = this.ctx.createGain();
       out.gain.value = 0.9;
       this.master.connect(this.muffle).connect(this.limiter).connect(out).connect(this.ctx.destination);
+      // caves echo: a send from the master through a short damped feedback
+      // delay, faded in underground (setCave)
+      this.caveSend = this.ctx.createGain();
+      this.caveSend.gain.value = 0;
+      const delay = this.ctx.createDelay(1);
+      delay.delayTime.value = 0.11;
+      const fb = this.ctx.createGain();
+      fb.gain.value = 0.42;
+      const damp = this.ctx.createBiquadFilter();
+      damp.type = 'lowpass';
+      damp.frequency.value = 1800;
+      this.master.connect(this.caveSend).connect(delay).connect(damp).connect(fb).connect(delay);
+      damp.connect(this.muffle);
+      // music has its own volume, and skips the underwater muffle
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.value = this.volume * (this.musicVolume ?? 0.5);
+      this.musicGain.connect(this.limiter);
       // 1s of white noise, reused by every noise-based effect
       const len = this.ctx.sampleRate;
       this._noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -112,6 +130,22 @@ export class Sfx {
   setVolume(v) {
     this.volume = v;
     if (this.master) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);   // no click
+    this.setMusicVolume(this.musicVolume ?? 0.5);
+  }
+
+  setMusicVolume(v) {
+    this.musicVolume = v;
+    if (this.musicGain) this.musicGain.gain.setTargetAtTime(this.volume * v, this.ctx.currentTime, 0.05);
+  }
+
+  // where music is mixed in (null until audio has started)
+  musicBus() { return this.ensure() ? this.musicGain : null; }
+
+  // 0 = open air, 1 = deep underground: how much the cave echo comes through
+  setCave(amount) {
+    if (!this.ctx || Math.abs(amount - (this._cave ?? 0)) < 0.02) return;
+    this._cave = amount;
+    this.caveSend.gain.setTargetAtTime(amount * 0.38, this.ctx.currentTime, 0.6);
   }
 
   // Filtered noise burst: the workhorse for digging/steps. Every voice goes to
@@ -181,7 +215,7 @@ export class Sfx {
   play(name, opts = {}) {
     const cat = CATEGORY[name] ?? 'ui';
     let k = (this.mix?.[cat] ?? 1) * (opts.vol ?? 1);
-    if (k <= 0 || !this.running) return;
+    if (k <= 0 || this.volume <= 0 || !this.running) return;   // muted: build nothing
     // too many of the same sound right now?
     const [max, win] = LIMITS[name] ?? [6, 0.05];
     const now = this.ctx.currentTime;
@@ -388,6 +422,32 @@ export class Sfx {
       case 'equip':
         this.tone({ freq: 340, endFreq: 520, dur: 0.08, gain: 0.16, type: 'square' });
         this.noise({ freq: 2600, q: 2, dur: 0.12, gain: 0.18, type: 'bandpass' });
+        break;
+      case 'ignite':     // flint and steel: a scrape, then the flame catching
+        this.noise({ freq: 4200 * detune, q: 2, dur: 0.06, gain: 0.3, type: 'bandpass' });
+        this.later(() => this.noise({ freq: 900, q: 0.5, dur: 0.35, gain: 0.18, type: 'lowpass', pitchDrop: -500 }), 60);
+        break;
+      case 'shear':      // two quick snips
+        for (let i = 0; i < 2; i++) this.later(() => this.noise({ freq: 5200 * detune, q: 3, dur: 0.035, gain: 0.25, type: 'bandpass' }), i * 110);
+        break;
+      case 'arrowhit':   // an arrow thunking into a block
+        this.noise({ freq: 700 * detune, q: 1.5, dur: 0.07, gain: 0.3, type: 'bandpass' });
+        this.tone({ freq: 160 * detune, endFreq: 120, dur: 0.12, gain: 0.08, type: 'triangle' });
+        break;
+      case 'bowdraw':    // the string pulled back: a rising creak
+        this.tone({ freq: 140 * detune, endFreq: 230, dur: 0.45, gain: 0.05, type: 'sawtooth' });
+        this.noise({ freq: 1200, q: 4, dur: 0.4, gain: 0.04, type: 'bandpass' });
+        break;
+      case 'drop':       // an item tossed away
+        this.noise({ freq: 1400 * detune, q: 0.7, dur: 0.12, gain: 0.12, type: 'bandpass', pitchDrop: 700 });
+        break;
+      case 'swim':       // a stroke through the water
+        this.noise({ freq: 900 * detune, q: 0.6, dur: 0.22, gain: 0.1, type: 'lowpass', pitchDrop: 500 });
+        break;
+      case 'gloop':      // lava scooped or poured: thick and bubbling
+        this.tone({ freq: 110 * detune, endFreq: 55, dur: 0.25, gain: 0.22, type: 'sine' });
+        this.later(() => this.tone({ freq: 160 * detune, endFreq: 70, dur: 0.12, gain: 0.15, type: 'sine' }), 140);
+        this.noise({ freq: 500, q: 0.8, dur: 0.3, gain: 0.12, type: 'lowpass' });
         break;
       case 'splash':
         this.noise({ freq: 1100, q: 0.4, dur: 0.25, gain: 0.35, type: 'highpass', pitchDrop: 600 });

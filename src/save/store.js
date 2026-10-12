@@ -237,6 +237,7 @@ export const DEFAULT_SETTINGS = {
   blockVolume: 1,   // per-category mix, multiplied with volume
   mobVolume: 1,
   uiVolume: 1,
+  musicVolume: 0.5,   // the generative music (0 = off)
   brightness: 0.3,
   viewBobbing: true,
   crosshair: 'plus',   // 'plus' | 'big' | 'dot' | 'off'

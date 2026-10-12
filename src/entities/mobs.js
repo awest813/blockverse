@@ -97,7 +97,7 @@ export class Sheep extends Mob {
     this.setSheared(true);
     this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
-    this.fx?.sound('place', { block: 'cloth', pos: this });
+    this.fx?.sound('shear', { pos: this });
     return true;
   }
 

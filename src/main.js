@@ -37,6 +37,7 @@ async function boot() {
   const initial = loadSettings();
   sfx.setVolume(initial.volume);
   sfx.setMix(initial);
+  sfx.setMusicVolume(initial.musicVolume ?? 0.5);
   applyGuiScale(initial.guiScale);
 
   screens = new Screens(uiRoot, {
@@ -49,6 +50,7 @@ async function boot() {
     onApplySettings: (s) => {
       sfx.setVolume(s.volume);
       sfx.setMix(s);
+      sfx.setMusicVolume(s.musicVolume ?? 0.5);
       applyGuiScale(s.guiScale);
       game?.applySettings(s);
     },

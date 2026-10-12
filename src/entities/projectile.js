@@ -103,6 +103,7 @@ export class Arrow {
   hitBlock() {
     this.stuck = true;
     this.orient();
+    this.onStick?.(this);
   }
 
   hitMob(m) {

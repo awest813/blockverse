@@ -145,6 +145,7 @@ export class Interaction {
     if (held && itemInfo(held.id)?.bow && !aimingAtUsable) {
       const hasArrows = p.mode === GAMEMODE_CREATIVE || p.countOf(I.ARROW) > 0;
       if (input.mouseDown(2) && hasArrows) {
+        if (this.bowCharge === 0) this.cb.playSound('bowdraw', {});
         this.bowCharge = Math.min(1, this.bowCharge + dt / BOW_DRAW_TIME);
       } else if (this.bowCharge > 0) {
         this.cb.fireBow?.(this.bowCharge);
@@ -494,7 +495,7 @@ export class Interaction {
         if (!creative) this.spawnBlockDrops(ft.x, ft.y + 1, ft.z, blockInfo(B.LILY_PAD), true);
       }
       swapHeld(ft.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET);
-      this.cb.playSound('splash', {});
+      this.cb.playSound(ft.id === B.LAVA ? 'gloop' : 'splash', {});
       return true;
     }
     // pour: into the fluid cell itself, or the cell in front of the face we hit
@@ -511,9 +512,9 @@ export class Interaction {
       return true;
     }
     this.world.setBlock(x, y, z, fluid);
-    fluidContact(this.world, x, y, z, () => this.cb.playSound('splash', {}));
+    fluidContact(this.world, x, y, z, () => this.cb.playSound('sizzle', {}));   // lava meeting water
     swapHeld(I.BUCKET);
-    this.cb.playSound('splash', {});
+    this.cb.playSound(fluid === B.LAVA ? 'gloop' : 'splash', {});
     return true;
   }
 
@@ -566,7 +567,7 @@ export class Interaction {
         this.world.setBlock(fx, fy, fz, B.FIRE);
         this.world.setBlockEntity(fx, fy, fz, { kind: 'fire', t: 5 + this.dropRng() * 5 });
       }
-      this.cb.playSound('place', { block: 'stone' });
+      this.cb.playSound('ignite', {});
       if (!creative) p.damageHeldTool(1);
       this.useCooldown = 0.3;
       return true;
