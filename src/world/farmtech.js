@@ -11,7 +11,7 @@
 import { B, blockInfo } from '../blocks/blocks.js';
 import { I } from '../items/itemIds.js';
 import { CHUNK_Y, GAMEMODE_CREATIVE } from '../core/constants.js';
-import { maxStack } from '../items/items.js';
+import { maxStack, itemInfo } from '../items/items.js';
 import { cropFamily, isRipe, cropTime } from './saplings.js';
 
 const REACH = 4;
@@ -42,6 +42,7 @@ export function useComposter(it, t, held) {
   }
   const chance = held ? COMPOST.get(held.id) : undefined;
   if (chance === undefined) {
+    if (held && itemInfo(held.id)?.food) { it.cb.notify?.(`${itemInfo(held.id).display} won't compost — try seeds, crops, leaves or flowers`); return true; }
     if (held) return false;   // something else in hand: place it, use it...
     it.cb.notify?.(`Composter: ${st.level}/${FULL} — add seeds, crops, leaves or flowers`);
     return true;
@@ -84,11 +85,21 @@ function addTo(slots, id, count) {
   return count;
 }
 
+// how many of `id` the slots could still take
+function roomFor(slots, id) {
+  const max = maxStack(id);
+  return slots.reduce((n, s) => n + (!s ? max : s.id === id && s.dur === undefined ? max - s.count : 0), 0);
+}
+
 export function useTrough(it, t, held) {
   const w = it.world, p = it.player;
   const st = troughState(w, t.x, t.y, t.z);
   const bale = held?.id === B.HAY_BALE;
   if (!held || (!FEEDS.has(held.id) && !bale)) {
+    if (held && itemInfo(held.id)?.food) {
+      it.cb.notify?.(held.id === I.GOLDEN_CARROT ? 'Golden carrots are too good for the trough — feed them by hand' : `Animals won't eat ${itemInfo(held.id).display} from a trough`);
+      return true;
+    }
     if (held) return false;
     const what = st.slots.filter(Boolean).map((s) => `${s.count} ${blockInfoName(s.id)}`).join(', ');
     it.cb.notify?.(what ? `Trough: ${what}` : 'Trough: empty — fill it with wheat, seeds, carrots, potatoes, apples or hay');
@@ -96,8 +107,9 @@ export function useTrough(it, t, held) {
   }
   // the whole stack goes in (a hay bale counts as nine wheat)
   const id = bale ? I.WHEAT : held.id, per = bale ? 9 : 1;
-  let put = 0;
-  while (put < held.count && addTo(st.slots, id, per) === 0) put++;
+  const room = roomFor(st.slots, id);
+  const put = Math.min(held.count, Math.floor(room / per));
+  if (put) addTo(st.slots, id, put * per);
   if (!put) { it.cb.notify?.('The trough is full'); return true; }
   if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(put);
   w.setBlockEntity(t.x, t.y, t.z, st);
@@ -123,6 +135,10 @@ function takeFor(st, mob) {
 }
 const hasFor = (st, mob, n) => st.slots.reduce((k, s) => k + (s && mob.likes(s.id) ? s.count : 0), 0) >= n;
 
+// a trough stops pairing animals up once this many of a kind crowd round it
+// (a pen of hundreds would grind a Chromebook to a halt)
+const CROWDED = 16;
+
 function tickTrough(game, st, x, y, z) {
   const near = game.entities.mobs.filter((m) => m.breedItem && !m.tamed && !m.dead && m.dying === undefined
     && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 6 && Math.abs(m.y - y) < 3);
@@ -138,6 +154,7 @@ function tickTrough(game, st, x, y, z) {
   const byKind = new Map();
   for (const m of ready) byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m]);
   for (const group of byKind.values()) {
+    if (near.filter((m) => m.kind === group[0].kind).length >= CROWDED) continue;   // pen's full: they've stopped breeding
     for (let i = 0; i + 1 < group.length; i += 2) {
       const [a, b] = [group[i], group[i + 1]];
       if (!hasFor(st, a, 2)) break;
@@ -199,7 +216,7 @@ function tickHarvester(game, st, x, y, z) {
         for (const d of drops) {
           if (d.count <= 0) continue;
           const left = chest ? store(w, chest, d) : d.count;
-          if (left > 0) game.entities.spawnDrops(x + 0.5, y + 1.1, z + 0.5, [{ ...d, count: left }]);
+          if (left > 0) game.entities.spawnDrops(cx + 0.5, cy + 0.3, cz + 0.5, [{ ...d, count: left }]);
         }
         game.sparks?.(cx + 0.5, cy + 0.5, cz + 0.5, 0x8fcf5a, 4);
         reaped++;
@@ -270,6 +287,6 @@ export function describeMachine(w, t) {
     const id = w.getBlockW(t.x + dx, t.y + dy, t.z + dz);
     if (isRipe(id)) ripe++; else if (cropFamily(id)) growing++;
   }
-  return `Harvester: ${ripe} ripe, ${growing} growing — ${chest ? 'filling the chest beside it' : 'no chest beside it, so the crops pop out on top'}`;
+  return `Harvester: ${ripe} ripe, ${growing} growing — ${chest ? 'filling the chest beside it' : 'no chest beside it, so the crops pop out where they grew'}`;
 }
 

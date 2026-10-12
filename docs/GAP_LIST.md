@@ -172,3 +172,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Pigs eat carrots/potatoes; a golden carrot breeds any farm animal or grows a baby up at once
 - [x] Aiming a vegetable at farmland plants it instead of eating it, even when hungry
 - [x] Rare loot: glinting drops plus a pickup chime and label; rare zombie (carrot, potato, iron) and skeleton (worn bow) drops; chests in newly generated worlds (generator v8) can hold carrots, potatoes and golden carrots. Older worlds' generation is unchanged
+- [x] Audit: a hay bale only goes into a trough with room for all nine wheat (a nearly full trough used to take part of it for free)
+- [x] Audit: picking your own thrown, dropped or death-pile diamonds back up isn't announced as a rare find (saved with the drop)
+- [x] Audit: a new sprinkler hurries crops already growing, not just their next stage; a harvester with no chest leaves crops where they grew instead of inside the block above it
+- [x] Audit: a trough stops pairing animals once 16 of a kind crowd round it; food a trough or composter won't take says why instead of doing nothing

@@ -282,7 +282,7 @@ export class Containers {
   dropStack(stack) {
     const p = this.player;
     const dir = p.lookDir();
-    this.game.entities.spawnDrops(p.x + dir.x, p.eyeY - 0.2, p.z + dir.z, [stack]);
+    this.game.entities.spawnDrops(p.x + dir.x, p.eyeY - 0.2, p.z + dir.z, [stack], true);   // yours already: no "rare find" on picking it back up
   }
 
   // ---------- rendering ----------

@@ -48,7 +48,9 @@ export class EntityManager {
     };
   }
 
-  spawnDrops(x, y, z, drops) {
+  // `owned`: things that were already the player's (thrown, spilled from a
+  // container, lost on death): picking them back up is no "rare find"
+  spawnDrops(x, y, z, drops, owned = false) {
     for (const d of drops) {
       if (!d || d.count <= 0) continue;
       const a = Math.random() * Math.PI * 2;
@@ -59,6 +61,7 @@ export class EntityManager {
         Math.cos(a) * s, 2.2 + Math.random(), Math.sin(a) * s,
         d.dur,
       ));
+      if (owned) this.drops[this.drops.length - 1].owned = true;
     }
   }
 
@@ -73,7 +76,7 @@ export class EntityManager {
   savedDrops() {
     // (ones still waiting for their chunk to load are kept too)
     return [...this.drops.filter((d) => !d.dead).map((d) => ({
-      id: d.id, count: d.count, dur: d.dur, x: d.x, y: d.y, z: d.z, age: d.age,
+      id: d.id, count: d.count, dur: d.dur, x: d.x, y: d.y, z: d.z, age: d.age, ...(d.owned ? { owned: true } : {}),
     })), ...(this.pendingDrops ?? [])].slice(-200);
   }
 
@@ -88,6 +91,7 @@ export class EntityManager {
         const d = new ItemDrop(this.scene, this.world, s.id, s.count, s.x, s.y, s.z, 0, 0, 0, s.dur);
         d.age = s.age ?? 0;
         d.pickupDelay = 0;
+        if (s.owned) d.owned = true;
         this.drops.push(d);
         return false;
       });

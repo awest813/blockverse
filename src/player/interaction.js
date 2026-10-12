@@ -446,6 +446,13 @@ export class Interaction {
     const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
       [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 } }[info.id];
     if (machine) this.world.setBlockEntity(px, py, pz, machine);
+    // a new sprinkler hurries along crops already growing nearby, not just their next stage
+    if (info.id === B.SPRINKLER) {
+      for (let dy = -2; dy <= 1; dy++) for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+        const st = this.world.blockEntityAt(px + dx, py + dy, pz + dz);
+        if (st?.kind === 'crop') st.grow = Math.min(st.grow, cropTime(this.world, px + dx, py + dy, pz + dz, this.dropRng));
+      }
+    }
     if (info.id === B.OAK_SIGN) {
       this.world.setBlockEntity(px, py, pz, { kind: 'sign', lines: ['', '', '', ''], rev: 0 });
       this.cb.editSign?.(px, py, pz);

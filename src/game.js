@@ -145,7 +145,7 @@ export class Game {
 
     this.entities = new EntityManager(this.scene, this.world);
     this.entities.onPickup = (d) => {
-      if (d && isRare(d.id)) {
+      if (d && isRare(d.id) && !d.owned) {
         this.sfx?.play('rare');
         this.hud.showLabel(`Rare find: ${itemInfo(d.id)?.display ?? 'something special'}!`);
       } else this.sfx?.play('pickup');
@@ -388,7 +388,7 @@ export class Game {
           const dir = this.player.lookDir();
           this.entities.spawnDrops(
             this.player.x + dir.x, this.player.eyeY - 0.3, this.player.z + dir.z,
-            [{ ...s, count }]);
+            [{ ...s, count }], true);
           this.player.consumeHeld(count);
           this.sfx?.play('drop');
         }
@@ -798,7 +798,7 @@ export class Game {
     if (this.worldMeta.keepInventory || p.mode === GAMEMODE_CREATIVE) return null;
     const stacks = [...p.inventory, ...p.armor].filter(Boolean);
     if (!stacks.length) return null;
-    this.entities.spawnDrops(p.x, p.y + 0.5, p.z, stacks.map((s) => ({ ...s })));
+    this.entities.spawnDrops(p.x, p.y + 0.5, p.z, stacks.map((s) => ({ ...s })), true);
     p.inventory.fill(null);
     p.armor.fill(null);
     p.events.dispatchEvent(new CustomEvent('inventory'));
