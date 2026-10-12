@@ -144,6 +144,16 @@ export class Game {
     this.entities.fx.sound = (name, opts) => this.sfx?.play(name, opts);
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
     this.entities.fx.hearts = (x, y, z, n = 4) => this.sparks(x, y, z, 0xff6a8a, n);
+    this.entities.fx.dust = (x, y, z) => this.sparks(x, y, z, 0x8a7a64, 18);
+    // a dungeon boss beaten: its cage remembers, so it stays beaten
+    this.entities.fx.bossDown = (boss) => {
+      const c = boss.home?.cage?.split(',').map(Number);
+      const st = c && this.world.blockEntityAt(c[0], c[1], c[2]);
+      if (st?.kind === 'spawner') { st.boss = 'defeated'; this.world.markModified(c[0], c[2]); }
+      this.hud.showLabel(`${boss.boss.name} defeated!`);
+      this.sfx?.play('victory');
+      this.sparks(boss.x, boss.y + boss.h * 0.6, boss.z, 0xffd84a, 30);
+    };
     this.entities.stash = (worldMeta.animals ?? []).slice();
     this.blasts = [];   // expanding explosion flashes
     this.sparkList = [];  // crit / sweep flecks
@@ -928,6 +938,14 @@ export class Game {
     this.updateBubbles(dt);
     this.sfx?.setUnderwater(this.player.headInWater && !this.player.dead && !this.paused);
     if (!gamePaused) this.updateAmbience(dt);
+    // the nearest boss you're fighting (or close to) gets a health bar
+    let boss = null, bd = 24;
+    for (const m of this.entities.mobs) {
+      if (!m.boss || m.dead || m.dying !== undefined) continue;
+      const d = Math.hypot(m.x - this.player.x, m.y - this.player.y, m.z - this.player.z);
+      if (d < bd && (d < 14 || m.state === 'chase')) { boss = m; bd = d; }
+    }
+    this.hud.setBoss(this.player.dead ? null : boss);
     this.sinceAttack += dt;
     if (!this.fireEl) this.fireEl = document.getElementById('fire-overlay');
     this.fireEl?.classList.toggle('on', this.player.fireTime > 0 && !this.player.dead);

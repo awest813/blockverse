@@ -56,6 +56,7 @@ export class Hud {
     this.promptEl = document.getElementById('click-to-play');
     this.fpsEl = document.getElementById('fps-counter');
     this.saveEl = document.getElementById('save-indicator');
+    this.bossEl = document.getElementById('boss-bar');
     this.toastsEl = document.getElementById('toasts');
     this.toastsEl.innerHTML = '';
     this.invHintEl = document.getElementById('inventory-hint');
@@ -126,6 +127,20 @@ export class Hud {
     const t0 = performance.now();
     const off = () => setTimeout(() => this.saveEl.classList.remove('on'), Math.max(0, 600 - (performance.now() - t0)));
     promise.then(off, off);
+  }
+
+  // a boss's name and health across the top of the screen (null hides it);
+  // only touches the DOM when something changed
+  setBoss(boss) {
+    if (!this.bossEl) return;
+    const key = boss ? `${boss.boss.name}|${Math.max(0, Math.ceil(boss.health))}|${boss.maxHealth}` : '';
+    if (key === this._bossKey) return;
+    this._bossKey = key;
+    this.bossEl.classList.toggle('hidden', !boss);
+    if (!boss) return;
+    this.bossEl.querySelector('.boss-name').textContent = boss.boss.name;
+    this.bossEl.querySelector('.boss-fill').style.width = `${Math.max(0, boss.health / boss.maxHealth) * 100}%`;
+    this.bossEl.setAttribute('aria-label', `${boss.boss.name}: ${Math.max(0, Math.ceil(boss.health))} of ${boss.maxHealth} health`);
   }
 
   // text defaults to the held item's name

@@ -520,7 +520,7 @@ export class Mob {
 
   die() {
     if (this.dying !== undefined) return;
-    if (!this.baby) this.onDeath?.();
+    if (!this.baby && !this.noLoot) this.onDeath?.();   // (summoned minions drop nothing)
     this.fx?.sound('mobdeath', { pos: this });
     // tip over briefly before vanishing; no longer a threat or a target
     this.dying = DEATH_TIME;

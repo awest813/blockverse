@@ -24,6 +24,11 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Multi-octave gradient-noise terrain with rolling hills, regional mountain ranges with snow caps, erosion-controlled roughness, and flattened swamps
 - **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths, mushrooms and mossy patches; tunnels narrow near the surface so hillsides stay intact and never breach the seabed
 - **Dungeons**: rare mossy-cobblestone rooms where caves run into them, each with a **monster spawner** (zombies, skeletons or spiders that keep coming until you break the cage) and one or two chests of loot
+- **Dungeon mini bosses**: the first time you walk into a dungeon, its guardian wakes, with a health bar across the top of the screen:
+  - **Zombie Brute** (zombie cages): huge and slow, hits hard, and winds up a ground slam that throws you back. Drops iron, a golden apple and sometimes a diamond
+  - **Bone Archer** (skeleton cages): looses three-arrow volleys and kicks you back out to bow range. Drops a bow, arrows and often a diamond
+  - **Brood Mother** (spider cages): hunts in any light and calls spiderlings each time she loses a quarter of her health. Drops string and diamonds
+  - Bosses shrug off most knockback, scale with difficulty, never wake in Peaceful or for creative players, and stay beaten once beaten (the cage remembers). Leave one alive and it's waiting when you come back; `/summon zombiebrute`, `bonearcher` or `broodmother` to practise
 - **Desert temples**: sandstone pyramids with corner towers; dig through the chiseled square in the hall floor to find a sealed vault of four treasure chests
 - **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
 - **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)

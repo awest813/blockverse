@@ -88,7 +88,7 @@ export class Arrow {
       }
       if (!player.dead && Math.abs(this.x - player.x) < 0.4 && Math.abs(this.z - player.z) < 0.4
         && this.y > player.y && this.y < player.y + 1.85) {
-        player.damage(this.damage, 'skeleton');
+        player.damage(this.damage, this.cause ?? 'skeleton');
         // knock the player back along the arrow's path
         const len = Math.hypot(this.vx, this.vz) || 1;
         player.vx += (this.vx / len) * 4;

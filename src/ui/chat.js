@@ -5,16 +5,17 @@ import { itemInfo, I } from '../items/items.js';
 import { GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL } from '../core/constants.js';
 import * as MOBS from '../entities/mobs.js';
 import * as ANIMALS from '../entities/animals.js';
+import * as BOSSES from '../entities/bosses.js';
 
 // /summon names -> classes (every exported mob class with a lower-case name)
 const SUMMONABLE = {};
-for (const mod of [MOBS, ANIMALS]) {
+for (const mod of [MOBS, ANIMALS, BOSSES]) {
   for (const [name, Cls] of Object.entries(mod)) {
     if (typeof Cls === 'function' && /^[A-Z]/.test(name) && Cls.prototype?.think && name !== 'PrimedTnt') SUMMONABLE[name.toLowerCase()] = Cls;
   }
 }
 
-const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper']);
+const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'zombiebrute', 'bonearcher', 'broodmother']);
 
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];
@@ -239,6 +240,7 @@ export class Chat {
         }
         const dir = p.lookDir();
         const mob = g.mobSpawner.spawnMob(Cls, p.x + dir.x * 3, p.y + 0.2, p.z + dir.z * 3);
+        mob.setDifficulty?.(g.difficulty);   // bosses scale with the world
         this.message(`Summoned a ${args[0].toLowerCase()}`, '#9fdcff');
         break;
       }

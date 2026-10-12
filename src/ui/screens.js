@@ -24,6 +24,10 @@ const DEATH_MESSAGES = {
   lava: 'You tried to swim in lava',
   husk: 'You were slain by a Husk',
   drowned: 'You were slain by a Drowned',
+  brute: 'You were crushed by a Zombie Brute',
+  bonearcher: 'You were shot by the Bone Archer',
+  broodmother: 'You were devoured by the Brood Mother',
+  spiderling: 'You were swarmed by spiderlings',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

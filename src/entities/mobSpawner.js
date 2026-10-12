@@ -55,13 +55,15 @@ export class MobSpawner {
 
     const mobs = this.entities.mobs;
     const passives = mobs.filter((m) => !m.hostile && m.countsForCap !== false && !m.flier && !m.swimmer && !m.tamed && !m.persistent).length;
-    const hostiles = mobs.filter((m) => m.hostile).length;
+    const hostiles = mobs.filter((m) => m.hostile && !m.boss).length;   // a dungeon boss doesn't crowd out the night
 
     // peaceful: monsters vanish; otherwise far-away ones slowly despawn
     for (const m of mobs) {
       if (!m.hostile || m.dead) continue;
       const d = Math.hypot(m.x - player.x, m.y - player.y, m.z - player.z);
-      if (this.difficulty === 0 || (d > 48 && Math.random() < 0.15)) m.kill();
+      // a dungeon boss waits longer, and only goes once you're well away (its
+      // cage summons it again, at full strength, when you come back)
+      if (this.difficulty === 0 || (m.boss ? d > 64 : d > 48 && Math.random() < 0.15)) m.kill();
     }
 
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);

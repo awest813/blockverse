@@ -23,8 +23,10 @@ export class EntityManager {
     this.stashTimer = 0;
     // effects mobs can trigger; explode/sound are filled in by the game
     this.fx = {
-      shoot: (x, y, z, vx, vy, vz, dmg) => {
-        this.projectiles.push(new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg));
+      shoot: (x, y, z, vx, vy, vz, dmg, cause = 'skeleton') => {
+        const a = new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg);
+        a.cause = cause;
+        this.projectiles.push(a);
         this.fx.sound('shoot', { pos: { x, y, z } });
       },
       // the player's bow

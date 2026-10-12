@@ -197,7 +197,7 @@ export class Zombie extends Mob {
     this.state = 'chase';
     this.moving = true;
     this.steer(player, 1);
-    if (this.dist3(player) < 1.6 && this.attackCooldown <= 0 && this.meleeHit(player, 3, this.kind)) {
+    if (this.dist3(player) < 1.6 * (this.reach ?? 1) && this.attackCooldown <= 0 && this.meleeHit(player, this.meleeDamage ?? 3, this.kind)) {
       this.attackCooldown = 1.1;
       // a burning zombie passes the fire on
       if (this.fireTime > 0) player.fireTime = Math.max(player.fireTime ?? 0, 3);
@@ -321,11 +321,13 @@ export class Skeleton extends Mob {
       const t = flat / speed;
       // lob to cancel gravity over the flight time, plus a little inaccuracy
       const spread = () => (Math.random() - 0.5) * 0.9;
-      this.fx?.shoot(ox, oy, oz,
+      this.shootArrow(ox, oy, oz,
         (dx / flat) * speed + spread(), dy / t + 10 * t + spread(), (dz / flat) * speed + spread(),
         2 + ((Math.random() * 2) | 0));
     }
   }
+
+  shootArrow(x, y, z, vx, vy, vz, dmg) { this.fx?.shoot(x, y, z, vx, vy, vz, dmg, this.kind); }
 
   onDeath() {
     this.dropFn?.([{ id: I.BONE, count: (Math.random() * 3) | 0 }]);
@@ -348,8 +350,7 @@ export class Spider extends Mob {
     this.ambientSound = 'spider';
   }
 
-  buildModel() {
-    const body = 0x2e2a28, bodyL = 0x4a4440;
+  buildModel(body = 0x2e2a28, bodyL = 0x4a4440) {
     this.part(0.7, 0.55, 0.9, body, 0, 0.55, 0.3);            // abdomen
     this.part(0.5, 0.45, 0.45, bodyL, 0, 0.55, -0.35);        // head
     for (const x of [-0.13, 0.13]) this.part(0.09, 0.07, 0.02, 0xd02020, x, 0.62, -0.58);   // red eyes
@@ -389,7 +390,7 @@ export class Spider extends Mob {
     this.state = 'chase';
     this.moving = true;
     this.steer(player, 1);
-    if (this.dist3(player) < 1.8 && this.attackCooldown <= 0 && this.meleeHit(player, 2, 'spider')) {
+    if (this.dist3(player) < 1.8 * (this.reach ?? 1) && this.attackCooldown <= 0 && this.meleeHit(player, this.meleeDamage ?? 2, this.kind)) {
       this.attackCooldown = 1;
       if (this.onGround) this.vy = 5;   // pounce
     }

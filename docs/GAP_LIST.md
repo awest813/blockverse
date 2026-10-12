@@ -149,3 +149,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Thumb controls bled through the pause/settings/death screens (and sat under "Done"); hidden behind menus, restored on resume; hotbar and bars recede
 - [x] "Inventory & crafting" hint ran off the screen at a large GUI scale on laptops (horizontal scroll); it moves above the hotbar when room is tight
 - Checked, no problems: create → play → craft by clicking → die → respawn → reload; furnace/chest/cursor/bucket/drop/explosion item conservation; save mid-smelt; 961-block build identical after reload and after export → delete → import; resize, tab hide/show, key mashing, repeated quit/play
+
+## Dungeon mini bosses
+- [x] Zombie Brute / Bone Archer / Brood Mother guard zombie / skeleton / spider dungeons (buried cages only — not surface temples); woken at runtime, so every existing world gets them without a generator change
+- [x] Boss health bar (name + bar, top centre; moves under the touch buttons on phones)
+- [x] Special attacks: telegraphed ground slam, three-arrow volley + kick, spiderling waves at 75/50/25% health (spiderlings drop nothing)
+- [x] Knockback resistance, difficulty-scaled health, leashed to their room, despawn past 64 blocks and return at full health; never in Peaceful or for creative players
+- [x] The cage remembers 'awake' / 'defeated' (saved with the chunk); guaranteed loot; roar on waking, fanfare on defeat; death messages; /summon support
+

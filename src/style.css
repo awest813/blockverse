@@ -45,6 +45,16 @@ html, body {
   color: #fff; font: 12px/1.5 Consolas, monospace;
 }
 
+/* a dungeon boss's name and health, top centre */
+#boss-bar {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  width: min(360px, 70%); text-align: center; pointer-events: none;
+}
+#boss-bar .boss-name { color: #fff; font-size: 13px; font-weight: 700; text-shadow: 1px 1px 0 #000; margin-bottom: 3px; letter-spacing: 0.5px; }
+#boss-bar .boss-track { height: 8px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.35); }
+#boss-bar .boss-fill { height: 100%; width: 100%; background: linear-gradient(#e0473a, #a8231a); transition: width 0.2s; }
+#hud.touch #boss-bar { top: 72px; }   /* under the touch buttons */
+
 /* a quiet note in the corner while the world saves */
 #save-indicator {
   position: absolute; right: 8px; top: 36px;

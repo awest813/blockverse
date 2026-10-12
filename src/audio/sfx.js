@@ -6,10 +6,10 @@ const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
-  pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
+  roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20 };
+const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
@@ -365,6 +365,14 @@ export class Sfx {
         break;
       case 'whale':    // a slow rising song
         this.tone({ freq: 90 * detune, endFreq: 170, dur: 1.6, gain: 0.08, type: 'sine' });
+        break;
+      case 'roar':     // a dungeon boss wakes: a growl rising into a bellow
+        this.tone({ freq: 62 * detune, endFreq: 130, dur: 0.6, gain: 0.13, type: 'sawtooth' });
+        this.noise({ freq: 380, q: 0.8, dur: 1.2, gain: 0.14 });
+        this.later(() => this.tone({ freq: 130 * detune, endFreq: 52, dur: 0.9, gain: 0.13, type: 'sawtooth' }), 550);
+        break;
+      case 'victory':  // a boss beaten: a bright rising arpeggio
+        [523, 659, 784, 1047].forEach((f, i) => this.later(() => this.tone({ freq: f, dur: 0.3, gain: 0.08, type: 'triangle' }), i * 110));
         break;
       case 'mobhurt':
         this.tone({ freq: 340 * detune, endFreq: 220, dur: 0.1, gain: 0.12, type: 'square' });
