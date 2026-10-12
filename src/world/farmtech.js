@@ -135,13 +135,26 @@ function takeFor(st, mob) {
 }
 const hasFor = (st, mob, n) => st.slots.reduce((k, s) => k + (s && mob.likes(s.id) ? s.count : 0), 0) >= n;
 
+// an animal only eats from a trough it can walk to: no feeding through a fence or wall
+function canReach(w, x, y, z, m) {
+  const cx = x + 0.5, cz = z + 0.5, dx = m.x - cx, dz = m.z - cz;
+  const steps = Math.ceil(Math.hypot(dx, dz) * 2);
+  const ty = Math.floor(m.y + 0.2);
+  for (let i = 1; i < steps - 1; i++) {   // (not the animal's own spot: it may be pressed into a fence)
+    const bx = Math.floor(cx + (dx * i) / steps), bz = Math.floor(cz + (dz * i) / steps);
+    if (bx === x && bz === z) continue;
+    if (blockInfo(w.getBlockW(bx, ty, bz))?.solid) return false;
+  }
+  return true;
+}
+
 // a trough stops pairing animals up once this many of a kind crowd round it
 // (a pen of hundreds would grind a Chromebook to a halt)
 const CROWDED = 16;
 
 function tickTrough(game, st, x, y, z) {
   const near = game.entities.mobs.filter((m) => m.breedItem && !m.tamed && !m.dead && m.dying === undefined
-    && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 6 && Math.abs(m.y - y) < 3);
+    && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 6 && Math.abs(m.y - y) < 3 && canReach(game.world, x, y, z, m));
   let fed = false;
   // babies first: a mouthful each helps them grow
   for (const m of near) {

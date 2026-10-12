@@ -176,3 +176,9 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Audit: picking your own thrown, dropped or death-pile diamonds back up isn't announced as a rare find (saved with the drop)
 - [x] Audit: a new sprinkler hurries crops already growing, not just their next stage; a harvester with no chest leaves crops where they grew instead of inside the block above it
 - [x] Audit: a trough stops pairing animals once 16 of a kind crowd round it; food a trough or composter won't take says why instead of doing nothing
+
+## Playthroughs 2 (10 runs: 3 newcomer, 3 min-maxer, 2 builder, 2 chaos)
+- [x] New farming tips: carrots & potatoes, hay & troughs, farm machines (the old Farming tip only mentioned seeds)
+- [x] Offering an animal the wrong food says what it eats ("Pigs eat apple, carrot or potato") instead of doing nothing
+- [x] A trough only feeds animals that can walk to it: it used to reach through a fence and make wild animals outside the pen "kept"
+- Checked, no problems: item conservation through harvester (chest full), collector (chest full, worn tools), trough (break, explosion), composter (~10.7 wheat per bone meal); owned drops across reload; boss loot, rare-find announcement and "stays beaten" across reload; generator-8 chests (19 loaded: 9 carrot, 9 potato, 1 golden carrot stacks); pens cap at the crowding limit; a 192-crop farm identical after save & quit and export → delete → import, and still harvesting; a 13-animal ranch grew to 60 and every animal came back after unloading and reloading; every item used on every new block and 1200 random actions without an error or an inconsistent state; tab hide/show, four viewports, 200 random taps, 300 random keys, five quick quit/plays on a phone

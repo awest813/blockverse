@@ -217,9 +217,16 @@ export class Game {
       // right-click an animal: tame / sit / follow
       if (button === 2 && !this.uiOpen && !this.player.dead) {
         const m = this.mobUnderCrosshair();
-        if (m?.interact?.(this.player, this.player.heldStack())) {
+        const held = this.player.heldStack();
+        if (m?.interact?.(this.player, held)) {
           this.interaction.placeCooldown = 0.35;
           this.interaction.useCooldown = 0.35;
+        } else if (m?.breedItem && !m.tamed && held && itemInfo(held.id)?.food) {
+          // the wrong food: say what it does eat
+          const foods = [m.breedItem, ...(m.breedAlso ?? [])].map((id) => itemInfo(id)?.display.toLowerCase()).filter(Boolean);
+          const list = foods.length > 1 ? `${foods.slice(0, -1).join(', ')} or ${foods.at(-1)}` : foods[0];
+          const who = m.kind === 'sheep' ? 'Sheep' : `${m.kind[0].toUpperCase()}${m.kind.slice(1)}s`;
+          this.hud.showLabel(`${who} eat ${list}`);
         }
         return;
       }
