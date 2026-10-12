@@ -167,8 +167,10 @@ function tickTrough(game, st, x, y, z) {
   const byKind = new Map();
   for (const m of ready) byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m]);
   for (const group of byKind.values()) {
-    if (near.filter((m) => m.kind === group[0].kind).length >= CROWDED) continue;   // pen's full: they've stopped breeding
-    for (let i = 0; i + 1 < group.length; i += 2) {
+    // each pair makes one baby, up to the crowding limit (counting the whole pen, not just those at the trough)
+    const pen = game.entities.mobs.filter((m) => m.kind === group[0].kind && !m.dead && m.dying === undefined && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 10).length;
+    const pairs = Math.max(0, CROWDED - pen);
+    for (let i = 0; i + 1 < group.length && i / 2 < pairs; i += 2) {
       const [a, b] = [group[i], group[i + 1]];
       if (!hasFor(st, a, 2)) break;
       a.feed(takeFor(st, a));
