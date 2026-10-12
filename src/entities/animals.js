@@ -363,9 +363,9 @@ export class Horse extends Animal {
     this.ambientSound = 'horse';
     this.breedItem = I.GOLDEN_APPLE;   // (and golden carrots, like every farm animal)
     this.safeFall = 6;
-    // its own gifts: top speed 7.5-11 m/s, a jump of 1.8-2.7 blocks (any horse clears a fence)
+    // its own gifts: top speed 7.5-11 m/s, a jump of 2.1-2.9 blocks (any horse clears a fence, even at a trot)
     this.gallop = 7.5 + Math.random() * 3.5;
-    this.jumpV = 9.8 + Math.random() * 2.1;
+    this.jumpV = 10.4 + Math.random() * 1.9;
     this.diet = [...TAMING_FOOD.keys()];   // what it'll eat (for the "wrong food" hint)
     this.temper = 0;       // taming progress, 0-100
     this.owned = false;    // tamed
@@ -417,7 +417,7 @@ export class Horse extends Animal {
   loadExtra(e) {
     this.setCoat(e.coat);
     for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
-    this.jumpV = Math.max(this.jumpV, 9.8);   // horses saved before every horse could clear a fence
+    this.jumpV = Math.max(this.jumpV, 10.4);   // horses saved before every horse could clear a fence
     this.owned = !!e.owned;
     this.setSaddled(!!e.saddled);
   }
@@ -520,12 +520,20 @@ export class Horse extends Animal {
     // called by a goat horn: come at a gallop
     if (this.called > 0 && !this.rider && !this.leash) {
       this.called -= dt;
-      if (playerDist < 3 || player.dead) { this.called = 0; this.state = 'idle'; this.stateTime = 2; this.moving = false; return; }
+      if (playerDist < 3 || player.dead) { this.called = 0; this.waiting = 20; this.moving = false; return; }
       this.state = 'called';
       this.steer(player, 1);
       this.moving = true;
       this.hurry = true;   // at a canter, slowing only for the last few steps
       this.fleeSpeed = playerDist > 6 ? Math.max(4, this.gallop * 0.7) : 3;
+      return;
+    }
+    // come when called, it waits for you (facing you) for a while
+    if (this.waiting > 0 && !this.rider && !this.leash) {
+      this.waiting -= dt;
+      this.state = 'idle'; this.stateTime = 1; this.moving = false;
+      if (playerDist > 1.5) this.steer(player, 1);
+      if (playerDist > 12) this.waiting = 0;   // you walked off
       return;
     }
     if (!this.rider) return super.think(dt, player, playerDist);

@@ -225,7 +225,7 @@ export class Mob {
     this.yaw += Math.max(-3 * dt, Math.min(3 * dt, dyaw));
 
     const inWater = entityInWater(this.world, this);
-    const speed = this.state === 'flee' || this.state === 'chase' || this.hurry ? this.fleeSpeed : this.speed;
+    const speed = this.leashSpeed || (this.state === 'flee' || this.state === 'chase' || this.hurry ? this.fleeSpeed : this.speed);
     let dvx = 0, dvz = 0;
     if (this.moving) {
       dvx = -Math.sin(this.yaw) * speed;
@@ -492,6 +492,7 @@ export class Mob {
   think(dt, player, playerDist) {
     this.stateTime -= dt;
     this.hurry = false;
+    this.leashSpeed = 0;
     if (this.leash && this.leashPull()) return;
     // hold out a food it likes and it follows you (how you bring a herd home)
     if (this.breedItem && !this.tamed && this.state !== 'flee' && this.tempted(player, playerDist)) return;
@@ -544,9 +545,10 @@ export class Mob {
     const dx = e.x - this.x, dz = e.z - this.z, d = Math.hypot(dx, dz);
     if (d < LEASH_SLACK) return false;
     this.state = 'leash';
-    this.targetYaw = Math.atan2(-dx, -dz);
+    this.targetYaw = this.yaw = Math.atan2(-dx, -dz);   // (a lead turns you round on the spot)
     this.moving = true;
-    this.hurry = d > 6;
+    // the tauter the lead, the faster it's pulled along: it keeps up with a sprint
+    this.leashSpeed = Math.max(this.speed, Math.min(10, (d - LEASH_SLACK) * 2));
     return true;
   }
 
@@ -558,8 +560,6 @@ export class Mob {
     const e = this.leashEnd();
     const dx = e.x - this.x, dy = e.y - (this.y + this.h * 0.7), dz = e.z - this.z, d = Math.hypot(dx, dy, dz);
     if (d > LEASH_SNAP) { this.unleash(true); this.fx?.sound('shear', { pos: this, vol: 0.5 }); return; }
-    // a taut lead tugs (it can haul an animal round a corner it won't walk)
-    if (d > LEASH_SLACK + 3) { const k = Math.min(40, (d - LEASH_SLACK - 3) * 25) * dt; this.vx += (dx / d) * k; this.vz += (dz / d) * k; }
     // draw the rope from the animal's neck to the holder
     const sx = this.x - Math.sin(this.yaw) * this.w * 0.45, sy = this.y + this.h * 0.7, sz = this.z - Math.cos(this.yaw) * this.w * 0.45;
     this.rope.position.set((sx + e.x) / 2, (sy + e.y) / 2, (sz + e.z) / 2);
