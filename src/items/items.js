@@ -80,6 +80,12 @@ item(I.CLAY_BALL, 'clay_ball', 'Clay Ball');
 item(I.WHEAT_SEEDS, 'wheat_seeds', 'Wheat Seeds', { places: B.WHEAT_0 });
 item(I.WHEAT, 'wheat', 'Wheat');
 item(I.BREAD, 'bread', 'Bread', { food: 5, sat: 6 });
+// planted on farmland like seeds (aim at the farmland), eaten otherwise
+item(I.CARROT, 'carrot', 'Carrot', { food: 3, sat: 3.6, places: B.CARROTS_0 });
+item(I.POTATO, 'potato', 'Potato', { food: 1, sat: 0.6, places: B.POTATOES_0 });
+item(I.BAKED_POTATO, 'baked_potato', 'Baked Potato', { food: 5, sat: 6 });
+// rare: brings any farm animal into breeding, and grows a baby up at once
+item(I.GOLDEN_CARROT, 'golden_carrot', 'Golden Carrot', { food: 6, sat: 14 });
 item(I.BONE, 'bone', 'Bone');
 item(I.BONE_MEAL, 'bone_meal', 'Bone Meal');
 item(I.STRING, 'string', 'String');
@@ -176,9 +182,15 @@ const BLOCK_BURN = new Map([
   [B.CRAFTING_TABLE, 15], [B.COAL_ORE, 0], [B.DEAD_BUSH, 5],
   [B.COAL_BLOCK, 800], [B.BOOKSHELF, 15], [B.CHEST, 15],
   [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5],
+  [B.HAY_BALE, 20], [B.COMPOSTER, 15], [B.TROUGH, 15],
 ]);
 
 // Unified item info for any id (block or item).
+// Rare finds: they glint where they lie, and picking one up is announced.
+const RARE = new Set([I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
+  I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);
+export const isRare = (id) => RARE.has(id);
+
 export function itemInfo(id) {
   if (id < 256) {
     const b = blockInfo(id);

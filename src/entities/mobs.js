@@ -18,6 +18,7 @@ export class Pig extends Mob {
     this.kind = 'pig';
     this.ambientSound = 'pig';
     this.breedItem = I.APPLE;
+    this.breedAlso = [I.CARROT, I.POTATO];   // pigs love root vegetables
   }
 
   buildModel() {
@@ -205,8 +206,14 @@ export class Zombie extends Mob {
     }
   }
 
+  // rotten flesh, and rarely something it was carrying: a carrot, a potato, an iron ingot
   onDeath() {
-    this.dropFn?.([{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }]);
+    const drops = [{ id: I.ROTTEN_FLESH, count: 1 + ((Math.random() * 2) | 0) }];
+    const r = Math.random();
+    if (r < 0.025) drops.push({ id: I.CARROT, count: 1 });
+    else if (r < 0.05) drops.push({ id: I.POTATO, count: 1 });
+    else if (r < 0.06) drops.push({ id: I.IRON_INGOT, count: 1 });
+    this.dropFn?.(drops);
   }
 }
 
@@ -329,8 +336,15 @@ export class Skeleton extends Mob {
 
   shootArrow(x, y, z, vx, vy, vz, dmg) { this.fx?.shoot(x, y, z, vx, vy, vz, dmg, this.kind); }
 
+  // bones, arrows now and then, and rarely its own (well-used) bow
   onDeath() {
-    this.dropFn?.([{ id: I.BONE, count: (Math.random() * 3) | 0 }]);
+    const drops = [{ id: I.BONE, count: (Math.random() * 3) | 0 }, { id: I.ARROW, count: (Math.random() * 3) | 0 }];
+    if (Math.random() < 0.025) {
+      const bow = makeStack(I.BOW, 1);
+      if (bow.dur !== undefined) bow.dur = Math.max(1, Math.floor(bow.dur * (0.2 + Math.random() * 0.5)));
+      drops.push(bow);
+    }
+    this.dropFn?.(drops);
   }
 }
 

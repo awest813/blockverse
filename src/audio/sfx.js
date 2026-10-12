@@ -405,6 +405,10 @@ export class Sfx {
         this.noise({ freq: 380, q: 0.8, dur: 1.2, gain: 0.14 });
         this.later(() => this.tone({ freq: 130 * detune, endFreq: 52, dur: 0.9, gain: 0.13, type: 'sawtooth' }), 550);
         break;
+      case 'rare':     // picked up something special: a bright two-note chime
+        this.tone({ freq: 988, dur: 0.18, gain: 0.08, type: 'triangle' });
+        this.later(() => this.tone({ freq: 1319, dur: 0.32, gain: 0.08, type: 'triangle' }), 90);
+        break;
       case 'victory':  // a boss beaten: a bright rising arpeggio
         [523, 659, 784, 1047].forEach((f, i) => this.later(() => this.tone({ freq: f, dur: 0.3, gain: 0.08, type: 'triangle' }), i * 110));
         break;

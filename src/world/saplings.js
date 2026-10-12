@@ -1,8 +1,9 @@
 // Plant growth in loaded chunks. Saplings grow into trees after a few
-// minutes; wheat advances one stage at a time, twice as fast on farmland
-// with water nearby. Each plant has a block entity {kind, grow: seconds}.
+// minutes; crops (wheat, carrots, potatoes) advance one stage at a time,
+// twice as fast on farmland with water nearby and faster still by a sprinkler. Each plant has a block entity {kind, grow: seconds}.
 
 import { B, blockInfo } from '../blocks/blocks.js';
+import { I } from '../items/itemIds.js';
 import { CHUNK_Y } from '../core/constants.js';
 import { mulberry32 } from '../core/rng.js';
 
@@ -30,6 +31,16 @@ export function tickSaplings(world, dt) {
   }
 }
 
+// Crops: four stages each, planted from seeds or the vegetable itself.
+// [first stage, ripe stage, what replanting it costs]
+export const CROP_FAMILIES = [
+  [B.WHEAT_0, B.WHEAT_3, I.WHEAT_SEEDS],
+  [B.CARROTS_0, B.CARROTS_3, I.CARROT],
+  [B.POTATOES_0, B.POTATOES_3, I.POTATO],
+];
+export const cropFamily = (id) => CROP_FAMILIES.find(([a, b]) => id >= a && id <= b) ?? null;
+export const isRipe = (id) => CROP_FAMILIES.some(([, ripe]) => id === ripe);
+
 // is there water within 4 blocks of the farmland under this crop?
 function hydrated(world, x, y, z) {
   for (let dx = -4; dx <= 4; dx++) {
@@ -40,19 +51,32 @@ function hydrated(world, x, y, z) {
   return false;
 }
 
-// seconds until the next growth stage
+// a sprinkler within 4 blocks (a level above or below counts too)
+export function nearSprinkler(world, x, y, z) {
+  for (let dy = -1; dy <= 2; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      for (let dz = -4; dz <= 4; dz++) if (world.getBlockW(x + dx, y + dy, z + dz) === B.SPRINKLER) return true;
+    }
+  }
+  return false;
+}
+
+// seconds until the next growth stage: halved by water nearby, and a
+// sprinkler (which counts as water) speeds it up further
 export function cropTime(world, x, y, z, rng) {
   const base = 40 + rng() * 40;
+  if (nearSprinkler(world, x, y, z)) return base / 3.5;
   return hydrated(world, x, y, z) ? base / 2 : base;
 }
 
-// advance a wheat crop by `steps` stages (bone meal uses 2)
+// advance a crop by `steps` stages (bone meal uses 2)
 export function growCrop(world, x, y, z, steps, rng) {
   const id = world.getBlockW(x, y, z);
-  if (id < B.WHEAT_0 || id > B.WHEAT_3) { world.setBlockEntity(x, y, z, null); return; }
-  const next = Math.min(B.WHEAT_3, id + steps);
+  const fam = cropFamily(id);
+  if (!fam) { world.setBlockEntity(x, y, z, null); return; }
+  const next = Math.min(fam[1], id + steps);
   world.setBlock(x, y, z, next);   // clears the block entity
-  if (next < B.WHEAT_3) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
+  if (next < fam[1]) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
 }
 
 function growTree(world, x, y, z, st) {

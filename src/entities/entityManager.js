@@ -6,6 +6,7 @@ import { Arrow } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken } from './animals.js';
+import { isRare } from '../items/items.js';
 
 // animals that can be kept (stashed while far away, saved with the world)
 const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken };
@@ -91,9 +92,14 @@ export class EntityManager {
         return false;
       });
     }
+    this.glintT = (this.glintT ?? 0) - dt;
+    const glint = this.glintT <= 0;
+    if (glint) this.glintT = 0.6;
     for (const d of this.drops) {
       d.update(dt, player);
-      if (d.pickedUp) this.onPickup?.();
+      if (d.pickedUp) this.onPickup?.(d);
+      // rare finds sparkle so they're not missed in the grass
+      else if (glint && !d.dead && isRare(d.id) && Math.hypot(d.x - player.x, d.z - player.z) < 32) this.fx.glint?.(d.x, d.y + 0.35, d.z);
     }
     this.drops = this.drops.filter((d) => !d.dead);
 

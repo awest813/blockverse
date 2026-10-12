@@ -25,7 +25,7 @@ import { CampfireFx } from './render/campfireFx.js';
 import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
 import { MobSpawner } from './entities/mobSpawner.js';
-import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I } from './items/items.js';
+import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
@@ -37,6 +37,8 @@ import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } f
 import { B, isWater } from './blocks/blocks.js';
 import { isLowEndDevice, isChromeOS } from './ui/display.js';
 import { Music } from './audio/music.js';
+import { cropFamily } from './world/saplings.js';
+import { tickFarmTech } from './world/farmtech.js';
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -142,7 +144,13 @@ export class Game {
     this.player.mode = worldMeta.mode ?? GAMEMODE_SURVIVAL;
 
     this.entities = new EntityManager(this.scene, this.world);
-    this.entities.onPickup = () => this.sfx?.play('pickup');
+    this.entities.onPickup = (d) => {
+      if (d && isRare(d.id)) {
+        this.sfx?.play('rare');
+        this.hud.showLabel(`Rare find: ${itemInfo(d.id)?.display ?? 'something special'}!`);
+      } else this.sfx?.play('pickup');
+    };
+    this.entities.fx.glint = (x, y, z) => this.sparks(x, y, z, 0xffe27a, 2);
     this.entities.fx.explode = (x, y, z, power) => this.explode(x, y, z, power);
     this.entities.fx.sound = (name, opts) => this.sfx?.play(name, opts);
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
@@ -179,6 +187,7 @@ export class Game {
       editSign: (x, y, z) => this.signEditor.open(x, y, z),
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
+      sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -495,7 +504,7 @@ export class Game {
     const t = this.interaction.target;
     if (!t) return;
     let id = t.id === B.FURNACE_LIT ? B.FURNACE : t.id;
-    if (id >= B.WHEAT_0 && id <= B.WHEAT_3) id = I.WHEAT_SEEDS;   // crops pick their seeds
+    if (cropFamily(id)) id = cropFamily(id)[2];   // crops pick their seed (or carrot / potato)
     else if (id === B.OAK_DOOR_TOP) id = B.OAK_DOOR;
     else if (!isBlockItem(id) || id === B.WATER || id === B.LAVA || id === B.FIRE) return;
     const p = this.player;
@@ -1135,6 +1144,7 @@ export class Game {
     tickSaplings(this.world, dt);
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
     tickSpawners(this, dt);
+    tickFarmTech(this, dt);
     tickRandomGrowth(this.world, this.player, dt);
     tickFires(this.world, dt);
     this.burnInCampfires(dt);

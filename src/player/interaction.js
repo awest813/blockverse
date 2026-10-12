@@ -6,7 +6,8 @@ import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid } from '../blocks/block
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
-import { growCrop, cropTime } from '../world/saplings.js';
+import { growCrop, cropTime, CROP_FAMILIES, isRipe } from '../world/saplings.js';
+import { useComposter, useTrough, describeMachine, FEEDS } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { mulberry32 } from '../core/rng.js';
 
@@ -15,7 +16,7 @@ const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.B
 const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING]);
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
 const BOW_DRAW_TIME = 1;     // seconds to full draw
-const CROPS = new Set([B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
+const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
 const NEEDS_GROUND = new Set([B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
@@ -47,6 +48,7 @@ export function entityContents(st) {
   if (st.kind === 'furnace') return [st.input, st.fuel, st.output].filter(Boolean);
   if (st.kind === 'chest') return st.slots.filter(Boolean);
   if (st.kind === 'campfire') return st.slots.filter(Boolean).map((s) => ({ id: s.id, count: 1 }));
+  if (st.kind === 'trough') return st.slots.filter(Boolean);
   return [];
 }
 
@@ -270,6 +272,16 @@ export class Interaction {
     const t = this.target;
     const held = p.heldStack();
 
+    // the composter takes plant scraps; the trough takes animal feed; the
+    // machines say what they're up to
+    if (t && t.id === B.COMPOSTER && !p.sneaking && useComposter(this, t, held)) { this.useCooldown = 0.2; return; }
+    if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
+    if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER) && !p.sneaking && !(held && isBlockItem(held.id))) {
+      this.cb.notify?.(describeMachine(this.world, t));
+      this.useCooldown = 0.3;
+      return;
+    }
+
     // right-click a sign to change what it says
     if (t && t.id === B.OAK_SIGN && !p.sneaking) {
       this.cb.editSign?.(t.x, t.y, t.z);
@@ -313,7 +325,9 @@ export class Interaction {
       const info = itemInfo(held.id);
       const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
       const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
-      if ((info?.food || info?.drink) && wantsIt && !cooking && p.mode !== GAMEMODE_CREATIVE) {
+      const planting = info?.places && t?.id === B.FARMLAND && t.ny === 1;     // a carrot aimed at farmland is planted
+      const feeding = t && (t.id === B.TROUGH || t.id === B.COMPOSTER);          // or goes in the trough / composter
+      if ((info?.food || info?.drink) && wantsIt && !cooking && !planting && !feeding && p.mode !== GAMEMODE_CREATIVE) {
         this.eating = { id: held.id, slot: p.selected, t: 0, need: info.eatTime, auto: this.inputMode === 'touch' };
         this.cb.playSound('eat', {});
         return;
@@ -428,6 +442,10 @@ export class Interaction {
     // saplings remember when to grow (seconds of loaded time)
     if (SAPLINGS.has(info.id)) this.world.setBlockEntity(px, py, pz, { kind: 'sapling', grow: 60 + this.dropRng() * 120 });
     if (info.id === B.FIRE) this.world.setBlockEntity(px, py, pz, { kind: 'fire', t: 8 });   // fire always burns out
+    // farm machines keep a little state of their own
+    const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
+      [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 } }[info.id];
+    if (machine) this.world.setBlockEntity(px, py, pz, machine);
     if (info.id === B.OAK_SIGN) {
       this.world.setBlockEntity(px, py, pz, { kind: 'sign', lines: ['', '', '', ''], rev: 0 });
       this.cb.editSign?.(px, py, pz);
@@ -620,7 +638,7 @@ export class Interaction {
 
     // bone meal: ripen a crop, or make a sapling grow right away
     if (held.id === I.BONE_MEAL) {
-      if (CROPS.has(t.id) && t.id !== B.WHEAT_3) {
+      if (CROPS.has(t.id) && !isRipe(t.id)) {
         growCrop(this.world, t.x, t.y, t.z, 2, this.dropRng);
       } else if (SAPLINGS.has(t.id)) {
         const st = this.world.blockEntityAt(t.x, t.y, t.z);

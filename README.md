@@ -63,6 +63,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
+- **Farm automation**: carrots and potatoes (rare from tall grass, zombies and chests) grow on farmland alongside wheat. Bake potatoes, and press nine wheat into a **hay bale**. A **sprinkler** (iron around a water bucket) makes crops within 4 blocks grow about 3× faster. A **harvester** (iron, an iron hoe and a chest) reaps ripe crops within 4 blocks, replants them, and puts the harvest in a chest beside it. A **collector** pulls dropped items within 4 blocks into a chest beside it, which suits egg and wool pens. A **composter** turns plants and food scraps into bone meal
 - **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on
 - **Flint and steel** lights fires, TNT and campfires; a **fishing rod** lands fish (and the odd treasure) when the bobber ducks under; snowballs and eggs can be thrown (an egg may hatch a chick); worn tools mend when two are crafted together
 - **Whale oil**: burns twice as long as coal, makes 6 torches with a stick, and fuels **lanterns** (iron, glass panes and oil) that stand on a block or hang beneath one
@@ -81,6 +82,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🐷 Mobs
 - **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food
 - **Breeding**: feed two animals their favourite food (wheat for cows and sheep, seeds for chickens, apples for pigs) and they'll have a baby that grows up in a few minutes; animals you've fed are kept and saved with your world instead of wandering off
+- **Animal husbandry**: pigs also eat carrots and potatoes. A **golden carrot** (gold ingots around a carrot) puts any farm animal in love, or grows a baby up at once. Fill a **trough** with feed (a hay bale counts as nine wheat): it feeds babies nearby so they grow faster, and pairs up adults to breed on its own
+- **Rare finds**: diamonds, golden apples, golden carrots, the ancient sword and diamond gear glint with gold sparkles when dropped, and picking one up plays a chime and shows "Rare find!". Zombies sometimes drop a carrot, potato or iron ingot, and skeletons sometimes drop a worn bow
 - Mobs jostle each other and get shoved aside instead of stacking up inside one another
 - **Dolphins** play in the open ocean in pods: they swim over to you, leap from the waves and give swimmers near them a burst of speed (feed one a fish and it escorts you). Gentle **manatees** graze in warm rivers, swamps and shallow coasts, drifting up to breathe
 - **Wildlife**: foxes (wary of people, hunt chickens), birds that flit between the treetops, fish in any water (they flop and suffocate on land) and whales in the deep ocean (they yield whale oil)

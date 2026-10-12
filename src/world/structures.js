@@ -44,7 +44,18 @@ const SHRINE_LOOT = [
   [I.STONE_SPEAR, 1, 1, 0.25], [I.IRON_SPEAR, 1, 1, 0.12], [I.IRON_SWORD, 1, 1, 0.08],
 ];
 
+// Generator 8 adds farming finds. They're extra rolls after the original
+// ones, so a chest from an older world rolls exactly what it always did.
+const FARM_LOOT = new Map([
+  [DUNGEON_LOOT, [[I.CARROT, 1, 4, 0.35], [I.POTATO, 1, 4, 0.35], [I.GOLDEN_CARROT, 1, 1, 0.06]]],
+  [DESERT_TEMPLE_LOOT, [[I.GOLDEN_CARROT, 1, 2, 0.15]]],
+  [FOREST_TEMPLE_LOOT, [[I.CARROT, 2, 5, 0.4], [I.POTATO, 2, 5, 0.4], [I.GOLDEN_CARROT, 1, 1, 0.08]]],
+  [SHRINE_LOOT, [[I.CARROT, 1, 3, 0.4], [I.POTATO, 1, 3, 0.35]]],
+]);
+let lootVersion = 1;   // set by whatever structure is generating (generation is synchronous)
+
 function rollLoot(rng, table) {
+  if (lootVersion >= 8) table = [...table, ...(FARM_LOOT.get(table) ?? [])];
   const slots = new Array(27).fill(null);
   for (const [id, lo, hi, chance] of table) {
     if (rng() > chance) continue;
@@ -70,6 +81,7 @@ function spawnerMob(rng) {
 // two loot chests. Only built where it cuts into a cave, so it can be found;
 // the cave keeps its openings into the room. Returns [index, entity] pairs.
 export function placeDungeon(gen, blocks, cx, cz, heightMap) {
+  lootVersion = gen.version;
   if (gen.version < 3) return placeDungeonV2(gen, blocks, cx, cz, heightMap);
   const rng = coordRng(gen.seed, cx, cz, 4242);
   if (rng() > 0.05) return [];
@@ -293,6 +305,7 @@ export function nearStructure(gen, wx, wz, margin = 3) {
 
 // Build this chunk's planned structure. Returns [index, entity] pairs.
 export function buildStructure(gen, blocks, cx, cz) {
+  lootVersion = gen.version;
   const plan = structurePlan(gen, cx, cz);
   if (!plan) return [];
   const rng = coordRng(gen.seed, cx, cz, 6262);
@@ -526,6 +539,9 @@ const RUIN_LOOT = [
   [I.COAL, 2, 6, 0.5], [I.GOLD_INGOT, 1, 3, 0.4], [I.IRON_INGOT, 1, 3, 0.4], [I.ROTTEN_FLESH, 1, 4, 0.4],
   [I.FISH_RAW, 1, 3, 0.3], [I.BOOK, 1, 1, 0.2], [I.GOLDEN_APPLE, 1, 1, 0.05], [I.STONE_SPEAR, 1, 1, 0.2], [I.EGG, 1, 2, 0.15],
 ];
+
+FARM_LOOT.set(SHIPWRECK_LOOT, [[I.POTATO, 2, 6, 0.5], [I.CARROT, 1, 4, 0.3]]);   // ship's stores
+FARM_LOOT.set(RUIN_LOOT, [[I.GOLDEN_CARROT, 1, 1, 0.08]]);
 
 // The tumbledown walls of a stone building, half buried on the sea floor.
 function oceanRuin(b, { y }, rng) {

@@ -29,6 +29,16 @@ shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
 shaped(B.TORCH, 4, ['C', 'S'], { C: [I.COAL, I.CHARCOAL], S: [I.STICK] });
 shaped(B.TORCH, 6, ['O', 'S'], { O: [I.WHALE_OIL], S: [I.STICK] });
 shaped(B.LANTERN, 1, ['.I.', 'GOG', '.I.'], { I: [I.IRON_INGOT], G: [B.GLASS_PANE], O: [I.WHALE_OIL] });
+
+// ---- farming & husbandry ----
+shaped(B.HAY_BALE, 1, ['WWW', 'WWW', 'WWW'], { W: [I.WHEAT] });
+shapeless(I.WHEAT, 9, [[B.HAY_BALE]]);
+shaped(B.COMPOSTER, 1, ['P.P', 'P.P', 'PPP'], { P: ANY_PLANKS });
+shaped(B.TROUGH, 1, ['P.P', 'PPP'], { P: ANY_PLANKS });
+shaped(B.SPRINKLER, 1, ['.I.', 'IWI', '.I.'], { I: [I.IRON_INGOT], W: [I.WATER_BUCKET] });
+shaped(B.HARVESTER, 1, ['III', 'IHI', 'ICI'], { I: [I.IRON_INGOT], H: [I.IRON_HOE], C: [B.CHEST] });
+shaped(B.COLLECTOR, 1, ['I.I', 'ICI', '.I.'], { I: [I.IRON_INGOT], C: [B.CHEST] });
+shaped(I.GOLDEN_CARROT, 1, ['GGG', 'GCG', 'GGG'], { G: [I.GOLD_INGOT], C: [I.CARROT] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
 shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 
@@ -254,6 +264,7 @@ export const SMELTING = new Map([
   [I.BEEF_RAW, { id: I.BEEF_COOKED, count: 1 }],
   [I.CHICKEN_RAW, { id: I.CHICKEN_COOKED, count: 1 }],
   [I.FISH_RAW, { id: I.FISH_COOKED, count: 1 }],
+  [I.POTATO, { id: I.BAKED_POTATO, count: 1 }],
   [B.OAK_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.BIRCH_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.SPRUCE_LOG, { id: I.CHARCOAL, count: 1 }],

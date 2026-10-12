@@ -94,6 +94,20 @@ export const B = {
   OAK_SIGN: 88,
   BONE_BLOCK: 89,
   LANTERN: 90,
+  CARROTS_0: 91,
+  CARROTS_1: 92,
+  CARROTS_2: 93,
+  CARROTS_3: 94,
+  POTATOES_0: 95,
+  POTATOES_1: 96,
+  POTATOES_2: 97,
+  POTATOES_3: 98,
+  HAY_BALE: 99,
+  COMPOSTER: 100,
+  SPRINKLER: 101,
+  HARVESTER: 102,
+  COLLECTOR: 103,
+  TROUGH: 104,
 };
 
 // Tool classes
@@ -214,7 +228,8 @@ reg(def(B.CACTUS, 'cactus', 'Cactus', {
 }));
 reg(def(B.TALL_GRASS, 'tall_grass', 'Tall Grass', {
   solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, replaceable: true, sound: 'leaf',
-  drop: (rng) => (rng() < 0.125 ? [{ id: I.WHEAT_SEEDS, count: 1 }] : []),
+  // seeds, and now and then a wild carrot or potato: how farming starts
+  drop: (rng) => { const r = rng(); return r < 0.125 ? [{ id: I.WHEAT_SEEDS, count: 1 }] : r < 0.135 ? [{ id: I.CARROT, count: 1 }] : r < 0.145 ? [{ id: I.POTATO, count: 1 }] : []; },
 }));
 reg(def(B.DANDELION, 'dandelion', 'Dandelion', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.POPPY, 'poppy', 'Poppy', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
@@ -285,6 +300,15 @@ for (let stage = 0; stage < 4; stage++) {
       : (rng) => [{ id: I.WHEAT, count: 1 }, { id: I.WHEAT_SEEDS, count: 1 + ((rng() * 3) | 0) }],
   }));
 }
+// carrots and potatoes: planted from the vegetable itself; ripe ones give 2-4
+for (const [first, name, display, item] of [[B.CARROTS_0, 'carrots', 'Carrots', I.CARROT], [B.POTATOES_0, 'potatoes', 'Potatoes', I.POTATO]]) {
+  for (let stage = 0; stage < 4; stage++) {
+    reg(def(first + stage, `${name}_${stage}`, display, {
+      ...plant, hardness: 0, textures: `${name}_stage_${stage}`,
+      drop: stage < 3 ? () => [{ id: item, count: 1 }] : (rng) => [{ id: item, count: 2 + ((rng() * 3) | 0) }],
+    }));
+  }
+}
 reg(def(B.TNT, 'tnt', 'TNT', {
   hardness: 0, sound: 'leaf',
   textures: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
@@ -335,6 +359,30 @@ reg(def(B.LAVA, 'lava', 'Lava', {
 // underwater plants share their cell with water
 reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true }));
 reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
+// ---- farming & husbandry ----
+reg(def(B.HAY_BALE, 'hay_bale', 'Hay Bale', {
+  hardness: 0.5, sound: 'leaf', textures: { top: 'hay_bale_top', bottom: 'hay_bale_top', side: 'hay_bale_side' },
+}));
+// feed it plant scraps; when it's full, out comes bone meal. Block entity {kind: 'composter', level 0..7}
+reg(def(B.COMPOSTER, 'composter', 'Composter', {
+  hardness: 0.6, tool: TOOL_AXE, sound: 'wood', textures: { top: 'composter_top', bottom: 'oak_planks', side: 'composter_side' },
+}));
+// waters and speeds up crops within 4 blocks. Block entity {kind: 'sprinkler'}
+reg(def(B.SPRINKLER, 'sprinkler', 'Sprinkler', {
+  solid: false, render: R_SHAPE, shape: 'sprinkler', opacity: 0, hardness: 1, tool: TOOL_PICKAXE, sound: 'stone', icon: 'sprinkler',
+}));
+// reaps ripe crops within 4 blocks, replants them, and fills a chest beside it. {kind: 'harvester', t}
+reg(def(B.HARVESTER, 'harvester', 'Harvester', {
+  hardness: 2, tool: TOOL_PICKAXE, sound: 'stone', textures: { top: 'harvester_top', bottom: 'harvester_top', side: 'harvester_side' },
+}));
+// draws in items lying nearby and puts them in a chest beside it. {kind: 'collector'}
+reg(def(B.COLLECTOR, 'collector', 'Collector', {
+  hardness: 2, tool: TOOL_PICKAXE, sound: 'stone', textures: { top: 'collector_top', bottom: 'collector_top', side: 'collector_side' },
+}));
+// holds animal feed; animals nearby help themselves (and breed). {kind: 'trough', slots: [3]}
+reg(def(B.TROUGH, 'trough', 'Feeding Trough', {
+  render: R_SHAPE, shape: 'trough', opacity: 0, hardness: 0.8, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'trough',
+}));
 // an iron lantern burning whale oil: stands on a block, or hangs under one (meta 1)
 reg(def(B.LANTERN, 'lantern', 'Lantern', {
   solid: false, render: R_SHAPE, shape: 'lantern', opacity: 0, lightEmit: 15, hardness: 0.5, tool: TOOL_PICKAXE, sound: 'glass', icon: 'lantern',
@@ -385,6 +433,7 @@ export function isSolid(id) {
 // growing wheat, a door's top half, fire)
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
+    (id >= B.CARROTS_0 && id <= B.POTATOES_3) ||
     id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE;
 }
 

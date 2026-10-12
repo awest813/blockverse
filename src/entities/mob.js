@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { moveEntity, entityInBlock, entityInWater } from '../core/physics.js';
 import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
+import { I } from '../items/itemIds.js';
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
 const HURT_RED = new THREE.Color(0xff3333);
@@ -92,19 +93,32 @@ export class Mob {
 
   // ---- breeding (animals with a breedItem) ----
 
-  // right-click with its food: fall in love (or help a baby grow)
-  interact(player, held) {
-    if (!this.breedItem || this.tamed || held?.id !== this.breedItem) return false;
+  // will it eat this? (its favourite food, or a golden carrot, which any farm animal loves)
+  likes(id) {
+    if (!this.breedItem || this.tamed) return false;
+    return id === I.GOLDEN_CARROT || id === this.breedItem || (this.breedAlso?.includes(id) ?? false);
+  }
+
+  // Eat one: an adult falls in love, a baby grows (a golden carrot grows it
+  // up at once). Returns false if it isn't hungry. Shared by hand-feeding
+  // and the feeding trough.
+  feed(id) {
     if (this.baby) {
-      this.grow = Math.max(0, this.grow - 60);
+      this.grow = id === I.GOLDEN_CARROT ? 0 : Math.max(0, this.grow - 60);
     } else {
-      if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return true;   // not hungry yet
+      if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return false;   // not hungry yet
       this.love = 30;
     }
     this.persistent = true;
-    if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
     this.fx?.hearts?.(this.x, this.y + this.h, this.z);
     this.fx?.sound('eat', { vol: 0.6, pos: this });
+    return true;
+  }
+
+  // right-click with its food: fall in love (or help a baby grow)
+  interact(player, held) {
+    if (!this.likes(held?.id)) return false;
+    if (this.feed(held.id) && player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
     return true;
   }
 

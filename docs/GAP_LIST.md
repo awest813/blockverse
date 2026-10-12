@@ -164,3 +164,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] New sounds: ignite (flint and steel), shear, arrow thunk, bow draw, item drop, swim strokes, lava bucket gloop; lava meeting water sizzles instead of splashing
 - [x] Muted volume builds no audio nodes
 
+
+## Farming, automation and husbandry
+- [x] Carrots and potatoes (4 growth stages each, replanted from the vegetable); baked potato; golden carrot; hay bale (9 wheat, reversible)
+- [x] Sprinkler (crops within 4 blocks grow ~3.5× faster), harvester (reaps ripe crops, replants, fills an adjacent chest), collector (vacuums drops into an adjacent chest), composter (scraps → bone meal); all saved with the chunk
+- [x] Trough: holds feed (a hay bale goes in as 9 wheat), grows babies and pairs up adults within 6 blocks
+- [x] Pigs eat carrots/potatoes; a golden carrot breeds any farm animal or grows a baby up at once
+- [x] Aiming a vegetable at farmland plants it instead of eating it, even when hungry
+- [x] Rare loot: glinting drops plus a pickup chime and label; rare zombie (carrot, potato, iron) and skeleton (worn bow) drops; chests in newly generated worlds (generator v8) can hold carrots, potatoes and golden carrots. Older worlds' generation is unchanged

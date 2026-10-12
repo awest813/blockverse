@@ -31,8 +31,9 @@ function smoothstep(a, b, x) {
 // 3 = surface structures (temples, shrines); 4 = per-quadrant decoration
 // (river-bank trees, cane by any water, boulders, sparse tundra spruce);
 // 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
-// 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils.
-export const LATEST_GEN = 7;
+// 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils;
+// 8 = farming loot in chests (carrots, potatoes, golden carrots).
+export const LATEST_GEN = 8;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));

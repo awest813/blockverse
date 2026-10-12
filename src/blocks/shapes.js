@@ -94,6 +94,11 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     // lily pads float on the (slightly lowered) water surface below them
     case 'pad': return [[P, -0.125, P, 1 - P, -0.1, 1 - P]];
     case 'layer': return [[0, 0, 0, 1, 2 * P, 1]];
+    // a little brass head on a pipe
+    case 'sprinkler': return [[5 * P, 0, 5 * P, 11 * P, 2 * P, 11 * P], [7 * P, 2 * P, 7 * P, 9 * P, 8 * P, 9 * P], [4 * P, 8 * P, 4 * P, 12 * P, 10 * P, 12 * P]];
+    // an open wooden box
+    case 'trough': return [[0, 0, 0, 1, 3 * P, 1], [0, 3 * P, 0, 1, 10 * P, 2 * P], [0, 3 * P, 14 * P, 1, 10 * P, 1],
+      [0, 3 * P, 2 * P, 2 * P, 10 * P, 14 * P], [14 * P, 3 * P, 2 * P, 1, 10 * P, 14 * P]];
     case 'lantern': {
       // body and cap (a hanging one dangles on a chain from the block above)
       const boxes = [[5 * P, 0, 5 * P, 11 * P, 7 * P, 11 * P], [6 * P, 7 * P, 6 * P, 10 * P, 9 * P, 10 * P]];

@@ -1390,3 +1390,99 @@ export function generateTile(name) {
   tileCache.set(name, canvas);
   return canvas;
 }
+
+// ---- farming & husbandry ----
+
+// crops grown from the vegetable: leafy tops, the root showing when ripe
+function rootCrop(ctx, rng, stage, leaf, root) {
+  const leafD = shade(leaf, 0.75), leafL = shade(leaf, 1.2);
+  const height = 3 + stage * 3;
+  for (const x of [2, 6, 10, 13]) {
+    const h = Math.max(2, height - ((rng() * 3) | 0));
+    for (let y = TILE - h; y < TILE; y++) px(ctx, x + (y % 2), y, y < TILE - h + 2 ? leafL : rng() < 0.5 ? leaf : leafD);
+    px(ctx, x - 1, TILE - h + 1, leaf); px(ctx, x + 2, TILE - h + 2, leafD);
+    if (stage === 3) { rect(ctx, x, TILE - 3, 2, 3, root); px(ctx, x, TILE - 3, shade(root, 1.2)); }
+  }
+}
+for (let stage = 0; stage < 4; stage++) {
+  tile(`carrots_stage_${stage}`, (ctx, rng) => rootCrop(ctx, rng, stage, [70, 150, 50], [236, 128, 32]));
+  tile(`potatoes_stage_${stage}`, (ctx, rng) => rootCrop(ctx, rng, stage, [60, 132, 56], [196, 160, 96]));
+}
+tile('carrot', (ctx) => {
+  const o = [236, 128, 32], oD = [196, 92, 20], oL = [250, 170, 80];
+  for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 12 - i, 3 - (i > 6 ? 1 : 0), 2, o); px(ctx, 3 + i, 13 - i, oD); }
+  px(ctx, 5, 10, oL); px(ctx, 8, 7, oL); px(ctx, 6, 9, oD);
+  rect(ctx, 11, 2, 2, 3, [70, 150, 50]); rect(ctx, 13, 3, 2, 2, [90, 176, 64]); px(ctx, 12, 1, [90, 176, 64]);
+});
+tile('golden_carrot', (ctx) => {
+  const o = [240, 196, 52], oD = [168, 112, 20], oL = [255, 244, 170];
+  for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 12 - i, 3 - (i > 6 ? 1 : 0), 2, o); px(ctx, 3 + i, 13 - i, oD); px(ctx, 5 + i - (i > 6 ? 1 : 0), 12 - i, oD); }
+  px(ctx, 5, 10, oL); px(ctx, 8, 7, oL); px(ctx, 10, 5, oL);
+  rect(ctx, 11, 2, 2, 3, [200, 150, 30]); rect(ctx, 13, 3, 2, 2, [236, 200, 80]); px(ctx, 12, 1, [236, 200, 80]);
+  px(ctx, 2, 4, oL); px(ctx, 1, 4, [255, 230, 120]); px(ctx, 3, 4, [255, 230, 120]); px(ctx, 2, 3, [255, 230, 120]); px(ctx, 2, 5, [255, 230, 120]);   // a glint
+});
+function potato(ctx, base, dark, light) {
+  rect(ctx, 4, 5, 8, 7, base); rect(ctx, 3, 6, 10, 5, base);
+  rect(ctx, 4, 11, 8, 1, dark); rect(ctx, 3, 10, 1, 1, dark); px(ctx, 12, 10, dark);
+  px(ctx, 5, 6, light); px(ctx, 6, 6, light);
+  for (const [x, y] of [[7, 8], [10, 7], [5, 9]]) px(ctx, x, y, dark);   // eyes
+}
+tile('potato', (ctx) => potato(ctx, [196, 160, 96], [150, 116, 62], [222, 194, 136]));
+tile('baked_potato', (ctx) => {
+  potato(ctx, [178, 118, 54], [130, 80, 34], [210, 160, 90]);
+  rect(ctx, 6, 6, 4, 2, [246, 226, 150]);   // split open, fluffy inside
+});
+tile('hay_bale_side', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[206, 172, 70], 5], [[226, 196, 92], 3], [[176, 140, 50], 2]]);
+  for (let y = 0; y < TILE; y += 2) for (let x = 0; x < TILE; x++) if (rng() < 0.25) px(ctx, x, y, [236, 210, 120]);
+  for (const y of [3, 12]) rect(ctx, 0, y, TILE, 1, [120, 70, 30]);   // the binding
+});
+tile('hay_bale_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[200, 166, 66], 5], [[222, 190, 88], 3], [[170, 134, 46], 2]]);
+  for (let r = 2; r < 8; r += 2) for (let a = 0; a < 24; a++) px(ctx, Math.round(7.5 + Math.cos(a / 24 * Math.PI * 2) * r), Math.round(7.5 + Math.sin(a / 24 * Math.PI * 2) * r), [176, 140, 52]);
+  for (const x of [3, 12]) rect(ctx, x, 0, 1, TILE, [120, 70, 30]);
+});
+tile('composter_side', (ctx, rng) => {
+  planks(ctx, rng, P.woodOak);
+  for (const x of [0, 15]) rect(ctx, x, 0, 1, TILE, P.woodOakD);
+  rect(ctx, 0, 0, TILE, 1, P.woodOakD); rect(ctx, 0, 15, TILE, 1, P.woodOakD);
+});
+tile('composter_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[92, 70, 40], 4], [[70, 52, 30], 3], [[104, 120, 52], 2]]);   // dark compost with green bits
+  rect(ctx, 0, 0, TILE, 2, P.woodOak); rect(ctx, 0, 14, TILE, 2, P.woodOak); rect(ctx, 0, 0, 2, TILE, P.woodOak); rect(ctx, 14, 0, 2, TILE, P.woodOak);
+});
+function metal(ctx, rng, base) { fillNoise(ctx, rng, [[base, 6], [shade(base, 1.12), 2], [shade(base, 0.85), 2]]); }
+tile('harvester_side', (ctx, rng) => {
+  metal(ctx, rng, [150, 152, 160]);
+  rect(ctx, 0, 0, TILE, 2, [96, 98, 108]); rect(ctx, 0, 14, TILE, 2, [96, 98, 108]);
+  for (let i = 0; i < 3; i++) { rect(ctx, 3 + i * 4, 5, 2, 7, [200, 202, 208]); px(ctx, 3 + i * 4, 4, [230, 232, 236]); }   // blades
+});
+tile('harvester_top', (ctx, rng) => {
+  metal(ctx, rng, [140, 142, 150]);
+  rect(ctx, 5, 5, 6, 6, [96, 98, 108]); rect(ctx, 6, 6, 4, 4, [214, 180, 80]);   // a wheat-gold hatch
+});
+tile('collector_side', (ctx, rng) => {
+  metal(ctx, rng, [120, 122, 132]);
+  rect(ctx, 0, 0, TILE, 3, [80, 82, 92]);
+  for (let y = 5; y < 14; y += 3) rect(ctx, 3, y, 10, 1, [90, 92, 102]);
+});
+tile('collector_top', (ctx, rng) => {
+  metal(ctx, rng, [120, 122, 132]);
+  for (let r = 0; r < 4; r++) { const o = 2 + r * 2; rect(ctx, o, o, 12 - r * 4, 12 - r * 4, shade([60, 62, 70], 1 + r * 0.15)); }   // the funnel
+  rect(ctx, 7, 7, 2, 2, [20, 20, 24]);
+});
+tile('sprinkler', (ctx) => {
+  // laid out to match the shape: base (bottom 2 rows), pipe, head (rows 6-7)
+  const brass = [196, 160, 70], brassD = [150, 116, 44], brassL = [230, 204, 120];
+  rect(ctx, 5, 14, 6, 2, brassD);
+  rect(ctx, 7, 8, 2, 6, brass); px(ctx, 7, 9, brassL);
+  rect(ctx, 4, 6, 8, 2, brass); rect(ctx, 4, 6, 8, 1, brassL);
+  for (const [x, y] of [[2, 4], [5, 2], [8, 1], [11, 2], [14, 4]]) px(ctx, x, y, [120, 180, 240]);   // spray
+});
+tile('trough', (ctx, rng) => {
+  // the icon: a wooden box with wheat in it
+  rect(ctx, 1, 6, 14, 8, P.woodOakD);
+  rect(ctx, 2, 7, 12, 6, P.woodOak);
+  for (let x = 3; x < 13; x++) px(ctx, x, 7 + ((rng() * 2) | 0), [214, 180, 80]);
+  rect(ctx, 1, 6, 14, 1, P.woodOakL);
+});
