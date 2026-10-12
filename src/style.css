@@ -331,7 +331,9 @@ html, body {
 }
 .title.title-sm { font-size: 30px; letter-spacing: 1.5px; margin-bottom: 4px; }
 
-.subtitle { color: #ffd83d; font-size: 15px; margin-top: -14px; transform: rotate(-3deg); text-shadow: 1px 1px 0 #000; }
+.subtitle { color: #ffd83d; font-size: 15px; margin-top: -14px; transform: rotate(-3deg); text-shadow: 1px 1px 0 #000; animation: splash 1.6s ease-in-out infinite; }
+@keyframes splash { 50% { transform: rotate(-3deg) scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .subtitle { animation: none; } }
 
 .btn {
   min-width: 320px; max-width: 100%;
@@ -373,7 +375,7 @@ html, body {
 .field input:focus, .field select:focus { border-color: var(--focus); }
 
 .world-list {
-  width: min(420px, 100%); max-height: min(300px, 40vh); overflow-y: auto;
+  width: min(460px, 100%); max-height: min(300px, 40vh); overflow-y: auto;
   display: flex; flex-direction: column; gap: 6px;
   padding: 4px;
   background: rgba(0,0,0,0.35);
@@ -399,12 +401,16 @@ html, body {
 .world-entry:hover .w-play, .world-entry.selected .w-play { opacity: 1; }
 .world-entry .w-play:hover { background: rgba(111, 191, 74, 0.55); }
 .world-empty { padding: 14px; color: #999; text-align: center; }
-.world-entry .w-name { font-weight: 700; }
-.world-entry .w-info { font-size: 12px; color: #aaa; }
+.world-entry .w-text { min-width: 0; flex: 1; }
+.world-entry .w-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; padding-top: 1px; }   /* (room for accents: Ú) */
+.world-entry .w-info { font-size: 12px; color: #aaa; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
 
-.footer { position: absolute; bottom: 10px; left: var(--gutter); right: var(--gutter); text-align: center; font-size: 12px; color: #888; }
+/* in the flow under the buttons (pinned to the window's foot it crowded short screens) */
+.footer { margin-top: 6px; max-width: 460px; text-align: center; font-size: 12px; color: #888; }
+.btn.half { min-width: 200px; }
+.world-actions .btn { min-width: 84px; padding-left: 10px; padding-right: 10px; }   /* four to a row, even on a narrow phone */
 .confirm-body { max-width: 380px; text-align: center; color: #ccc; font-weight: 400; }
 
 /* pause-screen controls reference */
@@ -767,7 +773,7 @@ html, body {
 .sign-line:focus { outline: none; background: rgba(255, 240, 200, 0.25); }
 
 /* world list: search + sort, copy seed */
-.world-tools { display: flex; gap: 8px; width: min(520px, 100%); }
+.world-tools { display: flex; gap: 8px; width: min(460px, 100%); }
 .world-search { flex: 1; min-width: 0; padding: 6px 10px; background: rgba(0,0,0,0.55); border: 2px solid #555; color: #fff; font: inherit; font-size: 14px; }
 .world-search:focus-visible, .world-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .world-sort { padding: 6px; background: rgba(0,0,0,0.55); border: 2px solid #555; color: #fff; font: inherit; font-size: 13px; }

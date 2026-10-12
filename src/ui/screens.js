@@ -79,6 +79,14 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+// the line under the title: a different one each time the game is opened
+const SPLASHES = [
+  'An open-source voxel sandbox!', 'Now with horses!', 'Mind the goat!', 'Ducks!', 'Lead them home!',
+  'Harvest time!', 'Rare finds glint!', 'Beware the Brood Mother!', 'Plant carrots!', 'Bake a potato!',
+  'Saddle up!', 'Sprinklers included!', 'Whales and dolphins!', 'Build anything!', 'Survive the night!',
+  'Infinite worlds!', 'Made of blocks!', 'Works on Chromebooks!', 'Tame a dog!', 'Mine deep!',
+];
+
 // Auto GUI scale shrinks everything to fit the tallest thing, the inventory.
 // A menu that needs less room (pause, the world list, dialogs) is grown back
 // toward its full size, so on a phone its buttons are big enough to tap.
@@ -172,7 +180,9 @@ export class Screens {
     if (sub) {
       const s = document.createElement('div');
       s.className = 'subtitle';
-      s.textContent = 'An open-source voxel sandbox!';
+      // a different line each visit (the same one while you stay on the menus)
+      this.splash ??= SPLASHES[(Math.random() * SPLASHES.length) | 0];
+      s.textContent = this.splash;
       el.appendChild(s);
     }
   }
@@ -325,6 +335,7 @@ export class Screens {
         const name = document.createElement('div');
         name.className = 'w-name';
         name.textContent = w.name;
+        name.title = w.name;   // (long names are cut short with …)
         const info = document.createElement('div');
         info.className = 'w-info';
         const mode = w.mode === GAMEMODE_CREATIVE ? 'Creative' : 'Survival';
@@ -343,6 +354,7 @@ export class Screens {
         });
         info.appendChild(copy);
         const left = document.createElement('div');
+        left.className = 'w-text';
         left.appendChild(name);
         left.appendChild(info);
         e.appendChild(left);
@@ -363,25 +375,24 @@ export class Screens {
     renderList();
     el.appendChild(list);
 
-    // with no worlds yet, creating one is the only thing to do: make it the big button
+    // Play (or, with no worlds yet, Create) is the big green button; then
+    // what you can do to the selected world; then the rest
+    const createBtn = this.btn('Create New World', () => this.showCreate(), worlds.length ? 'btn half' : 'btn primary');
     const row = document.createElement('div');
     row.className = 'row';
-    const createBtn = this.btn('Create New World', () => this.showCreate(), worlds.length ? 'btn small' : 'btn primary');
-    row.appendChild(worlds.length ? playBtn : createBtn);
+    if (worlds.length) { playBtn.className = 'btn primary half'; row.append(playBtn, createBtn); } else row.append(createBtn);
     el.appendChild(row);
 
-    const row2 = document.createElement('div');
-    row2.className = 'row';
     if (worlds.length) {
-      row2.appendChild(createBtn);
-      row2.appendChild(renameBtn);
-      row2.appendChild(dupBtn);
-      row2.appendChild(exportBtn);
-      row2.appendChild(deleteBtn);
+      const row2 = document.createElement('div');
+      row2.className = 'row world-actions';
+      row2.append(renameBtn, dupBtn, exportBtn, deleteBtn);
+      el.appendChild(row2);
     }
-    row2.appendChild(importBtn);
-    row2.appendChild(this.btn('Settings', () => this.showSettings(() => this.showMain(selected)), 'btn small'));
-    el.appendChild(row2);
+    const row3 = document.createElement('div');
+    row3.className = 'row';
+    row3.append(importBtn, this.btn('Settings', () => this.showSettings(() => this.showMain(selected)), 'btn small'));
+    el.appendChild(row3);
 
     const foot = document.createElement('div');
     foot.className = 'footer';

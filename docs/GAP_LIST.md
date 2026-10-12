@@ -210,3 +210,11 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Touch screens: buttons at least ~36px, settings toggles/tabs ~30px with spaced rows, enlarged tap areas for recipe-book tabs and "copy seed" (coarse-pointer media query, so the title screen gets it too); taller chat box
 - [x] "Saving…" covered the touch Pause button; it sits below the top buttons on touch
 - [x] Tooltips (items and recipes) say what the less obvious things are for: lead, goat horn, saddle, golden carrot, bone meal, seeds, carrots, potatoes, shears, bucket, hay bale, trough, composter, sprinkler, harvester, collector
+
+## Title screen
+- [x] Play is the big green button, beside Create New World; the selected world's actions (Rename, Duplicate, Export, Delete) on their own row, then Import and Settings (seven small buttons used to wrap 3/3/1 on a phone)
+- [x] Long world names are cut short with "…" (full name on hover) instead of running under the play button and out of the list; accents aren't clipped; world details wrap
+- [x] Search box, sort menu and list line up (460px)
+- [x] The footer sits under the buttons instead of pinned to the window's foot (it covered the list on 1024x600 and touched the buttons on a phone)
+- [x] A rotating splash line under the title ("Now with horses!", "Mind the goat!"…), with a gentle pulse that respects reduced motion
+- Checked: no worlds / one / eight with search and no-match; laptop, Chromebook, 1024x600, landscape and portrait phone; keyboard focus lands on Create (no worlds) or the selected world
