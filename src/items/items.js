@@ -95,10 +95,14 @@ item(I.ARROW, 'arrow', 'Arrow');
 item(I.FLINT, 'flint', 'Flint');
 item(I.FEATHER, 'feather', 'Feather');
 item(I.LEATHER, 'leather', 'Leather');
+// put on a tamed horse to ride it
+item(I.SADDLE, 'saddle', 'Saddle', { stack: 1 });
 item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3, sat: 1.8 });
 item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8, sat: 12.8 });
 item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2, sat: 1.2, sickly: 0.3 });
 item(I.CHICKEN_COOKED, 'chicken_cooked', 'Cooked Chicken', { food: 6, sat: 7.2 });
+item(I.DUCK_RAW, 'duck_raw', 'Raw Duck', { food: 2, sat: 1.2, sickly: 0.3 });
+item(I.DUCK_COOKED, 'duck_cooked', 'Roast Duck', { food: 7, sat: 8 });
 item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2, sat: 0.4 });
 item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5, sat: 6 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });

@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper } from './mobs.js';
-import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee } from './animals.js';
+import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
@@ -24,14 +24,16 @@ const MANATEE_CAP = 2;
 
 // land animals per biome: [class, weight]
 const LAND_TABLE = {
-  [BIOME.PLAINS]: [[Pig, 3], [Sheep, 3], [Cow, 3], [Chicken, 3], [Cat, 1]],
+  [BIOME.PLAINS]: [[Pig, 3], [Sheep, 3], [Cow, 3], [Chicken, 3], [Horse, 2], [Duck, 1], [Cat, 1]],
   [BIOME.FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Fox, 2], [Dog, 1]],
-  [BIOME.BIRCH_FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Fox, 2], [Dog, 1]],
-  [BIOME.SWAMP]: [[Pig, 2], [Chicken, 2], [Cat, 1]],
-  [BIOME.MOUNTAINS]: [[Sheep, 3], [Cow, 2], [Dog, 1]],
-  [BIOME.SNOWY]: [[Sheep, 2], [Fox, 2], [Dog, 2]],
+  [BIOME.BIRCH_FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Horse, 1], [Fox, 2], [Dog, 1]],
+  [BIOME.SWAMP]: [[Pig, 2], [Chicken, 2], [Duck, 3], [Cat, 1]],
+  [BIOME.RIVER]: [[Duck, 4], [Sheep, 1], [Cow, 1]],   // the grassy banks
+  [BIOME.MOUNTAINS]: [[Goat, 4], [Sheep, 3], [Cow, 1], [Dog, 1]],
+  [BIOME.SNOWY]: [[Sheep, 2], [Goat, 2], [Fox, 2], [Dog, 2]],
   [BIOME.SNOWY_FOREST]: [[Sheep, 1], [Fox, 3], [Dog, 2]],
 };
+const GROUP = new Map([[Horse, () => 2 + ((Math.random() * 2) | 0)], [Goat, () => 2], [Duck, () => 2 + ((Math.random() * 3) | 0)]]);
 function weighted(table) {
   let r = Math.random() * table.reduce((n, [, w]) => n + w, 0);
   for (const [cls, w] of table) if ((r -= w) < 0) return cls;
@@ -191,8 +193,18 @@ export class MobSpawner {
       // land animals depend on the biome
       const table = LAND_TABLE[this.world.biomeAt(wx, wz)];
       if (!table) continue;
-      if (ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK) continue;
-      this.spawnMob(weighted(table), wx + 0.5, y, wz + 0.5);
+      const goat = table.some(([c]) => c === Goat);
+      if (ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(goat && ground === B.STONE)) continue;
+      const Cls = weighted(table);
+      if (Cls === Goat && ground !== B.STONE && ground !== B.SNOW_BLOCK && ground !== B.SNOWY_GRASS && y < 80 && Math.random() < 0.6) continue;   // goats like it high and rocky
+      // herds and flocks: horses, goats and ducks come in twos and threes
+      const n = GROUP.get(Cls)?.() ?? 1;
+      for (let k = 0; k < n; k++) {
+        const ox = k ? Math.round((Math.random() - 0.5) * 4) : 0, oz = k ? Math.round((Math.random() - 0.5) * 4) : 0;
+        const gy = this.world.surfaceHeight(wx + ox, wz + oz) + 1;
+        if (k && (Math.abs(gy - y) > 2 || this.world.getBlockW(wx + ox, gy, wz + oz) !== B.AIR || this.world.getBlockW(wx + ox, gy + 1, wz + oz) !== B.AIR || isWater(this.world.getBlockW(wx + ox, gy - 1, wz + oz)))) continue;
+        this.spawnMob(Cls, wx + ox + 0.5, gy, wz + oz + 0.5);
+      }
       return;
     }
   }

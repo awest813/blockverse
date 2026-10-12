@@ -206,6 +206,13 @@ export class Game {
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.chat = new Chat(this);
     this.touch = new TouchControls(this);
+    // sneaking off a horse: let go of a toggled sneak (touch button, gamepad stick),
+    // or the next tap on the horse would take its saddle off instead of climbing on
+    this.player.events.addEventListener('dismount', () => {
+      if (this.touch?.sneak) { this.touch.sneak = false; this.touch.sneakBtn?.classList.remove('on'); }
+      this.input.sneakReleased = true;
+      this.input.holdAction('sneak', false);
+    });
     this.hints = new Hints(this);
     this._stepDistance = 0;
     canvas.addEventListener('mousedown', () => this.sfx?.resume(), { signal: this.input.signal });
@@ -423,6 +430,7 @@ export class Game {
     const dir = this.player.lookDir();
     let best = null, bestDist = Infinity;
     for (const m of this.entities.mobs) {
+      if (m === this.player.mount) continue;   // not the horse you're sitting on
       const d = m.rayHit(origin, dir, REACH_DISTANCE + extraReach);
       if (d !== null && d < bestDist) { best = m; bestDist = d; }
     }
@@ -443,8 +451,8 @@ export class Game {
     const best = this.mobUnderCrosshair(w.reach);
     if (!best) return false;
     const p = this.player;
-    // don't swat your own pets (sneak to mean it)
-    if (best.tamed && !p.sneaking) return true;
+    // don't swat your own pets or horse (sneak to mean it)
+    if ((best.tamed || best.owned) && !p.sneaking) return true;
     const charge = this.attackCharge();
     const base = held ? itemInfo(held.id)?.tool?.damage ?? 1 : 1;
     // spamming does little; a full swing does full damage
@@ -859,6 +867,7 @@ export class Game {
       inventory: { touch: '▦', gamepad: 'Y', key: keyLabel(this.input.bindings.inventory) },
       mine: { touch: 'touch and hold', gamepad: 'hold RT on', key: 'hold left-click on' },
       use: { touch: 'tap', gamepad: 'press LT on', key: 'right-click' },
+      sneak: { touch: 'tap Sneak', gamepad: 'click the right stick', key: `press ${keyLabel(this.input.bindings.sneak)}` },
     }[what];
     return table[mode === 'touch' ? 'touch' : mode === 'gamepad' ? 'gamepad' : 'key'];
   }
@@ -936,6 +945,7 @@ export class Game {
       this.player.update(this.input, dt, gamePaused);
       this.interaction.update(this.input, dt, gamePaused);
       this.entities.update(dt, this.player);
+      if (this.player.mount) this.player.syncToMount();
       this.mobSpawner.update(dt, this.player, day);
       this.tickBlockEntities(dt);
 

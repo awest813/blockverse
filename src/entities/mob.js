@@ -273,7 +273,8 @@ export class Mob {
       this.fallStart = Math.max(this.fallStart ?? this.y, this.y);
     } else if ((this.onGround || inWater) && this.fallStart !== undefined) {
       const d = this.fallStart - this.y;
-      if (!inWater && d > 4) this.damage(Math.floor(d - 3), null);
+      const safe = this.safeFall ?? 4;   // goats shrug off long drops
+      if (!inWater && d > safe) this.damage(Math.floor(d - safe + 1), null);
       this.fallStart = undefined;
     }
 
@@ -367,7 +368,7 @@ export class Mob {
       if (this.world.getBlockW(ax, y - 1 - drop, az) === B.LAVA) lava = true;
       drop++;
     }
-    if (drop >= 4 || lava || this.world.getBlockW(ax, y - 1, az) === B.WATER) {
+    if (drop >= (this.safeFall ?? 4) || lava || (!this.likesWater && this.world.getBlockW(ax, y - 1, az) === B.WATER)) {
       this.targetYaw = this.yaw + Math.PI;
       this.yaw += Math.PI;   // turn on the spot rather than step off
       this.vx = this.vz = 0;
@@ -477,6 +478,8 @@ export class Mob {
   // default wander AI; subclasses extend
   think(dt, player, playerDist) {
     this.stateTime -= dt;
+    // a farm baby trots after a grown-up of its kind (ducklings in a line)
+    if (this.baby && this.breedItem && this.state !== 'flee' && this.followParent(dt)) return;
     if (this.state === 'flee') {
       this.moving = true;
       if (this.stateTime <= 0) { this.state = 'idle'; this.stateTime = 1 + Math.random() * 2; }
@@ -492,6 +495,32 @@ export class Mob {
         this.moving = false;
       }
     }
+  }
+
+  followParent(dt) {
+    this.parentTimer = (this.parentTimer ?? 0) - dt;
+    if (this.parentTimer <= 0) {
+      this.parentTimer = 2;
+      let best = null, bestD = 14;
+      for (const m of this.fx?.mobs() ?? []) {
+        if (m.kind !== this.kind || m.baby || m.dead || m.dying !== undefined) continue;
+        const d = Math.hypot(m.x - this.x, m.z - this.z);
+        if (d < bestD) { best = m; bestD = d; }
+      }
+      this.parent = best;
+    }
+    const m = this.parent;
+    if (!m || m.dead) return false;
+    const d = Math.hypot(m.x - this.x, m.z - this.z);
+    // set off once it's 5 blocks behind, stop when it's caught up
+    if (this.state === 'follow' ? d < 2.2 : d < 5) {
+      if (this.state === 'follow') { this.state = 'idle'; this.stateTime = 1 + Math.random() * 2; this.moving = false; }
+      return false;
+    }
+    this.state = 'follow';
+    this.targetYaw = Math.atan2(-(m.x - this.x), -(m.z - this.z));
+    this.moving = true;
+    return true;
   }
 
   animate(dt) {

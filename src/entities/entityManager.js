@@ -5,11 +5,11 @@ import { chunkKey } from '../world/chunk.js';
 import { Arrow } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
-import { Cow, Chicken } from './animals.js';
+import { Cow, Chicken, Goat, Horse, Duck } from './animals.js';
 import { isRare } from '../items/items.js';
 
 // animals that can be kept (stashed while far away, saved with the world)
-const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken };
+const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken, goat: Goat, horse: Horse, duck: Duck };
 const STASH_LIMIT = 300;
 
 export class EntityManager {
@@ -155,7 +155,7 @@ export class EntityManager {
         if (o) { add(a, o[0] / 2, o[1] / 2); add(b, -o[0] / 2, -o[1] / 2); }
       }
       // the player shoves animals out of the way (and gets nudged a little)
-      if (!player.dead && !player.flying) {
+      if (!player.dead && !player.flying && !player.mount) {
         const o = overlap(a, player.x, player.y, player.z, 0.6, 1.8);
         if (o) { add(a, o[0], o[1]); player.vx -= o[0] * 4; player.vz -= o[1] * 4; }
       }
@@ -190,7 +190,10 @@ export class EntityManager {
 // ---- kept animals ----
 
 export function serializeAnimal(m) {
-  return { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared };
+  const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared };
+  const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
+  if (extra) a.extra = extra;
+  return a;
 }
 
 export function restoreAnimal(scene, world, a) {
@@ -202,6 +205,7 @@ export function restoreAnimal(scene, world, a) {
   mob.breedCooldown = a.breedCooldown ?? 0;
   if (a.baby) mob.setBaby(true, a.grow || 300);
   if (a.sheared) mob.setSheared?.(true);
+  if (a.extra) mob.loadExtra?.(a.extra);
   return mob;
 }
 

@@ -72,7 +72,7 @@ export class Sheep extends Mob {
     ];
     this.shorn = this.part(0.8, 0.5, 0.5, skin, 0, 0.75, 0);  // body once sheared
     this.shorn.visible = false;
-    this.part(0.42, 0.4, 0.4, skin, 0, 1.0, -0.6);            // head
+    this.head = this.part(0.42, 0.4, 0.4, skin, 0, 1.0, -0.6);   // head
     this.part(0.07, 0.07, 0.02, 0x2a2a2a, -0.11, 1.06, -0.81);
     this.part(0.07, 0.07, 0.02, 0x2a2a2a, 0.11, 1.06, -0.81);
     this.legs = [
@@ -111,6 +111,27 @@ export class Sheep extends Mob {
 
   think(dt, player, playerDist) {
     if (this.sheared && (this.regrow -= dt) <= 0) this.setSheared(false);
+    // a shorn sheep grazes: head down, the grass goes, the fleece comes back
+    if (this.graze > 0) {
+      this.graze -= dt;
+      this.moving = false;
+      this.head.position.y = 1.0 - Math.min(0.35, (1.4 - this.graze) * 1.5);
+      if (this.graze <= 0) {
+        this.head.position.y = 1.0;
+        const bx = Math.floor(this.x), by = Math.floor(this.y - 0.1), bz = Math.floor(this.z);
+        if (this.world.getBlockW(bx, by, bz) === B.GRASS) {
+          this.world.setBlock(bx, by, bz, B.DIRT);
+          this.fx?.sound('break', { block: 'leaf', pos: this, vol: 0.5 });
+          if (!this.baby) this.setSheared(false);
+        }
+      }
+      return;
+    }
+    if (this.sheared && this.onGround && this.state === 'idle' && Math.random() < dt / 25
+      && this.world.getBlockW(Math.floor(this.x), Math.floor(this.y - 0.1), Math.floor(this.z)) === B.GRASS) {
+      this.graze = 1.4;
+      return;
+    }
     super.think(dt, player, playerDist);
   }
 

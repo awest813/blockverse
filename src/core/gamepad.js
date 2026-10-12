@@ -116,6 +116,7 @@ export class GamepadController {
     if (edge(B.A)) input.tapAction('jump');
     input.holdAction('jump', pressed[B.A]);
     input.holdAction('sprint', pressed[B.LS]);
+    if (input.sneakReleased) { this.sneak = false; input.sneakReleased = false; }   // got off a horse
     if (edge(B.RS)) this.sneak = !this.sneak;
     input.holdAction('sneak', this.sneak);
     input.holdButton(0, pressed[B.RT]);

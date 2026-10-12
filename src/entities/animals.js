@@ -1,9 +1,10 @@
 // Animals: farm animals (cow, chicken), wildlife (fox, bird, fish, whale)
 // and tameable pets (cat, dog). Original box-model designs, like mobs.js.
 
+import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { I } from '../items/itemIds.js';
-import { B } from '../blocks/blocks.js';
+import { B, isSolid as isSolidId } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -135,6 +136,413 @@ export class Chicken extends Animal {
       { id: I.FEATHER, count: (Math.random() * 3) | 0 },
       { id: I.CHICKEN_RAW, count: 1 },
     ]);
+  }
+}
+
+// a bucket fills with milk (cows and goats)
+function milk(animal, player, held) {
+  if (player.mode !== GAMEMODE_CREATIVE) {
+    if (held.count > 1) {
+      player.consumeHeld(1);
+      if (player.give(I.MILK_BUCKET, 1) > 0) animal.dropFn?.([{ id: I.MILK_BUCKET, count: 1 }]);   // no room: it drops by the animal
+    } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
+    player.events.dispatchEvent(new CustomEvent('inventory'));
+  }
+}
+
+// Mountain goats: sure-footed (long drops don't hurt), leap about, give
+// milk — and now and then lower their heads and charge. Hit one and it
+// charges you for sure.
+export class Goat extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.8; this.h = 1.2; this.health = 10; this.speed = 1.4; this.fleeSpeed = 3.0; this.kind = 'goat';
+    this.ambientSound = 'goat';
+    this.breedItem = I.WHEAT;
+    this.safeFall = 9;
+    this.ram = null;      // {phase: 'aim' | 'charge', t, dir}
+    this.grudge = 0;      // seconds left wanting to ram whoever hit it
+  }
+
+  interact(player, held) {
+    if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
+    milk(this, player, held);
+    this.fx?.sound('goat', { vol: 0.8, pos: this });
+    return true;
+  }
+
+  buildModel() {
+    const coat = 0xe2ddd2, shade = 0xc9c2b4, horn = 0x8a8070, hoof = 0x4a4038, beard = 0xb8b0a0;
+    this.part(0.62, 0.62, 1.0, coat, 0, 0.92, 0.05);          // body
+    this.part(0.3, 0.2, 0.4, shade, 0, 1.14, 0.3);            // back fleece
+    this.head = new THREE.Group();                             // head pivots for the charge
+    this.head.position.set(0, 1.2, -0.42);
+    this.group.add(this.head);
+    const hp = (w, h, d, c, x, y, z) => { const m = this.part(w, h, d, c, x, y, z); this.group.remove(m); this.head.add(m); return m; };
+    hp(0.36, 0.38, 0.46, coat, 0, 0.04, -0.16);               // head
+    hp(0.14, 0.22, 0.1, beard, 0, -0.2, -0.3);                // beard
+    hp(0.08, 0.3, 0.08, horn, -0.12, 0.3, -0.04).rotation.x = 0.5;
+    hp(0.08, 0.3, 0.08, horn, 0.12, 0.3, -0.04).rotation.x = 0.5;
+    hp(0.05, 0.05, 0.02, 0xc89a20, -0.1, 0.1, -0.4);          // yellow eyes
+    hp(0.05, 0.05, 0.02, 0xc89a20, 0.1, 0.1, -0.4);
+    this.quadLegs(shade, 0.16, 0.6, 0.2, 0.3, 0.62);
+    for (const l of this.legs) { const h = this.part(0.17, 0.1, 0.17, hoof, 0, -0.55, 0); this.group.remove(h); l.add(h); }
+  }
+
+  damage(amount, source) {
+    const hit = super.damage(amount, source);
+    if (hit && source && !source.kind && this.health > 0) { this.grudge = 8; this.state = 'idle'; }   // hit by a player: no running away
+    return hit;
+  }
+
+  think(dt, player, playerDist) {
+    this.grudge = Math.max(0, this.grudge - dt);
+    if (this.ram) return this.ramTick(dt, player);
+    // something to charge at: a player who hit it, or (rarely) one who just stands about
+    const target = !this.baby && !player.dead && player.mode !== GAMEMODE_CREATIVE && playerDist < 9 && this.canSee(player);
+    if (target && (this.grudge > 0 ? Math.random() < dt * 1.5 : Math.random() < dt / 60)) {
+      this.ram = { phase: 'aim', t: 0.9 };
+      this.moving = false;
+      this.fx?.sound('goat', { vol: 1, pos: this, pitch: 0.8 });
+      return;
+    }
+    super.think(dt, player, playerDist);
+    // a mountain goat leaps
+    if (this.state === 'wander' && this.moving && this.onGround && Math.random() < dt / 5) this.vy = 9.5;
+  }
+
+  ramTick(dt, player) {
+    const r = this.ram;
+    r.t -= dt;
+    if (r.phase === 'aim') {
+      // head down, paw the ground, lock on
+      this.steer(player, 1);
+      this.moving = false;
+      this.head.rotation.x = Math.min(0.6, this.head.rotation.x + dt * 2);
+      if (r.t <= 0) {
+        const dx = player.x - this.x, dz = player.z - this.z, d = Math.hypot(dx, dz) || 1;
+        Object.assign(r, { phase: 'charge', t: 1.4, dir: [dx / d, dz / d] });
+        this.yaw = this.targetYaw;
+      }
+      return;
+    }
+    // charge in a straight line
+    this.moving = true;
+    this.state = 'flee';   // (moves at fleeSpeed)
+    this.fleeSpeed = 7;
+    const hitPlayer = !player.dead && Math.hypot(player.x - this.x, player.z - this.z) < (this.w + 0.6) / 2 + 0.35 && Math.abs(player.y - this.y) < 1.4;
+    if (hitPlayer) {
+      if (player.hurtCooldown <= 0 && player.mode !== GAMEMODE_CREATIVE) player.damage(2, 'goat');
+      player.vx += r.dir[0] * 10; player.vz += r.dir[1] * 10; player.vy = Math.max(player.vy, 5.5);
+      this.fx?.sound('hit', { pos: this });
+    }
+    if (hitPlayer || r.t <= 0 || this.lastHitWall) {
+      this.ram = null;
+      this.grudge = hitPlayer ? 0 : this.grudge;
+      this.fleeSpeed = 3.0;
+      this.state = 'idle'; this.stateTime = 1.5; this.moving = false;
+      this.head.rotation.x = 0;
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([
+      { id: I.LEATHER, count: (Math.random() * 2) | 0 },
+      { id: I.MUTTON_RAW, count: 1 + ((Math.random() * 2) | 0) },
+    ]);
+  }
+}
+
+// Ducks: waddle on land, paddle on water (they like it), and their
+// ducklings follow them about. Drakes have green heads.
+export class Duck extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.45; this.h = 0.6; this.health = 4; this.speed = 1.0; this.fleeSpeed = 2.6; this.kind = 'duck';
+    this.ambientSound = 'duck';
+    this.breedItem = I.WHEAT_SEEDS;
+    this.likesWater = true;
+  }
+
+  buildModel() {
+    const bill = 0xe8a828, legC = 0xe89030;
+    const tint = (k, m) => ((this.plumage ??= {})[k] ??= []).push(this.materials.at(-1)) && m;
+    tint('body', this.part(0.36, 0.26, 0.56, 0, 0, 0.3, 0.04));          // body
+    tint('wing', this.part(0.24, 0.12, 0.2, 0, 0, 0.42, 0.26));          // tail
+    this.collar = this.part(0.24, 0.05, 0.22, 0xf2f0ea, 0, 0.47, -0.2);   // a drake's white collar
+    tint('head', this.part(0.22, 0.24, 0.22, 0, 0, 0.6, -0.22));         // head
+    this.part(0.16, 0.06, 0.16, bill, 0, 0.55, -0.4);          // flat bill
+    this.part(0.04, 0.04, 0.02, 0x111111, -0.1, 0.65, -0.33);
+    this.part(0.04, 0.04, 0.02, 0x111111, 0.1, 0.65, -0.33);
+    this.wings = [tint('wing', this.part(0.05, 0.18, 0.36, 0, -0.2, 0.33, 0.04)), tint('wing', this.part(0.05, 0.18, 0.36, 0, 0.2, 0.33, 0.04))];
+    this.setDrake(Math.random() < 0.5);
+    const leg = (x) => {
+      const l = this.part(0.05, 0.18, 0.05, legC, x, 0.18, 0.02);
+      l.geometry = l.geometry.clone(); l.geometry.translate(0, -0.09, 0); l.position.y = 0.18;
+      const foot = this.part(0.1, 0.02, 0.12, legC, 0, -0.17, -0.04); this.group.remove(foot); l.add(foot);
+      return l;
+    };
+    this.legs = [leg(-0.08), leg(0.08)];
+  }
+
+  // drakes are grey with a green head and a white collar; hens are brown
+  setDrake(on) {
+    this.drake = on;
+    const c = on ? { body: 0x9a948a, wing: 0x6a6660, head: 0x1f6a3a } : { body: 0x8a6a48, wing: 0x6e5236, head: 0x7a5a3c };
+    for (const [k, list] of Object.entries(this.plumage)) for (const m of list) m.base.setHex(c[k]);
+    this.collar.visible = on;
+  }
+
+  saveExtra() { return { drake: this.drake }; }
+  loadExtra(e) { this.setDrake(!!e.drake); }
+
+  update(dt, player) {
+    super.update(dt, player);
+    if (this.dead || this.dying !== undefined) return;
+    // float with the body half under the surface instead of bobbing up and down
+    if (this.inWater) {
+      const bx = Math.floor(this.x), bz = Math.floor(this.z);
+      let top = Math.floor(this.y);
+      while (top < Math.floor(this.y) + 3 && this.world.getBlockW(bx, top, bz) === B.WATER) top++;
+      this.vy = (top - 0.2 - this.y) * 5;
+    }
+    const airborne = !this.onGround && !this.inWater && this.vy < 0;
+    if (airborne) this.vy = Math.max(this.vy, -2.4);
+    const flap = airborne || this.state === 'flee' ? Math.sin(this.age * 28) * 0.7 : 0;
+    this.wings[0].rotation.z = flap;
+    this.wings[1].rotation.z = -flap;
+    // paddling: the legs swing slower, the body rocks gently
+    this.group.rotation.z = this.inWater ? Math.sin(this.age * 2) * 0.06 : 0;
+  }
+
+  onDeath() {
+    this.dropFn?.([
+      { id: I.FEATHER, count: (Math.random() * 3) | 0 },
+      { id: I.DUCK_RAW, count: 1 },
+    ]);
+  }
+}
+
+// Horses: wild ones throw you off until they trust you (feeding helps);
+// a tamed horse with a saddle can be ridden — it goes where you look,
+// faster when you sprint, and jumps fences. Each has its own coat, speed and jump.
+const COATS = [
+  [0x7a4e2c, 0x2e1c10, 'bay'], [0x9a5a28, 0x6a3a18, 'chestnut'], [0x2c2622, 0x141210, 'black'],
+  [0xd8d2c8, 0xb8b0a4, 'white'], [0x8c8680, 0x3c3834, 'grey'], [0xc49a5c, 0xece2cc, 'palomino'],
+];
+const TAMING_FOOD = new Map([[I.WHEAT, 3], [I.APPLE, 5], [I.CARROT, 4], [I.HAY_BALE, 10], [I.GOLDEN_CARROT, 20], [I.GOLDEN_APPLE, 20]]);
+
+export class Horse extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 1.2; this.h = 1.6; this.kind = 'horse';
+    this.health = this.maxHealth = 20 + ((Math.random() * 11) | 0);
+    this.speed = 1.6; this.fleeSpeed = 4;
+    this.ambientSound = 'horse';
+    this.breedItem = I.GOLDEN_APPLE;   // (and golden carrots, like every farm animal)
+    this.safeFall = 6;
+    // its own gifts: top speed 7.5-11 m/s, a jump of 1.5-2.6 blocks
+    this.gallop = 7.5 + Math.random() * 3.5;
+    this.jumpV = 9 + Math.random() * 2.8;
+    this.temper = 0;       // taming progress, 0-100
+    this.owned = false;    // tamed
+    this.saddled = false;
+    this.rider = null;
+  }
+
+  buildModel() {
+    this.coat = (Math.random() * COATS.length) | 0;
+    this.coatParts = []; this.maneParts = [];
+    const c = COATS[this.coat], muzzle = 0x2a2420, hoof = 0x3a3028;
+    const coat = (m) => (this.coatParts.push(this.materials.at(-1)), m);
+    const mane = (m) => (this.maneParts.push(this.materials.at(-1)), m);
+    coat(this.part(0.62, 0.62, 1.4, c[0], 0, 1.2, 0.05));            // body
+    coat(this.part(0.34, 0.66, 0.4, c[0], 0, 1.62, -0.66)).rotation.x = -0.45;   // neck
+    coat(this.part(0.3, 0.3, 0.6, c[0], 0, 1.86, -0.98));            // head
+    this.part(0.24, 0.22, 0.14, muzzle, 0, 1.78, -1.28);
+    coat(this.part(0.08, 0.14, 0.06, c[0], -0.1, 2.08, -0.8));       // ears
+    coat(this.part(0.08, 0.14, 0.06, c[0], 0.1, 2.08, -0.8));
+    mane(this.part(0.1, 0.5, 0.5, c[1], 0, 1.84, -0.6)).rotation.x = -0.45;   // mane
+    mane(this.part(0.14, 0.62, 0.14, c[1], 0, 1.04, 0.84)).rotation.x = 0.35;  // tail
+    this.part(0.05, 0.06, 0.02, 0x111111, -0.16, 1.92, -1.12);
+    this.part(0.05, 0.06, 0.02, 0x111111, 0.16, 1.92, -1.12);
+    this.quadLegs(c[0], 0.18, 0.9, 0.2, 0.5, 0.9);
+    this.coatParts.push(...this.materials.slice(-4));   // the legs are coat too
+    for (const l of this.legs) { const h = this.part(0.2, 0.14, 0.2, hoof, 0, -0.84, 0); this.group.remove(h); l.add(h); }
+    // the saddle, shown once it has one
+    this.saddleParts = [
+      this.part(0.66, 0.1, 0.6, 0x7a4a24, 0, 1.55, 0.02),
+      this.part(0.5, 0.12, 0.12, 0x5a341a, 0, 1.64, 0.28),
+      this.part(0.04, 0.4, 0.04, 0x4a2a14, -0.34, 1.32, 0), this.part(0.04, 0.4, 0.04, 0x4a2a14, 0.34, 1.32, 0),
+      this.part(0.08, 0.04, 0.12, 0xa0a0a8, -0.36, 1.1, 0), this.part(0.08, 0.04, 0.12, 0xa0a0a8, 0.36, 1.1, 0),
+    ];
+    for (const m of this.saddleParts) m.visible = false;
+  }
+
+  // restore a saved coat
+  setCoat(i) {
+    if (!COATS[i]) return;
+    this.coat = i;
+    for (const m of this.coatParts) m.base.setHex(COATS[i][0]);
+    for (const m of this.maneParts) m.base.setHex(COATS[i][1]);
+  }
+
+  saveExtra() {
+    return { coat: this.coat, gallop: this.gallop, jumpV: this.jumpV, maxHealth: this.maxHealth, temper: this.temper, owned: this.owned, saddled: this.saddled };
+  }
+
+  loadExtra(e) {
+    this.setCoat(e.coat);
+    for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
+    this.owned = !!e.owned;
+    this.setSaddled(!!e.saddled);
+  }
+
+  setSaddled(on) {
+    this.saddled = on;
+    for (const m of this.saddleParts) m.visible = on;
+  }
+
+  get seat() { return 1.3; }
+
+  interact(player, held) {
+    if (this.rider) return false;
+    const say = (t) => this.fx?.notify?.(t);
+    // a saddle on a horse that trusts you
+    if (held?.id === I.SADDLE) {
+      if (this.baby) return true;
+      if (!this.owned) { say('It won\'t take a saddle yet — feed it and climb on until it trusts you'); return true; }
+      if (this.saddled) { say('It already has a saddle'); return true; }
+      this.setSaddled(true);
+      this.persistent = true;
+      if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+      this.fx?.sound('equip', { pos: this });
+      say('Saddled — use it with an empty hand to ride; sneak to get off');
+      return true;
+    }
+    // golden food breeds a tamed pair, like any farm animal
+    if (this.owned && this.likes(held?.id)) return super.interact(player, held);
+    // food calms a wild horse (and heals or grows any horse)
+    const calm = held && TAMING_FOOD.get(held.id);
+    if (calm) {
+      const hungry = this.baby || !this.owned || this.health < this.maxHealth;
+      if (!hungry) return false;
+      if (this.baby) this.grow = Math.max(0, this.grow - calm * 6);
+      if (!this.owned) this.temper = Math.min(100, this.temper + calm);
+      this.health = Math.min(this.maxHealth, this.health + Math.ceil(calm / 3));
+      this.persistent = true;
+      if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+      this.fx?.hearts?.(this.x, this.y + this.h, this.z, 2);
+      this.fx?.sound('eat', { vol: 0.6, pos: this });
+      return true;
+    }
+    if (held) return false;
+    if (this.baby) return true;
+    // an empty hand: climb on
+    if (this.owned && !this.saddled) { say('It needs a saddle before you can ride it'); return true; }
+    if (player.sneaking) {
+      // sneak-use takes the saddle back off
+      if (this.saddled && this.owned) { this.setSaddled(false); if (player.give(I.SADDLE, 1) > 0) this.dropFn?.([{ id: I.SADDLE, count: 1 }]); }
+      return true;
+    }
+    this.mountBy(player);
+    return true;
+  }
+
+  mountBy(player) {
+    if (player.mount) return;
+    this.rider = player;
+    player.mount = this;
+    player._sneakHeld = !!player.sneaking;
+    this.h = 2.6;   // the rider's head: no squeezing under a low roof
+    player.flying = false;
+    player.vx = player.vy = player.vz = 0;
+    this.persistent = true;
+    // a wild horse puts up with it for a moment, then decides
+    if (!this.owned) {
+      this.buck = 1.5 + Math.random() * 2;
+      this.fx?.notify?.('Hold on…');
+    }
+    this.fx?.sound('horse', { pos: this });
+  }
+
+  // the rider gets off beside the horse
+  dismount() {
+    const p = this.rider;
+    this.rider = null;
+    this.buck = 0;
+    this.h = 1.6;
+    if (!p) return;
+    p.mount = null;
+    // to the left, the right, or (boxed in) on top of the horse
+    const free = (x, y, z) => !isSolidId(this.world.getBlockW(Math.floor(x), Math.floor(y), Math.floor(z)));
+    for (const k of [-1, 1, 0]) {
+      const x = this.x + Math.cos(this.yaw) * 1.3 * k, z = this.z - Math.sin(this.yaw) * 1.3 * k;
+      const y = k ? this.y : this.y + this.h;
+      if (free(x, y + 0.1, z) && free(x, y + 1.1, z)) { p.x = x; p.y = y + 0.05; p.z = z; break; }
+    }
+    p.vx = p.vy = p.vz = 0;
+    p.fallStart = null;
+  }
+
+  think(dt, player, playerDist) {
+    if (!this.rider) return super.think(dt, player, playerDist);
+    const r = this.rider;
+    this.detour = null;
+    this.state = 'ridden';
+    if (r.dead || r.mount !== this) { this.rider = null; this.h = 1.6; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
+    // a wild horse bucks: it won't go where you want, and then it decides
+    if (this.buck > 0) {
+      this.buck -= dt;
+      this.moving = Math.random() < 0.7;
+      if (Math.random() < dt * 2) this.targetYaw = this.yaw + (Math.random() - 0.5) * 3;
+      if (this.onGround && Math.random() < dt * 1.5) this.vy = 6;
+      if (this.buck <= 0) {
+        if (Math.random() * 100 < this.temper + 15) {
+          this.owned = true;
+          this.fx?.hearts?.(this.x, this.y + this.h, this.z, 8);
+          this.fx?.notify?.('The horse trusts you! Put a saddle on it to ride (3 leather + an iron ingot)');
+        } else {
+          this.temper = Math.min(100, this.temper + 8);
+          this.fx?.sound('horse', { pos: this, vol: 1.2 });
+          this.fx?.notify?.('Thrown off! Feed it and try again');
+          this.dismount();
+          r.vy = 5; r.vx += -Math.sin(this.yaw) * 3; r.vz += -Math.cos(this.yaw) * 3;
+        }
+        // a horse tamed by riding it bare-back: off you get, it needs a saddle to steer
+        if (this.owned && !this.saddled) this.dismount();
+      }
+      return;
+    }
+    // ridden: it faces where you look and goes when you press forward
+    const inp = r.rideInput ?? {};
+    this.yaw = this.targetYaw = r.yaw;
+    this.moving = inp.fwd > 0.1;
+    this.speed = this.inWater ? 2.2 : inp.sprint ? this.gallop : 4.2;
+    if (inp.jump && this.onGround && !this.inWater) this.vy = this.jumpV;
+    // hooves
+    if (this.moving && this.onGround) {
+      this.hoofDist = (this.hoofDist ?? 0) + this.speed * dt;
+      if (this.hoofDist > (inp.sprint ? 2.6 : 1.7)) { this.hoofDist = 0; this.fx?.sound('hoof', { pos: this, vol: inp.sprint ? 0.9 : 0.6 }); }
+    }
+  }
+
+  animate(dt) {
+    super.animate(dt);
+    // a gallop swings the legs further
+    if (this.rider && this.speed > 5 && this.legs) for (const l of this.legs) l.rotation.x *= 1.4;
+  }
+
+  damage(amount, source) {
+    if (source && source === this.rider) return false;   // no swatting your own horse from the saddle
+    return super.damage(amount, source);
+  }
+
+  onDeath() {
+    if (this.rider) this.dismount();
+    const drops = [{ id: I.LEATHER, count: (Math.random() * 3) | 0 }];
+    if (this.saddled) drops.push({ id: I.SADDLE, count: 1 });
+    this.dropFn?.(drops);
   }
 }
 

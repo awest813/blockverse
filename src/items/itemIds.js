@@ -111,4 +111,7 @@ export const I = {
   POTATO: 355,
   BAKED_POTATO: 356,
   GOLDEN_CARROT: 357,
+  SADDLE: 358,
+  DUCK_RAW: 359,
+  DUCK_COOKED: 360,
 };

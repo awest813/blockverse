@@ -8,6 +8,7 @@ const CATEGORY = {
   arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
+  goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
 const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
@@ -384,6 +385,24 @@ export class Sfx {
         break;
       case 'chicken':  // clucks
         for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) this.later(() => this.tone({ freq: 950 * detune, endFreq: 700, dur: 0.06, gain: 0.05, type: 'triangle' }), i * 110);
+        break;
+      case 'goat':     // a harsh, nasal bleat
+        for (let i = 0; i < 3; i++) this.later(() => this.tone({ freq: (520 - i * 30) * detune, endFreq: (470 - i * 30) * detune, dur: 0.11, gain: 0.05, type: 'square' }), i * 90);
+        this.noise({ freq: 1400, q: 1.5, dur: 0.3, gain: 0.03 });
+        break;
+      case 'duck':     // quack quack
+        for (let i = 0; i < 1 + (Math.random() * 2 | 0); i++) this.later(() => {
+          this.tone({ freq: 330 * detune, endFreq: 260, dur: 0.12, gain: 0.06, type: 'sawtooth' });
+          this.noise({ freq: 900, q: 2.5, dur: 0.1, gain: 0.05 });
+        }, i * 180);
+        break;
+      case 'horse':    // a whinny: a high wavering fall, then a snort
+        for (let i = 0; i < 6; i++) this.later(() => this.tone({ freq: (900 - i * 90) * detune * (i % 2 ? 1.06 : 1), dur: 0.08, gain: 0.045, type: 'sawtooth' }), i * 65);
+        this.later(() => this.noise({ freq: 600, q: 0.7, dur: 0.18, gain: 0.07, type: 'lowpass' }), 470);
+        break;
+      case 'hoof':     // clip-clop
+        this.noise({ freq: 1600 * detune, q: 4, dur: 0.04, gain: 0.09 });
+        this.later(() => this.noise({ freq: 1250 * detune, q: 4, dur: 0.04, gain: 0.07 }), 95);
         break;
       case 'dog':      // woof
         this.tone({ freq: 260 * detune, endFreq: 150, dur: 0.13, gain: 0.09, type: 'square' });

@@ -157,6 +157,7 @@ export class Chat {
         if (args.length < 3) throw new Error('usage: /tp x y z');
         const [x, y, z] = args.map(Number);
         if ([x, y, z].some(Number.isNaN)) throw new Error('coordinates must be numbers');
+        p.mount?.dismount();
         p.x = x; p.y = y; p.z = z;
         p.vx = p.vy = p.vz = 0;
         p.fallStart = null;

@@ -1287,6 +1287,16 @@ function drumstick(ctx, meatC, meatD) {
 }
 tile('chicken_raw', (ctx) => drumstick(ctx, [236, 190, 170], [210, 160, 140]));
 tile('chicken_cooked', (ctx) => drumstick(ctx, [196, 128, 60], [160, 96, 40]));
+tile('duck_raw', (ctx) => drumstick(ctx, [214, 140, 128], [176, 104, 96]));
+tile('duck_cooked', (ctx) => drumstick(ctx, [150, 82, 36], [112, 58, 24]));
+tile('saddle', (ctx) => {
+  const L = [140, 84, 44], D = [100, 58, 30], H = [176, 116, 66], M = [180, 180, 186];
+  rect(ctx, 3, 5, 10, 4, L); rect(ctx, 2, 6, 1, 3, D); rect(ctx, 13, 6, 1, 3, D);   // seat
+  rect(ctx, 3, 4, 3, 1, L); rect(ctx, 11, 3, 2, 2, L);                              // cantle, pommel
+  rect(ctx, 4, 6, 8, 1, H); rect(ctx, 3, 9, 10, 1, D);
+  rect(ctx, 5, 10, 1, 3, D); rect(ctx, 10, 10, 1, 3, D);                            // straps
+  rect(ctx, 4, 13, 3, 1, M); rect(ctx, 9, 13, 3, 1, M);                              // stirrups
+});
 function fishIcon(ctx, body, belly, fin) {
   rect(ctx, 3, 6, 8, 4, body); rect(ctx, 4, 5, 6, 1, body); rect(ctx, 4, 10, 6, 1, belly);
   rect(ctx, 11, 5, 2, 6, fin); px(ctx, 13, 4, fin); px(ctx, 13, 11, fin);   // tail

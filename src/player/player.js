@@ -95,6 +95,9 @@ export class Player {
       this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
     }
 
+    if (this.mount) { this.ride(input, dt, paused); return; }
+    this._sneakHeld = !paused && input.action('sneak');
+
     this.inWater = entityInWater(this.world, this);
     this.inLava = entityInBlock(this.world, this, B.LAVA);
     this.onLadder = entityInBlock(this.world, this, B.LADDER);
@@ -225,6 +228,32 @@ export class Player {
 
     // sprint exhaustion
     if (this.sprinting && !this.inWater) this.addExhaustion(0.1 * dt * 7);   // swimming has its own cost
+  }
+
+  // On horseback the horse does the moving: forward goes, sprint gallops,
+  // jump jumps, and sneak gets off.
+  ride(input, dt, paused) {
+    let fwd = 0;
+    if (!paused) fwd = Math.max(-1, Math.min(1, (input.action('forward') ? 1 : 0) - (input.action('back') ? 1 : 0) + input.move.y));
+    if (fwd <= 0) this.sprintLatch = false;
+    else if (!paused && input.action('sprint')) this.sprintLatch = true;
+    this.rideInput = { fwd, sprint: this.sprintLatch, jump: !paused && input.action('jump') };
+    const sneak = !paused && input.action('sneak');
+    if (sneak && !this._sneakHeld) { this.mount.dismount(); this.events.dispatchEvent(new CustomEvent('dismount')); }
+    this._sneakHeld = sneak;
+    this.sneaking = this.sprinting = this.swimming = this.flying = false;
+    this.vx = this.vy = this.vz = 0;
+    this.onGround = false;
+    this.fallStart = null;
+    this.inWater = this.headInWater = pointInWater(this.world, this.x, this.eyeY, this.z);
+    if (this.mode !== GAMEMODE_CREATIVE) this.updateSurvival(dt);
+  }
+
+  // sit in the saddle (after the horse has moved this frame)
+  syncToMount() {
+    const m = this.mount;
+    if (!m || m.dead || m.dying !== undefined || m.rider !== this) { if (m?.rider === this) m.rider = null; this.mount = null; return; }
+    this.x = m.x; this.y = m.y + m.seat - 0.55; this.z = m.z;
   }
 
   tapSpace(now) {
@@ -360,6 +389,7 @@ export class Player {
   }
 
   respawn() {
+    if (this.mount) { this.mount.rider = null; this.mount = null; }
     this.x = this.spawnPoint.x;
     this.y = this.spawnPoint.y;
     this.z = this.spawnPoint.z;
