@@ -2,7 +2,7 @@
 // Models are assembled from shaded colored boxes (all original designs).
 
 import * as THREE from 'three';
-import { moveEntity, entityInBlock, entityInWater } from '../core/physics.js';
+import { moveEntity, entityInBlock, entityInWater, nudgeFree } from '../core/physics.js';
 import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
@@ -37,6 +37,12 @@ function makeShadedBox(w, h, d) {
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return g;
 }
+
+// a lead: one thin box, stretched and turned between the animal and its holder
+const ROPE_GEO = new THREE.BoxGeometry(0.05, 0.05, 1);
+const ROPE_MAT = new THREE.MeshBasicMaterial({ color: 0x9a7448 });
+const LEASH_SLACK = 3.5, LEASH_SNAP = 12;
+export const FENCE_POSTS = new Set([B.OAK_FENCE, B.OAK_FENCE_GATE]);
 
 let flameTex = null;
 function makeFlameTexture() {
@@ -127,6 +133,8 @@ export class Mob {
     if (this.baby) {
       this.grow -= dt;
       if (this.grow <= 0) this.setBaby(false);
+      // no room to grow (pressed into a fence, say): try again in a moment
+      if (!this.baby && !nudgeFree(this.world, this)) this.setBaby(true, 3);
       return;
     }
     if (!(this.love > 0)) return;
@@ -203,6 +211,7 @@ export class Mob {
     // freeze in unloaded chunks
     if (!this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) return;
 
+    if (this.pendingLeash) { this.pendingLeash = false; if (!player.dead) this.leashTo({ player }); }
     this.think(dt, player, Math.sqrt(playerDistSq));
     if (this.dead || this.dying !== undefined) return;
     this.updateFire(dt);
@@ -216,7 +225,7 @@ export class Mob {
     this.yaw += Math.max(-3 * dt, Math.min(3 * dt, dyaw));
 
     const inWater = entityInWater(this.world, this);
-    const speed = this.state === 'flee' || this.state === 'chase' ? this.fleeSpeed : this.speed;
+    const speed = this.state === 'flee' || this.state === 'chase' || this.hurry ? this.fleeSpeed : this.speed;
     let dvx = 0, dvz = 0;
     if (this.moving) {
       dvx = -Math.sin(this.yaw) * speed;
@@ -284,6 +293,8 @@ export class Mob {
 
     this.group.position.set(this.x, this.y, this.z);
     this.group.rotation.y = this.yaw;
+
+    if (this.leash) this.leashTick(dt);
 
     // brightness from voxel light + hurt flash
     const light = this.world.lightAt(this.x, this.y + 0.5, this.z);
@@ -478,6 +489,10 @@ export class Mob {
   // default wander AI; subclasses extend
   think(dt, player, playerDist) {
     this.stateTime -= dt;
+    this.hurry = false;
+    if (this.leash && this.leashPull()) return;
+    // hold out a food it likes and it follows you (how you bring a herd home)
+    if (this.breedItem && !this.tamed && this.state !== 'flee' && this.tempted(player, playerDist)) return;
     // a farm baby trots after a grown-up of its kind (ducklings in a line)
     if (this.baby && this.breedItem && this.state !== 'flee' && this.followParent(dt)) return;
     if (this.state === 'flee') {
@@ -495,6 +510,71 @@ export class Mob {
         this.moving = false;
       }
     }
+  }
+
+  // ---- leads ----
+
+  // where the other end of the lead is
+  leashEnd() {
+    const L = this.leash;
+    if (L.player) return { x: L.player.x, y: L.player.y + 1.0, z: L.player.z };
+    return { x: L.knot.x + 0.5, y: L.knot.y + 0.75, z: L.knot.z + 0.5 };
+  }
+
+  // on a lead held by a player, or tied to a fence post
+  leashTo(holder) {
+    this.leash = holder;
+    this.persistent = true;
+    if (!this.rope) { this.rope = new THREE.Mesh(ROPE_GEO, ROPE_MAT); this.scene.add(this.rope); }
+  }
+
+  // let go; `drop` leaves the lead lying where it was
+  unleash(drop = false) {
+    if (!this.leash) return;
+    if (drop) this.dropFn?.([{ id: I.LEAD, count: 1 }]);
+    this.leash = null;
+    if (this.rope) { this.scene.remove(this.rope); this.rope = null; }
+  }
+
+  // walk toward the holder once the lead goes taut
+  leashPull() {
+    const e = this.leashEnd();
+    const dx = e.x - this.x, dz = e.z - this.z, d = Math.hypot(dx, dz);
+    if (d < LEASH_SLACK) return false;
+    this.state = 'leash';
+    this.targetYaw = Math.atan2(-dx, -dz);
+    this.moving = true;
+    this.hurry = d > 6;
+    return true;
+  }
+
+  leashTick(dt) {
+    const L = this.leash;
+    // the post's gone, the holder's gone, or it's stretched too far: snap
+    if (L.knot && !FENCE_POSTS.has(this.world.getBlockW(L.knot.x, L.knot.y, L.knot.z))) { this.unleash(true); return; }
+    if (L.player?.dead) { this.unleash(true); return; }
+    const e = this.leashEnd();
+    const dx = e.x - this.x, dy = e.y - (this.y + this.h * 0.7), dz = e.z - this.z, d = Math.hypot(dx, dy, dz);
+    if (d > LEASH_SNAP) { this.unleash(true); this.fx?.sound('shear', { pos: this, vol: 0.5 }); return; }
+    // a taut lead tugs (it can haul an animal round a corner it won't walk)
+    if (d > LEASH_SLACK + 3) { const k = Math.min(40, (d - LEASH_SLACK - 3) * 25) * dt; this.vx += (dx / d) * k; this.vz += (dz / d) * k; }
+    // draw the rope from the animal's neck to the holder
+    const sx = this.x - Math.sin(this.yaw) * this.w * 0.45, sy = this.y + this.h * 0.7, sz = this.z - Math.cos(this.yaw) * this.w * 0.45;
+    this.rope.position.set((sx + e.x) / 2, (sy + e.y) / 2, (sz + e.z) / 2);
+    this.rope.scale.set(1, 1, Math.max(0.01, Math.hypot(e.x - sx, e.y - sy, e.z - sz)));
+    this.rope.lookAt(e.x, e.y, e.z);
+  }
+
+  tempted(player, playerDist) {
+    const held = player.dead || playerDist > 10 ? null : player.heldStack();
+    if (!held || !this.likes(held.id) || Math.abs(player.y - this.y) > 4) {
+      if (this.state === 'tempt') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+      return false;
+    }
+    this.state = 'tempt';
+    this.steer(player, 1);
+    this.moving = playerDist > 2.4;   // close enough to be fed: wait, looking up at you
+    return true;
   }
 
   followParent(dt) {
@@ -564,6 +644,7 @@ export class Mob {
   die() {
     if (this.dying !== undefined) return;
     if (!this.baby && !this.noLoot) this.onDeath?.();   // (summoned minions drop nothing)
+    this.unleash(true);
     this.fx?.sound('mobdeath', { pos: this });
     // tip over briefly before vanishing; no longer a threat or a target
     this.dying = DEATH_TIME;
@@ -574,6 +655,7 @@ export class Mob {
   kill() {
     this.dead = true;
     this.scene.remove(this.group);
+    if (this.rope) { this.scene.remove(this.rope); this.rope = null; }
     for (const { mat } of this.materials) mat.dispose();
     // part boxes are shared; anything else built for this mob goes; flames have their own material
     this.group.traverse((o) => { if (o.geometry && !SHARED.has(o.geometry) && !o.isSprite) o.geometry.dispose(); });

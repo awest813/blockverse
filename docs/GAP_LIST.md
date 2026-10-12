@@ -191,3 +191,12 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Farm babies of every kind follow a grown-up of their kind
 - [x] Sheep: a shorn sheep grazes (grass to dirt) and grows its wool back at once
 - [x] Tips for wild horses and goats; quack, bleat, whinny and hoofbeat sounds; touch/gamepad sneak toggles are let go when you get off a horse
+
+## Animals audit: mechanics and tools
+- [x] Baby animals growing up against a fence were popped on top of it by the collision fix-up and walked out of the pen (1 animal in ~4 twenty-minute ranch runs); a grown-up now slides sideways into room, or waits a moment. 6/6 traced runs, no escapes
+- [x] Feeding a horse a hay bale did nothing (wrong id); horses list what they eat when offered the wrong food
+- [x] Every horse clears a fence (jump 1.8-2.7 blocks; older saves are raised); goat leaps (1.4) don't clear fences
+- [x] A saddled horse of yours can be mounted with anything but food in hand; no climbing on without headroom (a rider's head would push the horse up through a low roof)
+- [x] Luring: farm animals follow a player holding a food they like (within 10 blocks)
+- [x] Lead (2 from 3 string + leather): lead a farm animal (not pets or monsters), tie it to a fence post, take the lead back from the post, snaps past 12 blocks or if the post goes; drawn as a rope; ties are saved; climbing onto a leashed horse gives the lead back
+- [x] Goat horn: knocked off a goat charging into rock (the goat shows it, saved); blowing it calls your horses within 64 blocks

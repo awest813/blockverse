@@ -40,6 +40,7 @@ shaped(B.HARVESTER, 1, ['III', 'IHI', 'ICI'], { I: [I.IRON_INGOT], H: [I.IRON_HO
 shaped(B.COLLECTOR, 1, ['I.I', 'ICI', '.I.'], { I: [I.IRON_INGOT], C: [B.CHEST] });
 shaped(I.GOLDEN_CARROT, 1, ['GGG', 'GCG', 'GGG'], { G: [I.GOLD_INGOT], C: [I.CARROT] });
 shaped(I.SADDLE, 1, ['LLL', 'LIL'], { L: [I.LEATHER], I: [I.IRON_INGOT] });
+shaped(I.LEAD, 2, ['SS.', 'SL.', '..S'], { S: [I.STRING], L: [I.LEATHER] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
 shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
 

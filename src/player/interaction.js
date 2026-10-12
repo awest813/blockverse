@@ -275,6 +275,10 @@ export class Interaction {
     // the composter takes plant scraps; the trough takes animal feed; the
     // machines say what they're up to
     if (t && t.id === B.COMPOSTER && !p.sneaking && useComposter(this, t, held)) { this.useCooldown = 0.2; return; }
+    // a fence post: tie up the animals you're leading (or take back the ones tied there)
+    if (t && t.id === B.OAK_FENCE && !p.sneaking && this.cb.tieLeashes?.(t)) { this.useCooldown = 0.3; return; }
+    // a goat horn calls your horses
+    if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER) && !p.sneaking && !(held && isBlockItem(held.id))) {
       this.cb.notify?.(describeMachine(this.world, t));

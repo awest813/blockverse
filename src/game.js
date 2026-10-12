@@ -187,6 +187,8 @@ export class Game {
       editSign: (x, y, z) => this.signEditor.open(x, y, z),
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
+      tieLeashes: (t) => this.tieLeashes(t),
+      blowHorn: () => this.blowHorn(),
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
@@ -225,12 +227,15 @@ export class Game {
       if (button === 2 && !this.uiOpen && !this.player.dead) {
         const m = this.mobUnderCrosshair();
         const held = this.player.heldStack();
-        if (m?.interact?.(this.player, held)) {
+        if (m && this.useLead(m, held)) {
+          this.interaction.placeCooldown = 0.35;
+          this.interaction.useCooldown = 0.35;
+        } else if (m?.interact?.(this.player, held)) {
           this.interaction.placeCooldown = 0.35;
           this.interaction.useCooldown = 0.35;
         } else if (m?.breedItem && !m.tamed && held && itemInfo(held.id)?.food) {
           // the wrong food: say what it does eat
-          const foods = [m.breedItem, ...(m.breedAlso ?? [])].map((id) => itemInfo(id)?.display.toLowerCase()).filter(Boolean);
+          const foods = (m.diet ?? [m.breedItem, ...(m.breedAlso ?? [])]).map((id) => itemInfo(id)?.display.toLowerCase()).filter(Boolean);
           const list = foods.length > 1 ? `${foods.slice(0, -1).join(', ')} or ${foods.at(-1)}` : foods[0];
           const who = m.kind === 'sheep' ? 'Sheep' : `${m.kind[0].toUpperCase()}${m.kind.slice(1)}s`;
           this.hud.showLabel(`${who} eat ${list}`);
@@ -425,6 +430,57 @@ export class Game {
   // Hit the mob under the crosshair, if one is closer than the targeted block.
   // Returns true when a mob was in reach (touch taps fall back to "use" otherwise).
   // the mob under the crosshair within reach, unless a block is in front of it
+  // Leads: put one on an animal, or take it back off (a horse you climb on
+  // gives its lead back by itself).
+  useLead(m, held) {
+    const p = this.player;
+    if (m.leash) {
+      const horseToRide = m.kind === 'horse' && !held && !p.sneaking;
+      if (horseToRide || (held && held.id !== I.LEAD && !p.sneaking)) return false;   // ride it, feed it...
+      m.unleash();
+      if (p.mode !== GAMEMODE_CREATIVE && p.give(I.LEAD, 1) > 0) this.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.LEAD, count: 1 }], true);
+      this.sfx?.play('place', { block: 'cloth', vol: 0.6 });
+      return true;
+    }
+    if (held?.id !== I.LEAD) return false;
+    if (!m.breedItem || m.tamed || m.boss || m.hostile || m.dying !== undefined) { this.hud.showLabel('A lead only goes on farm animals'); return true; }
+    m.leashTo({ player: p });
+    if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+    this.sfx?.play('place', { block: 'cloth', vol: 0.6 });
+    return true;
+  }
+
+  // Use a fence post: tie up everything you're leading, or (leading nothing)
+  // take up the leads of whatever's tied there.
+  tieLeashes(t) {
+    const p = this.player, knot = { x: t.x, y: t.y, z: t.z };
+    const led = this.entities.mobs.filter((m) => m.leash?.player === p && !m.dead);
+    if (led.length) {
+      for (const m of led) m.leashTo({ knot });
+      this.hud.showLabel(led.length === 1 ? 'Tied to the fence' : `${led.length} animals tied to the fence`);
+    } else {
+      const tied = this.entities.mobs.filter((m) => m.leash?.knot && m.leash.knot.x === t.x && m.leash.knot.y === t.y && m.leash.knot.z === t.z && !m.dead);
+      if (!tied.length) return false;
+      for (const m of tied) m.leashTo({ player: p });
+    }
+    this.sfx?.play('place', { block: 'cloth', vol: 0.6 });
+    return true;
+  }
+
+  // a goat horn: a long call that brings your horses running
+  blowHorn() {
+    const p = this.player;
+    this.sfx?.play('horn');
+    let n = 0;
+    for (const m of this.entities.mobs) {
+      if (m.kind !== 'horse' || !m.owned || m.rider || m.dead || m.dying !== undefined) continue;
+      if (Math.hypot(m.x - p.x, m.z - p.z) > 64) continue;
+      m.called = 25;
+      n++;
+    }
+    this.hud.showLabel(n ? (n === 1 ? 'Your horse is coming' : `${n} horses are coming`) : 'The call echoes… no horse of yours is in earshot');
+  }
+
   mobUnderCrosshair(extraReach = 0) {
     const origin = { x: this.player.x, y: this.player.eyeY, z: this.player.z };
     const dir = this.player.lookDir();

@@ -114,4 +114,6 @@ export const I = {
   SADDLE: 358,
   DUCK_RAW: 359,
   DUCK_COOKED: 360,
+  LEAD: 361,
+  GOAT_HORN: 362,
 };

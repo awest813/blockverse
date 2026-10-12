@@ -1289,6 +1289,17 @@ tile('chicken_raw', (ctx) => drumstick(ctx, [236, 190, 170], [210, 160, 140]));
 tile('chicken_cooked', (ctx) => drumstick(ctx, [196, 128, 60], [160, 96, 40]));
 tile('duck_raw', (ctx) => drumstick(ctx, [214, 140, 128], [176, 104, 96]));
 tile('duck_cooked', (ctx) => drumstick(ctx, [150, 82, 36], [112, 58, 24]));
+tile('lead', (ctx) => {
+  const R = [168, 128, 76], D = [120, 88, 50];
+  for (let a = 0; a < 26; a++) { const t = a / 26 * Math.PI * 2; px(ctx, Math.round(8 + Math.cos(t) * 4), Math.round(6 + Math.sin(t) * 3), a % 3 ? R : D); }   // the loop
+  for (let i = 0; i < 6; i++) px(ctx, 10 + (i >> 1), 9 + i, i % 2 ? D : R);                                                // the tail
+  rect(ctx, 11, 8, 2, 2, [190, 190, 196]);                                                                                    // the clip
+});
+tile('goat_horn', (ctx) => {
+  const H = [200, 188, 160], D = [150, 136, 110], L = [228, 220, 198];
+  for (let i = 0; i < 10; i++) { const w = 1 + (i >> 2); rect(ctx, 3 + i, 11 - Math.round(i * 0.7) - w + 1, 1, w + 1, i % 3 ? H : D); }
+  px(ctx, 4, 11, L); px(ctx, 7, 8, L); rect(ctx, 12, 2, 2, 4, D); px(ctx, 13, 2, L);
+});
 tile('saddle', (ctx) => {
   const L = [140, 84, 44], D = [100, 58, 30], H = [176, 116, 66], M = [180, 180, 186];
   rect(ctx, 3, 5, 10, 4, L); rect(ctx, 2, 6, 1, 3, D); rect(ctx, 13, 6, 1, 3, D);   // seat

@@ -3,7 +3,9 @@
 
 import * as THREE from 'three';
 import { Mob } from './mob.js';
+import { entityCollides } from '../core/physics.js';
 import { I } from '../items/itemIds.js';
+import { itemInfo } from '../items/items.js';
 import { B, isSolid as isSolidId } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
@@ -181,8 +183,9 @@ export class Goat extends Animal {
     const hp = (w, h, d, c, x, y, z) => { const m = this.part(w, h, d, c, x, y, z); this.group.remove(m); this.head.add(m); return m; };
     hp(0.36, 0.38, 0.46, coat, 0, 0.04, -0.16);               // head
     hp(0.14, 0.22, 0.1, beard, 0, -0.2, -0.3);                // beard
-    hp(0.08, 0.3, 0.08, horn, -0.12, 0.3, -0.04).rotation.x = 0.5;
-    hp(0.08, 0.3, 0.08, horn, 0.12, 0.3, -0.04).rotation.x = 0.5;
+    this.hornParts = [hp(0.08, 0.3, 0.08, horn, -0.12, 0.3, -0.04), hp(0.08, 0.3, 0.08, horn, 0.12, 0.3, -0.04)];
+    for (const h of this.hornParts) h.rotation.x = 0.5;
+    this.horns = 2;
     hp(0.05, 0.05, 0.02, 0xc89a20, -0.1, 0.1, -0.4);          // yellow eyes
     hp(0.05, 0.05, 0.02, 0xc89a20, 0.1, 0.1, -0.4);
     this.quadLegs(shade, 0.16, 0.6, 0.2, 0.3, 0.62);
@@ -208,7 +211,8 @@ export class Goat extends Animal {
     }
     super.think(dt, player, playerDist);
     // a mountain goat leaps
-    if (this.state === 'wander' && this.moving && this.onGround && Math.random() < dt / 5) this.vy = 9.5;
+    // (1.4 blocks: high, but not over a fence)
+    if (this.state === 'wander' && this.moving && this.onGround && Math.random() < dt / 5) this.vy = 8.6;
   }
 
   ramTick(dt, player) {
@@ -236,6 +240,15 @@ export class Goat extends Animal {
       player.vx += r.dir[0] * 10; player.vz += r.dir[1] * 10; player.vy = Math.max(player.vy, 5.5);
       this.fx?.sound('hit', { pos: this });
     }
+    // slamming into rock can knock a horn off
+    if (this.lastHitWall && !hitPlayer && this.horns > 0 && !this.baby) {
+      const fx = Math.floor(this.x + r.dir[0] * (this.w / 2 + 0.3)), fz = Math.floor(this.z + r.dir[1] * (this.w / 2 + 0.3));
+      if (HORN_ROCK.has(this.world.getBlockW(fx, Math.floor(this.y + 0.5), fz)) && Math.random() < 0.5) {
+        this.setHorns(this.horns - 1);
+        this.dropFn?.([{ id: I.GOAT_HORN, count: 1 }]);
+        this.fx?.sound('hit', { pos: this });
+      }
+    }
     if (hitPlayer || r.t <= 0 || this.lastHitWall) {
       this.ram = null;
       this.grudge = hitPlayer ? 0 : this.grudge;
@@ -245,6 +258,14 @@ export class Goat extends Animal {
     }
   }
 
+  setHorns(n) {
+    this.horns = Math.max(0, Math.min(2, n));
+    this.hornParts.forEach((h, i) => { h.visible = i < this.horns; });
+  }
+
+  saveExtra() { return this.horns < 2 ? { horns: this.horns } : null; }
+  loadExtra(e) { if (Number.isFinite(e.horns)) this.setHorns(e.horns); }
+
   onDeath() {
     this.dropFn?.([
       { id: I.LEATHER, count: (Math.random() * 2) | 0 },
@@ -252,6 +273,7 @@ export class Goat extends Animal {
     ]);
   }
 }
+const HORN_ROCK = new Set([B.STONE, B.COBBLESTONE, B.GRANITE ?? -1, B.ANDESITE ?? -1, B.DIORITE ?? -1, B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.STONE_BRICKS ?? -1, B.PACKED_ICE ?? -1, B.ICE ?? -1].filter((id) => id >= 0));
 
 // Ducks: waddle on land, paddle on water (they like it), and their
 // ducklings follow them about. Drakes have green heads.
@@ -330,7 +352,7 @@ const COATS = [
   [0x7a4e2c, 0x2e1c10, 'bay'], [0x9a5a28, 0x6a3a18, 'chestnut'], [0x2c2622, 0x141210, 'black'],
   [0xd8d2c8, 0xb8b0a4, 'white'], [0x8c8680, 0x3c3834, 'grey'], [0xc49a5c, 0xece2cc, 'palomino'],
 ];
-const TAMING_FOOD = new Map([[I.WHEAT, 3], [I.APPLE, 5], [I.CARROT, 4], [I.HAY_BALE, 10], [I.GOLDEN_CARROT, 20], [I.GOLDEN_APPLE, 20]]);
+const TAMING_FOOD = new Map([[I.WHEAT, 3], [I.APPLE, 5], [I.CARROT, 4], [B.HAY_BALE, 10], [I.GOLDEN_CARROT, 20], [I.GOLDEN_APPLE, 20]]);
 
 export class Horse extends Animal {
   constructor(scene, world, x, y, z) {
@@ -341,9 +363,10 @@ export class Horse extends Animal {
     this.ambientSound = 'horse';
     this.breedItem = I.GOLDEN_APPLE;   // (and golden carrots, like every farm animal)
     this.safeFall = 6;
-    // its own gifts: top speed 7.5-11 m/s, a jump of 1.5-2.6 blocks
+    // its own gifts: top speed 7.5-11 m/s, a jump of 1.8-2.7 blocks (any horse clears a fence)
     this.gallop = 7.5 + Math.random() * 3.5;
-    this.jumpV = 9 + Math.random() * 2.8;
+    this.jumpV = 9.8 + Math.random() * 2.1;
+    this.diet = [...TAMING_FOOD.keys()];   // what it'll eat (for the "wrong food" hint)
     this.temper = 0;       // taming progress, 0-100
     this.owned = false;    // tamed
     this.saddled = false;
@@ -394,6 +417,7 @@ export class Horse extends Animal {
   loadExtra(e) {
     this.setCoat(e.coat);
     for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
+    this.jumpV = Math.max(this.jumpV, 9.8);   // horses saved before every horse could clear a fence
     this.owned = !!e.owned;
     this.setSaddled(!!e.saddled);
   }
@@ -436,9 +460,9 @@ export class Horse extends Animal {
       this.fx?.sound('eat', { vol: 0.6, pos: this });
       return true;
     }
-    if (held) return false;
+    if (held && !(this.owned && this.saddled) || (held && itemInfo(held.id)?.food)) return false;
     if (this.baby) return true;
-    // an empty hand: climb on
+    // climb on (a wild one needs an empty hand; your saddled horse, anything but food)
     if (this.owned && !this.saddled) { say('It needs a saddle before you can ride it'); return true; }
     if (player.sneaking) {
       // sneak-use takes the saddle back off
@@ -451,6 +475,13 @@ export class Horse extends Animal {
 
   mountBy(player) {
     if (player.mount) return;
+    // the rider's head needs room
+    this.h = 2.6;
+    const cramped = entityCollides(this.world, this);
+    this.h = 1.6;
+    if (cramped) { this.fx?.notify?.('Not enough headroom to climb on here'); return; }
+    // climbing on a horse on a lead: the lead comes back to you
+    if (this.leash) { this.unleash(); if (player.mode !== GAMEMODE_CREATIVE && player.give(I.LEAD, 1) > 0) this.dropFn?.([{ id: I.LEAD, count: 1 }]); }
     this.rider = player;
     player.mount = this;
     player._sneakHeld = !!player.sneaking;
@@ -486,6 +517,17 @@ export class Horse extends Animal {
   }
 
   think(dt, player, playerDist) {
+    // called by a goat horn: come at a gallop
+    if (this.called > 0 && !this.rider && !this.leash) {
+      this.called -= dt;
+      if (playerDist < 3 || player.dead) { this.called = 0; this.state = 'idle'; this.stateTime = 2; this.moving = false; return; }
+      this.state = 'called';
+      this.steer(player, 1);
+      this.moving = true;
+      this.hurry = playerDist > 8;
+      this.fleeSpeed = Math.max(4, this.gallop * 0.7);
+      return;
+    }
     if (!this.rider) return super.think(dt, player, playerDist);
     const r = this.rider;
     this.detour = null;

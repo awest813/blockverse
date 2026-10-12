@@ -400,6 +400,11 @@ export class Sfx {
         for (let i = 0; i < 6; i++) this.later(() => this.tone({ freq: (900 - i * 90) * detune * (i % 2 ? 1.06 : 1), dur: 0.08, gain: 0.045, type: 'sawtooth' }), i * 65);
         this.later(() => this.noise({ freq: 600, q: 0.7, dur: 0.18, gain: 0.07, type: 'lowpass' }), 470);
         break;
+      case 'horn':     // a long, rough call that bends down at the end
+        this.tone({ freq: 196, endFreq: 174, dur: 1.5, gain: 0.09, type: 'sawtooth' });
+        this.tone({ freq: 392, endFreq: 349, dur: 1.4, gain: 0.03, type: 'square' });
+        this.noise({ freq: 500, q: 0.8, dur: 0.25, gain: 0.04, type: 'lowpass' });
+        break;
       case 'hoof':     // clip-clop
         this.noise({ freq: 1600 * detune, q: 4, dur: 0.04, gain: 0.09 });
         this.later(() => this.noise({ freq: 1250 * detune, q: 4, dur: 0.04, gain: 0.07 }), 95);

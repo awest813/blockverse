@@ -97,6 +97,10 @@ item(I.FEATHER, 'feather', 'Feather');
 item(I.LEATHER, 'leather', 'Leather');
 // put on a tamed horse to ride it
 item(I.SADDLE, 'saddle', 'Saddle', { stack: 1 });
+// lead an animal home; use a fence post to tie it up
+item(I.LEAD, 'lead', 'Lead');
+// knocked off a charging goat that hits rock; blow it to call your horses
+item(I.GOAT_HORN, 'goat_horn', 'Goat Horn', { stack: 1 });
 item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3, sat: 1.8 });
 item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8, sat: 12.8 });
 item(I.CHICKEN_RAW, 'chicken_raw', 'Raw Chicken', { food: 2, sat: 1.2, sickly: 0.3 });

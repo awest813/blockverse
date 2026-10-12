@@ -40,6 +40,25 @@ function collides(world, x, y, z, w, h) {
   return forEachHit(world, x, y, z, w, h, () => true);
 }
 
+// Is this entity's box inside something solid? (e.g. a baby that's just
+// grown up beside a fence)
+export function entityCollides(world, e) {
+  return collides(world, e.x, e.y, e.z, e.w, e.h);
+}
+
+// Slide an entity sideways out of whatever it overlaps (never up: popping a
+// grown animal upward would stand it on top of a fence). False if boxed in.
+export function nudgeFree(world, e, reach = 0.6) {
+  if (!collides(world, e.x, e.y, e.z, e.w, e.h)) return true;
+  for (let r = 0.05; r <= reach + 1e-9; r += 0.05) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, x = e.x + Math.cos(a) * r, z = e.z + Math.sin(a) * r;
+      if (!collides(world, x, e.y, z, e.w, e.h)) { e.x = x; e.z = z; return true; }
+    }
+  }
+  return false;
+}
+
 // highest box top / lowest box bottom overlapping the AABB
 function topOf(world, x, y, z, w, h) {
   let top = -Infinity;

@@ -193,6 +193,7 @@ export function serializeAnimal(m) {
   const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
+  if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
   return a;
 }
 
@@ -206,6 +207,8 @@ export function restoreAnimal(scene, world, a) {
   if (a.baby) mob.setBaby(true, a.grow || 300);
   if (a.sheared) mob.setSheared?.(true);
   if (a.extra) mob.loadExtra?.(a.extra);
+  if (a.leash?.knot) mob.leashTo({ knot: a.leash.knot });
+  else if (a.leash === 'player') mob.pendingLeash = true;   // picked up again once the player's about
   return mob;
 }
 
