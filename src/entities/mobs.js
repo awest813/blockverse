@@ -389,8 +389,9 @@ export class Spider extends Mob {
   buildModel(body = 0x2e2a28, bodyL = 0x4a4440) {
     this.part(0.7, 0.55, 0.9, body, 0, 0.55, 0.3);            // abdomen
     this.part(0.5, 0.45, 0.45, bodyL, 0, 0.55, -0.35);        // head
-    for (const x of [-0.13, 0.13]) this.part(0.09, 0.07, 0.02, 0xd02020, x, 0.62, -0.58);   // red eyes
-    for (const x of [-0.2, 0.2]) this.part(0.06, 0.05, 0.02, 0xd02020, x, 0.52, -0.58);
+    // red eyes that glow in the dark
+    for (const x of [-0.13, 0.13]) this.glowPart(0.09, 0.07, 0.02, 0xe02424, x, 0.62, -0.58);
+    for (const x of [-0.2, 0.2]) this.glowPart(0.06, 0.05, 0.02, 0xe02424, x, 0.52, -0.58);
     this.legs = [];
     for (let i = 0; i < 4; i++) {
       for (const side of [-1, 1]) {

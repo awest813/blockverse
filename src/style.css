@@ -729,7 +729,8 @@ html, body {
    used to show through the dim overlay and sit under the buttons; the hotbar
    and status bars recede so they don't crowd the menu. Inventories and the
    sign editor keep them (the inventory button closes the window). */
-#hud:has(~ #ui-root > .screen:not(.container-screen)) #touch-controls { visibility: hidden; }
+#hud:has(~ #ui-root > .screen:not(.container-screen)) #touch-controls,
+#hud:has(~ #ui-root > .screen) #inventory-hint { visibility: hidden; }
 #hud:has(~ #ui-root > .screen:not(.container-screen)) #hotbar,
 #hud:has(~ #ui-root > .screen:not(.container-screen)) #health-bar,
 #hud:has(~ #ui-root > .screen:not(.container-screen)) #hunger-bar,

@@ -191,6 +191,13 @@ export class Mob {
     return m;
   }
 
+  // a part that shines in the dark (a spider's eyes): never drawn darker than this
+  glowPart(w, h, d, color, x, y, z, glow = 0.9) {
+    const m = this.part(w, h, d, color, x, y, z);
+    this.materials[this.materials.length - 1].glow = glow;
+    return m;
+  }
+
   update(dt, player) {
     if (this.dead) return;
     if (this.dying !== undefined) { this.animateDeath(dt); return; }
@@ -315,8 +322,8 @@ export class Mob {
 
     // brightness from voxel light + hurt flash
     const light = this.world.lightAt(this.x, this.y + 0.5, this.z);
-    for (const { mat, base } of this.materials) {
-      mat.color.copy(base).multiplyScalar(light);
+    for (const { mat, base, glow } of this.materials) {
+      mat.color.copy(base).multiplyScalar(glow ? Math.max(light, glow) : light);
       if (this.flashTime > 0) mat.color.lerp(HURT_RED, 0.55);
     }
   }
