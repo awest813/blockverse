@@ -33,7 +33,8 @@ function smoothstep(a, b, x) {
 // 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
 // 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils;
 // 8 = farming loot in chests (carrots, potatoes, golden carrots);
-// 9 = larger biomes (climate twice as broad, wider mountain ranges and continents).
+// 9 = larger biomes (climate twice as broad, wider mountain ranges and continents),
+//     ore veins that follow the ground (coal up into hills and mountains).
 export const LATEST_GEN = 9;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
@@ -305,7 +306,20 @@ export class WorldGen {
 
   placeOres(blocks, cx, cz, heightMap) {
     // [block, attempts per chunk, blob size, minY, maxY]
-    const ORES = [
+    // Generator 9 picks each vein's height under the ground at its column,
+    // rather than anywhere up to maxY (most of which was sky, so coal all but
+    // vanished above y 48 and mountains had little); counts are retuned so the
+    // totals stay much the same, with diamonds a little scarcer.
+    const v9 = this.version >= 9;
+    const ORES = v9 ? [
+      [B.COAL_ORE, 6, 10, 6, 110],
+      [B.IRON_ORE, 8, 6, 4, 64],
+      [B.GOLD_ORE, 3, 5, 4, 30],
+      [B.REDSTONE_ORE, 5, 6, 4, 16],
+      [B.DIAMOND_ORE, 1, 6, 4, 14],
+      [B.GRAVEL, 6, 14, 8, 70],
+      [B.DIRT, 8, 14, 8, 80],
+    ] : [
       [B.COAL_ORE, 14, 10, 6, 96],
       [B.IRON_ORE, 10, 6, 4, 54],
       [B.GOLD_ORE, 3, 5, 4, 30],
@@ -319,8 +333,10 @@ export class WorldGen {
       const rng = coordRng(this.seed, cx, cz, 100 + o);
       for (let a = 0; a < attempts; a++) {
         let x = (rng() * CHUNK_X) | 0;
-        let y = minY + ((rng() * (maxY - minY)) | 0);
         let z = (rng() * CHUNK_Z) | 0;
+        const top = v9 ? Math.min(maxY, heightMap[x * CHUNK_Z + z] - 3) : maxY;
+        if (top <= minY) { rng(); continue; }
+        let y = minY + ((rng() * (top - minY)) | 0);
         for (let s = 0; s < size; s++) {
           if (x >= 0 && x < CHUNK_X && y > 1 && y < CHUNK_Y && z >= 0 && z < CHUNK_Z) {
             const idx = blockIndex(x, y, z);
