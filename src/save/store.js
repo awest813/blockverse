@@ -1,7 +1,7 @@
 // Persistence: worlds and chunks in IndexedDB, settings in localStorage.
 
 import { LATEST_GEN } from '../world/worldgen.js';
-import { CHUNK_VOLUME } from '../core/constants.js';
+import { CHUNK_VOLUME, GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { isLowEndDevice } from '../ui/display.js';
 
 const CHUNK_SUFFIX = /^-?\d+,-?\d+$/;
@@ -182,6 +182,9 @@ export class SaveStore {
     const m = data.meta;
     if (typeof m.name !== 'string' || m.seed === undefined || !Array.isArray(data.chunks)) throw new Error('The world file is damaged or incomplete');
     const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
+    // a hand-edited file: fall back to the defaults rather than invalid settings
+    if (meta.mode !== undefined && meta.mode !== GAMEMODE_SURVIVAL && meta.mode !== GAMEMODE_CREATIVE) meta.mode = GAMEMODE_SURVIVAL;
+    if (meta.difficulty !== undefined && !(Number.isInteger(meta.difficulty) && meta.difficulty >= 0 && meta.difficulty <= 3)) meta.difficulty = 2;
     const damaged = () => new Error('The world file is damaged or incomplete');
     const chunks = data.chunks.map((entry) => {
       const [suffix, v] = Array.isArray(entry) ? entry : [];

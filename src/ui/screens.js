@@ -190,7 +190,15 @@ export class Screens {
   // ---------- main menu ----------
 
   async showMain(selectId = null) {
-    const worlds = await this.store.listWorlds();
+    let worlds;
+    try {
+      worlds = await this.store.listWorlds();
+    } catch (err) {
+      // e.g. iOS Safari dropping the database connection while in the background
+      console.error(err);
+      this.showConfirm('Couldn\u2019t read your worlds', `${err?.message ?? err}. Reloading the page usually fixes this.`, 'Reload', () => location.reload(), () => location.reload());
+      return;
+    }
     const el = this.screen();
     this.current = 'main';
     this.title(el);
@@ -243,7 +251,12 @@ export class Screens {
       const w = worlds.find((x) => x.id === selected);
       if (w && await busyElsewhere(w)) return;
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
-        await this.store.deleteWorld(w.id);
+        try {
+          await this.store.deleteWorld(w.id);
+        } catch (err) {
+          this.showConfirm('Couldn\u2019t delete that world', String(err?.message ?? err), 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+          return;
+        }
         this.showMain();
       }, () => this.showMain(w.id));
     }, 'btn small danger');
@@ -447,7 +460,12 @@ export class Screens {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = input.value.trim();
-      if (name && name !== w.name) await this.store.renameWorld(w.id, name);
+      try {
+        if (name && name !== w.name) await this.store.renameWorld(w.id, name);
+      } catch (err) {
+        this.showConfirm('Couldn\u2019t rename that world', String(err?.message ?? err), 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+        return;
+      }
       this.showMain(w.id);
     });
     this.onKey = (e) => {
@@ -574,14 +592,21 @@ export class Screens {
       if (seedText === '') seed = (Math.random() * 0xffffffff) >>> 0;
       else if (/^-?\d+$/.test(seedText)) seed = (parseInt(seedText, 10) >>> 0);
       else seed = hashString(seedText);
-      const meta = await this.store.createWorld({
-        name: nameIn.value.trim() || 'New World',
-        seed,
-        mode: parseInt(modeSel.value, 10),
-        renderDistance: this.settings.renderDistance,
-        keepInventory: keepSel.value === '1',
-        difficulty: parseInt(diffSel.value, 10),
-      });
+      let meta;
+      try {
+        meta = await this.store.createWorld({
+          name: nameIn.value.trim() || 'New World',
+          seed,
+          mode: parseInt(modeSel.value, 10),
+          renderDistance: this.settings.renderDistance,
+          keepInventory: keepSel.value === '1',
+          difficulty: parseInt(diffSel.value, 10),
+        });
+      } catch (err) {
+        console.error(err);
+        this.showConfirm('Couldn\u2019t create the world', `${err?.message ?? err} \u2014 the browser may be out of storage space.`, 'OK', () => this.showMain(), () => this.showMain());
+        return;
+      }
       this.onPlay(meta.id);
     });
 

@@ -168,6 +168,12 @@ export class World {
       this.requestMissing(pcx, pcz, R + 1);
       this.evictFar(pcx, pcz, R + 3);
       this.pool.prune((cx, cz) => Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= R + 1);
+      this.lastRequestAt = frameStart;
+    } else if (frameStart - (this.lastRequestAt ?? 0) > 1000) {
+      // now and then, fill any gap left by a chunk that failed to generate
+      // (the player can't move while the chunk they stand in is missing)
+      this.lastRequestAt = frameStart;
+      this.requestMissing(pcx, pcz, R + 1);
     }
 
     // light init: budgeted

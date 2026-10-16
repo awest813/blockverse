@@ -140,7 +140,8 @@ export class TouchControls {
     // pushing the stick all the way forward sprints
     this.input.holdAction('sprint', y < -0.92);
     // the knob lives inside the zoomed HUD, so convert screen px to HUD px
-    const k = (radius * 0.55) / currentGuiScale();
+    // (the touch HUD never zooms below 0.85, see #hud.touch in style.css)
+    const k = (radius * 0.55) / Math.max(currentGuiScale(), 0.85);
     this.knob.style.transform = `translate(${x * k}px, ${y * k}px)`;
   }
 

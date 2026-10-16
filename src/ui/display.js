@@ -12,7 +12,12 @@ export function guiScaleSetting() {
   return guiSetting;
 }
 
+// CSS zoom (Firefox before 126 lacks it): without it the GUI stays at 1x,
+// so sizes worked out from the scale match what's on screen
+const zoomSupported = typeof CSS !== 'undefined' && CSS.supports?.('zoom', '1');
+
 export function currentGuiScale() {
+  if (!zoomSupported) return 1;
   return guiSetting > 0 ? guiSetting : autoGuiScale();
 }
 
