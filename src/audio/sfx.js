@@ -420,7 +420,7 @@ export class Sfx {
         this.later(() => this.noise({ freq: 600, q: 0.7, dur: 0.18, gain: 0.07, type: 'lowpass' }), 470);
         break;
       case 'panda':    // a soft, nasal bleat (pitched up: a little sneeze)
-        if ((opts.pitch ?? 1) > 1.2) {
+        if (opts.sneeze) {
           this.noise({ freq: 2400 * detune, q: 1.2, dur: 0.12, gain: 0.07, type: 'bandpass' });
           this.tone({ freq: 700 * detune, endFreq: 420, dur: 0.08, gain: 0.04, type: 'triangle' });
         } else {

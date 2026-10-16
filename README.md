@@ -20,7 +20,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🌍 Infinite procedural world
 - Seed-driven, fully deterministic terrain — the same seed always produces the same world
-- **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), with dithered borders, each typically several hundred blocks across; cold water freezes over and cold mountain ranges are snowbound
+- **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), each typically several hundred blocks across with wavy, natural borders; grass, leaves and water take their colour from the climate (deep olive swamps, sun-bleached grass toward the deserts, cool blue-green near the snow); cold water freezes over and cold mountain ranges are snowbound
 - Multi-octave gradient-noise terrain with rolling hills, regional mountain ranges with snow caps, erosion-controlled roughness, and flattened swamps
 - **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths, mushrooms and mossy patches; tunnels narrow near the surface so hillsides stay intact and never breach the seabed
 - **Dungeons**: rare mossy-cobblestone rooms where caves run into them, each with a **monster spawner** (zombies, skeletons or spiders that keep coming until you break the cage) and one or two chests of loot

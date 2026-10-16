@@ -252,7 +252,10 @@ export class Screens {
     const deleteBtn = this.btn('Delete…', async () => {
       const w = worlds.find((x) => x.id === selected);
       if (w && await busyElsewhere(w)) return;
+      let deleting = false;   // (a second click or Enter while it's under way)
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
+        if (deleting) return;
+        deleting = true;
         // hold the world's lock while deleting: it may have been opened in
         // another tab since the dialog came up (whose saves would bring it back)
         const release = await acquireWorldLock(w.id);
@@ -468,8 +471,11 @@ export class Screens {
     form.appendChild(save);
     el.appendChild(form);
     el.appendChild(this.btn('Cancel', () => this.showMain(w.id), 'btn small'));
+    let saving = false;   // (a second Enter while it's under way)
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (saving) return;
+      saving = true;
       const name = input.value.trim();
       const release = await acquireWorldLock(w.id);   // (not while it's open elsewhere: its saves would undo it)
       if (!release) {

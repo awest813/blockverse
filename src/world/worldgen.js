@@ -34,7 +34,10 @@ function smoothstep(a, b, x) {
 // 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils;
 // 8 = farming loot in chests (carrots, potatoes, golden carrots);
 // 9 = larger biomes (climate twice as broad, wider mountain ranges and continents),
-//     ore veins that follow the ground (coal up into hills and mountains).
+//     ore veins that follow the ground (coal up into hills and mountains),
+//     wavy biome borders instead of speckled ones, swamps that blend in at
+//     the edges, wider birch woods, no trees on bare mountain rock, no clay
+//     specks on dry land or grass under water and ice.
 export const LATEST_GEN = 9;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
@@ -77,7 +80,11 @@ export class WorldGen {
     const mMask = smoothstep(0.15, 0.55, this.mountainMask.noise2(wx / ms, wz / ms));
     const ridge = this.peaks.ridge2(wx / 230, wz / 230, 4);
     const v2 = this.version >= 2;
-    const jitter = v2 ? (colHash(wx, wz) - 0.5) * 0.05 : 0;
+    const v9 = this.version >= 9;
+    // borders: v2-8 dither each column (a speckled band that v9's broader
+    // climate would double); v9 wiggles them with smooth noise instead
+    const jitter = v9 ? this.detail.noise2(wx / 22, wz / 22) * 0.035 + (colHash(wx, wz) - 0.5) * 0.008
+      : v2 ? (colHash(wx, wz) - 0.5) * 0.05 : 0;
     const t = v2 ? stretch(this.tempAt(wx, wz)) + jitter : this.tempAt(wx, wz);
     const m = v2 ? stretch(this.moistAt(wx, wz)) - jitter : this.moistAt(wx, wz);
 
@@ -96,7 +103,17 @@ export class WorldGen {
 
     // Swamps flatten terrain toward the waterline (v5: with shallow pools).
     let pool = false;
-    if (m > 0.72 && t > 0.35 && t < 0.7 && mMask < 0.3 && h > SEA_LEVEL - 1 && h < SEA_LEVEL + 8) {
+    if (v9) {
+      // v9: ease the flattening in across the swamp's edge, so it doesn't
+      // end in a ragged wall of pillars where the old hard test flipped
+      const w = smoothstep(0.68, 0.76, m) * smoothstep(0.33, 0.37, t) * (1 - smoothstep(0.68, 0.72, t))
+        * (1 - smoothstep(0.25, 0.3, mMask)) * (1 - smoothstep(SEA_LEVEL + 5, SEA_LEVEL + 8, h)) * (h > SEA_LEVEL - 1 ? 1 : 0);
+      if (w > 0) {
+        h += (SEA_LEVEL + 1 + (h - SEA_LEVEL - 1) * 0.25 - h) * w;
+        const p = this.detail.fbm2(wx / 19, wz / 19, 2);
+        if (p > 0.12 && w > 0.6) { h = Math.max(SEA_LEVEL - 1.9, SEA_LEVEL - 0.4 - (p - 0.12) * 6); pool = true; }
+      }
+    } else if (m > 0.72 && t > 0.35 && t < 0.7 && mMask < 0.3 && h > SEA_LEVEL - 1 && h < SEA_LEVEL + 8) {
       h = SEA_LEVEL + 1 + (h - SEA_LEVEL - 1) * 0.25;
       if (this.version >= 5) {
         const p = this.detail.fbm2(wx / 19, wz / 19, 2);
@@ -141,6 +158,13 @@ export class WorldGen {
     return this.biomeOf(this.columnAt(wx, wz));
   }
 
+  // Smooth climate for colouring (grass, leaves, water): temperature and
+  // moisture as biomes use them, without the per-column border dither.
+  climateAt(wx, wz) {
+    if (this.version < 2) return { t: this.tempAt(wx, wz), m: this.moistAt(wx, wz) };
+    return { t: stretch(this.tempAt(wx, wz)), m: stretch(this.moistAt(wx, wz)) };
+  }
+
   biomeOf({ h, t, m, mMask, river, pool }) {
     if (pool) return BIOME.SWAMP;
     if (river > 0.2 && h < SEA_LEVEL) return BIOME.RIVER;
@@ -150,7 +174,8 @@ export class WorldGen {
     if (t < 0.28) return m > 0.55 ? BIOME.SNOWY_FOREST : BIOME.SNOWY;
     if (t > 0.68 && m < 0.38) return BIOME.DESERT;
     if (m > 0.72 && t > 0.35 && t < 0.7) return BIOME.SWAMP;
-    if (m > 0.52) return t > 0.42 && t < 0.62 && m < 0.64 ? BIOME.BIRCH_FOREST : BIOME.FOREST;
+    // (v9 widens the birch woods: they were a thin band between forest and plains)
+    if (m > 0.52) return (this.version >= 9 ? t > 0.4 && t < 0.64 && m < 0.68 : t > 0.42 && t < 0.62 && m < 0.64) ? BIOME.BIRCH_FOREST : BIOME.FOREST;
     return BIOME.PLAINS;
   }
 
@@ -214,7 +239,7 @@ export class WorldGen {
             // surface block
             if (col.pool) id = B.DIRT;   // swamp pool beds
             else if (v5 && h > 84 && (snowy || biome === BIOME.MOUNTAINS)) id = B.SNOW_BLOCK;   // snowfields on high peaks
-            else if (y < SEA_LEVEL - 1) id = sandy ? B.SAND : (biome === BIOME.OCEAN ? B.GRAVEL : B.DIRT);
+            else if (y < (this.version >= 9 ? SEA_LEVEL : SEA_LEVEL - 1)) id = sandy ? B.SAND : (biome === BIOME.OCEAN ? B.GRAVEL : B.DIRT);   // (v9: no grass under water)
             else if (sandy) id = B.SAND;
             else if (snowy) id = B.SNOWY_GRASS;
             else if (biome === BIOME.MOUNTAINS && h > 68) id = B.STONE;
@@ -233,7 +258,7 @@ export class WorldGen {
         // occasional clay pockets under water
         if (biome === BIOME.OCEAN || biome === BIOME.SWAMP || biome === BIOME.RIVER) {
           const r = coordRng(this.seed, wx, wz, 33)();
-          if (r < 0.06 && h > 4) blocks[blockIndex(x, h, z)] = B.CLAY;
+          if (r < 0.06 && h > 4 && (this.version < 9 || h < SEA_LEVEL)) blocks[blockIndex(x, h, z)] = B.CLAY;   // (v9: only under water)
         }
         if (v5) this.columnLife(blocks, x, z, wx, wz, h, biome, col, snowy);
       }
@@ -393,6 +418,8 @@ export class WorldGen {
         const col = this.columnAt(wx, wz);
         const h = Math.floor(col.h);
         if (h <= SEA_LEVEL || !ok(this.biomeOf(col)) || !this.groundOk(wx, h, wz)) return null;
+        // v9: no trees rooted in bare mountain rock (it's grass or snow they need)
+        if (this.version >= 9 && this.biomeOf(col) === BIOME.MOUNTAINS && h > 68 && h <= 84 && !(col.t < FROZEN) && h <= 78) return null;
         return { wx, wz, h };
       };
 

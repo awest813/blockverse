@@ -960,7 +960,9 @@ export class Game {
   bedSpawnSpot(bed) {
     const w = this.world;
     if (!w.isLoaded(bed.x, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
-    const clear = (x, y, z) => !isSolid(w.getBlockW(x, y, z)) && !isSolid(w.getBlockW(x, y + 1, z));
+    // room to stand: not solid, and not water or lava either
+    const free = (id) => !isSolid(id) && id !== B.WATER && id !== B.LAVA;
+    const clear = (x, y, z) => free(w.getBlockW(x, y, z)) && free(w.getBlockW(x, y + 1, z));
     if (clear(bed.x, bed.y + 1, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
       const x = bed.x + dx, z = bed.z + dz;
@@ -1098,7 +1100,7 @@ export class Game {
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
 
     if (gamePaused || document.hidden) {
-      if (document.hidden) this.tickBlockEntities(dt);
+      if (document.hidden) this.tickBlockEntities(dt, true);
     } else {
       const wasInWater = this.player.inWater;
       const px0 = this.player.x, pz0 = this.player.z;
@@ -1323,15 +1325,17 @@ export class Game {
     this.bubbles = this.bubbles.filter((b) => b.t < 99);
   }
 
-  tickBlockEntities(dt) {
+  // `away`: a background tab - the world's own ticks only, nothing that
+  // touches the player (a campfire burning you, a spawner's monsters)
+  tickBlockEntities(dt, away = false) {
     tickFurnaces(this.world, dt);
     tickSaplings(this.world, dt);
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
-    tickSpawners(this, dt);
+    if (!away) tickSpawners(this, dt);
     tickFarmTech(this, dt);
     tickRandomGrowth(this.world, this.player, dt);
     tickFires(this.world, dt);
-    this.burnInCampfires(dt);
+    if (!away) this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {
       this._furnaceUiTimer += dt;
       if (this._furnaceUiTimer > 0.25) {
@@ -1492,6 +1496,7 @@ export class Game {
       () => this.signFx?.dispose(),
       () => this.sky?.dispose(),
       () => this.hud?.hide(),
+      () => { const f = document.getElementById('frost-overlay'); if (f) f.style.opacity = '0'; },   // (shared: not into the next world)
       () => document.removeEventListener('visibilitychange', this._onVisibility),
       () => window.removeEventListener('resize', this._onResize),
       () => this.entities?.dispose(),

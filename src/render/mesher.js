@@ -36,6 +36,45 @@ for (const f of FACES) {
 
 const AO_LEVELS = [0.45, 0.62, 0.8, 1.0];
 
+// ---- biome colours ----
+// Grass, oak leaves and water take a tint from the climate where they grow:
+// lush and dark in swamps, sun-bleached toward the deserts, cool and blue-
+// green in the cold. (Spruce and birch keep their own colours.) Multipliers
+// on the textures' green, near 1 in temperate country.
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+function climateTints(t, m) {
+  // temperature: cold blue-green -> temperate -> warm yellow-green
+  let grass = t < 0.45 ? mix3([0.74, 0.9, 1.0], [1, 1, 1], sstep(0.1, 0.45, t)) : mix3([1, 1, 1], [1.12, 1.05, 0.74], sstep(0.55, 0.9, t));
+  // dry and warm: straw yellow; wet (and not frozen): deep swampy olive
+  grass = mix3(grass, [1.2, 1.04, 0.55], sstep(0.48, 0.28, m) * sstep(0.5, 0.75, t));
+  grass = mix3(grass, [0.6, 0.72, 0.42], sstep(0.58, 0.78, m) * sstep(0.3, 0.45, t));
+  const foliage = mix3([1, 1, 1], grass, 0.8);
+  // water: murky green in the wet lowlands, steely blue in the cold
+  let water = mix3([1, 1, 1], [0.62, 0.82, 0.6], sstep(0.6, 0.8, m) * sstep(0.3, 0.45, t));
+  water = mix3(water, [0.86, 0.93, 1.06], sstep(0.4, 0.15, t));
+  return [grass, foliage, water];
+}
+// per chunk, 3 tints (grass, foliage, water) x rgb per column; climate only
+// depends on (x, z), so this is worked out once per chunk
+function chunkTints(world, chunk) {
+  if (chunk.tints) return chunk.tints;
+  const out = new Float32Array(CHUNK_X * CHUNK_Z * 9);
+  const gen = world.gen;
+  for (let x = 0; x < CHUNK_X; x++) {
+    for (let z = 0; z < CHUNK_Z; z++) {
+      const c = gen?.climateAt ? gen.climateAt(chunk.cx * CHUNK_X + x, chunk.cz * CHUNK_Z + z) : { t: 0.5, m: 0.5 };
+      const k = (x * CHUNK_Z + z) * 9;
+      let i = 0;
+      for (const rgb of climateTints(c.t, c.m)) for (const v of rgb) out[k + i++] = v;
+    }
+  }
+  chunk.tints = out;
+  return out;
+}
+const TINTED = new Map();   // block id -> which tint (0 grass, 1 foliage, 2 water)
+const NO_TINT = new Float32Array(12).fill(1);
+
 // texture coords from a point on each face (FACES order), so part-block
 // boxes show the matching part of the tile
 const FACE_UV = [
@@ -49,17 +88,20 @@ class GeoBuilder {
     this.pos = [];
     this.uvw = [];
     this.light = [];
+    this.tint = [];
     this.index = [];
     this.vcount = 0;
   }
 
-  quad(px, py, pz, corners, uvs, layer, lights, flip) {
+  // tints: 4 x rgb per corner (biome colour), or all ones
+  quad(px, py, pz, corners, uvs, layer, lights, flip, tints = NO_TINT) {
     const vi = this.vcount;
     for (let i = 0; i < 4; i++) {
       const c = corners[i];
       this.pos.push(px + c[0], py + c[1], pz + c[2]);
       this.uvw.push(uvs[i][0], uvs[i][1], layer);
       this.light.push(lights[i * 2], lights[i * 2 + 1]);
+      this.tint.push(tints[i * 3], tints[i * 3 + 1], tints[i * 3 + 2]);
     }
     if (flip) this.index.push(vi + 1, vi + 2, vi + 3, vi + 1, vi + 3, vi);
     else this.index.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
@@ -72,6 +114,10 @@ class GeoBuilder {
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.pos), 3));
     g.setAttribute('aUvw', new THREE.BufferAttribute(new Float32Array(this.uvw), 3));
     g.setAttribute('aLight', new THREE.BufferAttribute(new Float32Array(this.light), 2));
+    // biome tint, 0..2 in a byte each (most are 1: stored as 128)
+    const tint = new Uint8Array(this.tint.length);
+    for (let i = 0; i < tint.length; i++) tint[i] = Math.max(0, Math.min(255, Math.round(this.tint[i] * 128)));
+    g.setAttribute('aTint', new THREE.BufferAttribute(tint, 3, true));
     g.setIndex(new THREE.BufferAttribute(
       this.vcount < 65536 ? new Uint16Array(this.index) : new Uint32Array(this.index), 1));
     return g;
@@ -119,6 +165,21 @@ export function buildChunkGeometry(world, chunk, atlas) {
   const cell = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];   // 4 cells × xyz
 
   const lights = new Float32Array(8);
+  if (!TINTED.size) {
+    TINTED.set(B.GRASS, 0).set(B.TALL_GRASS, 0).set(B.OAK_LEAVES, 1).set(B.WATER, 2);
+  }
+  const colTints = chunkTints(world, chunk);
+  const tints = new Float32Array(12);
+  // fill `tints` for a block in column (x, z); `side` fades a grass block's
+  // side from tinted (its grassy lip) to plain (the dirt) down the face
+  const tintFor = (which, x, z, corners = null) => {
+    const k = (x * CHUNK_Z + z) * 9 + which * 3;
+    for (let i = 0; i < 4; i++) {
+      const s = corners ? corners[i][1] : 1;   // 1 at the top edge, 0 at the bottom
+      for (let j = 0; j < 3; j++) tints[i * 3 + j] = 1 + (colTints[k + j] - 1) * s;
+    }
+    return tints;
+  };
 
   for (let x = 0; x < CHUNK_X; x++) {
     for (let z = 0; z < CHUNK_Z; z++) {
@@ -143,11 +204,12 @@ export function buildChunkGeometry(world, chunk, atlas) {
             [[a, 0, b], [b, 0, a], [b, 1, a], [a, 1, b]],
           ];
           const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+          const ct = TINTED.has(id) ? tintFor(TINTED.get(id), x, z) : NO_TINT;
           for (const q of quads) {
-            opaque.quad(x, y, z, q, uv, layer, lights, false);
+            opaque.quad(x, y, z, q, uv, layer, lights, false, ct);
             const rev = [q[3], q[2], q[1], q[0]];
             const uvRev = [[0, 1], [1, 1], [1, 0], [0, 0]];
-            opaque.quad(x, y, z, rev, uvRev, layer, lights, false);
+            opaque.quad(x, y, z, rev, uvRev, layer, lights, false, ct);
           }
           // kelp and seagrass stand in water: draw the water around them too
           if (!info.waterlogged) continue;
@@ -263,7 +325,12 @@ export function buildChunkGeometry(world, chunk, atlas) {
             }
           }
 
-          target.quad(x, y, z, corners, f.uvs, layer, lights, flip);
+          // biome colour: grass tops and leaves whole, a grass block's sides
+          // fading out down to the dirt, water by the climate
+          let ft = NO_TINT;
+          const tw = TINTED.get(rid);
+          if (tw !== undefined && !(rid === B.GRASS && f.dir[1] === -1)) ft = tintFor(tw, x, z, rid === B.GRASS && f.dir[1] === 0 ? corners : null);
+          target.quad(x, y, z, corners, f.uvs, layer, lights, flip, ft);
         }
       }
     }

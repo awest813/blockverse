@@ -178,8 +178,10 @@ export class MobSpawner {
       if (!isSolid(ground) || ground === B.WATER) continue;
       // not on tree canopies
       if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES) continue;
-      // need 2 blocks of air
-      if (this.world.getBlockW(wx, y, wz) !== B.AIR || this.world.getBlockW(wx, y + 1, wz) !== B.AIR) continue;
+      // need 2 blocks of room (a snow layer or tall grass doesn't count against
+      // it: they used to rule out most of the snowy lands)
+      const open = (id) => id === B.AIR || (!isSolid(id) && !isWater(id) && id !== B.LAVA);
+      if (!open(this.world.getBlockW(wx, y, wz)) || !open(this.world.getBlockW(wx, y + 1, wz))) continue;
 
       if (hostile) {
         // hostiles need darkness
@@ -194,8 +196,12 @@ export class MobSpawner {
         return;
       }
 
-      // land animals depend on the biome
-      const table = LAND_TABLE[this.world.biomeAt(wx, wz)];
+      // land animals depend on the biome; on the banks of a river or lake
+      // (the river biome itself is all water) its ducks and capybaras turn up
+      let landBiome = this.world.biomeAt(wx, wz);
+      if (!hostile && (landBiome === BIOME.PLAINS || landBiome === BIOME.FOREST || landBiome === BIOME.SWAMP || landBiome === BIOME.BIRCH_FOREST)
+        && Math.random() < 0.4 && [[3, 0], [-3, 0], [0, 3], [0, -3]].some(([dx, dz]) => isWater(this.world.getBlockW(wx + dx, y - 1, wz + dz)))) landBiome = BIOME.RIVER;
+      const table = LAND_TABLE[landBiome];
       if (!table) continue;
       const Cls = weighted(table);
       // bare rock is for goats only
@@ -206,7 +212,7 @@ export class MobSpawner {
       for (let k = 0; k < n; k++) {
         const ox = k ? Math.round((Math.random() - 0.5) * 4) : 0, oz = k ? Math.round((Math.random() - 0.5) * 4) : 0;
         const gy = this.world.surfaceHeight(wx + ox, wz + oz) + 1;
-        if (k && (Math.abs(gy - y) > 2 || this.world.getBlockW(wx + ox, gy, wz + oz) !== B.AIR || this.world.getBlockW(wx + ox, gy + 1, wz + oz) !== B.AIR || isWater(this.world.getBlockW(wx + ox, gy - 1, wz + oz)))) continue;
+        if (k && (Math.abs(gy - y) > 2 || !open(this.world.getBlockW(wx + ox, gy, wz + oz)) || !open(this.world.getBlockW(wx + ox, gy + 1, wz + oz)) || isWater(this.world.getBlockW(wx + ox, gy - 1, wz + oz)))) continue;
         const mob = this.spawnMob(Cls, wx + ox + 0.5, gy, wz + oz + 0.5);
         if (k && YOUNG_IN_GROUP.has(Cls)) mob.setBaby(true);
       }

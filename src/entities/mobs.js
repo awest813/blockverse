@@ -136,7 +136,7 @@ export class Sheep extends Mob {
     return leg;
   }
 
-  saveExtra() { return this.woolTint !== 0xffffff ? { tint: this.woolTint } : null; }
+  saveExtra() { return { tint: this.woolTint }; }   // (white too, or it'd be re-rolled on load)
   loadExtra(e) {
     if (!Number.isInteger(e.tint)) return;
     this.woolTint = e.tint;

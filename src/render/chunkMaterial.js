@@ -7,16 +7,19 @@ precision highp float;
 in vec3 position;
 in vec3 aUvw;
 in vec2 aLight;
+in vec3 aTint;
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 out vec3 vUvw;
 out vec2 vLight;
+out vec3 vTint;
 out float vFogDepth;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
   vUvw = aUvw;
   vLight = aLight;
+  vTint = aTint * 2.0;   // stored halved (0..2 in a byte)
   vFogDepth = length(mv.xyz);
 }
 `;
@@ -36,6 +39,7 @@ uniform float uTime;
 uniform float uIceLayer;
 in vec3 vUvw;
 in vec2 vLight;
+in vec3 vTint;
 in float vFogDepth;
 out vec4 outColor;
 void main() {
@@ -51,7 +55,7 @@ void main() {
   vec3 br = clamp(max(vLight.y * vec3(1.0, 0.93, 0.82), vLight.x * uDay * uSkyTint) + 0.04, 0.0, 1.0);
   // brightness setting: lift the darks (gamma), never blow out the brights
   br = pow(br, vec3(1.0 / (1.0 + uBrightness * 1.2)));
-  vec3 col = tex.rgb * br;
+  vec3 col = tex.rgb * vTint * br;   // biome colour (grass, leaves, water)
   // the atlas is sampled as-is (sRGB) and written straight out, while
   // THREE.Color uniforms are linear: convert the fog so it matches the sky
   vec3 fogC = mix(uFogColor * 12.92, 1.055 * pow(uFogColor, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, uFogColor));

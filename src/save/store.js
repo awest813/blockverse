@@ -183,7 +183,13 @@ export class SaveStore {
     if (typeof m.name !== 'string' || m.seed === undefined || !Array.isArray(data.chunks)) throw new Error('The world file is damaged or incomplete');
     const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
     // lists the game iterates: anything else would stop the world opening
-    for (const k of ['pets', 'animals', 'drops']) if (meta[k] !== undefined && !Array.isArray(meta[k])) delete meta[k];
+    // (each entry too: a null or a position that isn't a number breaks loading)
+    const placed = (e) => e && typeof e === 'object' && [e.x, e.y, e.z].every(Number.isFinite);
+    for (const k of ['pets', 'animals', 'drops']) {
+      if (meta[k] === undefined) continue;
+      if (!Array.isArray(meta[k])) delete meta[k];
+      else meta[k] = meta[k].filter((e) => placed(e) && (k !== 'drops' || (Number.isInteger(e.id) && Number.isInteger(e.count) && e.count > 0)));
+    }
     if (meta.playerData !== undefined && (typeof meta.playerData !== 'object' || meta.playerData === null)) delete meta.playerData;
     meta.name = meta.name.slice(0, 32);
     // a hand-edited file: fall back to the defaults rather than invalid settings

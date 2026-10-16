@@ -1224,7 +1224,7 @@ export class Panda extends Animal {
     }
     // achoo
     if (Math.random() < dt / 90) {
-      this.fx?.sound('panda', { pos: this, pitch: 1.6 });
+      this.fx?.sound('panda', { pos: this, sneeze: true });
       this.fx?.puff?.(this.x - Math.sin(this.yaw) * 1.1, this.y + 0.95, this.z - Math.cos(this.yaw) * 1.1);
     }
   }
