@@ -2,7 +2,7 @@
 // bob, spin, fall with gravity, and fly to the player on pickup range.
 
 import * as THREE from 'three';
-import { moveEntity } from '../core/physics.js';
+import { moveEntity, pointInWater } from '../core/physics.js';
 import { isBlockItem, itemInfo } from '../items/items.js';
 import { blockInfo, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { generateTile } from '../render/textures.js';
@@ -63,9 +63,14 @@ export class ItemDrop {
     this.pickupDelay = Math.max(0, this.pickupDelay - dt);
     if (this.age > 300) { this.kill(); return; }
 
-    // gravity + collision
-    this.vy -= 22 * dt;
-    this.vy = Math.max(this.vy, -30);
+    // gravity + collision; in water items drift up and bob at the surface
+    // (on the seabed they'd sink out of reach and out of sight)
+    if (pointInWater(this.world, this.x, this.y + 0.1, this.z)) {
+      this.vy += (1.2 - this.vy) * Math.min(1, 4 * dt);
+    } else {
+      this.vy -= 22 * dt;
+      this.vy = Math.max(this.vy, -30);
+    }
     this.vx *= (1 - Math.min(1, 6 * dt));
     this.vz *= (1 - Math.min(1, 6 * dt));
     moveEntity(this.world, this, dt);

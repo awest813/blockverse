@@ -203,7 +203,8 @@ export function buildChunkGeometry(world, chunk, atlas) {
         const orient = chunk.getMeta(x, y, z);
         // a fluid's surface drops when there is no more of it above
         const above = getBlock(wx, y + 1, wz);
-        const topY = isFluid && !(rid === B.WATER ? isWater(above) : above === rid) ? 0.875 : 1;
+        // water under ice fills its cell (no gap below the ice)
+        const topY = isFluid && !(rid === B.WATER ? isWater(above) || above === B.ICE : above === rid) ? 0.875 : 1;
 
         for (const f of FACES) {
           const nx = wx + f.dir[0], ny = y + f.dir[1], nz = wz + f.dir[2];

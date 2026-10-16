@@ -67,7 +67,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on
 - **Flint and steel** lights fires, TNT and campfires; a **fishing rod** lands fish (and the odd treasure) when the bobber ducks under; snowballs and eggs can be thrown (an egg may hatch a chick); worn tools mend when two are crafted together
 - **Whale oil**: burns twice as long as coal, makes 6 torches with a stick, and fuels **lanterns** (iron, glass panes and oil) that stand on a block or hang beneath one
-- **Buckets**: scoop up and pour water and lava (lava meeting water turns to obsidian) and milk cows
+- **Buckets**: scoop up and pour water and lava (lava meeting water turns to obsidian) and milk cows. Water doesn't flow, but a hole dug beside or under it fills in, broken ice melts, dropped items float up, and TNT set off underwater breaks nothing
 - **Fire**: lava sets you alight; jump in water (or drink milk) to put it out. Burning mobs show flames
 - **Eating takes a moment**: hold use to eat or drink (you slow down while you do); dried kelp is a quick snack
 - **Shears** (two iron ingots): shear sheep for 1–3 wool (the fleece grows back) and snip leaves, tall grass and dead bushes to collect them whole

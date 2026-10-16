@@ -96,6 +96,7 @@ export class Sheep extends Mob {
     if (held?.id !== I.SHEARS) return super.interact(player, held);
     if (this.sheared || this.baby) return true;
     this.setSheared(true);
+    this.persistent = true;   // a sheep you're shearing is one of yours: kept and saved
     this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('shear', { pos: this });

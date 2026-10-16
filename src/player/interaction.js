@@ -2,7 +2,7 @@
 
 import { REACH_DISTANCE, GAMEMODE_CREATIVE, CHUNK_Y } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
-import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid } from '../blocks/blocks.js';
+import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
@@ -41,6 +41,21 @@ export function fluidContact(world, x, y, z, onFizz) {
   }
   if (fizz) onFizz?.();
 }
+
+// Water doesn't flow, so a cell opened up beside or under water fills from
+// it: digging into the seabed or beside a lake leaves no air pocket or wall
+// of water. (One cell: a cave broken into stays dry beyond the hole.)
+const SIDES_AND_UP = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]];
+export function settleWater(world, x, y, z, onFizz) {
+  if (world.getBlockW(x, y, z) !== B.AIR) return false;
+  if (!SIDES_AND_UP.some(([dx, dy, dz]) => isWater(world.getBlockW(x + dx, y + dy, z + dz)))) return false;
+  world.setBlock(x, y, z, B.WATER);
+  fluidContact(world, x, y, z, onFizz);
+  return true;
+}
+
+// blocks that can't go into water (they'd go out, or leave an air pocket)
+const NOT_IN_WATER = new Set([B.TORCH, B.FIRE, B.CAMPFIRE]);
 
 // item stacks stored in a block entity (furnace slots, chest slots)
 export function entityContents(st) {
@@ -201,7 +216,10 @@ export class Interaction {
     const contents = entityContents(this.world.blockEntityAt(t.x, t.y, t.z));
     if (contents.length) this.cb.spawnDrops(t.x + 0.5, t.y + 0.5, t.z + 0.5, contents.map((s) => ({ ...s })));
 
-    this.world.setBlock(t.x, t.y, t.z, info.waterlogged ? B.WATER : B.AIR);
+    // ice over water (or on the ground) melts back to water, as kelp leaves its water
+    const below = this.world.getBlockW(t.x, t.y - 1, t.z);
+    const melts = t.id === B.ICE && (isWater(below) || isSolid(below));
+    this.world.setBlock(t.x, t.y, t.z, info.waterlogged || melts ? B.WATER : B.AIR);
     this.cb.playSound('break', { block: info.sound });
     // a door's other half goes with it
     if (t.id === B.OAK_DOOR && this.world.getBlockW(t.x, t.y + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
@@ -210,6 +228,7 @@ export class Interaction {
       if (!creative) this.cb.spawnDrops(t.x + 0.5, t.y - 0.7, t.z + 0.5, [{ id: B.OAK_DOOR, count: 1 }]);
     }
 
+    settleWater(this.world, t.x, t.y, t.z, () => this.cb.playSound('sizzle', {}));
     this.dropUnsupported(t.x, t.y, t.z, !creative);
 
     if (!creative) {
@@ -375,6 +394,7 @@ export class Interaction {
     if (!blockInfo(existing).replaceable) return;
     // underwater plants need water; nothing else floats on it
     if (info.waterlogged && existing !== B.WATER) return;
+    if (existing === B.WATER && NOT_IN_WATER.has(info.id)) return;
     if (info.id === B.LADDER && (t.ny !== 0 || !isSolid(t.id))) return;
 
     // lanterns hang under a block (clicked from below) or stand on one
@@ -519,6 +539,8 @@ export class Interaction {
     if (held.id === I.BUCKET) {
       if (ft.id !== B.WATER && ft.id !== B.LAVA) return false;
       this.world.setBlock(ft.x, ft.y, ft.z, B.AIR);
+      // a lake or the sea fills the gap straight back in (like an endless source)
+      settleWater(this.world, ft.x, ft.y, ft.z);
       // a lily pad has nothing left to float on
       if (this.world.getBlockW(ft.x, ft.y + 1, ft.z) === B.LILY_PAD) {
         this.world.setBlock(ft.x, ft.y + 1, ft.z, B.AIR);
@@ -534,6 +556,15 @@ export class Interaction {
     const here = this.world.getBlockW(x, y, z);
     if (!blockInfo(here).replaceable) return false;
     const fluid = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
+    if (fluid === B.WATER && isWater(here)) return false;   // already water: keep the bucket
+    // lava poured into water sets solid; not around the player's own head
+    if (fluid === B.LAVA && isWater(here)) {
+      if (this.intersectsPlayer(x, y, z)) return false;
+      this.world.setBlock(x, y, z, B.OBSIDIAN);
+      swapHeld(I.BUCKET);
+      this.cb.playSound('sizzle', {});
+      return true;
+    }
     // water poured straight onto lava sets it to obsidian
     if (fluid === B.WATER && here === B.LAVA) {
       this.world.setBlock(x, y, z, B.OBSIDIAN);

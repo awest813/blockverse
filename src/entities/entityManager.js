@@ -44,7 +44,12 @@ export class EntityManager {
       hearts: () => {},
       mobs: () => this.mobs,
       spawn: (mob) => this.addMob(mob),
-      stash: (mob) => { if (this.stash.length < STASH_LIMIT) this.stash.push(serializeAnimal(mob)); },
+      // false when full: the animal then waits where it is instead of being lost
+      stash: (mob) => {
+        if (this.stash.length >= STASH_LIMIT) return false;
+        this.stash.push(serializeAnimal(mob));
+        return true;
+      },
     };
   }
 

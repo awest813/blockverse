@@ -7,6 +7,12 @@ import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 
+// raw meat -> cooked, for animals that die burning
+const COOKED = {
+  [I.PORKCHOP_RAW]: I.PORKCHOP_COOKED, [I.BEEF_RAW]: I.BEEF_COOKED, [I.MUTTON_RAW]: I.MUTTON_COOKED,
+  [I.CHICKEN_RAW]: I.CHICKEN_COOKED, [I.DUCK_RAW]: I.DUCK_COOKED, [I.FISH_RAW]: I.FISH_COOKED,
+};
+
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
 const HURT_RED = new THREE.Color(0xff3333);
 
@@ -197,7 +203,12 @@ export class Mob {
     const playerDistSq = pdx * pdx + pdz * pdz;
     if (playerDistSq > 80 * 80) {
       // animals the player has fed are kept (stashed) rather than lost
-      if (!this.tamed) { if (this.persistent) this.fx?.stash?.(this); this.kill(); return; }
+      if (!this.tamed) {
+        // (with the stash full, a kept animal stays put, unsimulated, rather than vanish)
+        if (this.persistent && this.fx?.stash?.(this) === false) return;
+        this.kill();
+        return;
+      }
     }
     // pets left far behind catch up by appearing next to the player
     // (only once the player is on the ground, so pets aren't dropped from the sky)
@@ -251,6 +262,8 @@ export class Mob {
     const before = this.y;
     const r = moveEntity(this.world, this, dt);
     this.onGround = r.onGround;
+    // a long frame can carry a fall through the water onto the bottom
+    const wetNow = inWater || entityInWater(this.world, this);
     this.lastHitWall = r.hitWall;
     // pressing against a wall it can't hop for a while: sidestep for a moment
     if (r.hitWall && this.moving && !this.flier && !this.swimmer && !this.climber) {
@@ -265,10 +278,12 @@ export class Mob {
     // hop up single blocks when walking into a wall; climbers (spiders) scale it
     if (r.hitWall && this.moving && !inWater && !this.flier && !this.swimmer) {
       if (this.climber) this.vy = Math.max(this.vy, 3.6);
-      else if (this.onGround) this.vy = 7.2;
+      // 8 clears a full block at any frame rate (7.2 peaked just short of it)
+      // and still not a 1.5-high fence
+      else if (this.onGround) this.vy = 8;
     }
     // land mobs paddling into a bank climb out instead of bobbing there forever
-    if (r.hitWall && this.moving && inWater && !this.swimmer && !this.flier) this.vy = Math.max(this.vy, 5.5);
+    if (r.hitWall && this.moving && inWater && !this.swimmer && !this.flier) this.vy = Math.max(this.vy, 8);
     // swimmers and fliers bumping a wall turn away
     if (r.hitWall && (this.swimmer || this.flier) && !this.detour) {
       this.targetYaw = this.yaw + Math.PI * (0.5 + Math.random());
@@ -278,14 +293,14 @@ export class Mob {
     // fall damage (fliers and swimmers don't take it)
     if (this.flier || this.swimmer) {
       this.fallStart = undefined;
-    } else if (!this.onGround && this.vy < 0 && !inWater) {
+    } else if (!this.onGround && this.vy < 0 && !wetNow) {
       this.fallStart = Math.max(this.fallStart ?? this.y, this.y);
-    } else if ((this.onGround || inWater) && this.fallStart !== undefined) {
+    } else if ((this.onGround || wetNow) && this.fallStart !== undefined) {
       const d = this.fallStart - this.y;
       const safe = this.safeFall ?? 4;   // goats shrug off long drops
-      if (!inWater && d > safe) this.damage(Math.floor(d - safe + 1), null);
+      if (!wetNow && d > safe) this.damage(Math.floor(d - safe + 1), null);
       // whoever's riding comes down with it
-      if (!inWater && this.rider && d > 5 && this.rider.mode !== GAMEMODE_CREATIVE) this.rider.damage(Math.floor(d - 4), 'fall');
+      if (!wetNow && this.rider && d > 5 && this.rider.mode !== GAMEMODE_CREATIVE) this.rider.damage(Math.floor(d - 4), 'fall');
       this.fallStart = undefined;
     }
 
@@ -371,17 +386,26 @@ export class Mob {
       if (this.detour.t <= 0) this.detour = null;
       return;
     }
-    if (this.state !== 'wander' || !this.moving || !this.onGround || this.flier || this.swimmer) return;
+    // a pet following you stops at the edge (lava, a long drop) and catches
+    // up once you're clear, instead of walking in after you
+    const pet = this.tamed && this.state === 'chase';
+    if ((this.state !== 'wander' && !pet) || !this.moving || !this.onGround || this.flier || this.swimmer) return;
     const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.6));
     const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.6));
     const y = Math.floor(this.y);
     let drop = 0;
     let lava = this.world.getBlockW(ax, y, az) === B.LAVA;
-    while (drop < 4 && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) {
+    // look as far down as the mob can safely fall (goats and horses further)
+    const safe = this.safeFall ?? 4;
+    while (drop < safe && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) {
       if (this.world.getBlockW(ax, y - 1 - drop, az) === B.LAVA) lava = true;
       drop++;
     }
-    if (drop >= (this.safeFall ?? 4) || lava || (!this.likesWater && this.world.getBlockW(ax, y - 1, az) === B.WATER)) {
+    if (pet) {
+      if (drop >= safe || lava) { this.moving = false; this.vx = this.vz = 0; }
+      return;
+    }
+    if (drop >= safe || lava || (!this.likesWater && this.world.getBlockW(ax, y - 1, az) === B.WATER)) {
       this.targetYaw = this.yaw + Math.PI;
       this.yaw += Math.PI;   // turn on the spot rather than step off
       this.vx = this.vz = 0;
@@ -574,9 +598,12 @@ export class Mob {
       if (this.state === 'tempt') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
       return false;
     }
+    if (this.state !== 'tempt') this.temptSince = this.age;
     this.state = 'tempt';
     this.steer(player, 1);
     this.moving = playerDist > 2.4;   // close enough to be fed: wait, looking up at you
+    // following you for a while: you're bringing it home, so it stays (saved)
+    if (this.age - this.temptSince > 5) this.persistent = true;
     return true;
   }
 
@@ -646,7 +673,15 @@ export class Mob {
 
   die() {
     if (this.dying !== undefined) return;
-    if (!this.baby && !this.noLoot) this.onDeath?.();   // (summoned minions drop nothing)
+    if (!this.baby && !this.noLoot) {   // (summoned minions drop nothing)
+      // an animal that dies on fire drops its meat cooked
+      if (this.fireTime > 0 && this.dropFn) {
+        const drop = this.dropFn;
+        this.dropFn = (items) => drop(items.map((s) => (COOKED[s.id] ? { ...s, id: COOKED[s.id] } : s)));
+        this.onDeath?.();
+        this.dropFn = drop;
+      } else this.onDeath?.();
+    }
     this.unleash(true);
     this.fx?.sound('mobdeath', { pos: this });
     // tip over briefly before vanishing; no longer a threat or a target

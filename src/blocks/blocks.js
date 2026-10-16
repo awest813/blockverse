@@ -186,7 +186,9 @@ reg(def(B.CLAY, 'clay', 'Clay', {
   drop: () => [{ id: I.CLAY_BALL, count: 4 }],
 }));
 reg(def(B.WATER, 'water', 'Water', {
-  solid: false, render: R_BLEND, opacity: 2, hardness: -1, replaceable: true,
+  // skylight fades a level per block of water, so the seabed of a deep sea
+  // is dim rather than pitch black
+  solid: false, render: R_BLEND, opacity: 1, hardness: -1, replaceable: true,
   drop: null, fluid: true,
 }));
 reg(def(B.ICE, 'ice', 'Ice', { render: R_BLEND, opacity: 2, hardness: 0.5, tool: TOOL_PICKAXE, sound: 'glass' }));
@@ -357,8 +359,8 @@ reg(def(B.LAVA, 'lava', 'Lava', {
   solid: false, render: R_BLEND, opacity: 2, lightEmit: 15, hardness: -1, replaceable: true, drop: null, fluid: true,
 }));
 // underwater plants share their cell with water
-reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true }));
-reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 2, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
+reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 1, hardness: 0, sound: 'leaf', waterlogged: true }));
+reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 1, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
 // ---- farming & husbandry ----
 reg(def(B.HAY_BALE, 'hay_bale', 'Hay Bale', {
   hardness: 0.5, sound: 'leaf', textures: { top: 'hay_bale_top', bottom: 'hay_bale_top', side: 'hay_bale_side' },
@@ -445,6 +447,8 @@ export function faceVisible(id, neighborId) {
   const nb = BLOCKS[neighborId];
   if (!nb || nb.render === R_NONE) return true;
   if (id === B.WATER && isWater(neighborId)) return false;   // no water faces against kelp
+  // ice and water share their faces' plane (both draw in the water pass)
+  if ((id === B.ICE && isWater(neighborId)) || (id === B.WATER && neighborId === B.ICE)) return false;
   if (nb.render === R_SOLID) return false;
   // Same transparent block type: hide inner faces (water-water, glass-glass, leaves keep faces for depth)
   if (id === neighborId) {

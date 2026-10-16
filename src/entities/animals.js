@@ -6,7 +6,7 @@ import { Mob } from './mob.js';
 import { entityCollides } from '../core/physics.js';
 import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
-import { B, isSolid as isSolidId } from '../blocks/blocks.js';
+import { B, isSolid as isSolidId, isWater } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -127,7 +127,7 @@ export class Chicken extends Animal {
     }
     // flap to fall gently
     const airborne = !this.onGround && this.vy < 0;
-    if (airborne) this.vy = Math.max(this.vy, -2.2);
+    if (airborne) { this.vy = Math.max(this.vy, -2.2); this.fallStart = this.y; }   // flapping: no fall damage
     const flap = airborne || this.state === 'flee' ? Math.sin(this.age * 30) * 0.6 : 0;
     this.wings[0].rotation.z = flap;
     this.wings[1].rotation.z = -flap;
@@ -322,14 +322,15 @@ export class Duck extends Animal {
     super.update(dt, player);
     if (this.dead || this.dying !== undefined) return;
     // float with the body half under the surface instead of bobbing up and down
-    if (this.inWater) {
+    // (but not while climbing out at a bank)
+    if (this.inWater && !(this.lastHitWall && this.moving)) {
       const bx = Math.floor(this.x), bz = Math.floor(this.z);
       let top = Math.floor(this.y);
       while (top < Math.floor(this.y) + 3 && this.world.getBlockW(bx, top, bz) === B.WATER) top++;
       this.vy = (top - 0.2 - this.y) * 5;
     }
     const airborne = !this.onGround && !this.inWater && this.vy < 0;
-    if (airborne) this.vy = Math.max(this.vy, -2.4);
+    if (airborne) { this.vy = Math.max(this.vy, -2.4); this.fallStart = this.y; }   // flapping: no fall damage
     const flap = airborne || this.state === 'flee' ? Math.sin(this.age * 28) * 0.7 : 0;
     this.wings[0].rotation.z = flap;
     this.wings[1].rotation.z = -flap;
@@ -503,6 +504,7 @@ export class Horse extends Animal {
     this.rider = null;
     this.buck = 0;
     this.h = 1.6;
+    this.speed = this.walkSpeed ?? this.speed;   // back to an amble
     if (!p) return;
     p.mount = null;
     // to the left, the right, or (boxed in) on top of the horse
@@ -540,7 +542,7 @@ export class Horse extends Animal {
     const r = this.rider;
     this.detour = null;
     this.state = 'ridden';
-    if (r.dead || r.mount !== this) { this.rider = null; this.h = 1.6; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
+    if (r.dead || r.mount !== this) { this.rider = null; this.h = 1.6; this.speed = this.walkSpeed ?? this.speed; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
     // a wild horse bucks: it won't go where you want, and then it decides
     if (this.buck > 0) {
       this.buck -= dt;
@@ -568,6 +570,7 @@ export class Horse extends Animal {
     const inp = r.rideInput ?? {};
     this.yaw = this.targetYaw = r.yaw;
     this.moving = inp.fwd > 0.1;
+    this.walkSpeed ??= this.speed;   // its own pace, for when you get off
     this.speed = this.inWater ? 2.2 : inp.sprint ? this.gallop : 4.2;
     if (inp.jump && this.onGround && !this.inWater) this.vy = this.jumpV;
     // hooves
@@ -674,6 +677,15 @@ export class Bird extends Animal {
     // at night birds come down and roost on the ground until morning
     if (this.world.materials.uniforms.uDay.value < 0.35 && this.state !== 'flee') {
       this.state = 'roost';
+      // over water: fly on (level, or up out of it) until there's land below
+      const bx = Math.floor(this.x), bz = Math.floor(this.z);
+      let y = Math.floor(this.y);
+      while (y > 0 && y > this.y - 40 && this.world.getBlockW(bx, y, bz) === B.AIR) y--;
+      if (this.inWater || isWater(this.world.getBlockW(bx, y, bz))) {
+        this.moving = true;
+        this.targetVy = this.inWater ? 2.5 : 0;
+        return;
+      }
       this.moving = !this.onGround;
       this.targetVy = this.onGround ? 0 : -2.5;
       return;
@@ -877,7 +889,7 @@ export class Dolphin extends Swimmer {
       return;
     }
     // leap from the waves now and then
-    if (this.moving && this.depthBelowSurface() <= 1 && Math.random() < dt * 0.25) {
+    if (this.moving && this.depthBelowSurface() <= 1 && Math.random() < dt * 0.25 && this.openWaterAhead(3)) {
       this.vy = 7.5;
       this.leapTime = 1.1;
       this.fx?.sound('splash', { vol: 0.6, pos: this });
@@ -886,6 +898,16 @@ export class Dolphin extends Swimmer {
     super.think(dt, player, playerDist);
     // pods play near the surface
     if (this.state === 'wander' && this.depthBelowSurface() > 3) this.targetVy = 0.8;
+  }
+
+  // water under where a leap comes down, so it doesn't land on the beach
+  openWaterAhead(dist) {
+    const y = Math.floor(this.y);
+    for (let d = 1; d <= dist + 1; d++) {
+      const x = Math.floor(this.x - Math.sin(this.yaw) * d), z = Math.floor(this.z - Math.cos(this.yaw) * d);
+      if (isSolidId(this.world.getBlockW(x, y, z)) || this.world.getBlockW(x, y - 1, z) !== B.WATER) return false;
+    }
+    return true;
   }
 
   animate() {

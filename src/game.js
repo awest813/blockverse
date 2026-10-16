@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { World } from './world/world.js';
 import { chunkKey } from './world/chunk.js';
 import { Player } from './player/player.js';
-import { Interaction, entityContents } from './player/interaction.js';
+import { Interaction, entityContents, settleWater } from './player/interaction.js';
 import { PrimedTnt } from './entities/mobs.js';
 import { PET_CLASSES, Chicken } from './entities/animals.js';
 import { Thrown, Bobber } from './entities/projectile.js';
@@ -740,7 +740,10 @@ export class Game {
     const r = power;
     const cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
     const removed = [];
-    for (let dx = -r; dx <= r; dx++) {
+    // underwater, the water takes the blast: it hurts but breaks no blocks
+    const wet = isWater(this.world.getBlockW(cx, cy, cz)) || isWater(this.world.getBlockW(cx, cy + 1, cz));
+    if (wet) settleWater(this.world, cx, cy, cz);   // a lit TNT block's empty cell
+    for (let dx = -r; dx <= r && !wet; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dz = -r; dz <= r; dz++) {
           const d = Math.hypot(dx, dy, dz);
@@ -766,6 +769,11 @@ export class Game {
           removed.push(bx, by, bz);
         }
       }
+    }
+    // water beside the crater runs in (a few rounds, so it fills downward and inward)
+    for (let pass = 0, more = true; pass < 4 && more; pass++) {
+      more = false;
+      for (let i = 0; i < removed.length; i += 3) more = settleWater(this.world, removed[i], removed[i + 1], removed[i + 2]) || more;
     }
     // torches, ladders, doors and the like left hanging fall off
     for (let i = 0; i < removed.length; i += 3) this.interaction.dropUnsupported(removed[i], removed[i + 1], removed[i + 2]);
@@ -995,7 +1003,6 @@ export class Game {
     const R = this.world.renderDistance * 16;
     this.world.materials.uniforms.uFogNear.value = R * 0.6;
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
-    this.sky.update(this.time, day, this.player, this.player.headInWater);
 
     if (!gamePaused || document.hidden) {
       const wasInWater = this.player.inWater;
@@ -1070,7 +1077,9 @@ export class Game {
       this.hud.setBowCharge(charge);
     }
 
-    // underwater tint
+    // sky, then the underwater tint over it: after the player has moved, so
+    // the frame you dive or surface doesn't flash the other one's look
+    this.sky.update(this.time, day, this.player, this.player.headInWater);
     this.applyUnderwaterEffect();
     const fu = this.world.materials.uniforms, fog = this.scene.fog;
     fog.color.copy(fu.uFogColor.value);

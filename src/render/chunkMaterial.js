@@ -33,6 +33,7 @@ uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
 uniform float uTime;
+uniform float uIceLayer;
 in vec3 vUvw;
 in vec2 vLight;
 in float vFogDepth;
@@ -41,7 +42,8 @@ void main() {
   ${water
     // water drifts slowly; wrap within the tile, with gradients from the
     // unwrapped coords so the mip level doesn't jump at the wrap
-    ? `vec2 wuv = vUvw.xy + vec2(uTime * 0.045, sin(uTime * 0.6) * 0.06 + uTime * 0.02);
+    // (ice shares the pass but stays put)
+    ? `vec2 wuv = vUvw.xy + (abs(vUvw.z - uIceLayer) < 0.5 ? vec2(0.0) : vec2(uTime * 0.045, sin(uTime * 0.6) * 0.06 + uTime * 0.02));
   vec4 tex = textureGrad(uAtlas, vec3(fract(wuv), vUvw.z), dFdx(vUvw.xy), dFdy(vUvw.xy));`
     : 'vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));'}
   ${water ? '' : 'if (tex.a < 0.5) discard;'}
@@ -71,6 +73,7 @@ export function createChunkMaterials(atlas) {
     uFogNear: { value: 80 },
     uFogFar: { value: 140 },
     uTime: { value: 0 },   // seconds, wraps (water drift)
+    uIceLayer: { value: atlas.layerOfName.get('ice') ?? -1 },
   };
 
   const opaque = new THREE.RawShaderMaterial({
@@ -87,6 +90,8 @@ export function createChunkMaterials(atlas) {
     fragmentShader: frag(true),
     transparent: true,
     depthWrite: true,
+    // the surface is seen from underneath too (looking up while swimming)
+    side: THREE.DoubleSide,
   });
 
   return { opaque, water, uniforms };

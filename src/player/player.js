@@ -178,9 +178,14 @@ export class Player {
       this.vy = Math.max(this.vy, this.sneaking ? -5 : -3.5);
       if (!paused && this.sneaking) this.vy -= 6 * dt;   // dive
       if (!paused && input.action('jump')) {
-        this.vy = Math.min(this.vy + 24 * dt, 3.2);
-        // pushing against a ledge at the surface: hop out
-        if (this.hitWall && !this.headInWater) this.vy = Math.max(this.vy, 5.2);
+        // swim up while the chest is under, so you tread water with your
+        // head out rather than bob up to stand on the surface
+        if (pointInWater(this.world, this.x, this.y + 0.9, this.z)) this.vy = Math.min(this.vy + 24 * dt, 3.2);
+        else if (this.onGround) this.vy = JUMP_SPEED;   // wading in the shallows
+        else this.vy = Math.min(this.vy, 0.6);          // chest out: ease off and float there
+        // pushing against a ledge at the surface: hop out, high enough to
+        // clear a bank one block above the water (like a jump from the ground)
+        if (this.hitWall && !this.headInWater) this.vy = Math.max(this.vy, JUMP_SPEED);
       }
     } else {
       this.vy -= GRAVITY * dt;
@@ -201,6 +206,9 @@ export class Player {
     }
     this.hitWall = hitWall;
     this.onGround = onGround;
+    // where we ended up: a long frame can drop us from the air through the
+    // water onto the bottom, and that landing must count as a splash
+    this.inWater = entityInWater(this.world, this);
 
     // fall damage tracking
     if (!creative && !this.flying) {
@@ -325,7 +333,7 @@ export class Player {
       this.airTimer += dt;
       if (this.airTimer >= 0.75) {
         this.airTimer = 0;
-        if (this.air > 0) this.air--;
+        if (this.air > 0) this.air = Math.max(0, this.air - 1);
         else this.damage(2, 'drown');
       }
     } else {
