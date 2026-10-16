@@ -20,7 +20,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🌍 Infinite procedural world
 - Seed-driven, fully deterministic terrain — the same seed always produces the same world
-- **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), with dithered borders; cold water freezes over and cold mountain ranges are snowbound
+- **10 biomes**: plains, forest, birch forest, snowy tundra, snowy forest, desert, swamp, mountains, ocean and winding **rivers** (plus beaches), with dithered borders, each typically several hundred blocks across; cold water freezes over and cold mountain ranges are snowbound
 - Multi-octave gradient-noise terrain with rolling hills, regional mountain ranges with snow caps, erosion-controlled roughness, and flattened swamps
 - **Cave systems**: winding spaghetti tunnels and large "cheese" caverns deep underground, with flooded lower depths, mushrooms and mossy patches; tunnels narrow near the surface so hillsides stay intact and never breach the seabed
 - **Dungeons**: rare mossy-cobblestone rooms where caves run into them, each with a **monster spawner** (zombies, skeletons or spiders that keep coming until you break the cage) and one or two chests of loot
@@ -112,7 +112,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
 - **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
 - HUD: hotbar with icons & durability bars, pixel-art hearts / hunger / air bubbles, crosshair, block-break cracks and selection outline, damage and low-health vignette
-- First-person held item (or bare arm) with walk bob, swing and equip animations, lit by the surrounding light
+- First-person held item (or a bare, sleeved arm) with walk bob, swing and equip animations, lit by the surrounding light; flat items have a pixel of depth, food comes up to your mouth with a bite in step with each chew (and crumbs), and drinks tip up
 - **F3 debug overlay**: FPS, position, chunk, biome, light levels, draw calls, triangle count
 - **Chat & command console**: `/tp`, `/time set`, `/give`, `/gamemode`, `/seed`, `/heal`, `/rd`, and more
 

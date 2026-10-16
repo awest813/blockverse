@@ -32,8 +32,9 @@ function smoothstep(a, b, x) {
 // (river-bank trees, cane by any water, boulders, sparse tundra spruce);
 // 5 = lava in deep caves, swamp pools + lily pads, kelp/seagrass, snow;
 // 6 = desert wells and shipwrecks; 7 = ocean ruins and fossils;
-// 8 = farming loot in chests (carrots, potatoes, golden carrots).
-export const LATEST_GEN = 8;
+// 8 = farming loot in chests (carrots, potatoes, golden carrots);
+// 9 = larger biomes (climate twice as broad, wider mountain ranges and continents).
+export const LATEST_GEN = 9;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -59,14 +60,20 @@ export class WorldGen {
     this.mountainMask = new Noise(seed + 9);
     this.cavern = new Noise(seed + 10);
     this.river = new Noise(seed + 11);
+    // generator 9 spreads climate, ranges and continents out (bigger biomes)
+    const big = version >= 9;
+    this.climateScale = big ? 2 : 1;
+    this.rangeScale = big ? 1.5 : 1;
+    this.continentScale = big ? 1.4 : 1;
   }
 
   // Everything about a column that depends only on (x, z), computed once:
   // {h (terrain height before caves), t, m, mMask, river (0..1 channel depth)}.
   columnAt(wx, wz) {
-    const c = this.continent.fbm2(wx / 700, wz / 700, 4);
+    const cs0 = 700 * this.continentScale, ms = 520 * this.rangeScale;
+    const c = this.continent.fbm2(wx / cs0, wz / cs0, 4);
     const e = (this.erosion.fbm2(wx / 400, wz / 400, 3) + 1) / 2;
-    const mMask = smoothstep(0.15, 0.55, this.mountainMask.noise2(wx / 520, wz / 520));
+    const mMask = smoothstep(0.15, 0.55, this.mountainMask.noise2(wx / ms, wz / ms));
     const ridge = this.peaks.ridge2(wx / 230, wz / 230, 4);
     const v2 = this.version >= 2;
     const jitter = v2 ? (colHash(wx, wz) - 0.5) * 0.05 : 0;
@@ -120,11 +127,13 @@ export class WorldGen {
   }
 
   tempAt(wx, wz) {
-    return (this.temp.fbm2(wx / 900, wz / 900, 3) + 1) / 2;
+    const k = 900 * this.climateScale;
+    return (this.temp.fbm2(wx / k, wz / k, 3) + 1) / 2;
   }
 
   moistAt(wx, wz) {
-    return (this.moist.fbm2(wx / 640, wz / 640, 3) + 1) / 2;
+    const k = 640 * this.climateScale;
+    return (this.moist.fbm2(wx / k, wz / k, 3) + 1) / 2;
   }
 
   biomeAt(wx, wz) {

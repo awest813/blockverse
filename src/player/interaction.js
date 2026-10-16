@@ -144,7 +144,10 @@ export class Interaction {
         this.eating = null;   // let go, or switched items: stop
       } else {
         e.t += dt;
-        if (Math.floor(e.t / 0.27) !== Math.floor((e.t - dt) / 0.27)) this.cb.playSound('eat', {});
+        if (Math.floor(e.t / 0.27) !== Math.floor((e.t - dt) / 0.27)) {
+          this.cb.playSound('eat', {});
+          if (!itemInfo(e.id)?.drink) this.cb.crumbs?.(e.id);
+        }
         if (e.t >= e.need) {
           this.finishEating(held);
           this.eating = null;
@@ -498,7 +501,7 @@ export class Interaction {
     // stew and milk leave their container behind
     if (info.returns) {
       if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: info.returns, count: 1 };
-      else p.give(info.returns, 1);
+      else if (p.give(info.returns, 1) > 0) this.cb.spawnDrops(p.x, p.y + 1, p.z, [{ id: info.returns, count: 1 }]);   // no room: drop it
     }
     p.events.dispatchEvent(new CustomEvent('inventory'));
     this.cb.playSound(info.drink ? 'pickup' : 'burp', {});

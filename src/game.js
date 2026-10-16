@@ -26,6 +26,7 @@ import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
+import { generateTile } from './render/textures.js';
 import { resolveBindings, keyLabel } from './core/keybinds.js';
 import { REACH_DISTANCE } from './core/constants.js';
 import { Chat } from './ui/chat.js';
@@ -192,6 +193,7 @@ export class Game {
         && m.x + m.w / 2 > x && m.x - m.w / 2 < x + 1 && m.z + m.w / 2 > z && m.z - m.w / 2 < z + 1 && m.y + m.h > y && m.y < y + 1),
       blowHorn: () => this.blowHorn(),
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
+      crumbs: (id) => this.crumbs(id),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -558,6 +560,34 @@ export class Game {
       this.scene.add(sprite);
       const a = Math.random() * Math.PI * 2;
       this.sparkList.push({ sprite, t: 0, vx: Math.cos(a) * (1.5 + Math.random() * 2), vy: 1 + Math.random() * 2.5, vz: Math.sin(a) * (1.5 + Math.random() * 2) });
+    }
+  }
+
+  // a bite of food: a few crumbs in its own colours fall from in front of your face
+  crumbs(id) {
+    let colors = this._crumbColors?.get(id);
+    if (!colors) {
+      colors = [];
+      const info = itemInfo(id);
+      const b = info?.block;
+      const tile = b ? (b.icon ?? (typeof b.textures === 'string' ? b.textures : b.textures.side)) : info?.texture;
+      if (tile) {
+        const d = generateTile(tile).getContext('2d').getImageData(0, 0, 16, 16).data;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) colors.push((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+      }
+      if (!colors.length) colors.push(0xc8a060);
+      (this._crumbColors ??= new Map()).set(id, colors);
+    }
+    const p = this.player, dir = p.lookDir();
+    const x = p.x + dir.x * 0.45, y = p.eyeY - 0.22 + dir.y * 0.3, z = p.z + dir.z * 0.45;
+    for (let i = 0; i < 5; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: colors[(Math.random() * colors.length) | 0], transparent: true, depthWrite: false, fog: false }));
+      sprite.scale.setScalar(0.04 + Math.random() * 0.03);
+      sprite.position.set(x + (Math.random() - 0.5) * 0.15, y, z + (Math.random() - 0.5) * 0.15);
+      // lit like the terrain around you, so crumbs don't glow in a cave
+      sprite.material.color.multiplyScalar(this.world.lightAt(x, y, z));
+      this.scene.add(sprite);
+      this.sparkList.push({ sprite, t: 0, vx: dir.x * 0.8 + (Math.random() - 0.5) * 1.2, vy: 0.6 + Math.random() * 1.2, vz: dir.z * 0.8 + (Math.random() - 0.5) * 1.2 });
     }
   }
 
@@ -1126,7 +1156,8 @@ export class Game {
     this.viewModel.update(paused ? 0 : dt, {
       held: p.heldStack()?.id ?? 0,
       draw: this.interaction.bowCharge,
-      eating: this.interaction.eating ? this.interaction.eating.t / this.interaction.eating.need : 0,
+      eatTime: this.interaction.eating ? Math.max(1e-3, this.interaction.eating.t) : 0,
+      drinking: !!(this.interaction.eating && itemInfo(this.interaction.eating.id)?.drink),
       mining: !paused && !!this.interaction.breakTarget && this.input.mouseDown(0),
       speed: Math.hypot(p.vx, p.vz),
       onGround: p.onGround && !p.flying,
