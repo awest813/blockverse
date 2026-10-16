@@ -10,7 +10,7 @@ import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
-const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog']);   // (explosions hurt at any difficulty)
+const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire']);
 
 export class Player {
@@ -220,9 +220,10 @@ export class Player {
       }
       if ((this.onGround || this.inWater) && this.fallStart !== null) {
         const fallDist = this.fallStart - this.y;
-        if (!this.inWater && fallDist > 3.2) {
-          this.damage(Math.floor(fallDist - 3), 'fall');
-        }
+        // (a drop of 3.2-4 blocks is a jolt, not a hurt: no flash, no
+        // hurt cooldown to swallow the next real hit)
+        const fallDmg = this.inWater ? 0 : Math.floor(fallDist - 3);
+        if (fallDmg > 0) this.damage(fallDmg, 'fall');
         this.fallStart = null;
       }
     } else {

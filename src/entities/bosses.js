@@ -109,6 +109,7 @@ export class ZombieBrute extends BossMixin(Zombie) {
     this.fx?.dust?.(this.x, this.y + 0.1, this.z);
     const dx = player.x - this.x, dz = player.z - this.z, d = Math.hypot(dx, dz) || 1;
     if (d > 4.5 || Math.abs(player.y - this.y) > 2 || player.dead || player.mode === GAMEMODE_CREATIVE) return;
+    if (!this.canSee(player)) return;   // ducked behind a pillar during the wind-up
     player.damage(4, this.kind);
     const push = 9 * (1 - d / 6);
     player.vx += (dx / d) * push;

@@ -113,8 +113,8 @@ export class Interaction {
     const dir = p.lookDir();
     this.target = raycastBlocks(this.world, origin, dir, REACH_DISTANCE);
 
-    // ---- breaking (left mouse) ----
-    if (input.mouseDown(0) && this.target) {
+    // ---- breaking (left mouse) ----   (not while eating or drawing a bow)
+    if (input.mouseDown(0) && this.target && !p.usingItem && this.bowCharge === 0) {
       const t = this.target;
       // a different block, or a different tool in hand (switching to a bare
       // fist mid-dig used to keep the pickaxe's speed and drops, wear-free);

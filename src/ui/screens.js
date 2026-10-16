@@ -7,7 +7,7 @@ import { loadSettings, saveSettings } from '../save/store.js';
 import { ACTIONS, RESERVED, resolveBindings, keyLabel, findConflicts } from '../core/keybinds.js';
 import { PAD_LAYOUT } from '../core/gamepad.js';
 import { isFullscreen, setFullscreen, fullscreenSupported, autoGuiScale, isChromeOS, currentGuiScale, guiScaleSetting as guiSetting } from './display.js';
-import { worldOpenElsewhere } from '../save/worldLock.js';
+import { worldOpenElsewhere, acquireWorldLock } from '../save/worldLock.js';
 
 const GUI_SCALES = [0, 0.75, 1, 1.25, 1.5, 2];   // 0 = auto
 
@@ -251,12 +251,21 @@ export class Screens {
       const w = worlds.find((x) => x.id === selected);
       if (w && await busyElsewhere(w)) return;
       if (w) this.showConfirm(`Delete "${w.name}"?`, 'This world will be lost forever. This cannot be undone.', 'Delete', async () => {
+        // hold the world's lock while deleting: it may have been opened in
+        // another tab since the dialog came up (whose saves would bring it back)
+        const release = await acquireWorldLock(w.id);
+        if (!release) {
+          this.showConfirm(`"${w.name}" is open in another tab`, 'Close it there first, then try again.', 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+          return;
+        }
         try {
           await this.store.deleteWorld(w.id);
         } catch (err) {
+          release();
           this.showConfirm('Couldn\u2019t delete that world', String(err?.message ?? err), 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
           return;
         }
+        release();
         this.showMain();
       }, () => this.showMain(w.id));
     }, 'btn small danger');
@@ -460,9 +469,16 @@ export class Screens {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = input.value.trim();
+      const release = await acquireWorldLock(w.id);   // (not while it's open elsewhere: its saves would undo it)
+      if (!release) {
+        this.showConfirm(`"${w.name}" is open in another tab`, 'Close it there first, then try again.', 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
+        return;
+      }
       try {
         if (name && name !== w.name) await this.store.renameWorld(w.id, name);
+        release();
       } catch (err) {
+        release();
         this.showConfirm('Couldn\u2019t rename that world', String(err?.message ?? err), 'OK', () => this.showMain(w.id), () => this.showMain(w.id));
         return;
       }

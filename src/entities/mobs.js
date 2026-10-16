@@ -487,8 +487,10 @@ export class Creeper extends Mob {
     }
     const sees = this.senses(player, 16, dt);
     const d = this.dist3(player);
-    // a lit fuse keeps burning while you're within 7 blocks, seen or not
-    if (!sees && !(this.fuse > 0 && d < 7 && !player.dead && player.mode !== GAMEMODE_CREATIVE)) {
+    // a lit fuse keeps burning while you're within 7 blocks and in sight
+    // (duck behind a wall and it fizzles out)
+    const inSight = this.fuse > 0 && d < 7 && this.canSee(player);
+    if (!sees && !(inSight && !player.dead && player.mode !== GAMEMODE_CREATIVE)) {
       this.fuse = Math.max(0, this.fuse - dt);
       this.loseTarget();
       super.think(dt, player, playerDist);
@@ -496,7 +498,7 @@ export class Creeper extends Mob {
     }
     this.state = 'chase';
     this.steer(player, 1);
-    if ((d < 3 && this.canSee(player)) || (this.fuse > 0 && d < 7)) {
+    if ((d < 3 && this.canSee(player)) || inSight) {
       // stop and hiss; walking away far enough defuses it
       if (this.fuse === 0) this.fx?.sound('fuse', { pos: this });
       this.moving = false;

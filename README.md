@@ -228,7 +228,7 @@ Key design points (full write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 - Render distance is configurable (2–16 chunks). The default 8 gives ~300–600 draw calls and a few hundred thousand triangles depending on terrain.
 - Heavy work (generation) is off-thread; lighting and meshing are time-sliced on the main thread with a per-frame budget.
-- If the tab is hidden, a worker-driven ticker keeps the world simulating (browsers throttle hidden-tab timers).
+- If the tab is hidden, a worker-driven ticker keeps furnaces smelting and crops growing (browsers throttle hidden-tab timers); you, the mobs and the clock wait, so nothing can happen to you behind the pause menu.
 
 ## Roadmap
 

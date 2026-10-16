@@ -3,6 +3,7 @@
 import { BLOCKS, isTechnicalBlock } from '../blocks/blocks.js';
 import { itemInfo, I } from '../items/items.js';
 import { GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL } from '../core/constants.js';
+import { saveSettings } from '../save/store.js';
 import * as MOBS from '../entities/mobs.js';
 import * as ANIMALS from '../entities/animals.js';
 import * as BOSSES from '../entities/bosses.js';
@@ -156,7 +157,9 @@ export class Chat {
       case 'tp': {
         if (args.length < 3) throw new Error('usage: /tp x y z');
         const [x, y, z] = args.map(Number);
-        if ([x, y, z].some(Number.isNaN)) throw new Error('coordinates must be numbers');
+        if (![x, y, z].every(Number.isFinite)) throw new Error('coordinates must be numbers');
+        // the world's block maths wraps past ~30 million: stay inside it
+        if (Math.abs(x) > 30000000 || Math.abs(z) > 30000000 || y < -64 || y > 1024) throw new Error('that\'s outside the world (x and z within 30,000,000)');
         p.mount?.dismount();
         p.x = x; p.y = y; p.z = z;
         p.vx = p.vy = p.vz = 0;
@@ -168,7 +171,7 @@ export class Chat {
         if (args[0] !== 'set' || args.length < 2) throw new Error('usage: /time set <value>');
         const presets = { day: 0.06, noon: 0.25, sunset: 0.5, night: 0.6, midnight: 0.75 };
         const v = presets[args[1]] ?? Number(args[1]);
-        if (Number.isNaN(v)) throw new Error('unknown time value');
+        if (!Number.isFinite(v)) throw new Error('unknown time value');
         g.time = ((v % 1) + 1) % 1;
         this.message(`Time set to ${g.clockTime()}${presets[args[1]] !== undefined ? ` (${args[1]})` : ''}`, '#9fdcff');
         break;
@@ -230,6 +233,8 @@ export class Chat {
         if (!n || n < 2 || n > 16) throw new Error('usage: /rd <2-16>');
         g.world.renderDistance = n;
         g.world.centerCx = Infinity; // force re-stream
+        // and keep it: the settings slider shows it, and it outlasts the next settings change
+        if (g.settings) { g.settings.renderDistance = n; saveSettings(g.settings); }
         this.message(`Render distance: ${n}`, '#9fdcff');
         break;
       }

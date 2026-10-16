@@ -35,7 +35,7 @@ import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
-import { B, isWater } from './blocks/blocks.js';
+import { B, isWater, isSolid } from './blocks/blocks.js';
 import { isLowEndDevice, isChromeOS } from './ui/display.js';
 import { Music } from './audio/music.js';
 import { cropFamily } from './world/saplings.js';
@@ -77,16 +77,22 @@ function startPixelRatio() {
 
 // Block entities that change on their own every tick (growth, fire, smelting,
 // cooking): their chunk is written with every save so progress isn't lost.
-const TICKING = new Set(['sapling', 'crop', 'fire', 'furnace', 'campfire']);
+// (an idle furnace or empty campfire changes nothing, so it doesn't count)
+const TICKING = new Set(['sapling', 'crop', 'fire']);
 function needsSaving(c) {
   if (c.modified) return true;
-  for (const st of c.blockEntities.values()) if (TICKING.has(st.kind)) return true;
+  for (const st of c.blockEntities.values()) {
+    if (TICKING.has(st.kind)) return true;
+    if (st.kind === 'furnace' && st.burnLeft > 0) return true;
+    if (st.kind === 'campfire' && st.slots?.some(Boolean)) return true;
+  }
   return false;
 }
 const BLAST_GEO = new THREE.SphereGeometry(1, 16, 12);   // shared by every explosion flash
 
 export class Game {
   constructor({ canvas, atlas, worldMeta, store = null, sfx = null, onExit = null }) {
+    Game.building = this;   // so a constructor that throws part-way can be torn down (main.js)
     this.canvas = canvas;
     this.atlas = atlas;
     this.worldMeta = worldMeta;
@@ -250,8 +256,9 @@ export class Game {
       this.attackMob();
     };
 
-    this.time = worldMeta.timeOfDay ?? 0.05; // fraction of a day; 0 = sunrise
-    this.day = worldMeta.day ?? 1;           // days survived, shown at each sunrise
+    // fraction of a day, 0 = sunrise (a damaged save's NaN/Infinity: morning)
+    this.time = Number.isFinite(worldMeta.timeOfDay) ? ((worldMeta.timeOfDay % 1) + 1) % 1 : 0.05;
+    this.day = Number.isInteger(worldMeta.day) && worldMeta.day > 0 ? worldMeta.day : 1;   // days survived, shown at each sunrise
     this.sleeping = false;
     this.setDifficulty(worldMeta.difficulty ?? 2);
     this.paused = false;
@@ -506,6 +513,8 @@ export class Game {
   }
 
   attackMob() {
+    // no swinging with food at your mouth or a bow drawn
+    if (this.player.usingItem || this.interaction.bowCharge > 0) return false;
     const held = this.player.heldStack();
     const w = weaponStats(held?.id);
     const best = this.mobUnderCrosshair(w.reach);
@@ -518,7 +527,7 @@ export class Game {
     // spamming does little; a full swing does full damage
     let dmg = base * (0.2 + 0.8 * charge * charge);
     // critical hit: a full-strength blow while falling
-    const crit = charge > 0.9 && !p.onGround && !p.flying && p.vy < 0 && !p.inWater;
+    const crit = charge > 0.9 && !p.onGround && !p.flying && p.vy < 0 && !p.inWater && !p.onLadder && !p.inLava && !p.mount;
     if (crit) dmg *= 1.5;
     if (!best.damage(dmg, p)) return true;
     this.sinceAttack = 0;
@@ -536,7 +545,7 @@ export class Game {
     if (cls === 'sword' && charge > 0.9 && p.onGround && !crit) {
       let swept = 0;
       for (const m of this.entities.mobs) {
-        if (m === best || m.dead || m.tamed) continue;
+        if (m === best || m.dead || m.tamed || m.owned || m === p.mount) continue;
         if (Math.hypot(m.x - best.x, m.z - best.z) > 2.2 || Math.abs(m.y - best.y) > 1.5) continue;
         if (Math.hypot(m.x - p.x, m.z - p.z) > REACH_DISTANCE) continue;
         if (m.damage(1 + base * 0.25, p)) swept++;
@@ -769,6 +778,13 @@ export class Game {
     this.sfx?.play('explode', { pos: { x, y, z } });
     const r = power;
     const cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
+    // how much of each body the blast can reach, measured before any blocks
+    // go: a wall between you and it shields you (damage used to go through)
+    const reach = power * 2;
+    const near = (e, h) => Math.hypot(e.x - x, e.y + h / 2 - y, e.z - z) < reach;
+    const pExposure = near(this.player, 1.8) ? this.blastExposure(x, y, z, this.player.x, this.player.y, this.player.z, 0.6, 1.8) : 0;
+    const mobExposure = new Map();
+    for (const m of this.entities.mobs) if (!m.dead && near(m, m.h)) mobExposure.set(m, this.blastExposure(x, y, z, m.x, m.y, m.z, m.w, m.h));
     const removed = [];
     // underwater, the water takes the blast: it hurts but breaks no blocks
     const wet = isWater(this.world.getBlockW(cx, cy, cz)) || isWater(this.world.getBlockW(cx, cy + 1, cz));
@@ -807,27 +823,44 @@ export class Game {
     }
     // torches, ladders, doors and the like left hanging fall off
     for (let i = 0; i < removed.length; i += 3) this.interaction.dropUnsupported(removed[i], removed[i + 1], removed[i + 2]);
-    // damage falls off over twice the blast radius
-    const reach = power * 2;
-    const hurt = (ex, ey, ez) => {
+    // damage falls off over twice the blast radius, and with cover
+    const hurt = (ex, ey, ez, exposure) => {
       const d = Math.hypot(ex - x, ey - y, ez - z);
-      return d < reach ? { d, dmg: Math.round((1 - d / reach) * (power * 4 + 2)) } : null;
+      return d < reach && exposure > 0 ? { d, dmg: Math.round((1 - d / reach) * (power * 4 + 2) * exposure), k: exposure } : null;
     };
     const p = this.player;
-    const ph = hurt(p.x, p.y + 0.9, p.z);
+    const ph = hurt(p.x, p.y + 0.9, p.z, pExposure);
     if (ph && ph.dmg > 0) {
       p.hurtCooldown = 0;
       p.damage(ph.dmg, 'explosion');
-      const k = (1 - ph.d / reach) * 9;
+      const k = (1 - ph.d / reach) * 9 * ph.k;
       p.vx += ((p.x - x) / (ph.d || 1)) * k;
       p.vz += ((p.z - z) / (ph.d || 1)) * k;
       p.vy = Math.max(p.vy, k * 0.7);
     }
     for (const m of this.entities.mobs) {
-      const mh = hurt(m.x, m.y + m.h / 2, m.z);
+      const mh = hurt(m.x, m.y + m.h / 2, m.z, mobExposure.get(m) ?? 0);
       if (mh && mh.dmg > 0) { m.hurtCooldown = 0; m.damage(mh.dmg, { x, z }); }
     }
     this.addBlast(x, y, z, power);
+  }
+
+  // Share (0..1) of 8 points on a body's box that a blast at (x, y, z) has a
+  // clear line to through the blocks.
+  blastExposure(x, y, z, ex, ey, ez, w, h) {
+    let open = 0;
+    for (const fx of [-0.35, 0.35]) for (const fy of [0.15, 0.85]) for (const fz of [-0.35, 0.35]) {
+      const tx = ex + fx * w, ty = ey + fy * h, tz = ez + fz * w;
+      const dx = tx - x, dy = ty - y, dz = tz - z, len = Math.hypot(dx, dy, dz);
+      const steps = Math.ceil(len / 0.25);
+      let clear = true;
+      for (let i = 1; i < steps && clear; i++) {
+        const t = i / steps;
+        if (isSolid(this.world.getBlockW(Math.floor(x + dx * t), Math.floor(y + dy * t), Math.floor(z + dz * t)))) clear = false;
+      }
+      if (clear) open++;
+    }
+    return open / 8;
   }
 
   addBlast(x, y, z, power) {
@@ -916,6 +949,23 @@ export class Game {
     return { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
   }
 
+  // Somewhere to stand by a bed: on it if there's headroom (two clear cells),
+  // else beside it on solid ground; null if it's boxed in. (A bed in a
+  // 2-high room used to put your head in the ceiling and pop you onto the roof.)
+  bedSpawnSpot(bed) {
+    const w = this.world;
+    if (!w.isLoaded(bed.x, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    const clear = (x, y, z) => !isSolid(w.getBlockW(x, y, z)) && !isSolid(w.getBlockW(x, y + 1, z));
+    if (clear(bed.x, bed.y + 1, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      const x = bed.x + dx, z = bed.z + dz;
+      for (const y of [bed.y, bed.y + 1, bed.y - 1]) {
+        if (isSolid(w.getBlockW(x, y - 1, z)) && clear(x, y, z)) return { x: x + 0.5, y: y + 0.05, z: z + 0.5 };
+      }
+    }
+    return null;
+  }
+
   // Respawn at the bed if it's still there, otherwise at the world spawn.
   respawnPlayer() {
     const p = this.player;
@@ -923,8 +973,12 @@ export class Game {
     let note = null;
     // a bed in an unloaded chunk can't be checked: trust it rather than forget it
     const bedOk = bed && (!this.world.isLoaded(bed.x, bed.z) || this.world.getBlockW(bed.x, bed.y, bed.z) === B.BED);
-    if (bedOk) {
-      p.spawnPoint = { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    const spot = bedOk ? this.bedSpawnSpot(bed) : null;
+    if (spot) {
+      p.spawnPoint = spot;
+    } else if (bedOk) {
+      note = 'Your bed was blocked in, so you woke up at the world spawn.';
+      p.spawnPoint = { ...p.worldSpawn ?? p.spawnPoint };
     } else {
       if (bed) note = 'Your bed was missing, so you woke up at the world spawn.';
       p.bedPos = null;
@@ -1019,8 +1073,12 @@ export class Game {
     }
 
     const gamePaused = this.paused || this.uiOpen || this.sleeping;
+    // in a background tab only furnaces, crops and the like carry on: you,
+    // the mobs and the clock wait (you used to drown, or be killed, behind
+    // the pause menu, and night fell while it was up)
+    const away = this.paused || document.hidden;
 
-    this.time += dt / DAY_LENGTH_SECONDS;
+    if (!away) this.time += dt / DAY_LENGTH_SECONDS;
     if (this.time >= 1) {
       this.time %= 1;
       this.newDay();
@@ -1034,7 +1092,9 @@ export class Game {
     this.world.materials.uniforms.uFogNear.value = R * 0.6;
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
 
-    if (!gamePaused || document.hidden) {
+    if (gamePaused || document.hidden) {
+      if (document.hidden) this.tickBlockEntities(dt);
+    } else {
       const wasInWater = this.player.inWater;
       const px0 = this.player.x, pz0 = this.player.z;
       this.player.update(this.input, dt, gamePaused);
@@ -1316,6 +1376,7 @@ export class Game {
   }
 
   applySettings(s) {
+    this.settings = s;   // (shared with the settings screen; /rd writes to it)
     this.world.renderDistance = s.renderDistance;
     this.world.centerCx = Infinity; // force re-stream at the new radius
     this.baseFov = s.fov;
@@ -1369,6 +1430,7 @@ export class Game {
       timeOfDay: this.time,
       day: this.day,
       difficulty: this.difficulty,
+      mode: this.player.mode,   // the world list shows it (after /gamemode too)
       playerData: this.player.serialize(this.containers.heldStacks()),
       drops: this.entities.savedDrops(),
       lastPlayed: Date.now(),
@@ -1401,25 +1463,36 @@ export class Game {
     this.sfx?.setCave(0);
     this.music?.stop(1);
     const saving = this.store && save ? this.save() : null;
-    this.ticker.terminate();
-    // drop every document/window listener so a later world doesn't inherit them
-    this.input.dispose();
-    this.containers.dispose();
-    this.chat.dispose();
-    this.touch.dispose();
-    this.viewModel.dispose();
-    this.campfireFx.dispose();
-    this.signFx.dispose();
-    this.sky.dispose();
-    this.hud.hide();
-    document.removeEventListener('visibilitychange', this._onVisibility);
-    window.removeEventListener('resize', this._onResize);
-    this.entities.dispose();
-    this.world.dispose();
-    this.highlight.dispose();
-    for (const s of [...this.sparkList, ...(this.bubbles ?? [])]) { s.sprite.removeFromParent(); s.sprite.material.dispose(); }
-    this.bubbleTex?.dispose();
-    this.renderer.renderLists.dispose();
+    this.teardown();
     return saving;
+  }
+
+  // Release everything the game holds. Each step stands alone, so this also
+  // cleans up a game whose constructor threw part-way (missing parts skipped).
+  teardown() {
+    this.running = false;
+    const steps = [
+      () => this.ticker?.terminate(),
+      // drop every document/window listener so a later world doesn't inherit them
+      () => this.input?.dispose(),
+      () => this.containers?.dispose(),
+      () => this.chat?.dispose(),
+      () => this.touch?.dispose(),
+      () => this.viewModel?.dispose(),
+      () => this.campfireFx?.dispose(),
+      () => this.signFx?.dispose(),
+      () => this.sky?.dispose(),
+      () => this.hud?.hide(),
+      () => document.removeEventListener('visibilitychange', this._onVisibility),
+      () => window.removeEventListener('resize', this._onResize),
+      () => this.entities?.dispose(),
+      () => this.world?.dispose(),
+      () => this.highlight?.dispose(),
+      () => { for (const s of [...(this.sparkList ?? []), ...(this.bubbles ?? [])]) { s.sprite.removeFromParent(); s.sprite.material.dispose(); } },
+      () => { for (const b of this.blasts ?? []) { b.mesh.removeFromParent(); b.mesh.material.dispose(); } },
+      () => this.bubbleTex?.dispose(),
+      () => this.renderer?.renderLists.dispose(),
+    ];
+    for (const step of steps) { try { step(); } catch (err) { console.warn('teardown:', err); } }
   }
 }

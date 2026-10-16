@@ -77,7 +77,7 @@ export class Arrow {
       }
       if (this.owner === 'player') {
         for (const m of mobs) {
-          if (m.dead || m.dying !== undefined || m.kind === 'tnt' || m.tamed) continue;   // flies past your own pets (and the fallen)
+          if (m.dead || m.dying !== undefined || m.kind === 'tnt' || m.tamed || m.owned || m === player.mount) continue;   // flies past your own pets and horse (and the fallen)
           const hw = m.w / 2 + 0.1;
           if (Math.abs(this.x - m.x) < hw && Math.abs(this.z - m.z) < hw && this.y > m.y && this.y < m.y + m.h) {
             this.hitMob(m);

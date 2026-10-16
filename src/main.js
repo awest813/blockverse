@@ -134,11 +134,15 @@ async function openWorld(id) {
       sfx,
     });
     game.applySettings(settings);
+    Game.building = null;
   } catch (err) {
     // a broken save or a missing browser feature: don't leave the loading
     // screen up, and let the world be opened again
     console.error(err);
-    try { game?.stop({ save: false }); } catch { /* half-built */ }
+    // a constructor that threw part-way has already hooked up input, chat and
+    // the like: take all that down too, or a ghost game answers E and T
+    (game ?? Game.building)?.teardown();
+    Game.building = null;
     game = null;
     releaseWorld?.(); releaseWorld = null;
     screens.onCancelLoading = null;
