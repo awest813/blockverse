@@ -757,6 +757,15 @@ html, body {
     linear-gradient(to top, rgba(255, 90, 0, 0.55), transparent);
   mix-blend-mode: screen;
 }
+/* cold: frost creeps in from the edges as you chill (opacity set by the game) */
+#frost-overlay {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(200, 230, 255, 0.55) 85%, rgba(235, 248, 255, 0.85) 100%),
+    repeating-conic-gradient(from 10deg at 50% 50%, rgba(255, 255, 255, 0.06) 0 4deg, transparent 4deg 11deg);
+  -webkit-mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
+  mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
+}
 #fire-overlay.on { opacity: 1; animation: flicker 0.18s steps(2) infinite alternate; }
 @keyframes flicker { from { transform: scaleY(1); filter: brightness(1); } to { transform: scaleY(1.08); filter: brightness(1.25); } }
 @media (prefers-reduced-motion: reduce) { #fire-overlay.on { animation: none; } }

@@ -428,7 +428,7 @@ export class Mob {
     if (this.ambientTimer > 0) return;
     this.ambientTimer = this.hostile ? 7 + Math.random() * 10 : 14 + Math.random() * 20;
     const d = this.dist3(player);
-    if (d < 20) this.fx?.sound(this.ambientSound, { pos: this });
+    if (d < 20) this.fx?.sound(this.ambientSound, { pos: this, pitch: this.baby ? 1.4 : 1 });   // young ones squeak
   }
 
   animateDeath(dt) {
@@ -678,7 +678,9 @@ export class Mob {
       this.die();
       return true;
     }
-    this.fx?.sound('mobhurt', { vol: 0.8, pos: this });
+    // animals cry out in their own voice (pitched up: hurt), the rest grunt
+    if (this.hurtSound) this.fx?.sound(this.hurtSound, { vol: 0.9, pos: this, pitch: this.baby ? 1.5 : 1.2 });
+    else this.fx?.sound('mobhurt', { vol: 0.8, pos: this });
     return true;
   }
 

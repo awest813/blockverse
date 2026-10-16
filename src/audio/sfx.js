@@ -5,7 +5,7 @@
 const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
-  arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks',
+  arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks', crit: 'blocks', weak: 'blocks', sweep: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
@@ -15,7 +15,8 @@ const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, crick
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
-const LIMITS = { pickup: [2, 0.06], mobhurt: [3, 0.1], mobdeath: [3, 0.1], explode: [2, 0.12], hit: [3, 0.05], step: [2, 0.08], splash: [2, 0.1], arrowhit: [3, 0.06], swim: [1, 0.2] };
+const LIMITS = { pickup: [2, 0.06], mobhurt: [3, 0.1], mobdeath: [3, 0.1], explode: [2, 0.12], hit: [3, 0.05], step: [2, 0.08], splash: [2, 0.1], arrowhit: [3, 0.06], swim: [1, 0.2],
+  crackle: [2, 0.3], lavapop: [2, 0.3] };
 
 export class Sfx {
   constructor() {
@@ -31,8 +32,16 @@ export class Sfx {
     // a background tab goes quiet
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
-      if (document.hidden) this.ctx.suspend();
-      else this.ctx.resume();
+      const t = this.ctx.currentTime;
+      if (document.hidden) {
+        // fade out first (an abrupt suspend clicks), then sleep
+        this.master?.gain.setTargetAtTime(0.0001, t, 0.012);
+        setTimeout(() => { if (document.hidden) this.ctx.suspend(); }, 80);
+      } else {
+        this.ctx.resume();
+        this.master?.gain.cancelScheduledValues(t);
+        this.master?.gain.setTargetAtTime(this.volume, t, 0.02);
+      }
     });
   }
 
@@ -169,7 +178,7 @@ export class Sfx {
     src.stop(t + dur + 0.02);
   }
 
-  tone({ freq = 440, endFreq = null, dur = 0.15, gain = 0.25, type = 'square' }) {
+  tone({ freq = 440, endFreq = null, dur = 0.15, gain = 0.25, type = 'square', hold = 0 }) {
     if (!this.running) return;
     const t = this.ctx.currentTime + (this._when ?? 0);
     const osc = this.ctx.createOscillator();
@@ -177,7 +186,7 @@ export class Sfx {
     osc.frequency.setValueAtTime(freq, t);
     if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
     const g = this.ctx.createGain();
-    this.envelope(g, gain * (this._k ?? 1), t, dur);
+    this.envelope(g, gain * (this._k ?? 1), t, dur, hold);
     let node = osc;
     // buzzy waves get their harshest overtones shaved off
     if (type === 'square' || type === 'sawtooth') {
@@ -191,10 +200,13 @@ export class Sfx {
     osc.stop(t + dur + 0.02);
   }
 
-  // a 4ms fade-in (no click), then the usual exponential decay
-  envelope(g, peak, t, dur) {
+  // a 4ms fade-in (no click), then the usual exponential decay; `hold`
+  // (a fraction of dur) sustains it first, so a moo is a moo, not a pluck
+  envelope(g, peak, t, dur, hold = 0) {
+    const p = Math.max(0.0002, peak);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.004);
+    g.gain.exponentialRampToValueAtTime(p, t + 0.004);
+    if (hold > 0) g.gain.setValueAtTime(p, t + Math.max(0.005, dur * hold));
     g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.01, dur));
   }
 
@@ -217,14 +229,8 @@ export class Sfx {
     const cat = CATEGORY[name] ?? 'ui';
     let k = (this.mix?.[cat] ?? 1) * (opts.vol ?? 1);
     if (k <= 0 || this.volume <= 0 || !this.running) return;   // muted: build nothing
-    // too many of the same sound right now?
-    const [max, win] = LIMITS[name] ?? [6, 0.05];
-    const now = this.ctx.currentTime;
-    const times = (this._recent.get(name) ?? []).filter((t) => now - t < win);
-    if (times.length >= max) return;
-    times.push(now);
-    this._recent.set(name, times);
-    // positioned sounds fade with distance and pan left/right
+    // positioned sounds fade with distance and pan left/right (out of earshot
+    // first: a far-off sound mustn't use up a nearby one's turn below)
     let pan = opts.pan ?? 0;
     const L = this.listener;
     if (opts.pos && L) {
@@ -237,6 +243,13 @@ export class Sfx {
       const hd = Math.hypot(dx, dz);
       if (hd > 0.5) pan = ((dx * Math.cos(L.yaw) - dz * Math.sin(L.yaw)) / hd) * 0.8 * (this._under ? 0.5 : 1);
     }
+    // too many of the same sound right now?
+    const [max, win] = LIMITS[name] ?? [6, 0.05];
+    const now = this.ctx.currentTime;
+    const times = (this._recent.get(name) ?? []).filter((t) => now - t < win);
+    if (times.length >= max) return;
+    times.push(now);
+    this._recent.set(name, times);
     let out = this.master;
     if (pan && this.ctx.createStereoPanner) {
       out = this.ctx.createStereoPanner();
@@ -259,7 +272,7 @@ export class Sfx {
 
   playRaw(name, opts) {
     const m = this.materialParams(opts.block ?? 'stone');
-    const detune = 0.85 + Math.random() * 0.3;
+    const detune = (0.85 + Math.random() * 0.3) * (opts.pitch ?? 1);   // (pitch: a lamb's higher bleat)
     switch (name) {
       case 'hit':
         this.noise({ ...m, freq: m.freq * detune, dur: 0.06, gain: 0.22 });
@@ -359,7 +372,7 @@ export class Sfx {
         this.noise({ freq: 3200, q: 0.5, dur: 1.4, gain: 0.22, type: 'highpass' });
         break;
       case 'zombie':   // low, wavering groan
-        this.tone({ freq: 110 * detune, endFreq: 70, dur: 0.7, gain: 0.22, type: 'sawtooth' });
+        this.tone({ freq: 110 * detune, endFreq: 70, dur: 0.7, gain: 0.22, type: 'sawtooth', hold: 0.4 });
         this.noise({ freq: 300, q: 1.2, dur: 0.6, gain: 0.08, type: 'bandpass' });
         break;
       case 'skeleton': // dry rattle of quick clicks
@@ -378,11 +391,17 @@ export class Sfx {
         }, i * 140);
         break;
       case 'cow':      // a long low moo
-        this.tone({ freq: 150 * detune, endFreq: 105, dur: 0.9, gain: 0.08, type: 'sawtooth' });
+        this.tone({ freq: 150 * detune, endFreq: 105, dur: 0.9, gain: 0.08, type: 'sawtooth', hold: 0.55 });
         break;
-      case 'sheep':    // a wavering baa
-        for (let i = 0; i < 4; i++) this.later(() => this.tone({ freq: (380 - i * 12) * detune, dur: 0.09, gain: 0.05, type: 'sawtooth' }), i * 70);
+      case 'sheep': {  // "baa-a-a": a rise, a quavering hold, a falling end, through a nasal "aa"
+        const f = [300, 345, 362, 350, 364, 348, 328, 292], g = [0.045, 0.075, 0.08, 0.075, 0.075, 0.07, 0.06, 0.05];
+        for (let i = 0; i < 8; i++) this.later(() => {
+          this.tone({ freq: f[i] * detune, endFreq: (f[i + 1] ?? 250) * detune, dur: 0.2, gain: g[i], type: 'sawtooth', hold: 0.35 });
+          if (i % 2 === 0) this.tone({ freq: f[i] * 2 * detune, endFreq: (f[i + 1] ?? 250) * 2 * detune, dur: 0.16, gain: 0.014, type: 'square' });
+        }, i * 75);
+        this.noise({ freq: 1100 * detune, q: 3, dur: 0.6, gain: 0.02 });   // breathy formant
         break;
+      }
       case 'chicken':  // clucks
         for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) this.later(() => this.tone({ freq: 950 * detune, endFreq: 700, dur: 0.06, gain: 0.05, type: 'triangle' }), i * 110);
         break;
@@ -416,12 +435,12 @@ export class Sfx {
         for (let i = 0; i < 3 + (Math.random() * 3 | 0); i++) this.later(() => this.tone({ freq: 1500 * detune, endFreq: 1250, dur: 0.035, gain: 0.03, type: 'triangle' }), i * 110);
         break;
       case 'polarbear': // a deep growl, louder when it means it
-        this.noise({ freq: 260 * detune * (opts.pitch ?? 1), q: 0.8, dur: 0.7, gain: 0.12, type: 'lowpass' });
-        this.tone({ freq: 85 * detune * (opts.pitch ?? 1), endFreq: 70, dur: 0.7, gain: 0.06, type: 'sawtooth' });
+        this.noise({ freq: 260 * detune, q: 0.8, dur: 0.7, gain: 0.12, type: 'lowpass' });
+        this.tone({ freq: 85 * detune, endFreq: 70, dur: 0.7, gain: 0.06, type: 'sawtooth', hold: 0.4 });
         break;
       case 'horn':     // a long, rough call that bends down at the end
-        this.tone({ freq: 196, endFreq: 174, dur: 1.5, gain: 0.09, type: 'sawtooth' });
-        this.tone({ freq: 392, endFreq: 349, dur: 1.4, gain: 0.03, type: 'square' });
+        this.tone({ freq: 196, endFreq: 174, dur: 1.5, gain: 0.09, type: 'sawtooth', hold: 0.6 });
+        this.tone({ freq: 392, endFreq: 349, dur: 1.4, gain: 0.03, type: 'square', hold: 0.6 });
         this.noise({ freq: 500, q: 0.8, dur: 0.25, gain: 0.04, type: 'lowpass' });
         break;
       case 'hoof':     // clip-clop
@@ -441,7 +460,7 @@ export class Sfx {
         this.later(() => this.tone({ freq: 1800 * detune, endFreq: 2700, dur: 0.3, gain: 0.04, type: 'sine' }), 260);
         break;
       case 'whale':    // a slow rising song
-        this.tone({ freq: 90 * detune, endFreq: 170, dur: 1.6, gain: 0.08, type: 'sine' });
+        this.tone({ freq: 90 * detune, endFreq: 170, dur: 1.6, gain: 0.08, type: 'sine', hold: 0.5 });
         break;
       case 'roar':     // a dungeon boss wakes: a growl rising into a bellow
         this.tone({ freq: 62 * detune, endFreq: 130, dur: 0.6, gain: 0.13, type: 'sawtooth' });
@@ -449,11 +468,11 @@ export class Sfx {
         this.later(() => this.tone({ freq: 130 * detune, endFreq: 52, dur: 0.9, gain: 0.13, type: 'sawtooth' }), 550);
         break;
       case 'rare':     // picked up something special: a bright two-note chime
-        this.tone({ freq: 988, dur: 0.18, gain: 0.08, type: 'triangle' });
-        this.later(() => this.tone({ freq: 1319, dur: 0.32, gain: 0.08, type: 'triangle' }), 90);
+        this.tone({ freq: 988, dur: 0.18, gain: 0.16, type: 'triangle' });
+        this.later(() => this.tone({ freq: 1319, dur: 0.32, gain: 0.16, type: 'triangle', hold: 0.3 }), 90);
         break;
       case 'victory':  // a boss beaten: a bright rising arpeggio
-        [523, 659, 784, 1047].forEach((f, i) => this.later(() => this.tone({ freq: f, dur: 0.3, gain: 0.08, type: 'triangle' }), i * 110));
+        [523, 659, 784, 1047].forEach((f, i) => this.later(() => this.tone({ freq: f, dur: 0.3, gain: 0.14, type: 'triangle', hold: 0.3 }), i * 110));
         break;
       case 'mobhurt':
         this.tone({ freq: 340 * detune, endFreq: 220, dur: 0.1, gain: 0.12, type: 'square' });

@@ -60,7 +60,7 @@ function bubbleTexture() {
 }
 
 const RENDERERS = new WeakMap();
-const BLOCK_SOUNDS = new Set(['break', 'place', 'door', 'chest', 'sizzle', 'splash', 'gloop', 'ignite']);
+const BLOCK_SOUNDS = new Set(['hit', 'break', 'place', 'door', 'chest', 'sizzle', 'splash', 'gloop', 'ignite']);
 
 // three's fog measures depth along the view axis; the chunk shader uses true
 // distance. Use distance for mobs, drops and particles too, so nothing at the
@@ -277,6 +277,10 @@ export class Game {
       this.sfx?.play('hurt', { cause: e.detail?.cause });
       this.hud.renderStats();
       this.flashDamage();
+    });
+    // the first chill: say how to warm up
+    this.player.events.addEventListener('cold', () => {
+      this.hud.showLabel('You\u2019re getting cold \u2014 warm up by a fire or a torch, or wear leather', true);
     });
     this.player.events.addEventListener('toolbreak', (e) => {
       this.sfx?.play('toolbreak');
@@ -1144,6 +1148,10 @@ export class Game {
     this.sinceAttack += dt;
     if (!this.fireEl) this.fireEl = document.getElementById('fire-overlay');
     this.fireEl?.classList.toggle('on', this.player.fireTime > 0 && !this.player.dead);
+    // frost at the edges as you chill (from a third of the way)
+    if (!this.frostEl) this.frostEl = document.getElementById('frost-overlay');
+    const frost = this.player.dead ? 0 : Math.max(0, ((this.player.freeze ?? 0) - 0.15) / 0.85);
+    if (this.frostEl && Math.abs(frost - (this._frost ?? 0)) > 0.01) { this._frost = frost; this.frostEl.style.opacity = frost.toFixed(2); }
     if (!this.chargeEl) { this.chargeEl = document.getElementById('attack-charge'); this.chargeBar = this.chargeEl?.firstElementChild; }
     if (this.chargeEl) {
       const c = this.attackCharge();

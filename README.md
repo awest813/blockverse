@@ -58,7 +58,8 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Storage blocks (iron, gold, diamond, coal), paper → books → bookshelves, jack o'lanterns, bowls and mushroom stew, charcoal
 - First-time **survival tips** that guide you from punching a tree to your first pickaxe, furnace, chest and bed
 - **Furnace** with fuel + smelt time, live progress bars, and a lit block state that emits light: smelt iron, gold, glass, stone, bricks, and cook food
-- Health, hunger, saturation & exhaustion, drowning with an air meter, fall damage, starvation — plus food to eat
+- Health, hunger, saturation & exhaustion, drowning with an air meter, fall damage, starvation — plus food to eat. Well fed (a full bar with saturation to spare), you heal fast
+- **Cold**: swimming in icy water chills you fast, and a night out on the snow slowly. Frost creeps in at the edges of the screen; chilled through, you stiffen up, and frozen, it hurts. A fire, torch or lantern close by warms you, as does the day, and each piece of leather armour keeps a fifth of the chill out
 - **Chests** (27 slots) for storage; containers spill their contents when broken
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees; dead bushes give a stick or two (the desert's only wood), and grass creeps back over bare dirt beside it
@@ -80,7 +81,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Creative mode**: flight (double-tap space), instant breaking, a searchable item palette with categories, no damage
 
 ### 🐷 Mobs
-- **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food
+- **Farm animals** by biome: pigs, sheep, cows (leather, beef) and chickens (feathers, chicken) wander, flee when hit and drop food. Sheep wear a woolly fleece (white, cream or light grey), graze, and bleat when shorn; animals cry out in their own voices when hurt, and the young ones squeak
 - **Breeding**: feed two animals their favourite food (wheat for cows and sheep, seeds for chickens, apples for pigs) and they'll have a baby that grows up in a few minutes; animals you've fed are kept and saved with your world instead of wandering off
 - **Goats, horses and ducks**: goats live high in the mountains; milk them with a bucket, but hit one (or linger) and it lowers its head and charges, and long drops don't hurt them. Horses roam the plains in herds, each with its own coat, speed and jump. Feed one and climb on with an empty hand: it throws you off until it trusts you. Then a **saddle** (3 leather and an iron ingot) lets you ride it. It goes where you look, gallops when you sprint, jumps fences, and you sneak to get off. Ducks paddle on rivers and swamps with their ducklings in tow, and drop feathers and duck meat to roast. Shorn sheep graze to grow their wool back
 - **Pandas, sloths, capybaras and polar bears**: lazy pandas lounge about the forests, sitting down, rolling over and sneezing, and love sugar cane. Sloths creep through forests and swamps at a snail's pace and climb tree trunks to the canopy (falls don't bother them); they like apples. Capybaras gather in groups on river banks and in swamps and float placidly in the water (wheat or sugar cane). Polar bears roam the snow, sometimes with a cub: leave them be and they leave you be, but hit one or get close to a cub and it rears up and swipes. They swim well and eat raw fish

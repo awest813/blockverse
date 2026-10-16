@@ -6,12 +6,15 @@ import {
   GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE, CHUNK_Y,
 } from '../core/constants.js';
 import { moveEntity, entityInBlock, entityInWater, pointInWater } from '../core/physics.js';
+import { FROZEN, BIOME } from '../world/worldgen.js';
+import { I } from '../items/itemIds.js';
 import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
 const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear']);   // (explosions hurt at any difficulty)
-const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire']);
+const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze']);
+const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
 
 export class Player {
   constructor(world) {
@@ -134,6 +137,8 @@ export class Player {
       this.inWater ? SWIM_SPEED * grace :
       this.sneaking ? SNEAK_SPEED :
       this.sprinting ? SPRINT_SPEED : WALK_SPEED;
+    // chilled to the bone: stiff and slow
+    if (this.freeze > 0.6) speed *= 1 - 0.35 * Math.min(1, (this.freeze - 0.6) / 0.4);
 
     // desired horizontal velocity in world space
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -233,7 +238,7 @@ export class Player {
     if (this.y < -12) this.damage(4, 'void');
 
     if (!creative) this.updateSurvival(dt);
-    else this.fireTime = 0;   // creative players don't burn (and the overlay goes out)
+    else { this.fireTime = 0; this.freeze = 0; }   // creative players don't burn or freeze (and the overlays go)
 
     // sprint exhaustion
     if (this.sprinting && !this.inWater) this.addExhaustion(0.1 * dt * 7);   // swimming has its own cost
@@ -312,7 +317,8 @@ export class Player {
     }
     if (this.hunger >= 18 && this.health < this.maxHealth) {
       this.regenTimer += dt;
-      if (this.regenTimer >= 2.5) {
+      // well fed (a full bar with saturation to spare) heals fast
+      if (this.regenTimer >= (this.hunger >= 20 && this.saturation > 0 ? 0.6 : 2.5)) {
         this.regenTimer = 0;
         this.health = Math.min(this.maxHealth, this.health + 1);
         this.addExhaustion(1.5);
@@ -329,6 +335,8 @@ export class Player {
       this.regenTimer = 0;
     }
 
+    this.updateCold(dt);
+
     // drowning
     if (this.headInWater) {
       this.airTimer += dt;
@@ -341,6 +349,45 @@ export class Player {
       this.air = Math.min(20, this.air + dt * 8);
       this.airTimer = 0;
     }
+  }
+
+  // Cold: icy water chills you fast, a night out in the snow slowly. A fire,
+  // torch or lantern close by (bright block light) warms you, as does the day;
+  // each piece of leather armour keeps a fifth of the chill out. Chilled
+  // through, you stiffen up; frozen, it starts to hurt.
+  updateCold(dt) {
+    this.coldTimer = (this.coldTimer ?? 0) - dt;
+    if (this.coldTimer <= 0) {
+      this.coldTimer = 0.5;
+      const x = Math.floor(this.x), z = Math.floor(this.z), y = Math.floor(this.y), ey = Math.floor(this.eyeY);
+      const col = this.world.gen.columnAt(x, z);
+      const cold = col.t < FROZEN || (col.h > 80 && this.world.gen.biomeOf(col) === BIOME.MOUNTAINS);
+      const warm = Math.max(this.world.getBlockLightW(x, y, z), this.world.getBlockLightW(x, ey, z)) >= 10 || this.inLava;
+      const night = (this.world.materials?.uniforms.uDay.value ?? 1) < 0.4;
+      const outside = this.world.getSkyW(x, ey, z) >= 12;
+      let rate;
+      if (warm) rate = -1 / 5;
+      else if (cold && this.inWater) rate = 1 / 15;
+      else if (cold && night && outside) rate = 1 / 80;
+      else rate = -1 / 30;
+      if (rate > 0) rate *= 1 - 0.2 * this.armor.filter((s) => s && LEATHER.has(s.id)).length;
+      this.coldRate = rate;
+    }
+    const before = this.freeze ?? 0;
+    this.freeze = Math.max(0, Math.min(1, before + (this.coldRate ?? 0) * dt));
+    if (before < 0.3 && this.freeze >= 0.3 && !this.coldWarned) {
+      this.coldWarned = true;
+      this.events.dispatchEvent(new CustomEvent('cold'));
+    }
+    if (this.freeze >= 1 && this.difficulty !== 0) {
+      this.freezeTimer = (this.freezeTimer ?? 0) + dt;
+      if (this.freezeTimer >= 2) {
+        this.freezeTimer = 0;
+        // like hunger: easy stops at 5 hearts, normal at half a heart
+        const floor = this.difficulty === 1 ? 10 : this.difficulty === 3 ? 0 : 1;
+        if (this.health > floor) this.damage(1, 'freeze');
+      }
+    } else this.freezeTimer = 0;
   }
 
   addExhaustion(v) {
@@ -414,6 +461,7 @@ export class Player {
     this.airTimer = 0;
     this.graceTime = 0;
     this.fireTime = 0;
+    this.freeze = 0;
   }
 
   // ---- inventory helpers ----

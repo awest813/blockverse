@@ -8,6 +8,19 @@ import { I } from '../items/itemIds.js';
 import { B, isWater } from '../blocks/blocks.js';
 import { makeStack } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
+import { generateTile } from '../render/textures.js';
+
+// the wool block's own weave, shared by every sheep's fleece
+let woolTex = null;
+function woolTexture() {
+  if (!woolTex) {
+    woolTex = new THREE.CanvasTexture(generateTile('wool'));
+    woolTex.magFilter = THREE.NearestFilter;
+    woolTex.minFilter = THREE.NearestFilter;
+    woolTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  return woolTex;
+}
 
 export class Pig extends Mob {
   constructor(scene, world, x, y, z) {
@@ -17,6 +30,7 @@ export class Pig extends Mob {
     this.health = 10;
     this.kind = 'pig';
     this.ambientSound = 'pig';
+    this.hurtSound = 'pig';
     this.breedItem = I.APPLE;
     this.breedAlso = [I.CARROT, I.POTATO];   // pigs love root vegetables
   }
@@ -61,34 +75,72 @@ export class Sheep extends Mob {
     this.speed = 1.3;
     this.kind = 'sheep';
     this.ambientSound = 'sheep';
+    this.hurtSound = 'sheep';
     this.breedItem = I.WHEAT;
   }
 
   buildModel() {
-    const wool = 0xe8e6e0, skin = 0xcfae94, legC = 0xbfa088;
+    // natural fleece: mostly white, some cream, the odd light-grey one
+    const r = Math.random();
+    this.woolTint = r < 0.62 ? 0xffffff : r < 0.88 ? 0xf3ecdc : 0xdedcd8;
+    const skin = 0xd9b9a0, face = 0xcfa88e, legC = 0xc39c84, hoof = 0x5a4638;
+    const woolPart = (w, h, d, x, y, z, parent = null) => {
+      const m = this.part(w, h, d, this.woolTint, x, y, z);
+      m.material.map = woolTexture();
+      this.woolMats.push(this.materials.at(-1));
+      if (parent) { this.group.remove(m); parent.add(m); }
+      return m;
+    };
+    this.woolMats = [];
     this.fleece = [
-      this.part(1.0, 0.7, 0.65, wool, 0, 0.75, 0),            // woolly body
-      this.part(0.46, 0.28, 0.2, wool, 0, 1.14, -0.52),       // wool cap
+      woolPart(1.0, 0.72, 0.68, 0, 0.78, 0.02),               // woolly body
+      woolPart(0.74, 0.12, 0.5, 0, 1.18, 0.06),               // lumpy back
+      woolPart(0.6, 0.5, 0.12, 0, 0.8, 0.41),                 // rump puff
     ];
-    this.shorn = this.part(0.8, 0.5, 0.5, skin, 0, 0.75, 0);  // body once sheared
+    // shorn: a short, pink-cream fuzz (same weave, close-cropped)
+    this.shorn = this.part(0.82, 0.54, 0.54, 0xe6c8b2, 0, 0.76, 0.02);
+    this.shorn.material.map = woolTexture();
     this.shorn.visible = false;
-    this.head = this.part(0.42, 0.4, 0.4, skin, 0, 1.0, -0.6);   // head
-    this.part(0.07, 0.07, 0.02, 0x2a2a2a, -0.11, 1.06, -0.81);
-    this.part(0.07, 0.07, 0.02, 0x2a2a2a, 0.11, 1.06, -0.81);
+    // the head is a pivot so it can dip to graze
+    this.head = new THREE.Group();
+    this.head.position.set(0, 1.02, -0.5);
+    this.group.add(this.head);
+    const hp = (w, h, d, c, x, y, z) => { const m = this.part(w, h, d, c, x, y, z); this.group.remove(m); this.head.add(m); return m; };
+    hp(0.38, 0.36, 0.42, skin, 0, 0, -0.12);                  // head
+    hp(0.32, 0.22, 0.06, face, 0, -0.05, -0.34);              // face
+    this.fleece.push(woolPart(0.42, 0.14, 0.3, 0, 0.21, -0.06, this.head));   // wool cap
+    hp(0.16, 0.06, 0.1, skin, -0.25, 0.06, -0.08).rotation.z = 0.35;          // ears, drooping
+    hp(0.16, 0.06, 0.1, skin, 0.25, 0.06, -0.08).rotation.z = -0.35;
+    hp(0.09, 0.07, 0.02, 0xf2f0ea, -0.1, 0.03, -0.375);       // eyes
+    hp(0.09, 0.07, 0.02, 0xf2f0ea, 0.1, 0.03, -0.375);
+    hp(0.045, 0.07, 0.02, 0x1e1a18, -0.075, 0.03, -0.38);
+    hp(0.045, 0.07, 0.02, 0x1e1a18, 0.075, 0.03, -0.38);
+    hp(0.12, 0.05, 0.02, 0xb07a78, 0, -0.1, -0.38);           // nose
     this.legs = [
-      this.legPart(legC, -0.28, -0.22),
-      this.legPart(legC, 0.28, -0.22),
-      this.legPart(legC, -0.28, 0.22),
-      this.legPart(legC, 0.28, 0.22),
+      this.legPart(legC, hoof, -0.28, -0.22),
+      this.legPart(legC, hoof, 0.28, -0.22),
+      this.legPart(legC, hoof, -0.28, 0.22),
+      this.legPart(legC, hoof, 0.28, 0.22),
     ];
+    // woolly upper legs (they go with the fleece)
+    for (const leg of this.legs) this.fleece.push(woolPart(0.23, 0.18, 0.23, 0, -0.13, 0, leg));
   }
 
-  legPart(color, x, z) {
+  legPart(color, hoof, x, z) {
     const leg = this.part(0.16, 0.45, 0.16, color, x, 0.45, z);
     leg.geometry = leg.geometry.clone();
     leg.geometry.translate(0, -0.22, 0);
     leg.position.y = 0.45;
+    const h = this.part(0.17, 0.08, 0.17, hoof, 0, -0.41, 0);
+    this.group.remove(h); leg.add(h);
     return leg;
+  }
+
+  saveExtra() { return this.woolTint !== 0xffffff ? { tint: this.woolTint } : null; }
+  loadExtra(e) {
+    if (!Number.isInteger(e.tint)) return;
+    this.woolTint = e.tint;
+    for (const m of this.woolMats) m.base.setHex(e.tint);
   }
 
   // shears: 1-3 wool, and the fleece grows back after a few minutes
@@ -100,6 +152,7 @@ export class Sheep extends Mob {
     this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('shear', { pos: this });
+    this.fx?.sound('sheep', { pos: this, pitch: 1.1 });   // an indignant bleat
     return true;
   }
 
@@ -112,23 +165,29 @@ export class Sheep extends Mob {
 
   think(dt, player, playerDist) {
     if (this.sheared && (this.regrow -= dt) <= 0) this.setSheared(false);
-    // a shorn sheep grazes: head down, the grass goes, the fleece comes back
+    // sheep graze: head down for a mouthful. A shorn sheep or a lamb eats the
+    // grass down to dirt (the fleece comes back, the lamb grows); a sheep in
+    // full fleece just nibbles, so a flock doesn't strip the land bare
     if (this.graze > 0) {
       this.graze -= dt;
       this.moving = false;
-      this.head.position.y = 1.0 - Math.min(0.35, (1.4 - this.graze) * 1.5);
+      const dip = Math.min(1, (1.4 - this.graze) * 3, this.graze * 3);
+      this.head.position.y = 1.02 - dip * 0.42;
+      this.head.rotation.x = -dip * 0.7;
       if (this.graze <= 0) {
-        this.head.position.y = 1.0;
+        this.head.position.y = 1.02;
+        this.head.rotation.x = 0;
         const bx = Math.floor(this.x), by = Math.floor(this.y - 0.1), bz = Math.floor(this.z);
-        if (this.world.getBlockW(bx, by, bz) === B.GRASS) {
+        if ((this.sheared || this.baby) && this.world.getBlockW(bx, by, bz) === B.GRASS) {
           this.world.setBlock(bx, by, bz, B.DIRT);
           this.fx?.sound('break', { block: 'leaf', pos: this, vol: 0.5 });
-          if (!this.baby) this.setSheared(false);
+          if (this.baby) this.grow = Math.max(0, this.grow - 60);
+          else this.setSheared(false);
         }
       }
       return;
     }
-    if (this.sheared && this.onGround && this.state === 'idle' && Math.random() < dt / 25
+    if (this.onGround && this.state === 'idle' && Math.random() < dt / (this.sheared ? 25 : 40)
       && this.world.getBlockW(Math.floor(this.x), Math.floor(this.y - 0.1), Math.floor(this.z)) === B.GRASS) {
       this.graze = 1.4;
       return;

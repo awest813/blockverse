@@ -50,7 +50,7 @@ class Animal extends Mob {
 export class Cow extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.9; this.h = 1.3; this.health = 10; this.speed = 1.2; this.kind = 'cow';
+    this.w = 0.9; this.h = 1.3; this.health = 10; this.speed = 1.2; this.kind = 'cow'; this.hurtSound = 'cow';
     this.ambientSound = 'cow';
     this.breedItem = I.WHEAT;
   }
@@ -94,7 +94,7 @@ export class Cow extends Animal {
 export class Chicken extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.45; this.h = 0.75; this.health = 4; this.speed = 1.1; this.fleeSpeed = 2.6; this.kind = 'chicken';
+    this.w = 0.45; this.h = 0.75; this.health = 4; this.speed = 1.1; this.fleeSpeed = 2.6; this.kind = 'chicken'; this.hurtSound = 'chicken';
     this.ambientSound = 'chicken';
     this.breedItem = I.WHEAT_SEEDS;
   }
@@ -158,7 +158,7 @@ function milk(animal, player, held) {
 export class Goat extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.8; this.h = 1.2; this.health = 10; this.speed = 1.4; this.fleeSpeed = 3.0; this.kind = 'goat';
+    this.w = 0.8; this.h = 1.2; this.health = 10; this.speed = 1.4; this.fleeSpeed = 3.0; this.kind = 'goat'; this.hurtSound = 'goat';
     this.ambientSound = 'goat';
     this.breedItem = I.WHEAT;
     this.safeFall = 9;
@@ -280,7 +280,7 @@ const HORN_ROCK = new Set([B.STONE, B.COBBLESTONE, B.GRANITE ?? -1, B.ANDESITE ?
 export class Duck extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.45; this.h = 0.6; this.health = 4; this.speed = 1.0; this.fleeSpeed = 2.6; this.kind = 'duck';
+    this.w = 0.45; this.h = 0.6; this.health = 4; this.speed = 1.0; this.fleeSpeed = 2.6; this.kind = 'duck'; this.hurtSound = 'duck';
     this.ambientSound = 'duck';
     this.breedItem = I.WHEAT_SEEDS;
     this.likesWater = true;
@@ -358,7 +358,7 @@ const TAMING_FOOD = new Map([[I.WHEAT, 3], [I.APPLE, 5], [I.CARROT, 4], [B.HAY_B
 export class Horse extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 1.2; this.h = 1.6; this.kind = 'horse';
+    this.w = 1.2; this.h = 1.6; this.kind = 'horse'; this.hurtSound = 'horse';
     this.health = this.maxHealth = 20 + ((Math.random() * 11) | 0);
     this.speed = 1.6; this.fleeSpeed = 4;
     this.ambientSound = 'horse';
@@ -1174,7 +1174,7 @@ function hingedPart(mob, w, h, d, color, x, y, z) {
 export class Panda extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 1.1; this.h = 1.2; this.health = 20; this.speed = 0.8; this.fleeSpeed = 2.2; this.kind = 'panda';
+    this.w = 1.1; this.h = 1.2; this.health = 20; this.speed = 0.8; this.fleeSpeed = 2.2; this.kind = 'panda'; this.hurtSound = 'panda';
     this.ambientSound = 'panda';
     this.breedItem = B.SUGAR_CANE;
     this.pose = null;     // {kind: 'sit' | 'roll', t}
@@ -1258,7 +1258,7 @@ export class Panda extends Animal {
 export class Sloth extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.6; this.h = 0.7; this.health = 8; this.speed = 0.35; this.fleeSpeed = 0.6; this.kind = 'sloth';
+    this.w = 0.6; this.h = 0.7; this.health = 8; this.speed = 0.35; this.fleeSpeed = 0.6; this.kind = 'sloth'; this.hurtSound = 'sloth';
     this.ambientSound = 'sloth';
     this.breedItem = I.APPLE;
     this.climbSpeed = 0.9;
@@ -1309,7 +1309,7 @@ export class Sloth extends Animal {
 export class Capybara extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 0.7; this.h = 0.75; this.health = 10; this.speed = 1.1; this.fleeSpeed = 2.8; this.kind = 'capybara';
+    this.w = 0.7; this.h = 0.75; this.health = 10; this.speed = 1.1; this.fleeSpeed = 2.8; this.kind = 'capybara'; this.hurtSound = 'capybara';
     this.ambientSound = 'capybara';
     this.breedItem = I.WHEAT;
     this.breedAlso = [B.SUGAR_CANE];

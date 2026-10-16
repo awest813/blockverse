@@ -17,7 +17,7 @@ export const BIOME_NAMES = [
   'Desert', 'Snowy Tundra', 'Snowy Forest', 'Swamp', 'Mountains', 'River',
 ];
 
-const FROZEN = 0.28;        // below this temperature water freezes and snow falls
+export const FROZEN = 0.28; // below this temperature water freezes and snow falls
 const RIVER_WIDTH = 0.03;   // river noise band half-width (channel)
 const BANK_WIDTH = 0.065;   // ... and the gently sloping banks around it
 

@@ -27,7 +27,7 @@ export class Music {
     if (!sfx.running) return;
     const ctx = sfx.ctx;
     if (this.piece) {
-      if (ctx.currentTime > this.piece.ends) this.piece = null;
+      if (ctx.currentTime > this.piece.ends) { this.release(this.piece); this.piece = null; }
       else if (!mood) this.stop(2);
       return;
     }
@@ -61,6 +61,7 @@ export class Music {
     gain.connect(bus);
     gain.connect(delay).connect(damp).connect(fb).connect(delay);
     damp.connect(bus);
+    const voices = [];
 
     const voice = (freq, start, dur, peak, wave) => {
       const o = ctx.createOscillator();
@@ -73,6 +74,7 @@ export class Music {
       o.connect(g).connect(gain);
       o.start(start);
       o.stop(start + dur + 0.05);
+      voices.push(o);
     };
 
     // the pad: root and fifth of each chord, slow and quiet
@@ -90,7 +92,13 @@ export class Music {
       const note = m.root + m.scale[deg % 5] + 12 * Math.floor(deg / 5);
       voice(hz(note), t, m.step * (1.5 + Math.random() * 1.5), 0.06, m.wave);
     }
-    this.piece = { gain, ends: t0 + len + 4 };
+    // the echo loop holds itself alive while connected: unhook it all after
+    this.piece = { gain, ends: t0 + len + 4, nodes: [gain, delay, damp, fb], voices };
+  }
+
+  // take a finished (or faded) piece's echo loop apart
+  release(piece) {
+    for (const n of piece.nodes) { try { n.disconnect(); } catch { /* already */ } }
   }
 
   // fade out whatever is playing (a boss fight, quitting)
@@ -101,8 +109,10 @@ export class Music {
     g.cancelScheduledValues(t);
     g.setValueAtTime(Math.max(0.0001, g.value), t);
     g.exponentialRampToValueAtTime(0.0001, t + fade);
-    const gain = this.piece.gain;
-    setTimeout(() => gain.disconnect(), (fade + 0.2) * 1000);
+    // the notes scheduled for later in the piece needn't play on, silent
+    for (const o of this.piece.voices) { try { o.stop(t + fade); } catch { /* not started / done */ } }
+    const piece = this.piece;
+    setTimeout(() => this.release(piece), (fade + 0.2) * 1000);
     this.piece = null;
     this.wait = Math.max(this.wait, 60);   // and leave a gap before the next one
   }
