@@ -64,6 +64,7 @@ export function entityContents(st) {
   if (st.kind === 'chest') return st.slots.filter(Boolean);
   if (st.kind === 'campfire') return st.slots.filter(Boolean).map((s) => ({ id: s.id, count: 1 }));
   if (st.kind === 'trough') return st.slots.filter(Boolean);
+  if (st.kind === 'composter' && st.level >= 7) return [{ id: I.BONE_MEAL, count: 1 }];   // a full one's bone meal
   return [];
 }
 
@@ -109,7 +110,10 @@ export class Interaction {
     // ---- breaking (left mouse) ----
     if (input.mouseDown(0) && this.target) {
       const t = this.target;
-      if (!this.breakTarget || this.breakTarget.x !== t.x || this.breakTarget.y !== t.y || this.breakTarget.z !== t.z) {
+      // a different block, or a different item in hand (switching to a bare
+      // fist mid-dig used to keep the pickaxe's speed and drops, wear-free)
+      if (!this.breakTarget || this.breakTarget.x !== t.x || this.breakTarget.y !== t.y || this.breakTarget.z !== t.z
+        || p.selected !== this.breakSlot || (p.heldStack()?.id ?? 0) !== this.breakHeldId) {
         this.startBreaking(t);
       }
       if (this.breakTarget) {
@@ -187,17 +191,15 @@ export class Interaction {
     const info = blockInfo(t.id);
     this.breakTarget = { x: t.x, y: t.y, z: t.z, id: t.id };
     this.breakProgress = 0;
+    this.breakSlot = p.selected;
+    this.breakHeldId = p.heldStack()?.id ?? 0;
 
     // Break time: hardness * 1.5 when properly tooled (or no tool needed),
     // *5 when the right tool class is missing or tier too low.
     const held = p.heldStack();
     const tool = held ? itemInfo(held.id)?.tool : null;
     let mult = 1;
-    let effective = !info.tool; // blocks with no preferred tool are always "effective"
-    if (info.tool && tool && tool.class === info.tool) {
-      mult = tool.speed;
-      effective = tool.tier >= (info.minTier > 0 ? info.minTier : 0);
-    }
+    if (info.tool && tool && tool.class === info.tool) mult = tool.speed;
     const canHarvest = info.minTier === 0 || (tool && tool.class === info.tool && tool.tier >= info.minTier);
     this.breakCanHarvest = canHarvest;
     const base = info.hardness * (canHarvest || !info.tool ? 1.5 : 5);
@@ -219,9 +221,11 @@ export class Interaction {
     const contents = entityContents(this.world.blockEntityAt(t.x, t.y, t.z));
     if (contents.length) this.cb.spawnDrops(t.x + 0.5, t.y + 0.5, t.z + 0.5, contents.map((s) => ({ ...s })));
 
-    // ice over water (or on the ground) melts back to water, as kelp leaves its water
+    // ice cut out with a pickaxe comes away whole; broken any other way, ice
+    // over water (or on the ground) melts back to water, with nothing to pick up
     const below = this.world.getBlockW(t.x, t.y - 1, t.z);
-    const melts = t.id === B.ICE && (isWater(below) || isSolid(below));
+    const lifted = t.id === B.ICE && itemInfo(p.heldStack()?.id)?.tool?.class === 'pickaxe';
+    const melts = t.id === B.ICE && !lifted && (isWater(below) || isSolid(below));
     this.world.setBlock(t.x, t.y, t.z, info.waterlogged || melts ? B.WATER : B.AIR);
     this.cb.playSound('break', { block: info.sound });
     // a door's other half goes with it
@@ -236,9 +240,13 @@ export class Interaction {
 
     if (!creative) {
       // shears snip leaves, grass and bushes off whole
-      if (p.heldStack()?.id === I.SHEARS && SHEARABLE.has(t.id)) this.cb.spawnDrops(t.x + 0.5, t.y + 0.3, t.z + 0.5, [{ id: t.id, count: 1 }]);
+      const shearing = p.heldStack()?.id === I.SHEARS && SHEARABLE.has(t.id);
+      if (shearing) this.cb.spawnDrops(t.x + 0.5, t.y + 0.3, t.z + 0.5, [{ id: t.id, count: 1 }]);
+      else if (t.id === B.ICE && !lifted) { /* melted */ }
       else if (this.breakCanHarvest) this.spawnBlockDrops(t.x, t.y, t.z, info, true);
-      p.damageHeldTool(1);
+      // tools wear on real digging (and shears on what they cut), not on
+      // crops, flowers, grass or torches that break at a touch
+      if (shearing || info.hardness > 0.05) p.damageHeldTool(1);
       p.addExhaustion(0.03);
     }
     this.resetBreaking();
@@ -690,13 +698,14 @@ export class Interaction {
         const st = this.world.blockEntityAt(t.x, t.y, t.z);
         if (st) st.grow = 0;
         else this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'sapling', grow: 0 });
-      } else if (t.id === B.GRASS) {
-        // scatter tall grass and the odd flower on open grass nearby
+      } else if (t.id === B.GRASS || t.id === B.SNOWY_GRASS) {
+        // scatter tall grass and the odd flower on open grass nearby (tundra too)
         let grew = 0;
         for (let i = 0; i < 24; i++) {
           const x = t.x + Math.round((this.dropRng() - 0.5) * 6), z = t.z + Math.round((this.dropRng() - 0.5) * 6);
           for (let y = t.y + 2; y >= t.y - 2; y--) {
-            if (this.world.getBlockW(x, y, z) !== B.GRASS) continue;
+            const g = this.world.getBlockW(x, y, z);
+            if (g !== B.GRASS && g !== B.SNOWY_GRASS) continue;
             if (this.world.getBlockW(x, y + 1, z) !== B.AIR) break;
             const r = this.dropRng();
             this.world.setBlock(x, y + 1, z, r < 0.1 ? B.DANDELION : r < 0.2 ? B.POPPY : B.TALL_GRASS);

@@ -48,7 +48,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Smooth lighting + per-vertex ambient occlusion** for that soft, grounded look
 
 ### ⛏️ Survival gameplay
-- Break any block with correct per-block hardness, tool classes (pickaxe / axe / shovel / sword / spear) and five tool tiers (wood, stone, iron, gold, diamond) with durability
+- Break any block with correct per-block hardness, tool classes (pickaxe / axe / shovel / sword / spear) and five tool tiers (wood, stone, iron, gold, diamond) with durability (worn by real digging, not by crops, flowers or torches)
 - Item drops with physics that magnetize toward you and merge into your inventory
 - **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
 - **Recipe book** beside every crafting grid: search and categories, shape previews, ghost layouts for recipes you can't make yet, and one-click grid filling
@@ -61,7 +61,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Health, hunger, saturation & exhaustion, drowning with an air meter, fall damage, starvation — plus food to eat
 - **Chests** (27 slots) for storage; containers spill their contents when broken
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
-- **Saplings** drop from leaves and grow into new trees
+- **Saplings** drop from leaves and grow into new trees; dead bushes give a stick or two (the desert's only wood), and grass creeps back over bare dirt beside it
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
 - **Farm automation**: carrots and potatoes (rare from tall grass, zombies and chests) grow on farmland alongside wheat. Bake potatoes, and press nine wheat into a **hay bale**. A **sprinkler** (iron around a water bucket, which you get back empty) makes crops within 4 blocks grow about 3× faster. A **harvester** (iron, an iron hoe and a chest) reaps ripe crops within 4 blocks, replants them, and puts the harvest in a chest beside it (with no chest, the crops are left where they grew). A **collector** pulls dropped items within 4 blocks into a chest beside it, which suits egg and wool pens. A **composter** turns plants and food scraps into bone meal
 - **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on

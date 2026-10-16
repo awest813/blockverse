@@ -191,6 +191,8 @@ const BLOCK_BURN = new Map([
   [B.COAL_BLOCK, 800], [B.BOOKSHELF, 15], [B.CHEST, 15],
   [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5],
   [B.HAY_BALE, 20], [B.COMPOSTER, 15], [B.TROUGH, 15],
+  [B.OAK_SLAB, 7.5], [B.OAK_STAIRS, 15], [B.OAK_FENCE, 15], [B.OAK_FENCE_GATE, 15],
+  [B.OAK_DOOR, 10], [B.LADDER, 15], [B.OAK_SIGN, 10], [B.BED, 15],
 ]);
 
 // Unified item info for any id (block or item).

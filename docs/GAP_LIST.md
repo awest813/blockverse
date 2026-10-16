@@ -31,7 +31,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Mossy cobblestone recipe used an unobtainable item (now cobble + seeds); clay block recipe
 - [x] Recipe book counts mixed plank types (2 oak + 2 birch = table)
 - [x] Smelting guide auto-fuel no longer burns coal blocks / chests / bookshelves
-- [x] Ice can be collected
+- [x] Ice can be collected with a pickaxe (broken any other way it melts to water)
 - [x] Bone meal on grass grows tall grass and flowers
 - [x] Obsidian (pour water onto lava, or lava next to water); snowballs from snow, snowy grass and snow layers → snow blocks
 - [x] Shears: shear sheep (fleece regrows), snip leaves / tall grass / dead bushes whole

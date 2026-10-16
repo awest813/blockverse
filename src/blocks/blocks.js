@@ -236,7 +236,9 @@ reg(def(B.TALL_GRASS, 'tall_grass', 'Tall Grass', {
 reg(def(B.DANDELION, 'dandelion', 'Dandelion', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.POPPY, 'poppy', 'Poppy', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.SUGAR_CANE, 'sugar_cane', 'Sugar Cane', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.1, sound: 'leaf' }));
-reg(def(B.DEAD_BUSH, 'dead_bush', 'Dead Bush', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf', drop: null }));
+// 0-2 sticks: the only wood in a desert (shears take the bush whole)
+reg(def(B.DEAD_BUSH, 'dead_bush', 'Dead Bush', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf',
+  drop: (rng) => { const n = (rng() * 3) | 0; return n ? [{ id: I.STICK, count: n }] : []; } }));
 reg(def(B.COAL_ORE, 'coal_ore', 'Coal Ore', {
   hardness: 3, tool: TOOL_PICKAXE, minTier: 1, drop: () => [{ id: I.COAL, count: 1 }],
 }));
