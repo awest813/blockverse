@@ -256,6 +256,8 @@ export class Mob {
     if (this.flier || (this.swimmer && inWater)) {
       // fliers and swimmers steer vertically toward targetVy (set by think)
       this.vy += ((this.targetVy ?? 0) - this.vy) * Math.min(1, 3 * dt);
+    } else if (this.climbSpeed && this.climber && this.lastHitWall && this.moving && !inWater) {
+      this.vy = this.climbSpeed;   // a slow climber (a sloth) grips the trunk: gravity doesn't win
     } else if (inWater && this.undead) {
       this.vy += (-1.6 - this.vy) * Math.min(1, 3 * dt); // the undead sink and walk the bottom
     } else if (inWater) {
@@ -284,7 +286,7 @@ export class Mob {
     }
     // hop up single blocks when walking into a wall; climbers (spiders) scale it
     if (r.hitWall && this.moving && !inWater && !this.flier && !this.swimmer) {
-      if (this.climber) this.vy = Math.max(this.vy, 3.6);
+      if (this.climber) this.vy = Math.max(this.vy, this.climbSpeed ?? 3.6);
       // 8 clears a full block at any frame rate (7.2 peaked just short of it)
       // and still not a 1.5-high fence
       else if (this.onGround) this.vy = 8;

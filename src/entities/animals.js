@@ -1157,3 +1157,295 @@ export class Cat extends Pet {
 }
 
 export const PET_CLASSES = { dog: Dog, cat: Cat };
+
+// ---------- pandas, sloths, capybaras, polar bears ----------
+
+// a box hinged at its top edge, for limbs that swing from the shoulder
+function hingedPart(mob, w, h, d, color, x, y, z) {
+  const p = mob.part(w, h, d, color, x, y, z);
+  p.geometry = p.geometry.clone();
+  p.geometry.translate(0, -h / 2, 0);
+  p.position.y = y;
+  return p;
+}
+
+// Pandas: big and very lazy. They sit about a lot, now and then roll over or
+// sneeze, and love sugar cane (the nearest thing here to bamboo).
+export class Panda extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 1.1; this.h = 1.2; this.health = 20; this.speed = 0.8; this.fleeSpeed = 2.2; this.kind = 'panda';
+    this.ambientSound = 'panda';
+    this.breedItem = B.SUGAR_CANE;
+    this.pose = null;     // {kind: 'sit' | 'roll', t}
+  }
+
+  buildModel() {
+    const white = 0xeceae4, black = 0x26262a, nose = 0x18181a;
+    this.part(1.0, 0.8, 1.3, white, 0, 0.85, 0.05);            // body
+    this.part(1.04, 0.5, 0.3, black, 0, 0.92, -0.38);          // black shoulder band
+    this.part(0.66, 0.6, 0.56, white, 0, 1.05, -0.78);         // head
+    this.part(0.18, 0.2, 0.06, black, -0.17, 1.08, -1.07);     // eye patches
+    this.part(0.18, 0.2, 0.06, black, 0.17, 1.08, -1.07);
+    this.part(0.06, 0.06, 0.02, 0xf4f4f4, -0.15, 1.1, -1.1);   // eyes
+    this.part(0.06, 0.06, 0.02, 0xf4f4f4, 0.15, 1.1, -1.1);
+    this.part(0.26, 0.18, 0.16, white, 0, 0.92, -1.1);         // muzzle
+    this.part(0.12, 0.07, 0.04, nose, 0, 0.98, -1.19);
+    this.part(0.18, 0.16, 0.1, black, -0.26, 1.4, -0.72);      // round ears
+    this.part(0.18, 0.16, 0.1, black, 0.26, 1.4, -0.72);
+    this.part(0.16, 0.14, 0.12, white, 0, 0.98, 0.74);         // stubby tail
+    this.quadLegs(black, 0.3, 0.55, 0.32, 0.42, 0.55);
+    // everything hangs off a pivot at the rump, so sitting rocks it back onto
+    // its haunches instead of tipping it over its own feet
+    this.body = new THREE.Group();
+    this.body.position.set(0, 0.3, 0.6);
+    for (const c of [...this.group.children]) {
+      this.group.remove(c);
+      c.position.y -= 0.3; c.position.z -= 0.6;
+      this.body.add(c);
+    }
+    this.group.add(this.body);
+  }
+
+  think(dt, player, playerDist) {
+    if (this.pose) {
+      this.pose.t -= dt;
+      this.moving = false;
+      // a sitting panda gets up for food (or when it's had enough)
+      const held = !player.dead && playerDist < 8 ? player.heldStack() : null;
+      if (this.pose.t <= 0 || this.state === 'flee' || (held && this.likes(held.id)) || this.leash || this.love > 0) this.pose = null;
+      else return;
+    }
+    super.think(dt, player, playerDist);
+    if (this.state === 'idle' && !this.baby && Math.random() < dt / 8) {
+      this.pose = Math.random() < 0.75 ? { kind: 'sit', t: 6 + Math.random() * 10 } : { kind: 'roll', t: 1.2 };
+    } else if (this.baby && this.state === 'idle' && Math.random() < dt / 6) {
+      this.pose = { kind: 'roll', t: 1.2 };   // cubs are always rolling about
+    }
+    // achoo
+    if (Math.random() < dt / 90) {
+      this.fx?.sound('panda', { pos: this, pitch: 1.6 });
+      this.fx?.puff?.(this.x - Math.sin(this.yaw) * 1.1, this.y + 0.95, this.z - Math.cos(this.yaw) * 1.1);
+    }
+  }
+
+  animate(dt) {
+    super.animate(dt);
+    const p = this.pose;
+    if (p?.kind === 'sit') {
+      // back on its haunches, front paws out
+      this.body.rotation.x = Math.min(0.7, this.body.rotation.x + dt * 3);
+      this.legs[0].rotation.x = this.legs[1].rotation.x = -1.1;
+      this.legs[2].rotation.x = this.legs[3].rotation.x = -1.4;   // hind legs stuck out in front
+      this.group.rotation.z = 0;
+    } else if (p?.kind === 'roll') {
+      // flop over onto its side and back
+      this.group.rotation.z = Math.sin((1 - p.t / 1.2) * Math.PI) * 1.4;
+      this.body.rotation.x = 0;
+    } else {
+      this.body.rotation.x = Math.max(0, this.body.rotation.x - dt * 3);
+      this.group.rotation.z = 0;
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: B.SUGAR_CANE, count: (Math.random() * 2) | 0 }]);
+  }
+}
+
+// Sloths: the slowest thing alive. They climb tree trunks (only trees) to
+// hang about in the canopy, and a fall doesn't bother them. They like apples.
+export class Sloth extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.6; this.h = 0.7; this.health = 8; this.speed = 0.35; this.fleeSpeed = 0.6; this.kind = 'sloth';
+    this.ambientSound = 'sloth';
+    this.breedItem = I.APPLE;
+    this.climbSpeed = 0.9;
+    this.safeFall = 14;
+  }
+
+  buildModel() {
+    const fur = 0x8a7458, light = 0xc8b494, face = 0xe0d2b4, dark = 0x3a2c22;
+    this.part(0.5, 0.42, 0.66, fur, 0, 0.5, 0.05);             // body
+    this.part(0.38, 0.12, 0.4, light, 0, 0.74, 0.1);           // shaggy back
+    this.part(0.36, 0.32, 0.32, fur, 0, 0.62, -0.42);          // head
+    this.part(0.28, 0.2, 0.06, face, 0, 0.62, -0.59);          // pale face
+    this.part(0.12, 0.05, 0.03, dark, -0.08, 0.66, -0.62);     // the dark eye stripes
+    this.part(0.12, 0.05, 0.03, dark, 0.08, 0.66, -0.62);
+    this.part(0.06, 0.04, 0.03, dark, 0, 0.58, -0.62);         // nose
+    this.part(0.1, 0.02, 0.02, dark, 0, 0.54, -0.62);          // the smile
+    // long arms with hooked claws, short legs
+    this.legs = [];
+    for (const [x, z, h] of [[-0.29, -0.2, 0.42], [0.29, -0.2, 0.42], [-0.22, 0.3, 0.3], [0.22, 0.3, 0.3]]) {
+      const l = hingedPart(this, 0.12, h, 0.12, fur, x, 0.45, z);
+      const claw = this.part(0.13, 0.05, 0.08, 0xd8d0c0, 0, -h + 0.02, -0.06);
+      this.group.remove(claw); l.add(claw);
+      this.legs.push(l);
+    }
+  }
+
+  think(dt, player, playerDist) {
+    super.think(dt, player, playerDist);
+    // up tree trunks only (not walls or cliffs); the canopy is where it likes to be
+    const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.3));
+    const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.3));
+    const ahead = this.world.getBlockW(ax, Math.floor(this.y + 0.3), az);
+    this.climber = ahead === B.OAK_LOG || ahead === B.BIRCH_LOG || ahead === B.SPRUCE_LOG;
+    if (this.climber) this.legs[0].rotation.x = this.legs[1].rotation.x = -2.4;   // reaching up the trunk
+  }
+
+  animate(dt) {
+    // a slow-motion walk
+    const swing = Math.sin(this.walkPhase * 0.6) * (this.moving ? 0.5 : 0);
+    if (!this.climber) { this.legs[0].rotation.x = swing; this.legs[1].rotation.x = -swing; }
+    this.legs[2].rotation.x = -swing;
+    this.legs[3].rotation.x = swing;
+  }
+}
+
+// Capybaras: calm, sociable and fond of water. They come in groups along
+// rivers and swamps and float about placidly. Wheat or sugar cane wins them over.
+export class Capybara extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.7; this.h = 0.75; this.health = 10; this.speed = 1.1; this.fleeSpeed = 2.8; this.kind = 'capybara';
+    this.ambientSound = 'capybara';
+    this.breedItem = I.WHEAT;
+    this.breedAlso = [B.SUGAR_CANE];
+    this.likesWater = true;
+  }
+
+  buildModel() {
+    const fur = 0x9a6a42, dark = 0x6a4428, snout = 0x4a3020;
+    this.part(0.6, 0.5, 0.92, fur, 0, 0.5, 0.05);              // barrel body
+    this.part(0.46, 0.14, 0.7, dark, 0, 0.78, 0.05);           // darker back
+    this.part(0.4, 0.4, 0.44, fur, 0, 0.62, -0.56);            // big blunt head
+    this.part(0.34, 0.24, 0.12, snout, 0, 0.56, -0.8);         // square snout
+    this.part(0.05, 0.05, 0.02, 0x111111, -0.15, 0.72, -0.72); // sleepy eyes, high up
+    this.part(0.05, 0.05, 0.02, 0x111111, 0.15, 0.72, -0.72);
+    this.part(0.1, 0.08, 0.06, dark, -0.14, 0.86, -0.5);       // little ears
+    this.part(0.1, 0.08, 0.06, dark, 0.14, 0.86, -0.5);
+    this.quadLegs(dark, 0.14, 0.3, 0.2, 0.32, 0.3);
+  }
+
+  update(dt, player) {
+    super.update(dt, player);
+    if (this.dead || this.dying !== undefined) return;
+    // floats low and level, nose just out (not while climbing out at a bank)
+    if (this.inWater && !(this.lastHitWall && this.moving)) {
+      const bx = Math.floor(this.x), bz = Math.floor(this.z);
+      let top = Math.floor(this.y);
+      while (top < Math.floor(this.y) + 3 && this.world.getBlockW(bx, top, bz) === B.WATER) top++;
+      this.vy = (top - 0.45 - this.y) * 4;
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.LEATHER, count: (Math.random() * 2) | 0 }]);
+  }
+}
+
+// Polar bears: neutral. They leave you be unless you hit one or come near
+// its cub, then rear up and swipe. Strong swimmers; they'll eat raw fish.
+export class PolarBear extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 1.3; this.h = 1.4; this.health = 30; this.speed = 1.2; this.fleeSpeed = 3.6; this.kind = 'polarbear';
+    this.ambientSound = 'polarbear';
+    this.breedItem = I.FISH_RAW;
+    this.likesWater = true;
+    this.anger = 0;       // seconds left going after the player
+    this.swipe = 0;       // >0 while rearing up to strike
+    this.swipeCooldown = 0;
+  }
+
+  buildModel() {
+    const fur = 0xf0ece0, shade = 0xd8d2c2, dark = 0x1c1c1e;
+    this.front = new THREE.Group();                 // the front half rears up to strike
+    this.front.position.set(0, 0.75, 0.1);
+    this.group.add(this.front);
+    const fp = (w, h, d, c, x, y, z) => { const m = this.part(w, h, d, c, x, y - 0.75, z - 0.1); this.group.remove(m); this.front.add(m); return m; };
+    this.part(1.1, 0.85, 0.8, fur, 0, 0.95, 0.45);             // hindquarters
+    fp(1.15, 0.9, 0.9, fur, 0, 1.0, -0.3);                     // shoulders
+    fp(0.6, 0.55, 0.6, fur, 0, 1.15, -0.95);                   // head
+    fp(0.34, 0.26, 0.24, shade, 0, 1.05, -1.32);               // muzzle
+    fp(0.14, 0.09, 0.04, dark, 0, 1.13, -1.45);                // nose
+    fp(0.06, 0.06, 0.02, dark, -0.17, 1.26, -1.26);            // eyes
+    fp(0.06, 0.06, 0.02, dark, 0.17, 1.26, -1.26);
+    fp(0.14, 0.12, 0.08, fur, -0.24, 1.48, -0.86);             // ears
+    fp(0.14, 0.12, 0.08, fur, 0.24, 1.48, -0.86);
+    // legs: the front pair rides with the shoulders
+    const legH = 0.6;
+    this.legs = [];
+    for (const [x, z, front] of [[-0.36, -0.42, true], [0.36, -0.42, true], [-0.36, 0.55, false], [0.36, 0.55, false]]) {
+      const l = hingedPart(this, 0.32, legH, 0.32, shade, x, legH, z);
+      if (front) { this.group.remove(l); this.front.add(l); l.position.set(x, legH - 0.75, z - 0.1); }
+      this.legs.push(l);
+    }
+  }
+
+  // hit it and it fights back instead of running
+  damage(amount, source) {
+    const hit = super.damage(amount, source);
+    if (hit && source && !source.kind && this.health > 0 && !this.baby) {
+      this.anger = 20;
+      this.state = 'chase';
+    }
+    // a cub that's hurt sends its mother after you
+    if (hit && source && !source.kind && this.baby) {
+      for (const m of this.fx?.mobs() ?? []) if (m.kind === 'polarbear' && !m.baby && !m.dead && this.dist(m) < 16) m.anger = 20;
+    }
+    return hit;
+  }
+
+  think(dt, player, playerDist) {
+    this.anger = Math.max(0, this.anger - dt);
+    this.swipeCooldown = Math.max(0, this.swipeCooldown - dt);
+    const fair = !this.baby && !player.dead && player.mode !== GAMEMODE_CREATIVE && (player.mobDamageScale ?? 1) > 0;
+    // a mother with her cub close by warns you off, then charges
+    if (fair && !this.anger && playerDist < 6 && !this.tamed) {
+      const cub = this.nearest((m) => m.kind === 'polarbear' && m.baby, 10);
+      if (cub && this.canSee(player)) {
+        this.anger = 12;
+        this.fx?.sound('polarbear', { pos: this, vol: 1.2, pitch: 0.8 });
+      }
+    }
+    if (this.swipe > 0) {
+      // rearing up: the blow lands at the top
+      this.swipe -= dt;
+      this.moving = false;
+      this.steer(player, 1);
+      if (this.swipe <= 0) {
+        this.swipeCooldown = 1.4;
+        if (fair && Math.hypot(player.x - this.x, player.z - this.z) < 2.6 && Math.abs(player.y - this.y) < 2) {
+          if (this.meleeHit(player, 4, 'polarbear')) this.fx?.sound('hit', { pos: this });
+        }
+      }
+      return;
+    }
+    if (this.anger > 0 && fair && playerDist < 24) {
+      this.state = 'chase';
+      this.steer(player, 1);
+      this.moving = playerDist > 1.8;
+      if (playerDist < 2.3 && this.swipeCooldown <= 0 && this.canSee(player)) {
+        this.swipe = 0.45;
+        this.fx?.sound('polarbear', { pos: this, vol: 1.1 });
+      }
+      return;
+    }
+    if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+    super.think(dt, player, playerDist);
+  }
+
+  animate(dt) {
+    super.animate(dt);
+    // rear up while winding a swipe, and down again
+    const up = this.swipe > 0 ? 0.75 : 0;
+    this.front.rotation.x += (up - this.front.rotation.x) * Math.min(1, dt * 10);
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.FISH_RAW, count: (Math.random() * 3) | 0 }]);
+  }
+}

@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper } from './mobs.js';
-import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck } from './animals.js';
+import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
@@ -25,15 +25,19 @@ const MANATEE_CAP = 2;
 // land animals per biome: [class, weight]
 const LAND_TABLE = {
   [BIOME.PLAINS]: [[Pig, 3], [Sheep, 3], [Cow, 3], [Chicken, 3], [Horse, 2], [Duck, 1], [Cat, 1]],
-  [BIOME.FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Fox, 2], [Dog, 1]],
-  [BIOME.BIRCH_FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Horse, 1], [Fox, 2], [Dog, 1]],
-  [BIOME.SWAMP]: [[Pig, 2], [Chicken, 2], [Duck, 3], [Cat, 1]],
-  [BIOME.RIVER]: [[Duck, 4], [Sheep, 1], [Cow, 1]],   // the grassy banks
+  [BIOME.FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Fox, 2], [Dog, 1], [Panda, 1], [Sloth, 1]],
+  [BIOME.BIRCH_FOREST]: [[Pig, 2], [Cow, 2], [Chicken, 2], [Horse, 1], [Fox, 2], [Dog, 1], [Panda, 1]],
+  [BIOME.SWAMP]: [[Pig, 2], [Chicken, 2], [Duck, 3], [Cat, 1], [Capybara, 3], [Sloth, 1]],
+  [BIOME.RIVER]: [[Duck, 4], [Sheep, 1], [Cow, 1], [Capybara, 3]],   // the grassy banks
   [BIOME.MOUNTAINS]: [[Goat, 4], [Sheep, 3], [Cow, 1], [Dog, 1]],
-  [BIOME.SNOWY]: [[Sheep, 2], [Goat, 2], [Fox, 2], [Dog, 2]],
-  [BIOME.SNOWY_FOREST]: [[Sheep, 1], [Fox, 3], [Dog, 2]],
+  [BIOME.SNOWY]: [[Sheep, 2], [Goat, 2], [Fox, 2], [Dog, 2], [PolarBear, 1]],
+  [BIOME.SNOWY_FOREST]: [[Sheep, 1], [Fox, 3], [Dog, 2], [PolarBear, 1]],
 };
-const GROUP = new Map([[Horse, () => 2 + ((Math.random() * 2) | 0)], [Goat, () => 2], [Duck, () => 2 + ((Math.random() * 3) | 0)]]);
+const GROUP = new Map([[Horse, () => 2 + ((Math.random() * 2) | 0)], [Goat, () => 2], [Duck, () => 2 + ((Math.random() * 3) | 0)],
+  [Capybara, () => 2 + ((Math.random() * 3) | 0)], [Panda, () => 1 + ((Math.random() * 2) | 0)],
+  [PolarBear, () => (Math.random() < 0.5 ? 2 : 1)]]);
+// the rest of these groups are young: a polar bear's cub (keep your distance)
+const YOUNG_IN_GROUP = new Set([PolarBear]);
 function weighted(table) {
   let r = Math.random() * table.reduce((n, [, w]) => n + w, 0);
   for (const [cls, w] of table) if ((r -= w) < 0) return cls;
@@ -203,7 +207,8 @@ export class MobSpawner {
         const ox = k ? Math.round((Math.random() - 0.5) * 4) : 0, oz = k ? Math.round((Math.random() - 0.5) * 4) : 0;
         const gy = this.world.surfaceHeight(wx + ox, wz + oz) + 1;
         if (k && (Math.abs(gy - y) > 2 || this.world.getBlockW(wx + ox, gy, wz + oz) !== B.AIR || this.world.getBlockW(wx + ox, gy + 1, wz + oz) !== B.AIR || isWater(this.world.getBlockW(wx + ox, gy - 1, wz + oz)))) continue;
-        this.spawnMob(Cls, wx + ox + 0.5, gy, wz + oz + 0.5);
+        const mob = this.spawnMob(Cls, wx + ox + 0.5, gy, wz + oz + 0.5);
+        if (k && YOUNG_IN_GROUP.has(Cls)) mob.setBaby(true);
       }
       return;
     }

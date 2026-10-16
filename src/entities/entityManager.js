@@ -5,11 +5,12 @@ import { chunkKey } from '../world/chunk.js';
 import { Arrow } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
-import { Cow, Chicken, Goat, Horse, Duck } from './animals.js';
+import { Cow, Chicken, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear } from './animals.js';
 import { isRare } from '../items/items.js';
 
 // animals that can be kept (stashed while far away, saved with the world)
-const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken, goat: Goat, horse: Horse, duck: Duck };
+const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken, goat: Goat, horse: Horse, duck: Duck,
+  panda: Panda, sloth: Sloth, capybara: Capybara, polarbear: PolarBear };
 const STASH_LIMIT = 300;
 
 export class EntityManager {

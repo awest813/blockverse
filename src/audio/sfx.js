@@ -8,7 +8,7 @@ const CATEGORY = {
   arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
-  goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs',
+  goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
 const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
@@ -399,6 +399,25 @@ export class Sfx {
       case 'horse':    // a whinny: a high wavering fall, then a snort
         for (let i = 0; i < 6; i++) this.later(() => this.tone({ freq: (900 - i * 90) * detune * (i % 2 ? 1.06 : 1), dur: 0.08, gain: 0.045, type: 'sawtooth' }), i * 65);
         this.later(() => this.noise({ freq: 600, q: 0.7, dur: 0.18, gain: 0.07, type: 'lowpass' }), 470);
+        break;
+      case 'panda':    // a soft, nasal bleat (pitched up: a little sneeze)
+        if ((opts.pitch ?? 1) > 1.2) {
+          this.noise({ freq: 2400 * detune, q: 1.2, dur: 0.12, gain: 0.07, type: 'bandpass' });
+          this.tone({ freq: 700 * detune, endFreq: 420, dur: 0.08, gain: 0.04, type: 'triangle' });
+        } else {
+          this.tone({ freq: 240 * detune, endFreq: 200, dur: 0.35, gain: 0.06, type: 'triangle' });
+          this.later(() => this.tone({ freq: 210 * detune, endFreq: 170, dur: 0.25, gain: 0.04, type: 'triangle' }), 260);
+        }
+        break;
+      case 'sloth':    // a slow, high squeak
+        this.tone({ freq: 1100 * detune, endFreq: 900, dur: 0.6, gain: 0.03, type: 'sine' });
+        break;
+      case 'capybara': // contented little chirps and clicks
+        for (let i = 0; i < 3 + (Math.random() * 3 | 0); i++) this.later(() => this.tone({ freq: 1500 * detune, endFreq: 1250, dur: 0.035, gain: 0.03, type: 'triangle' }), i * 110);
+        break;
+      case 'polarbear': // a deep growl, louder when it means it
+        this.noise({ freq: 260 * detune * (opts.pitch ?? 1), q: 0.8, dur: 0.7, gain: 0.12, type: 'lowpass' });
+        this.tone({ freq: 85 * detune * (opts.pitch ?? 1), endFreq: 70, dur: 0.7, gain: 0.06, type: 'sawtooth' });
         break;
       case 'horn':     // a long, rough call that bends down at the end
         this.tone({ freq: 196, endFreq: 174, dur: 1.5, gain: 0.09, type: 'sawtooth' });

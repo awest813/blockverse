@@ -163,6 +163,7 @@ export class Game {
     this.entities.fx.notify = (text) => this.hud.showLabel(text);
     this.entities.fx.hearts = (x, y, z, n = 4) => this.sparks(x, y, z, 0xff6a8a, n);
     this.entities.fx.dust = (x, y, z) => this.sparks(x, y, z, 0x8a7a64, 18);
+    this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
     // a dungeon boss beaten: its cage remembers, so it stays beaten
     this.entities.fx.bossDown = (boss) => {
       const c = boss.home?.cage?.split(',').map(Number);
