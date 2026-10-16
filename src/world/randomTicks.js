@@ -20,6 +20,8 @@ function spreadGrass(world, wx, y, wz) {
   if (world.getBlockW(wx, y, wz) !== B.DIRT) return false;
   const above = BLOCKS[world.getBlockW(wx, y + 1, wz)];
   if (!above || above.opacity > 0 || above.fluid) return false;
+  // and needs light: not under a roof in the dark
+  if (Math.max(world.getSkyW(wx, y + 1, wz), world.getBlockLightW(wx, y + 1, wz)) < 9) return false;
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     for (let dy = -1; dy <= 1; dy++) {
       const n = world.getBlockW(wx + dx, y + dy, wz + dz);

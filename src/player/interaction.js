@@ -68,6 +68,12 @@ export function entityContents(st) {
   return [];
 }
 
+// what decides how a block breaks: the held tool's class, tier and speed
+const toolKey = (stack) => {
+  const t = stack ? itemInfo(stack.id)?.tool : null;
+  return t ? `${t.class}:${t.tier}:${t.speed}` : '';
+};
+
 const SHEARABLE = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.TALL_GRASS, B.DEAD_BUSH]);
 
 export class Interaction {
@@ -110,10 +116,11 @@ export class Interaction {
     // ---- breaking (left mouse) ----
     if (input.mouseDown(0) && this.target) {
       const t = this.target;
-      // a different block, or a different item in hand (switching to a bare
-      // fist mid-dig used to keep the pickaxe's speed and drops, wear-free)
+      // a different block, or a different tool in hand (switching to a bare
+      // fist mid-dig used to keep the pickaxe's speed and drops, wear-free);
+      // a picked-up block landing in an empty hand changes nothing
       if (!this.breakTarget || this.breakTarget.x !== t.x || this.breakTarget.y !== t.y || this.breakTarget.z !== t.z
-        || p.selected !== this.breakSlot || (p.heldStack()?.id ?? 0) !== this.breakHeldId) {
+        || toolKey(p.heldStack()) !== this.breakTool) {
         this.startBreaking(t);
       }
       if (this.breakTarget) {
@@ -191,8 +198,7 @@ export class Interaction {
     const info = blockInfo(t.id);
     this.breakTarget = { x: t.x, y: t.y, z: t.z, id: t.id };
     this.breakProgress = 0;
-    this.breakSlot = p.selected;
-    this.breakHeldId = p.heldStack()?.id ?? 0;
+    this.breakTool = toolKey(p.heldStack());
 
     // Break time: hardness * 1.5 when properly tooled (or no tool needed),
     // *5 when the right tool class is missing or tier too low.

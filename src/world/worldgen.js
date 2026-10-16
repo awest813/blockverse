@@ -333,10 +333,18 @@ export class WorldGen {
       const rng = coordRng(this.seed, cx, cz, 100 + o);
       for (let a = 0; a < attempts; a++) {
         let x = (rng() * CHUNK_X) | 0;
-        let z = (rng() * CHUNK_Z) | 0;
-        const top = v9 ? Math.min(maxY, heightMap[x * CHUNK_Z + z] - 3) : maxY;
-        if (top <= minY) { rng(); continue; }
-        let y = minY + ((rng() * (top - minY)) | 0);
+        let y, z;
+        if (v9) {
+          z = (rng() * CHUNK_Z) | 0;
+          const top = Math.min(maxY, heightMap[x * CHUNK_Z + z] - 3);
+          if (top <= minY) { rng(); continue; }
+          y = minY + ((rng() * (top - minY)) | 0);
+        } else {
+          // older generators: the original draw order (x, y, z), so existing
+          // worlds keep their ores exactly where they were
+          y = minY + ((rng() * (maxY - minY)) | 0);
+          z = (rng() * CHUNK_Z) | 0;
+        }
         for (let s = 0; s < size; s++) {
           if (x >= 0 && x < CHUNK_X && y > 1 && y < CHUNK_Y && z >= 0 && z < CHUNK_Z) {
             const idx = blockIndex(x, y, z);
