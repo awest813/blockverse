@@ -253,6 +253,9 @@ export class GamepadController {
       const at = { bubbles: true, button, shiftKey: shift, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
       el.dispatchEvent(new MouseEvent('mousedown', at));
       el.dispatchEvent(new MouseEvent('mouseup', at));   // completes the click (inventories wait for release)
+    } else if (shift && el.classList.contains('recipe')) {
+      // RB on a recipe: fill the grid with as many as you can make
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
     } else if (button !== 0) {
       // X/RB only mean something on slots
     } else if (el.classList.contains('world-entry') && el.classList.contains('selected')) {

@@ -11,6 +11,9 @@ const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG], { label: '
 // Shapeless: exact multiset of ingredients.
 export const RECIPES = [];
 
+// ingredients that leave their container behind in the grid when used up
+export const CRAFT_REMAINDER = new Map([[I.WATER_BUCKET, I.BUCKET], [I.LAVA_BUCKET, I.BUCKET], [I.MILK_BUCKET, I.BUCKET]]);
+
 function shaped(result, count, pattern, keys) {
   RECIPES.push({ type: 'shaped', result, count, pattern, keys });
 }
@@ -239,15 +242,20 @@ export function recipeAvailability(r, countOf) {
   const pick = new Map();
   let times = Infinity;
   for (const { group, count, groups } of recipeNeeds(r)) {
-    // variants in a group mix freely (2 oak + 2 birch planks make a table)
+    // variants in a group mix freely (2 oak + 2 birch planks make a table),
+    // but each grid cell holds one variant: n crafts need `count` cells that
+    // each hold n of a single variant (5 oak + 3 birch is one table, not two)
     let best = group[0], bestN = -1, total = 0;
-    for (const id of group) {
+    const counts = group.map((id) => {
       const n = countOf(id);
       total += n;
       if (n > bestN) { best = id; bestN = n; }
-    }
+      return n;
+    });
     for (const g of groups) pick.set(g, best);
-    times = Math.min(times, Math.floor(total / count));
+    let n = Math.floor(total / count);
+    while (n > 0 && counts.reduce((cells, c) => cells + Math.floor(c / n), 0) < count) n--;
+    times = Math.min(times, n);
   }
   return { ok: times > 0, pick, times };
 }

@@ -3,7 +3,7 @@
 // right-click split, shift-click quick move, and tooltips.
 
 import { itemInfo, maxStack, makeStack, WEAPON_STATS, itemUse } from '../items/items.js';
-import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability } from '../items/recipes.js';
+import { matchRecipe, SMELTING, SMELT_TIME, RECIPES, recipeSize, recipeCells, recipeNeeds, recipeAvailability, CRAFT_REMAINDER } from '../items/recipes.js';
 import { furnaceState } from '../items/furnace.js';
 import { B, BLOCKS, R_CROSS, R_TORCH, isTechnicalBlock } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
@@ -413,7 +413,9 @@ export class Containers {
       e.stopPropagation();
       // double-click: gather every matching item onto the cursor
       const now = performance.now();
-      if (e.button === 0 && !e.shiftKey && this.cursor && this.lastPickup
+      // (only real slots: the craft output has no key, and two quick clicks
+      // on it are two crafts)
+      if (e.button === 0 && !e.shiftKey && this.cursor && this.lastPickup && ref.key
         && this.lastPickup.key === ref.key && now - this.lastPickup.time < 500) {
         this.lastPickup = null;
         this.collectAll();
@@ -723,8 +725,10 @@ export class Containers {
       if (this.bookTab !== 'all' && cat !== this.bookTab && !(this.bookTab === 'blocks' && cat === 'decor')) return false;
       if (!q) return true;
       // match the result or any ingredient ("planks" finds everything made of planks)
-      const names = [e.r.result, ...recipeNeeds(e.r).map((n) => n.group[0])]
-        .map((id) => itemInfo(id)?.display.toLowerCase() ?? '');
+      // (every variant: "birch" finds what birch planks make)
+      const names = [e.r.result, ...recipeNeeds(e.r).flatMap((n) => n.group)]
+        .map((id) => itemInfo(id)?.display.toLowerCase() ?? '')
+        .concat(recipeNeeds(e.r).map((n) => n.group.label?.toLowerCase() ?? ''));
       return names.some((n) => n.includes(q));
     });
     const rank = { craftable: 0, 'needs-table': 1, missing: 2 };
@@ -789,7 +793,7 @@ export class Containers {
       else if (state === 'needs-table') lines.push('Needs a Crafting Table (3×3 grid)');
       else {
         const missing = needs.map((n) => {
-          const have = Math.max(...n.group.map(countOf));
+          const have = n.group.reduce((a, id) => a + countOf(id), 0);
           return have < n.count ? `${n.count - have} × ${groupLabel(n.group)}` : null;
         }).filter(Boolean);
         lines.push(`Missing: ${missing.join(', ')}`);
@@ -808,13 +812,7 @@ export class Containers {
 
   // Show a missing recipe's layout as faint items in the (emptied) craft grid.
   showGhost(r) {
-    for (let i = 0; i < this.craftGrid.length; i++) {
-      const s = this.craftGrid[i];
-      if (!s) continue;
-      const left = this.player.giveStack(s);
-      if (left > 0) this.dropStack({ ...s, count: left });
-      this.craftGrid[i] = null;
-    }
+    for (const s of this.emptyCraftGrid()) this.dropStack(s);
     this.ghost = r;
     this.player.events.dispatchEvent(new CustomEvent('inventory'));
     this.render();
@@ -822,16 +820,18 @@ export class Containers {
 
   // Move a recipe's ingredients from the inventory into the craft grid.
   fillRecipe(r, max) {
-    // clear the grid back into the inventory first
-    for (let i = 0; i < this.craftGrid.length; i++) {
-      const s = this.craftGrid[i];
-      if (!s) continue;
-      const left = this.player.giveStack(s);
-      if (left > 0) this.dropStack({ ...s, count: left });
-      this.craftGrid[i] = null;
-    }
+    // clear the grid back into the inventory first (anything that doesn't
+    // fit yet gets another try once the ingredients are out)
+    const over = this.emptyCraftGrid();
+    const settle = () => {
+      for (const s of over) {
+        const left = this.player.giveStack(s);
+        if (left > 0) this.dropStack({ ...s, count: left });
+      }
+      this.afterChange();
+    };
     const avail = recipeAvailability(r, (id) => this.player.countOf(id));
-    if (!avail.ok) { this.afterChange(); return; }
+    if (!avail.ok) { settle(); return; }
     const cells = recipeCells(r);
     let n = 1;
     if (max) {
@@ -844,10 +844,21 @@ export class Containers {
       for (const g of group) { const c = this.player.countOf(g); if (c > most) { most = c; id = g; } }
       const count = Math.min(n, most);
       if (count <= 0) continue;
+      const info = itemInfo(id);
+      if (info?.tool || info?.armor || info?.bow) {
+        // a tool ingredient moves as itself, wear and all (the most worn one)
+        const inv = this.player.inventory;
+        let k = -1;
+        for (let i = 0; i < inv.length; i++) if (inv[i]?.id === id && (k < 0 || (inv[i].dur ?? 1e9) < (inv[k].dur ?? 1e9))) k = i;
+        this.craftGrid[y * this.craftSize + x] = inv[k];
+        inv[k] = null;
+        this.player.events.dispatchEvent(new CustomEvent('inventory'));
+        continue;
+      }
       this.player.take(id, count);
       this.craftGrid[y * this.craftSize + x] = { id, count };
     }
-    this.afterChange();
+    settle();
   }
 
   renderFurnace(win) {
@@ -1170,14 +1181,7 @@ export class Containers {
         } else {
           this.cursor = out;
         }
-        // consume one item from every occupied craft cell
-        for (let i = 0; i < this.craftGrid.length; i++) {
-          const s = this.craftGrid[i];
-          if (s) {
-            s.count--;
-            if (s.count <= 0) this.craftGrid[i] = null;
-          }
-        }
+        this.consumeCraftGrid();
         return true;
       }
       // furnace output
@@ -1193,11 +1197,13 @@ export class Containers {
     };
 
     if (shift) {
-      // craft/take as much as fits, sending to inventory
+      // craft/take as much as fits, sending to inventory - but only more of
+      // the same: once the grid's leftovers make something else, stop
+      const first = ref.get();
       let guard = 0;
       while (guard++ < 64) {
         const out = ref.get();
-        if (!out) break;
+        if (!out || out.id !== first?.id) break;
         // crafting: only craft when the whole result fits, or it would be free
         if (ref.output === 'craft' && roomFor(this.player, out) < out.count) break;
         // stacks with durability (a repaired tool) keep it
@@ -1208,13 +1214,7 @@ export class Containers {
           break;
         }
         if (ref.output === 'craft') {
-          for (let i = 0; i < this.craftGrid.length; i++) {
-            const s = this.craftGrid[i];
-            if (s) {
-              s.count--;
-              if (s.count <= 0) this.craftGrid[i] = null;
-            }
-          }
+          this.consumeCraftGrid();
         } else {
           ref.set(null);
         }
@@ -1223,6 +1223,33 @@ export class Containers {
       doOnce();
     }
     this.game.sfx?.play('click');
+  }
+
+  // one craft: one item from every occupied cell (a bucket of water leaves
+  // the empty bucket behind)
+  consumeCraftGrid() {
+    for (let i = 0; i < this.craftGrid.length; i++) {
+      const s = this.craftGrid[i];
+      if (!s) continue;
+      s.count--;
+      if (s.count <= 0) {
+        const rest = CRAFT_REMAINDER.get(s.id);
+        this.craftGrid[i] = rest ? makeStack(rest, 1) : null;
+      }
+    }
+  }
+
+  // Put the craft grid back in the inventory; returns what didn't fit.
+  emptyCraftGrid() {
+    const over = [];
+    for (let i = 0; i < this.craftGrid.length; i++) {
+      const s = this.craftGrid[i];
+      if (!s) continue;
+      const left = this.player.giveStack(s);
+      if (left > 0) over.push({ ...s, count: left });
+      this.craftGrid[i] = null;
+    }
+    return over;
   }
 
   quickMove(ref, stack) {

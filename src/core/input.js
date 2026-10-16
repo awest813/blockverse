@@ -87,6 +87,10 @@ export class Input {
     }, { passive: true, signal: this._abort.signal });
 
     document.addEventListener('pointerlockchange', () => {
+      // a lock asked for just before a menu opened (E pressed twice quickly)
+      // can arrive with the menu up: give it straight back, or the cursor
+      // would be hidden and frozen over the inventory
+      if (document.pointerLockElement === canvas && this.captured) { document.exitPointerLock(); return; }
       this.pointerLocked = document.pointerLockElement === canvas;
       if (this.pointerLocked) this.altInput = null;   // back on mouse + keyboard
       if (!this.pointerLocked) {
