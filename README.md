@@ -4,7 +4,7 @@
 
 Explore an infinite procedurally generated world. Mine blocks, craft tools, smelt ores, build anything, survive the night. No installs, no accounts, no servers — your worlds are saved locally in your browser.
 
-> 🎮 **[Play it now →](https://appleweiping.github.io/blockverse/)**
+> 🎮 **[Play it now →](https://awest813.github.io/blockverse/)**
 
 BlockVerse is an original, from-scratch implementation of the classic voxel-sandbox genre, in the spirit of games like Minecraft. It is an unofficial fan project, **not affiliated with, endorsed by, or connected to Mojang or Microsoft** in any way. Every line of code is original, and every texture and sound is **generated procedurally at runtime** — the project ships zero image or audio assets.
 
@@ -106,7 +106,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
-- **Saving is automatic** (IndexedDB) every 20 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces and campfires, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
+- **Saving is automatic** (IndexedDB) every 10 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces and campfires, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
 - A world can only be open in one tab at a time (two copies would save over each other); damaged chunks are regenerated rather than crashing the world, and the browser is asked to keep the saves even when space runs low
 - Pause menu with a controls cheat sheet, settings (render distance, FOV, resolution (Auto lowers it while frames are slow and restores it when there's headroom), frame rate limit, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
@@ -164,12 +164,18 @@ All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch s
 
 ---
 
+## Browser support
+
+BlockVerse runs in any current desktop or mobile browser with **WebGL 2**: Chrome, Edge, Firefox and Safari (15+), including on Chromebooks, Android phones, iPhones and iPads. If the page says WebGL 2 is missing, turn on hardware acceleration in the browser's settings. Worlds are kept in the browser's IndexedDB storage, so private/incognito windows may not be able to save; use **Export** on the world list to back a world up to a file.
+
+On phones and tablets you can use the browser's **Add to Home Screen** to launch BlockVerse full screen like an app.
+
 ## Running locally
 
-Requirements: Node.js ≥ 20.
+Requirements: Node.js 20.19+ or 22.12+.
 
 ```bash
-git clone https://github.com/appleweiping/blockverse.git
+git clone https://github.com/awest813/blockverse.git
 cd blockverse
 npm install
 npm run dev       # dev server at http://localhost:5173
@@ -177,7 +183,17 @@ npm run build     # production build into dist/
 npm run preview   # serve the production build
 ```
 
-The `main` branch auto-deploys to GitHub Pages via [GitHub Actions](.github/workflows/deploy.yml).
+## Deploying to GitHub Pages
+
+The `main` branch auto-deploys to GitHub Pages via [GitHub Actions](.github/workflows/deploy.yml); pull requests get a build check without deploying.
+
+To host your own copy from a fork:
+
+1. Fork the repository.
+2. In the fork, open **Settings → Pages** and set **Source** to **GitHub Actions**.
+3. Push to `main` (or run the workflow from the **Actions** tab). The game is published at `https://<your-user>.github.io/<repo-name>/`.
+
+The build uses relative paths, so it works under any repository name or a custom domain without changes. The only hard-coded addresses are the link-preview tags (`og:url`, `og:image`) in `index.html`; point them at your own site if you want link previews to use it.
 
 ## Architecture
 
@@ -193,7 +209,7 @@ src/
 ├── render/            procedural textures, texture-array atlas, chunk mesher (AO +
 │                      smooth light), GLSL3 chunk materials, sky, block highlight
 ├── player/            player physics/stats/inventory, block interaction
-├── entities/          item drops, mobs (pig/sheep/zombie), AI, spawner
+├── entities/          item drops, animals, monsters, bosses, projectiles, AI, spawners
 ├── ui/                HUD, container screens, chat/commands, menu screens
 ├── audio/             WebAudio sound synthesis
 └── save/              IndexedDB world/chunk/player persistence, settings, one-tab world lock

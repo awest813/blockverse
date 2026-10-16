@@ -7,9 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/appleweiping/blockverse.git"
+    "url": "https://github.com/awest813/blockverse.git"
   },
-  "homepage": "https://appleweiping.github.io/blockverse/",
+  "homepage": "https://awest813.github.io/blockverse/",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

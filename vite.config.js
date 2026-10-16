@@ -42,6 +42,13 @@ export default defineConfig({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        // three.js changes far less often than the game: its own file stays
+        // cached across deploys
+        manualChunks: { three: ['three'] },
+      },
+    },
   },
   worker: {
     format: 'es',

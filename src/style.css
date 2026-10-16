@@ -329,6 +329,11 @@ html, body {
   margin-bottom: 10px;
   text-align: center;
 }
+/* start-up screen (index.html) and start-up failures (main.js) */
+.boot-screen { text-align: center; }
+.boot-note { max-width: 460px; color: #b9c2cc; font-size: 15px; line-height: 1.5; margin: 0; }
+.boot-error-title { color: #ffd83d; font-size: 20px; font-weight: 700; margin: 0; }
+
 .title.title-sm { font-size: 30px; letter-spacing: 1.5px; margin-bottom: 4px; }
 
 .subtitle { color: #ffd83d; font-size: 15px; margin-top: -14px; transform: rotate(-3deg); text-shadow: 1px 1px 0 #000; animation: splash 1.6s ease-in-out infinite; }

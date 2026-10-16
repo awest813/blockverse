@@ -32,8 +32,46 @@ let screens = null;
 let store = null;
 let releaseWorld = null;   // the open world's tab lock
 
+// three.js needs WebGL 2; without it (an old browser, or hardware
+// acceleration turned off) say so instead of failing on the first world
+function webgl2Available() {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();   // browsers cap live contexts
+    return !!gl;
+  } catch { return false; }
+}
+
+// a start-up failure: replace the loading screen with what went wrong
+function showFatal(title, detail) {
+  uiRoot.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'screen menu-bg boot-screen';
+  const h = document.createElement('h1');
+  h.className = 'title';
+  h.textContent = 'BLOCKVERSE';
+  const t = document.createElement('p');
+  t.className = 'boot-error-title';
+  t.textContent = title;
+  const d = document.createElement('p');
+  d.className = 'boot-note';
+  d.textContent = detail;
+  el.append(h, t, d);
+  uiRoot.appendChild(el);
+}
+
 async function boot() {
-  store = await SaveStore.open();
+  if (!webgl2Available()) {
+    showFatal('Your browser can\u2019t run BlockVerse', 'It needs WebGL 2. Try a current version of Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on in the browser\u2019s settings.');
+    return;
+  }
+  try {
+    store = await SaveStore.open();
+  } catch (err) {
+    console.error(err);
+    showFatal('Saving isn\u2019t available', 'BlockVerse keeps worlds in your browser\u2019s storage (IndexedDB), which is blocked here. Private or incognito windows and strict privacy settings can block it. Try a normal window.');
+    return;
+  }
   const initial = loadSettings();
   sfx.setVolume(initial.volume);
   sfx.setMix(initial);
@@ -206,14 +244,18 @@ async function quitToTitle({ save = true } = {}) {
   screens.showMain(g?.worldMeta.id);
 }
 
-boot();
+boot().catch((err) => {
+  console.error(err);
+  showFatal('Something went wrong', String(err?.message ?? err));
+});
 
 // ---- dev/verification helpers (harmless in production) ----
 window.__app = { get game() { return game; }, atlas, sfx };
 Object.defineProperty(window, '__game', { get: () => game, configurable: true });
 Object.defineProperty(window, '__world', { get: () => game?.world, configurable: true });
 
-window.__snap = (name = 'snap', w = 640) => {
+// posts to the dev server's /__snap endpoint (vite.config.js), so dev only
+if (import.meta.env.DEV) window.__snap = (name = 'snap', w = 640) => {
   if (!game) return Promise.resolve('no game');
   game.renderer.render(game.scene, game.camera);
   const c = document.createElement('canvas');
