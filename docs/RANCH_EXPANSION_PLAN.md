@@ -168,6 +168,15 @@ Twenty-four scripted playthroughs ran with no crashes or console errors. Generat
 
 `entities/trader.js` holds the visit in `worldMeta.trader` (`next`, `until`, the spot, `visit`, `offers`, `wants`, `judged`). The trader comes every 2 in-game days, by day, next to a market stall within 24 blocks (or near the player), and stays 10 minutes or until nightfall. A reload mid-visit respawns it. Each visit rolls four offers and two wants (paid double, up to 8 each, never something it's also selling). The fair judges led animals once a visit with `traitScore` (plus mood and rarity) and awards a ribbon (saved) and 4–30 coins.
 
+### Automation (done)
+
+- Auto-shearer: `{kind: 'shearer', dur}`, one fleece every 4 s within 3 blocks it can reach. Shears on it refit it, up to 476.
+- Milking machine: takes empty buckets from a chest beside it and fills them through `machineMilk`, which respects each animal's cooldown, mood and milk trait.
+- Feed bin: a trough refills from a chest beside it.
+- Watering can: a tool whose wear is its water (16). Each pour halves a 3×3 patch's current stage, once per stage.
+
+Still to do: a stable block, farmland moisture and light, seasons, crop quality, hide grade.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

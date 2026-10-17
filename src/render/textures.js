@@ -2002,6 +2002,27 @@ tile('harvester_top', (ctx, rng) => {
   metal(ctx, rng, [140, 142, 150]);
   rect(ctx, 5, 5, 6, 6, [96, 98, 108]); rect(ctx, 6, 6, 4, 4, [214, 180, 80]);   // a wheat-gold hatch
 });
+tile('shearer_side', (ctx, rng) => {
+  metal(ctx, rng, [150, 152, 160]);
+  rect(ctx, 0, 0, TILE, 2, [96, 98, 108]); rect(ctx, 0, 14, TILE, 2, [96, 98, 108]);
+  for (const [x, d] of [[4, 1], [11, -1]]) for (let i = 0; i < 6; i++) px(ctx, x + d * (i >> 1), 4 + i, [220, 222, 228]);   // the blades
+  rect(ctx, 6, 8, 4, 2, [180, 60, 50]);
+});
+tile('shearer_top', (ctx, rng) => { metal(ctx, rng, [140, 142, 150]); rect(ctx, 5, 5, 6, 6, [236, 236, 230]); });   // a tuft of wool
+tile('milker_side', (ctx, rng) => {
+  metal(ctx, rng, [176, 180, 188]);
+  rect(ctx, 0, 0, TILE, 2, [110, 114, 122]); rect(ctx, 0, 14, TILE, 2, [110, 114, 122]);
+  for (const x of [3, 6, 9, 12]) rect(ctx, x, 6, 2, 5, [70, 70, 76]);   // the cups
+  rect(ctx, 2, 4, 12, 1, [70, 70, 76]);
+});
+tile('milker_top', (ctx, rng) => { metal(ctx, rng, [170, 174, 182]); rect(ctx, 4, 4, 8, 8, [244, 244, 240]); });   // a pail of milk
+tile('watering_can', (ctx) => {
+  const m = [120, 160, 110], d = [80, 116, 74], l = [160, 200, 150];
+  rect(ctx, 3, 7, 8, 6, m); rect(ctx, 3, 7, 8, 1, l); rect(ctx, 3, 12, 8, 1, d);
+  for (let i = 0; i < 4; i++) rect(ctx, 11 + i, 8 - i, 1, 2, m);   // the spout
+  rect(ctx, 14, 3, 2, 2, d);
+  rect(ctx, 4, 4, 1, 3, d); rect(ctx, 4, 4, 5, 1, d); rect(ctx, 8, 4, 1, 3, d);   // the handle
+});
 tile('collector_side', (ctx, rng) => {
   metal(ctx, rng, [120, 122, 132]);
   rect(ctx, 0, 0, TILE, 3, [80, 82, 92]);

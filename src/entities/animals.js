@@ -163,13 +163,23 @@ export class Chicken extends Animal {
 // A bucket of milk, if she's had time to make more since the last (two
 // minutes of game time: a dairy wants a herd). Returns false if not yet.
 const MILK_COOLDOWN = 120;
+const milkWait = (animal) => MILK_COOLDOWN / (moodRate(animal) * trait(animal, 'milk'));
+
+// a milking machine's turn: the bucket she fills (milk or goat milk), or null if she's not ready
+export function machineMilk(animal) {
+  if (animal.baby || !animal.milkItem && animal.kind !== 'cow' || (animal.milkAt ?? 0) > worldClock.now) return null;
+  animal.milkAt = worldClock.now + milkWait(animal);
+  tally('milk');
+  return animal.milkItem ?? I.MILK_BUCKET;
+}
+
 function milk(animal, player, held) {
   const left = (animal.milkAt ?? 0) - worldClock.now;
   if (left > 0 && player.mode !== GAMEMODE_CREATIVE) {
     animal.fx?.notify?.(`Milked not long ago: ready again in ${Math.ceil(left)}s`);
     return false;
   }
-  animal.milkAt = worldClock.now + MILK_COOLDOWN / (moodRate(animal) * trait(animal, 'milk'));   // (a happy cow sooner, a good milker too)
+  animal.milkAt = worldClock.now + milkWait(animal);   // (a happy cow sooner, a good milker too)
   const milk = animal.milkItem ?? I.MILK_BUCKET;   // (a goat's is goat milk)
   tally('milk');
   if (player.mode !== GAMEMODE_CREATIVE) {

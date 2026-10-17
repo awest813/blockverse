@@ -186,4 +186,5 @@ export const I = {
   HONEYCOMB: 428,        // shears on a full hive; wax for candles
   MELON_SLICE: 429,
   MELON_SEEDS: 430,
+  WATERING_CAN: 431,     // (its wear is the water left in it)
 };

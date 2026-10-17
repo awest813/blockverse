@@ -146,6 +146,7 @@ item(I.BERRY_PIE, 'berry_pie', 'Berry Pie', { food: 8, sat: 4.8 });
 item(I.HONEYCOMB, 'honeycomb', 'Honeycomb');
 item(I.MELON_SLICE, 'melon_slice', 'Melon Slice', { food: 2, sat: 1.2 });
 item(I.MELON_SEEDS, 'melon_seeds', 'Melon Seeds', { places: B.MELON_STEM_0 });
+item(I.WATERING_CAN, 'watering_can', 'Watering Can', { stack: 1, tool: { class: 'watering', tier: 0, speed: 1, durability: 16, damage: 1 } });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -309,6 +310,9 @@ const USES = new Map([
   [B.CORNFLOWER, 'Makes blue dye'],
   [I.HONEYCOMB, 'Shears take it from a full beehive. With string: a candle'],
   [B.CANDLE, 'A small, steady light that stands on any block'],
+  [I.WATERING_CAN, 'Fill it at water; use it on crops to hurry along the stage they\u2019re at (a 3\u00d73 patch a go)'],
+  [B.SHEARER, 'Shears sheep in full fleece within 3 blocks into a chest beside it. Its shears wear out: use shears on it to fit new ones'],
+  [B.MILKER, 'Fills empty buckets from a chest beside it with milk from cows and goats within 3 blocks'],
   [I.MELON_SEEDS, 'Plant on farmland: a grown stem sets melons beside it (a harvester picks them)'],
   ...[I.BLUE_DYE, I.CYAN_DYE, I.PURPLE_DYE].map((id) => [id, 'Use it on a sheep to dye its fleece, or craft it with wool']),
   [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
@@ -338,7 +342,7 @@ const USES = new Map([
   [I.MILK_BUCKET, 'Puts out flames and settles venom'],
   [I.LAVA_BUCKET, 'Pour it out, or burn it in a furnace: it smelts 100 items, and you keep the bucket'],
   [B.HAY_BALE, 'Nine wheat; feeds a trough or calms a horse'],
-  [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed. Or pour in a bucket of water: a pen with water keeps its animals happy'],
+  [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed. Or pour in a bucket of water: a pen with water keeps its animals happy. A chest beside it keeps it topped up with feed'],
   [B.COMPOSTER, 'Plant scraps in, bone meal out'],
   [B.SPRINKLER, 'Crops within 4 blocks grow much faster'],
   [B.HARVESTER, 'Reaps and replants ripe crops within 4 blocks into a chest beside it'],

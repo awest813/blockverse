@@ -158,6 +158,8 @@ export const B = {
   CANDLE: 170,           // beeswax: a small, warm light
   MELON: 171,
   MELON_STEM_0: 172, MELON_STEM_1: 173, MELON_STEM_2: 174, MELON_STEM_3: 175,   // a grown stem sets melons beside it
+  SHEARER: 176,          // shears full fleeces nearby into a chest beside it. {kind: 'shearer', dur}
+  MILKER: 177,           // fills empty buckets from a chest beside it with milk from cows and goats nearby. {kind: 'milker'}
 };
 
 // Tool classes
@@ -513,6 +515,12 @@ reg(def(B.HARVESTER, 'harvester', 'Harvester', {
 // draws in items lying nearby and puts them in a chest beside it. {kind: 'collector'}
 reg(def(B.COLLECTOR, 'collector', 'Collector', {
   hardness: 2, tool: TOOL_PICKAXE, sound: 'stone', textures: { top: 'collector_top', bottom: 'collector_top', side: 'collector_side' },
+}));
+reg(def(B.SHEARER, 'shearer', 'Auto-Shearer', {
+  hardness: 2, tool: TOOL_PICKAXE, sound: 'stone', textures: { top: 'shearer_top', bottom: 'shearer_top', side: 'shearer_side' },
+}));
+reg(def(B.MILKER, 'milker', 'Milking Machine', {
+  hardness: 2, tool: TOOL_PICKAXE, sound: 'stone', textures: { top: 'milker_top', bottom: 'milker_top', side: 'milker_side' },
 }));
 // holds animal feed; animals nearby help themselves (and breed). {kind: 'trough', slots: [3]}
 reg(def(B.TROUGH, 'trough', 'Feeding Trough', {

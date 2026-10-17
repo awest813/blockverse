@@ -15,6 +15,7 @@ import { maxStack, itemInfo } from '../items/items.js';
 import { cropFamily, isRipe, cropTime } from './saplings.js';
 import { emptyNests, tickHive } from './produce.js';
 import { Bee } from '../entities/bees.js';
+import { machineMilk } from '../entities/animals.js';
 
 const REACH = 4;
 const NEIGHBOURS = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
@@ -190,7 +191,25 @@ function canReach(w, x, y, z, m) {
 // (a pen of hundreds would grind a Chromebook to a halt)
 const CROWDED = 16;
 
+// a chest beside a trough keeps it topped up with feed (a stack a visit)
+function refillTrough(w, st, x, y, z) {
+  const chest = chestBeside(w, x, y, z);
+  if (!chest) return;
+  for (let i = 0; i < chest.st.slots.length; i++) {
+    const s = chest.st.slots[i];
+    if (!s || !FEEDS.has(s.id) || s.dur !== undefined) continue;
+    const n = Math.min(s.count, roomFor(st.slots, s.id));
+    if (!n) continue;
+    addTo(st.slots, s.id, n);
+    s.count -= n;
+    if (s.count <= 0) chest.st.slots[i] = null;
+    w.markModified(chest.x, chest.z);
+    return;
+  }
+}
+
 function tickTrough(game, st, x, y, z) {
+  refillTrough(game.world, st, x, y, z);
   const near = game.entities.mobs.filter((m) => m.breedItem && !m.tamed && !m.dead && m.dying === undefined
     && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 6 && Math.abs(m.y - y) < 3 && canReach(game.world, x, y, z, m));
   let fed = false;
@@ -314,9 +333,50 @@ function tickCollector(game, x, y, z) {
   if (took) game.sfx?.play('pickup', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, vol: 0.4 });
 }
 
+// ---- auto-shearer and milking machine ----
+
+// farm animals of `kinds` it can reach (no shearing through a fence)
+function within3(game, x, y, z, ok) {
+  return game.entities.mobs.filter((m) => ok(m) && !m.dead && m.dying === undefined
+    && Math.hypot(m.x - x - 0.5, m.z - z - 0.5) <= 3 && Math.abs(m.y - y) < 2.5 && canReach(game.world, x, y, z, m));
+}
+
+function tickShearer(game, st, x, y, z) {
+  const w = game.world;
+  st.dur = Number.isInteger(st.dur) ? Math.max(0, st.dur) : 0;
+  if (!st.dur) return;
+  const chest = chestBeside(w, x, y, z);
+  if (chest && chestFull(chest)) return;
+  const sheep = within3(game, x, y, z, (m) => m.kind === 'sheep' && !m.sheared && !m.baby)[0];
+  if (!sheep) return;
+  const wool = sheep.shear();
+  st.dur--;
+  w.markModified(x, z);
+  const left = chest ? store(w, chest, wool) : wool.count;
+  if (left > 0) game.entities.spawnDrops(sheep.x, sheep.y + 0.6, sheep.z, [{ ...wool, count: left }]);
+  game.sfx?.play('shear', { pos: sheep });
+}
+
+function tickMilker(game, x, y, z) {
+  const w = game.world, chest = chestBeside(w, x, y, z);
+  if (!chest) return;
+  const empty = chest.st.slots.findIndex((s) => s && s.id === I.BUCKET);
+  if (empty < 0) return;
+  for (const m of within3(game, x, y, z, (m) => m.kind === 'cow' || m.kind === 'goat')) {
+    const id = machineMilk(m);
+    if (!id) continue;
+    const b = chest.st.slots[empty];
+    if (--b.count <= 0) chest.st.slots[empty] = null;
+    if (store(w, chest, { id, count: 1 }) > 0) game.entities.spawnDrops(x + 0.5, y + 1.1, z + 0.5, [{ id, count: 1 }]);
+    w.markModified(chest.x, chest.z);
+    game.sfx?.play('splash', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, vol: 0.4 });
+    return;   // (a bucket a turn)
+  }
+}
+
 // ---- the tick ----
 
-const PERIOD = { harvester: 3, collector: 0.5, trough: 5, sprinkler: 1.2, hive: 4 };
+const PERIOD = { harvester: 3, collector: 0.5, trough: 5, sprinkler: 1.2, hive: 4, shearer: 4, milker: 4 };
 
 export function tickFarmTech(game, dt) {
   const { world, player } = game;
@@ -334,6 +394,8 @@ export function tickFarmTech(game, dt) {
       const x = chunk.cx * 16 + lx, z = chunk.cz * 16 + lz;
       if (st.kind === 'harvester') { if (world.getBlockW(x, y, z) === B.HARVESTER) tickHarvester(game, st, x, y, z); }
       else if (st.kind === 'collector') { if (world.getBlockW(x, y, z) === B.COLLECTOR) tickCollector(game, x, y, z); }
+      else if (st.kind === 'shearer') { if (world.getBlockW(x, y, z) === B.SHEARER) tickShearer(game, st, x, y, z); }
+      else if (st.kind === 'milker') { if (world.getBlockW(x, y, z) === B.MILKER) tickMilker(game, x, y, z); }
       else if (st.kind === 'hive') {
         if (world.getBlockW(x, y, z) === B.BEEHIVE) tickHive(game, st, x, y, z, (hx, hy, hz) => {
           const bee = new Bee(game.scene, world, hx + 0.5, hy + 1.1, hz + 0.5);
@@ -356,6 +418,14 @@ export function describeMachine(w, t) {
     return `Sprinkler: watering ${n} crop${n === 1 ? '' : 's'} within ${REACH} blocks`;
   }
   const chest = chestBeside(w, t.x, t.y, t.z);
+  if (t.id === B.SHEARER) {
+    const dur = w.blockEntityAt(t.x, t.y, t.z)?.dur ?? 0;
+    return dur > 0 ? `Auto-shearer: shears good for ${dur} more fleece${dur === 1 ? '' : 's'}${chest ? ', into the chest beside it' : ' (no chest: the wool drops)'}` : 'Auto-shearer: its shears are worn out — use a pair of shears on it';
+  }
+  if (t.id === B.MILKER) {
+    const buckets = chest ? chest.st.slots.reduce((n, s) => n + (s?.id === I.BUCKET ? s.count : 0), 0) : 0;
+    return !chest ? 'Milking machine: put a chest of empty buckets beside it' : buckets ? `Milking machine: ${buckets} empty bucket${buckets === 1 ? '' : 's'} to fill` : 'Milking machine: no empty buckets in its chest';
+  }
   if (t.id === B.COLLECTOR) return chest ? `Collector: gathering items within ${REACH} blocks into the chest beside it` : 'Collector: put a chest next to it to collect into';
   let ripe = 0, growing = 0;
   for (let dy = -1; dy <= 1; dy++) for (let dx = -REACH; dx <= REACH; dx++) for (let dz = -REACH; dz <= REACH; dz++) {

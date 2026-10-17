@@ -8,7 +8,7 @@ import { COLOURS } from '../items/dyes.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
-import { growCrop, cropTime, CROP_FAMILIES, isRipe, saplingHasRoom } from '../world/saplings.js';
+import { growCrop, cropTime, cropFamily, CROP_FAMILIES, isRipe, saplingHasRoom } from '../world/saplings.js';
 import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { usePot, potContents } from '../items/cookingPot.js';
@@ -344,7 +344,18 @@ export class Interaction {
     // the cooking pot: water, food, then bowls
     if (t && t.id === B.COOKING_POT && !p.sneaking
       && usePot(this, t, held, { creative: p.mode === GAMEMODE_CREATIVE, itemName: (id) => itemInfo(id)?.display ?? '?' })) { this.useCooldown = Math.max(this.useCooldown, 0.25); return; }
-    if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER) && !p.sneaking && !(held && isBlockItem(held.id))) {
+    // new shears for the auto-shearer
+    if (t && t.id === B.SHEARER && held?.id === I.SHEARS && !p.sneaking) {
+      const st = this.world.blockEntityAt(t.x, t.y, t.z) ?? { kind: 'shearer', dur: 0 };
+      st.dur = Math.min(476, (st.dur ?? 0) + (held.dur ?? 238));
+      this.world.setBlockEntity(t.x, t.y, t.z, st);
+      if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+      this.cb.playSound('equip', {});
+      this.cb.notify?.(`New shears fitted: good for ${st.dur} fleeces`);
+      this.useCooldown = 0.3;
+      return;
+    }
+    if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER || t.id === B.SHEARER || t.id === B.MILKER) && !p.sneaking && !(held && isBlockItem(held.id))) {
       this.cb.notify?.(describeMachine(this.world, t));
       this.useCooldown = 0.3;
       return;
@@ -517,7 +528,7 @@ export class Interaction {
     // farm machines keep a little state of their own
     const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
       [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 },
-      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.BEEHIVE]: { kind: 'hive', bees: 0, honey: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
+      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.SHEARER]: { kind: 'shearer', dur: 238 }, [B.MILKER]: { kind: 'milker' }, [B.BEEHIVE]: { kind: 'hive', bees: 0, honey: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
     if (machine) this.world.setBlockEntity(px, py, pz, machine);
     // a new sprinkler hurries along crops already growing nearby, not just their next stage
     if (info.id === B.SPRINKLER) {
@@ -547,6 +558,37 @@ export class Interaction {
       this.world.setBlock(t.x, t.y, t.z, B.AIR);
       this.cb.playSound('burp', {});
     } else this.world.setBlock(t.x, t.y, t.z, B.CAKE, eaten);
+    return true;
+  }
+
+  // the watering can: filled at water; poured on a 3×3 patch of crops, it
+  // hurries each along the stage it's at (once a stage)
+  useWateringCan(held, t) {
+    const p = this.player, w = this.world;
+    this.useCooldown = 0.4;
+    const ft = raycastBlocks(w, { x: p.x, y: p.eyeY, z: p.z }, p.lookDir(), REACH_DISTANCE, true);
+    if (ft && isWater(ft.id) && (!t || ft.dist <= t.dist + 0.01)) {
+      held.dur = itemInfo(I.WATERING_CAN).tool.durability;
+      p.events.dispatchEvent(new CustomEvent('inventory'));
+      this.cb.playSound('splash', {});
+      return true;
+    }
+    if (!t) return false;
+    if (!(held.dur > 0) && p.mode !== GAMEMODE_CREATIVE) { this.cb.notify?.('The can\u2019s empty: fill it at some water'); return true; }
+    const cy = cropFamily(w.getBlockW(t.x, t.y, t.z)) ? t.y : t.y + 1;   // (aimed at a crop, or the farmland under it)
+    let watered = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const st = w.blockEntityAt(t.x + dx, cy, t.z + dz);
+      if (st?.kind !== 'crop' || st.watered) continue;
+      st.grow *= 0.5;
+      st.watered = true;
+      watered++;
+      this.cb.sparkle?.(t.x + dx + 0.5, cy + 0.4, t.z + dz + 0.5);
+    }
+    if (!watered) return false;
+    w.markModified(t.x, t.z);
+    if (p.mode !== GAMEMODE_CREATIVE) { held.dur--; p.events.dispatchEvent(new CustomEvent('inventory')); }
+    this.cb.playSound('splash', { vol: 0.5 });
     return true;
   }
 
@@ -686,6 +728,7 @@ export class Interaction {
       this.useCooldown = 0.3;
       return true;
     }
+    if (held.id === I.WATERING_CAN) return this.useWateringCan(held, t);
     if (held.id === I.BUCKET || held.id === I.WATER_BUCKET || held.id === I.LAVA_BUCKET || held.id === B.LILY_PAD) {
       return this.useFluidItem(held);
     }

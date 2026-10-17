@@ -187,15 +187,20 @@ export class Sheep extends Mob {
     }
     if (held?.id !== I.SHEARS) return super.interact(player, held);
     if (this.sheared || this.baby) return true;
-    this.setSheared(true);
-    this.persistent = true;   // a sheep you're shearing is one of yours: kept and saved
-    const wool = Math.max(1, Math.floor(trait(this, 'fleece') + Math.random()));
-    this.dropFn?.([{ id: this.woolId(), count: wool }]);
-    tally('wool', wool);
+    this.dropFn?.([this.shear()]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('shear', { pos: this });
     this.fx?.sound('sheep', { pos: this, pitch: 1.1 });   // an indignant bleat
     return true;
+  }
+
+  // the fleece comes off: the wool (its colour, as much as its fleece gives)
+  shear() {
+    this.setSheared(true);
+    this.persistent = true;   // a sheep you're shearing is one of yours: kept and saved
+    const wool = Math.max(1, Math.floor(trait(this, 'fleece') + Math.random()));
+    tally('wool', wool);
+    return { id: this.woolId(), count: wool };
   }
 
   setSheared(on) {
