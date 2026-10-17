@@ -23,6 +23,7 @@ import { tickSpawners } from './entities/spawners.js';
 import { tickRandomGrowth } from './world/randomTicks.js';
 import { tickFires } from './world/fire.js';
 import { CampfireFx } from './render/campfireFx.js';
+import { ScorchFx } from './render/scorchFx.js';
 import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
 import { MobSpawner } from './entities/mobSpawner.js';
@@ -215,6 +216,7 @@ export class Game {
       blowHorn: () => this.blowHorn(),
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       crumbs: (id) => this.crumbs(id),
+      steam: (x, y, z) => this.sparks(x, y, z, 0xe8e8ec, 12),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -228,6 +230,7 @@ export class Game {
     this.hud = new Hud(atlas, this.player);
     this.sky = new Sky(this.scene, this.world.materials.uniforms);
     this.sky.setScorch(this.dimension === SCORCH);
+    this.scorchFx = this.dimension === SCORCH ? new ScorchFx(this.scene) : null;
     this.containers = new Containers(this);
     this.signEditor = new SignEditor(this);
     this._furnaceUiTimer = 0;
@@ -1007,6 +1010,11 @@ export class Game {
   // Right-click a bed: set the respawn point, and sleep through the night if it's safe.
   useBed(pos) {
     const p = this.player;
+    // no rest in the Scorchlands (and no waking up there: you die home)
+    if (this.dimension === SCORCH) {
+      this.hud.showLabel('You can\u2019t sleep here \u2014 the night never ends', true);
+      return;
+    }
     p.bedPos = { x: pos.x, y: pos.y, z: pos.z };
     if (!this.isNight()) {
       this.hud.showLabel('Respawn point set. You can only sleep at night.');
@@ -1264,6 +1272,7 @@ export class Game {
       if (c < 1) this.chargeBar.style.width = `${(c * 100) | 0}%`;
     }
     this.campfireFx.update(gamePaused ? 0 : dt, this.player);
+    this.scorchFx?.update(gamePaused ? 0 : dt, this.player, !this.player.headInWater);
     this.signFx.update(dt, this.player);
 
     // camera follows player eye
@@ -1375,7 +1384,8 @@ export class Game {
     const cave = p.headInWater ? 0 : sky === 0 && p.y < 60 ? 1 : sky < 6 ? 0.4 : 0;
     sfx.setCave(cave);
     const bossNear = this.entities.mobs.some((m) => m.boss && !m.dead && m.dying === undefined && m.state === 'chase');
-    this.music?.update(dt, p.dead || bossNear ? null : cave >= 1 ? 'cave' : this.dayFactor() < 0.35 ? 'night' : 'day');
+    const scorch = this.dimension === SCORCH;
+    this.music?.update(dt, p.dead || bossNear ? null : cave >= 1 ? 'cave' : scorch ? 'scorch' : this.dayFactor() < 0.35 ? 'night' : 'day');
     if (p.dead) return;
     const survival = p.mode !== GAMEMODE_CREATIVE;
     this._beat = (this._beat ?? 0) - dt;
@@ -1387,10 +1397,19 @@ export class Game {
     for (let i = 0; i < 10; i++) {
       const x = Math.floor(p.x + (Math.random() - 0.5) * 14), y = Math.floor(p.y + (Math.random() - 0.5) * 8), z = Math.floor(p.z + (Math.random() - 0.5) * 14);
       const id = this.world.getBlockW(x, y, z);
-      if ((id === B.FIRE || id === B.CAMPFIRE) && Math.random() < 0.7) sfx.play('crackle', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 } });
+      if ((id === B.FIRE || id === B.CAMPFIRE || id === B.SMOULDERING_STUMP) && Math.random() < 0.7) sfx.play('crackle', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 } });
       else if (id === B.LAVA && this.world.getBlockW(x, y + 1, z) === B.AIR && Math.random() < 0.35) sfx.play('lavapop', { pos: { x: x + 0.5, y: y + 1, z: z + 0.5 } });
     }
     if (sky === 0 && p.y < 50 && Math.random() < 0.35 / 60) sfx.play('drone');   // about once a minute, deep down
+    // the Scorchlands: hot wind through dead trees, and their trunks creaking
+    if (scorch) {
+      if (sky >= 10 && Math.random() < 0.35 / 14) sfx.play('wind');
+      if (sky >= 10 && Math.random() < 0.35 / 20) {
+        const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 12;
+        sfx.play('creak', { pos: { x: p.x + Math.cos(a) * r, y: p.y + 3, z: p.z + Math.sin(a) * r } });
+      }
+      return;
+    }
     const day = this.dayFactor();
     if (day < 0.3 && sky >= 12 && !p.headInWater && Math.random() < 0.12) {
       const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10;
@@ -1599,6 +1618,7 @@ export class Game {
       () => this.touch?.dispose(),
       () => this.viewModel?.dispose(),
       () => this.campfireFx?.dispose(),
+      () => this.scorchFx?.dispose(),
       () => this.signFx?.dispose(),
       () => this.sky?.dispose(),
       () => this.hud?.hide(),

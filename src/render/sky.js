@@ -169,7 +169,7 @@ export class Sky {
   // the Scorchlands' sky: no sun, no stars, a fixed red moon in the smoke
   setScorch(on) {
     this.scorch = on;
-    if (on) this.moon.material.color.setRGB(1.0, 0.42, 0.28);
+    if (on) this.moon.material.color.setRGB(0.95, 0.3, 0.16);
     this.moon.scale.setScalar(on ? 1.8 : 1);
   }
 

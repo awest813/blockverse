@@ -10,6 +10,8 @@ const MOODS = {
   day:   { root: 60, scale: [0, 2, 4, 7, 9], chords: [0, 9, 5, 7], step: 0.9, wave: 'triangle', density: 0.7 },
   night: { root: 57, scale: [0, 3, 5, 7, 10], chords: [0, 8, 5, 3], step: 1.2, wave: 'sine', density: 0.55 },
   cave:  { root: 50, scale: [0, 2, 3, 7, 8], chords: [0, 3, 8, 7], step: 1.6, wave: 'sine', density: 0.4 },
+  // the Scorchlands: low, slow and uneasy (a flat second in the scale)
+  scorch: { root: 45, scale: [0, 1, 3, 7, 8], chords: [0, 1, 8, 7], step: 1.8, wave: 'triangle', density: 0.35 },
 };
 
 const hz = (midi) => 440 * 2 ** ((midi - 69) / 12);

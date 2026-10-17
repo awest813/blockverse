@@ -6,14 +6,14 @@ const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
   arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks', crit: 'blocks', weak: 'blocks', sweep: 'blocks',
-  simmer: 'blocks', ladle: 'blocks',
+  simmer: 'blocks', ladle: 'blocks', wind: 'blocks', creak: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
   camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs', crab: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
+const RANGE = { creak: 24, simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
@@ -352,6 +352,14 @@ export class Sfx {
       case 'drone':      // the deep hum of a cave
         this.tone({ freq: 55 * detune, endFreq: 52, dur: 3.5, gain: 0.07, type: 'sine' });
         this.tone({ freq: 82 * detune, endFreq: 78, dur: 3.2, gain: 0.04, type: 'sine' });
+        break;
+      case 'wind':       // a hot gust through the dead trees, dying away
+        this.noise({ freq: 380 * detune, q: 0.6, dur: 3.2, gain: 0.07, type: 'lowpass' });
+        this.later(() => this.noise({ freq: 600 * detune, q: 0.8, dur: 2.2, gain: 0.04, type: 'bandpass' }), 500);
+        break;
+      case 'creak':      // a dead trunk groaning
+        this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.6, gain: 0.04, type: 'sawtooth', hold: 0.3 });
+        this.later(() => this.tone({ freq: 125 * detune, endFreq: 150, dur: 0.4, gain: 0.03, type: 'sawtooth' }), 380);
         break;
       case 'cricket':    // a short chirping burst on a summer night
         for (let i = 0; i < 4; i++) this.later(() => this.tone({ freq: 4400 * detune, dur: 0.025, gain: 0.025, type: 'sine' }), i * 38);

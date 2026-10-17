@@ -605,6 +605,13 @@ export class Interaction {
     if (!blockInfo(here).replaceable) return false;
     const fluid = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
     if (fluid === B.WATER && isWater(here)) return false;   // already water: keep the bucket
+    // the Scorchlands are too hot to hold water: it hisses away to steam
+    if (fluid === B.WATER && this.world.dimension === 'scorch') {
+      swapHeld(I.BUCKET);
+      this.cb.playSound('sizzle', {});
+      this.cb.steam?.(x + 0.5, y + 0.3, z + 0.5);
+      return true;
+    }
     // lava poured into water sets solid; not around the player's own head
     if (fluid === B.LAVA && isWater(here)) {
       if (this.intersectsPlayer(x, y, z)) return false;
