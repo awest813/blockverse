@@ -1397,6 +1397,40 @@ tile('coconut_milk', (ctx) => {
   bowlShape(ctx, [246, 244, 236]);
   rect(ctx, 5, 3, 6, 3, [116, 80, 44]); rect(ctx, 6, 3, 4, 2, [244, 240, 228]);   // half a shell on the rim
 });
+function crabIcon(ctx, shell, dark) {
+  rect(ctx, 4, 7, 8, 5, shell); rect(ctx, 5, 6, 6, 1, shell); rect(ctx, 5, 12, 6, 1, dark);
+  rect(ctx, 1, 4, 3, 3, shell); rect(ctx, 12, 4, 3, 3, shell);          // claws
+  px(ctx, 2, 4, [250, 240, 230]); px(ctx, 13, 4, [250, 240, 230]);
+  rect(ctx, 3, 7, 1, 2, dark); rect(ctx, 12, 7, 1, 2, dark);
+  for (const x of [3, 4, 11, 12]) px(ctx, x, 12 + (x % 2), dark);       // legs
+  px(ctx, 6, 5, [20, 20, 20]); px(ctx, 9, 5, [20, 20, 20]);             // eyes
+}
+tile('crab_raw', (ctx) => crabIcon(ctx, [196, 110, 80], [150, 80, 56]));
+tile('crab_cooked', (ctx) => crabIcon(ctx, [230, 84, 44], [176, 54, 26]));
+// cake: white icing over sponge, a red berry on top
+tile('cake_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[246, 244, 240], 8], [[236, 232, 226], 2]]);
+  for (let i = 0; i < 7; i++) px(ctx, 2 + ((rng() * 12) | 0), 2 + ((rng() * 12) | 0), [214, 50, 60]);
+});
+tile('cake_side', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[214, 160, 100], 6], [[196, 140, 84], 3]]);
+  rect(ctx, 0, 8, TILE, 4, [246, 244, 240]);                    // icing down the top half
+  for (let x = 0; x < TILE; x += 3) rect(ctx, x, 12, 2, 1 + ((rng() * 2) | 0), [246, 244, 240]);   // drips
+  for (let i = 0; i < 4; i++) px(ctx, (rng() * TILE) | 0, 9 + ((rng() * 2) | 0), [214, 50, 60]);
+});
+tile('cake_bottom', (ctx, rng) => fillNoise(ctx, rng, [[[200, 146, 88], 6], [[180, 128, 74], 3]]));
+tile('cake_inner', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[232, 196, 130], 6], [[218, 178, 112], 3]]);
+  // (a cake is half a block tall: its cut face shows rows 8-15)
+  rect(ctx, 0, 8, TILE, 2, [246, 244, 240]);                              // icing
+  rect(ctx, 0, 12, TILE, 1, [214, 50, 60]); rect(ctx, 0, 13, TILE, 1, [246, 236, 220]);   // jam and cream
+});
+tile('cake', (ctx) => {
+  rect(ctx, 2, 7, 12, 6, [214, 160, 100]); rect(ctx, 2, 5, 12, 3, [246, 244, 240]);
+  rect(ctx, 3, 4, 10, 1, [246, 244, 240]); rect(ctx, 2, 12, 12, 1, [180, 128, 74]);
+  for (const x of [4, 8, 11]) px(ctx, x, 4, [214, 50, 60]);
+  for (const x of [3, 6, 9, 12]) px(ctx, x, 8, [246, 244, 240]);
+});
 tile('fried_egg', (ctx) => {
   const w = [248, 248, 244], wE = [226, 224, 216];
   rect(ctx, 3, 5, 10, 7, w); rect(ctx, 4, 4, 7, 9, w); rect(ctx, 2, 7, 12, 3, w);

@@ -113,6 +113,7 @@ export const B = {
   PALM_SAPLING: 107,
   COCONUT: 108,          // hanging under a palm's fronds (drops the coconut item)
   COOKING_POT: 109,
+  CAKE: 110,             // meta: slices eaten (0-6)
 };
 
 // Tool classes
@@ -154,6 +155,7 @@ function def(id, name, display, opts = {}) {
     icon: opts.icon ?? null,                 // flat inventory icon tile instead of a cube
     full: opts.full ?? null,                 // slabs: the full block two of them make
     sound: opts.sound ?? 'stone',            // sfx family: stone|dirt|wood|sand|leaf|glass|cloth
+    stack: opts.stack,                       // as an item: stack size (default 64)
   };
 }
 
@@ -417,6 +419,12 @@ reg(def(B.TROUGH, 'trough', 'Feeding Trough', {
 reg(def(B.COOKING_POT, 'cooking_pot', 'Cooking Pot', {
   render: R_SHAPE, shape: 'pot', opacity: 0, hardness: 1, tool: TOOL_PICKAXE, sound: 'stone',
   textures: { top: 'pot_rim', bottom: 'pot_side', side: 'pot_side' }, icon: 'cooking_pot',
+}));
+// a cake to share: set it down and eat it a slice at a time (seven slices).
+// Broken, it's gone, crumbs and all.
+reg(def(B.CAKE, 'cake', 'Cake', {
+  render: R_SHAPE, shape: 'cake', opacity: 0, hardness: 0.5, sound: 'cloth', stack: 1, drop: null,
+  textures: { top: 'cake_top', bottom: 'cake_bottom', side: 'cake_side' }, icon: 'cake',
 }));
 // an iron lantern burning whale oil: stands on a block, or hangs under one (meta 1)
 reg(def(B.LANTERN, 'lantern', 'Lantern', {

@@ -10,7 +10,7 @@ const CATEGORY = {
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
-  camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs',
+  camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs', crab: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
 const RANGE = { simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
@@ -456,6 +456,9 @@ export class Sfx {
       case 'pelican':  // mostly quiet: a clatter of the bill and a low grunt
         for (let i = 0; i < 4; i++) this.later(() => this.noise({ freq: 1800 * detune, q: 3, dur: 0.025, gain: 0.07 }), i * 55);
         this.later(() => this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.16, gain: 0.05, type: 'square' }), 260);
+        break;
+      case 'crab':     // a clack-clack of claws
+        for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) this.later(() => this.noise({ freq: 2600 * detune, q: 4, dur: 0.03, gain: 0.07, type: 'bandpass' }), i * 110);
         break;
       case 'scorpion': // a dry rattle of claws and legs
         for (let i = 0; i < 5; i++) this.later(() => this.noise({ freq: (4200 + Math.random() * 1500) * detune, q: 2, dur: 0.02, gain: 0.06, type: 'bandpass' }), i * 40 + Math.random() * 20);

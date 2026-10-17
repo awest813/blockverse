@@ -128,4 +128,6 @@ export const I = {
   PUMPKIN_SOUP: 372,
   COCONUT_CURRY: 373,
   HEARTY_STEW: 374,
+  CRAB_RAW: 375,
+  CRAB_COOKED: 376,
 };

@@ -1623,3 +1623,93 @@ export class Pelican extends Duck {
     this.dropFn?.([{ id: I.FEATHER, count: 1 + ((Math.random() * 2) | 0) }, { id: I.FISH_RAW, count: Math.random() < 0.3 ? 1 : 0 }]);
   }
 }
+
+// Crabs: little red-orange beach crabs scuttling sideways over the sand. Leave
+// them be and they mind their claws; hit one and it pinches back for a while.
+// Kelp tempts them (and breeds them); they make good eating cooked.
+export class Crab extends Animal {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.6; this.h = 0.35; this.health = 6; this.speed = 1.1; this.fleeSpeed = 2.6;
+    this.kind = 'crab';
+    this.ambientSound = this.hurtSound = 'crab';
+    this.breedItem = B.KELP;
+    this.breedAlso = [I.DRIED_KELP];
+    this.angry = 0;
+    this.pinchCooldown = 0;
+  }
+
+  buildModel() {
+    // it walks "forward" along its side, so the face is on its left (-x)
+    const shell = 0xd0502c, dark = 0xa03a1c, light = 0xe87a4a, claw = 0xb8441f;
+    this.part(0.5, 0.18, 0.4, shell, 0, 0.2, 0);                  // shell
+    this.part(0.38, 0.06, 0.3, light, 0, 0.31, 0);               // a paler back
+    // eyes on stalks
+    for (const z of [-0.08, 0.08]) {
+      this.part(0.03, 0.12, 0.03, dark, -0.18, 0.34, z);
+      this.part(0.05, 0.05, 0.05, 0x111111, -0.18, 0.42, z);
+    }
+    // claws held out in front of the face
+    this.claws = [];
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Group();
+      arm.position.set(-0.24, 0.2, side * 0.14);
+      this.group.add(arm);
+      const add = (m) => { this.group.remove(m); arm.add(m); return m; };
+      add(this.part(0.14, 0.06, 0.06, dark, -0.06, 0, 0));
+      add(this.part(0.12, 0.1, 0.1, claw, -0.16, 0.02, 0));
+      const pincer = add(this.part(0.08, 0.03, 0.06, claw, -0.2, 0.08, 0));
+      this.claws.push({ arm, pincer });
+    }
+    // three jointed legs a side, reaching out and down to the sand (it walks along z)
+    this.legs = [];
+    for (let i = 0; i < 3; i++) {
+      for (const side of [-1, 1]) {
+        const leg = new THREE.Group();
+        leg.position.set(-0.12 + i * 0.12, 0.18, side * 0.18);
+        this.group.add(leg);
+        const upper = this.part(0.05, 0.05, 0.2, dark, 0, 0.04, side * 0.1);
+        upper.rotation.x = -side * 0.4;   // up and out from the shell...
+        const lower = this.part(0.05, 0.22, 0.05, dark, 0, -0.04, side * 0.2);   // ...then down to the sand
+        for (const m of [upper, lower]) { this.group.remove(m); leg.add(m); }
+        this.legs.push(leg);
+      }
+    }
+  }
+
+  animate() {
+    // legs patter, claws wave (snap when cross)
+    const swing = Math.sin(this.walkPhase * 2.2) * (this.moving ? 0.4 : 0);
+    this.legs.forEach((leg, i) => { leg.rotation.y = (i % 2 ? swing : -swing) * (i % 4 < 2 ? 1 : -1); });
+    const snap = this.angry > 0 ? Math.abs(Math.sin(this.age * 10)) * 0.5 : Math.abs(Math.sin(this.age * 1.5)) * 0.12;
+    for (const c of this.claws) { c.pincer.rotation.z = snap; c.arm.rotation.z = this.angry > 0 ? 0.35 : 0.1; }
+  }
+
+  damage(amount, source) {
+    const hit = super.damage(amount, source);
+    // hit by a player (mobs have a kind): it pinches back rather than running away
+    if (hit && source && !source.kind && this.health > 0) { this.angry = 8; this.state = 'idle'; this.stateTime = 0.3; }
+    return hit;
+  }
+
+  think(dt, player, playerDist) {
+    this.angry = Math.max(0, this.angry - dt);
+    this.pinchCooldown = Math.max(0, this.pinchCooldown - dt);
+    if (this.angry > 0 && !player.dead && playerDist < 10) {
+      this.state = 'chase';
+      this.moving = playerDist > 1;
+      this.steer(player, 1);
+      if (this.dist3(player) < 1.3 && this.pinchCooldown <= 0 && this.meleeHit(player, 1, 'crab')) {
+        this.pinchCooldown = 1.2;
+        this.fx?.sound('crab', { pos: this, pitch: 1.4 });
+      }
+      return;
+    }
+    if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
+    super.think(dt, player, playerDist);
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.CRAB_RAW, count: 1 }]);
+  }
+}

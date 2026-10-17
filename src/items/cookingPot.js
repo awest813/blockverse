@@ -18,7 +18,7 @@ export const potHeated = (world, x, y, z) => HEAT.has(world.getBlockW(x, y - 1, 
 // what goes in, by kind (raw or cooked both do)
 const BEEF = [I.BEEF_RAW, I.BEEF_COOKED];
 const BIRD = [I.CHICKEN_RAW, I.CHICKEN_COOKED, I.DUCK_RAW, I.DUCK_COOKED];
-const FISH = [I.FISH_RAW, I.FISH_COOKED];
+const FISH = [I.FISH_RAW, I.FISH_COOKED, I.CRAB_RAW, I.CRAB_COOKED];   // (crab counts as seafood)
 const OTHER_MEAT = [I.PORKCHOP_RAW, I.PORKCHOP_COOKED, I.MUTTON_RAW, I.MUTTON_COOKED];
 const POTATO = [I.POTATO, I.BAKED_POTATO];
 const MEAT = new Set([...BEEF, ...BIRD, ...FISH, ...OTHER_MEAT]);

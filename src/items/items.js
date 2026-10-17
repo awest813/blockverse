@@ -112,6 +112,8 @@ item(I.DUCK_RAW, 'duck_raw', 'Raw Duck', { food: 2, sat: 1.2, sickly: 0.3 });
 item(I.DUCK_COOKED, 'duck_cooked', 'Roast Duck', { food: 7, sat: 8 });
 item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2, sat: 0.4 });
 item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5, sat: 6 });
+item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
+item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
 item(I.PAPER, 'paper', 'Paper');
 item(I.BOOK, 'book', 'Book');
@@ -222,6 +224,8 @@ const USES = new Map([
   [I.CHICKEN_SOUP, 'Good for what ails you'],
   [I.COCONUT_MILK, 'Settles scorpion venom'],
   [I.COCONUT, 'Eat it, or crack it into a bowl for coconut milk'],
+  [I.CRAB_RAW, 'Cook it, or put it in a fish chowder or a curry'],
+  [B.CAKE, 'Set it down and eat it a slice at a time (when you\u2019re hungry); seven slices'],
   [B.COOKING_POT, 'Set it over a fire, fill it with water, add 2-4 foods and ladle the meal out with bowls'],
   [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
   [I.BONE_MEAL, 'Use on crops, saplings or grass to make them grow'],
@@ -254,7 +258,7 @@ export function itemInfo(id) {
       display: b.display,
       texture: null,        // block items render from their block textures
       block: b,
-      stack: 64,
+      stack: b.stack ?? 64,
       tool: null,
       food: 0,
       burnTime: BLOCK_BURN.get(id) ?? 0,

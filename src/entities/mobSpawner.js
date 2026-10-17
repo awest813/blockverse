@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
-import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican } from './animals.js';
+import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican, Crab } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
@@ -24,6 +24,7 @@ const MANATEE_CAP = 2;
 const SCORPION_CAP = 3;
 const GULL_CAP = 5;
 const PELICAN_CAP = 4;
+const CRAB_CAP = 5;
 // a desert has the one kind of animal: don't let camels fill the cap
 const KIND_CAP = new Map([[Camel, 4]]);
 // these live on sand rather than grass
@@ -99,6 +100,11 @@ export class MobSpawner {
     if (pelicans < PELICAN_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Pelican, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
         && this.world.gen.columnAt(wx, wz).t >= 0.45, Math.min(PELICAN_CAP - pelicans, 1 + ((Math.random() * 3) | 0)));   // pelicans like it warm
+    }
+    const crabs = count(mobs, Crab);
+    if (crabs < CRAB_CAP && Math.random() < 0.3) {
+      this.trySpawnLocal(player, Crab, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
+        && this.world.gen.columnAt(wx, wz).t >= 0.3, Math.min(CRAB_CAP - crabs, 1 + ((Math.random() * 3) | 0)));   // any beach that isn't frozen
     }
     if (this.difficulty > 0 && count(mobs, Scorpion) < SCORPION_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Scorpion, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.DESERT);

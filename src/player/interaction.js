@@ -20,7 +20,7 @@ const SAND_SOIL = new Set([B.SAND, B.GRASS, B.DIRT]);   // a palm takes root on 
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);
@@ -320,6 +320,8 @@ export class Interaction {
     // a goat horn calls your horses
     if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
+    // a cake: a slice at a time
+    if (t && t.id === B.CAKE && !p.sneaking && this.eatCake(t)) { this.useCooldown = 0.45; return; }
     // the cooking pot: water, food, then bowls
     if (t && t.id === B.COOKING_POT && !p.sneaking
       && usePot(this, t, held, { creative: p.mode === GAMEMODE_CREATIVE, itemName: (id) => itemInfo(id)?.display ?? '?' })) { this.useCooldown = Math.max(this.useCooldown, 0.25); return; }
@@ -508,6 +510,22 @@ export class Interaction {
     }
     this.cb.playSound('place', { block: info.sound });
     if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+  }
+
+  // a slice of cake, if you're hungry (and not in creative)
+  eatCake(t) {
+    const p = this.player;
+    if (p.mode === GAMEMODE_CREATIVE) return false;
+    if (p.hunger >= 20) { this.cb.notify?.('You\u2019re not hungry'); return true; }
+    const eaten = this.world.getMetaW(t.x, t.y, t.z) + 1;
+    p.eat(2, 1.6);
+    this.cb.playSound('eat', {});
+    this.cb.crumbs?.(B.CAKE);
+    if (eaten >= 7) {
+      this.world.setBlock(t.x, t.y, t.z, B.AIR);
+      this.cb.playSound('burp', {});
+    } else this.world.setBlock(t.x, t.y, t.z, B.CAKE, eaten);
+    return true;
   }
 
   finishEating(held) {

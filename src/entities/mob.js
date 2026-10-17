@@ -11,6 +11,7 @@ import { I } from '../items/itemIds.js';
 const COOKED = {
   [I.PORKCHOP_RAW]: I.PORKCHOP_COOKED, [I.BEEF_RAW]: I.BEEF_COOKED, [I.MUTTON_RAW]: I.MUTTON_COOKED,
   [I.CHICKEN_RAW]: I.CHICKEN_COOKED, [I.DUCK_RAW]: I.DUCK_COOKED, [I.FISH_RAW]: I.FISH_COOKED,
+  [I.CRAB_RAW]: I.CRAB_COOKED,
 };
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears

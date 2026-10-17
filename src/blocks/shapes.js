@@ -8,7 +8,7 @@ const P = 1 / 16;
 // a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
 const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
 // tiles shapes draw beyond their block's own textures (the atlas needs them)
-export const SHAPE_TILES = POT_FILL.filter(Boolean);
+export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner'];
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -117,6 +117,14 @@ export function shapeBoxes(id, meta, nb, collision = false) {
         [3 * P, -11 * P, 3 * P, 4.5 * P, 0, 4.5 * P], [11.5 * P, -11 * P, 3 * P, 13 * P, 0, 4.5 * P], [7.25 * P, -11 * P, 11.5 * P, 8.75 * P, 0, 13 * P]];
       const fill = POT_FILL[meta];
       if (fill) boxes.push([4 * P, 2 * P, 4 * P, 12 * P, (meta === 1 ? 8 : 8.5) * P, 12 * P, fill]);
+      return boxes;
+    }
+    // seven slices; the cut face shows the sponge and the cream inside
+    case 'cake': {
+      const x0 = (1 + 2 * Math.min(6, meta)) * P;
+      if (collision) return [[x0, 0, P, 15 * P, 8 * P, 15 * P]];
+      const boxes = [[x0 + 0.002, 0, P, 15 * P, 8 * P, 15 * P]];
+      if (meta) boxes.push([x0, 0, P, x0 + 0.002, 8 * P, 15 * P, 'cake_inner']);
       return boxes;
     }
     case 'coconut': return [[5 * P, 7 * P, 5 * P, 11 * P, 14 * P, 11 * P], [7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P]];   // a nut on a short stalk
