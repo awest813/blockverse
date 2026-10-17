@@ -75,6 +75,10 @@ Pens (`world/ranch.js`): a bounded flood fill over the ground an animal can walk
    - Dyed sheep pass their colour on.
    - Coloured wool and carpet blocks (the tint is procedural, so cheap).
 
+### Step 3 (done)
+
+Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chickens), fleece (sheep), litter (pigs). They are rolled once, saved and clamped on load, inherited from one parent or the mean of both, plus a little mutation and a rare standout. Horses keep their own. Rare variants: black sheep and golden hens. Dyes and colours (`items/dyes.js`): nine colours, eight dye items, eight coloured wools and nine carpets. A sheep can be dyed, shears to its colour, and its lambs blend their parents' fleece. The card lists traits and named parents. Still to do: new flowers by biome (a generator change, so it must be gated by version), piebald horses.
+
 ## Phase 3: needs, welfare and production
 
 1. **Hunger and happiness** (cheap, ticked by the clock on unstash too)

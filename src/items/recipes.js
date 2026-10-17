@@ -2,6 +2,7 @@
 
 import { B } from '../blocks/blocks.js';
 import { I } from './itemIds.js';
+import { COLOURS, ALL_WOOL } from './dyes.js';
 
 const ANY_PLANKS = Object.assign([B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS, B.CHARRED_PLANKS], { label: 'Any Planks' });
 const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG, B.CHARRED_LOG], { label: 'Any Log' });
@@ -48,7 +49,7 @@ shaped(I.GOLDEN_CARROT, 1, ['.G.', 'GCG', '.G.'], { G: [I.GOLD_INGOT], C: [I.CAR
 shaped(I.SADDLE, 1, ['LLL', 'LIL'], { L: [I.LEATHER], I: [I.IRON_INGOT] });
 shaped(I.LEAD, 2, ['SS.', 'SL.', '..S'], { S: [I.STRING], L: [I.LEATHER] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
-shaped(B.BED, 1, ['WWW', 'PPP'], { W: [B.WOOL], P: ANY_PLANKS });
+shaped(B.BED, 1, ['WWW', 'PPP'], { W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }), P: ANY_PLANKS });
 
 // tools: [material group, pickaxe, axe, shovel, sword, hoe, spear]
 const TOOL_MATS = [
@@ -112,6 +113,19 @@ shapeless(I.BONE_MEAL, 9, [[B.BONE_BLOCK]]);
 shaped(I.BOW, 1, ['.SX', 'S.X', '.SX'], { S: [I.STICK], X: [I.STRING] });
 shaped(I.ARROW, 4, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
 shaped(B.WOOL, 1, ['SS', 'SS'], { S: [I.STRING] });
+// dyes, from flowers and the like (white is bone meal), and the ones mixed from them
+shapeless(I.RED_DYE, 2, [[B.POPPY]]);
+shapeless(I.YELLOW_DYE, 2, [[B.DANDELION]]);
+shapeless(I.BROWN_DYE, 1, [[B.MUSHROOM_BROWN]]);
+shapeless(I.BLACK_DYE, 1, [[I.COAL, I.CHARCOAL]]);
+shapeless(I.ORANGE_DYE, 2, [[I.RED_DYE], [I.YELLOW_DYE]]);
+shapeless(I.PINK_DYE, 2, [[I.RED_DYE], [I.BONE_MEAL]]);
+shapeless(I.GREY_DYE, 2, [[I.BLACK_DYE], [I.BONE_MEAL]]);
+// wool of one colour dyed another, and carpets of each
+for (const c of COLOURS) {
+  shapeless(c.wool, 1, [ALL_WOOL.filter((w) => w !== c.wool), [c.dye]]);
+  shaped(c.carpet, 3, ['WW'], { W: [c.wool] });
+}
 shaped(B.TNT, 1, ['GSG', 'SGS', 'GSG'], { G: [I.GUNPOWDER], S: [B.SAND] });
 
 // building blocks
@@ -300,6 +314,7 @@ export const SMELTING = new Map([
   [B.SPRUCE_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.PALM_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.CHARRED_LOG, { id: I.CHARCOAL, count: 1 }],
+  [B.CACTUS, { id: I.GREEN_DYE, count: 1 }],
 ]);
 
 export const SMELT_TIME = 10; // seconds per item

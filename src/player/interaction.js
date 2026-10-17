@@ -4,6 +4,7 @@ import { findFrame, lightPortal } from '../world/portal.js';
 import { REACH_DISTANCE, GAMEMODE_CREATIVE, CHUNK_Y } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
 import { B, BLOCKS, blockInfo, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
+import { COLOURS } from '../items/dyes.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
@@ -21,7 +22,7 @@ const SAND_SOIL = new Set([B.SAND, B.GRASS, B.DIRT]);   // a palm takes root on 
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);

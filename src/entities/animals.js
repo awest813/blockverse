@@ -10,6 +10,7 @@ import { B, isSolid as isSolidId, isWater } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { worldClock } from '../core/clock.js';
 import { moodRate } from '../world/ranch.js';
+import { trait } from './traits.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -100,11 +101,14 @@ export class Chicken extends Animal {
     const white = 0xf2f0ea, beak = 0xe8a030, comb = 0xd02828, legC = 0xe0a040;
     this.part(0.38, 0.32, 0.5, white, 0, 0.42, 0.04);          // body
     this.part(0.26, 0.3, 0.24, white, 0, 0.68, -0.22);        // head
+    this.featherMats = this.materials.slice(-2);
     this.part(0.12, 0.08, 0.1, beak, 0, 0.66, -0.38);
     this.part(0.06, 0.1, 0.06, comb, 0, 0.6, -0.36);
     this.part(0.05, 0.05, 0.02, 0x111111, -0.08, 0.74, -0.35);
     this.part(0.05, 0.05, 0.02, 0x111111, 0.08, 0.74, -0.35);
     this.wings = [this.part(0.06, 0.24, 0.34, white, -0.22, 0.46, 0.04), this.part(0.06, 0.24, 0.34, white, 0.22, 0.46, 0.04)];
+    this.featherMats.push(...this.materials.slice(-2));
+    this.setGolden(Math.random() < 0.02);   // a rare golden hen
     const leg = (x) => {
       const l = this.part(0.05, 0.26, 0.05, legC, x, 0.26, 0.02);
       l.geometry = l.geometry.clone(); l.geometry.translate(0, -0.13, 0); l.position.y = 0.26;
@@ -113,12 +117,26 @@ export class Chicken extends Animal {
     this.legs = [leg(-0.08), leg(0.08)];
   }
 
+  // golden plumage: a hen that lays half as often again
+  setGolden(on) {
+    this.golden = on;
+    for (const m of this.featherMats) m.base.setHex(on ? 0xe8bc48 : 0xf2f0ea);
+  }
+
+  saveExtra() { return this.golden ? { golden: true } : null; }
+  loadExtra(e) { this.setGolden(!!e.golden); }
+
+  // a golden parent's chicks are often golden too
+  inherit(baby, mate) {
+    baby.setGolden(((this.golden || mate.golden) && Math.random() < 0.35) || Math.random() < 0.01);
+  }
+
   update(dt, player) {
     super.update(dt, player);
     if (this.dead) return;
     // grown hens lay an egg every few minutes
     // (not while it's frozen in an unloaded chunk: the egg would fall through)
-    if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt * moodRate(this);
+    if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt * moodRate(this) * trait(this, 'laying') * (this.golden ? 1.5 : 1);
     if (this.eggTimer <= 0) {
       this.eggTimer = 300 + Math.random() * 300;
       if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }
@@ -149,7 +167,7 @@ function milk(animal, player, held) {
     animal.fx?.notify?.(`Milked not long ago: ready again in ${Math.ceil(left)}s`);
     return false;
   }
-  animal.milkAt = worldClock.now + MILK_COOLDOWN / moodRate(animal);   // (a happy cow sooner)
+  animal.milkAt = worldClock.now + MILK_COOLDOWN / (moodRate(animal) * trait(animal, 'milk'));   // (a happy cow sooner, a good milker too)
   if (player.mode !== GAMEMODE_CREATIVE) {
     if (held.count > 1) {
       player.consumeHeld(1);
@@ -214,7 +232,7 @@ export class Goat extends Animal {
     const target = !this.baby && !player.dead && player.mode !== GAMEMODE_CREATIVE && playerDist < 9 && this.canSee(player);
     // (a goat that's yours, penned or on a lead, only charges when it's been hit)
     const calm = this.persistent || this.leash;
-    if (target && (this.grudge > 0 ? Math.random() < dt * 1.5 : !calm && Math.random() < dt / 60)) {
+    if (target && (this.grudge > 0 ? Math.random() < dt * 1.5 : !calm && Math.random() < (dt / 60) * trait(this, 'temper'))) {
       this.ram = { phase: 'aim', t: 0.9 };
       this.moving = false;
       this.fx?.sound('goat', { vol: 1, pos: this, pitch: 0.8 });

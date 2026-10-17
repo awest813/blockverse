@@ -10,6 +10,8 @@ import { makeStack } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { generateTile } from '../render/textures.js';
 import { moodRate } from '../world/ranch.js';
+import { trait } from './traits.js';
+import { COLOUR, colourOfDye, blendColours } from '../items/dyes.js';
 import { worldClock } from '../core/clock.js';
 
 // the wool block's own weave, shared by every sheep's fleece
@@ -82,9 +84,11 @@ export class Sheep extends Mob {
   }
 
   buildModel() {
-    // natural fleece: mostly white, some cream, the odd light-grey one
+    // natural fleece: mostly white, some cream, the odd light-grey one, and
+    // now and then a black sheep
     const r = Math.random();
-    this.woolTint = r < 0.62 ? 0xffffff : r < 0.88 ? 0xf3ecdc : 0xdedcd8;
+    this.woolTint = r < 0.62 ? 0xffffff : r < 0.87 ? 0xf3ecdc : r < 0.99 ? 0xdedcd8 : COLOUR.black.tint;
+    this.dye = r < 0.99 ? null : 'black';   // (its wool's colour: null for natural white, cream or grey)
     const skin = 0xd9b9a0, face = 0xcfa88e, legC = 0xc39c84, hoof = 0x5a4638;
     const woolPart = (w, h, d, x, y, z, parent = null) => {
       const m = this.part(w, h, d, this.woolTint, x, y, z);
@@ -138,21 +142,53 @@ export class Sheep extends Mob {
     return leg;
   }
 
-  saveExtra() { return { tint: this.woolTint, ...(this.sheared ? { regrow: Math.round(this.regrow) } : {}) }; }   // (white too, or it'd be re-rolled on load)
+  saveExtra() { return { tint: this.woolTint, ...(this.dye ? { dye: this.dye } : {}), ...(this.sheared ? { regrow: Math.round(this.regrow) } : {}) }; }   // (white too, or it'd be re-rolled on load)
   loadExtra(e) {
     if (Number.isFinite(e.regrow) && this.sheared) this.regrow = e.regrow;
-    if (!Number.isInteger(e.tint)) return;
-    this.woolTint = e.tint;
-    for (const m of this.woolMats) m.base.setHex(e.tint);
+    this.dye = COLOUR[e.dye] && e.dye !== 'white' ? e.dye : null;
+    if (Number.isInteger(e.tint)) this.setTint(e.tint);
+    else if (this.dye) this.setTint(COLOUR[this.dye].tint);
   }
 
-  // shears: 1-3 wool, and the fleece grows back after a few minutes
+  setTint(tint) {
+    this.woolTint = tint;
+    for (const m of this.woolMats) m.base.setHex(tint);
+  }
+
+  // what a shearing gives: wool of its colour
+  woolId() { return COLOUR[this.dye ?? 'white'].wool; }
+
+  // a lamb's fleece: the same as its parents', a blend of the two (red and
+  // white make pink), or one or the other's; and now and then a black sheep
+  inherit(baby, mate) {
+    if (Math.random() < 0.02) { baby.dye = 'black'; baby.setTint(COLOUR.black.tint); return; }
+    const blend = blendColours(this.dye ?? 'white', mate.dye ?? 'white');
+    if (blend && blend !== 'white') { baby.dye = blend; baby.setTint(COLOUR[blend].tint); return; }
+    const from = Math.random() < 0.5 ? this : mate;
+    baby.dye = from.dye;
+    baby.setTint(from.woolTint);
+  }
+
+  // shears: 1-3 wool (how thick its fleece is), and it grows back after a
+  // few minutes; a dye colours it
   interact(player, held) {
+    const colour = colourOfDye(held?.id);
+    if (colour && !this.baby) {
+      const natural = colour.key === 'white' ? !this.dye && this.woolTint === 0xffffff : this.dye === colour.key;
+      if (natural) { this.fx?.notify?.(`This sheep is already ${colour.key}`); return true; }
+      this.dye = colour.key === 'white' ? null : colour.key;
+      this.setTint(colour.tint);
+      this.persistent = true;
+      if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+      this.fx?.sound('place', { block: 'cloth', pos: this });
+      this.fx?.spark?.(this.x, this.y + this.h, this.z, colour.tint, 8);
+      return true;
+    }
     if (held?.id !== I.SHEARS) return super.interact(player, held);
     if (this.sheared || this.baby) return true;
     this.setSheared(true);
     this.persistent = true;   // a sheep you're shearing is one of yours: kept and saved
-    this.dropFn?.([{ id: B.WOOL, count: 1 + ((Math.random() * 3) | 0) }]);
+    this.dropFn?.([{ id: this.woolId(), count: Math.max(1, Math.floor(trait(this, 'fleece') + Math.random())) }]);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('shear', { pos: this });
     this.fx?.sound('sheep', { pos: this, pitch: 1.1 });   // an indignant bleat
@@ -201,7 +237,7 @@ export class Sheep extends Mob {
 
   onDeath() {
     this.dropFn?.([
-      { id: B.WOOL, count: this.sheared ? 0 : 1 },
+      { id: this.woolId(), count: this.sheared ? 0 : 1 },
       { id: I.MUTTON_RAW, count: 1 + ((Math.random() * 2) | 0) },
     ]);
   }

@@ -8,6 +8,7 @@ import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Pelican, Crab } from './animals.js';
 import { isRare } from '../items/items.js';
 import { worldClock } from '../core/clock.js';
+import { traitsOf, cleanTraits } from './traits.js';
 
 // animals that can be kept (stashed while far away, saved with the world)
 const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken, goat: Goat, horse: Horse, duck: Duck,
@@ -219,7 +220,7 @@ export class EntityManager {
 export function serializeAnimal(m) {
   const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared,
     at: Math.round(worldClock.now), id: m.ensureId(), ...(Number.isFinite(m.milkAt) ? { milkAt: m.milkAt } : {}),
-    ...(m.name ? { name: m.name } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
+    ...(m.name ? { name: m.name } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(traitsOf(m) ? { traits: { ...m.traits } } : {}), ...(m.parentNames ? { parentNames: m.parentNames } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
   if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
@@ -241,6 +242,9 @@ export function restoreAnimal(scene, world, a) {
   if (typeof a.name === 'string') mob.setName(a.name);
   if (a.home && [a.home.x, a.home.y, a.home.z].every(Number.isFinite)) mob.home = { x: a.home.x, y: a.home.y, z: a.home.z };
   if (Number.isFinite(a.mood)) mob.mood = Math.max(0, Math.min(100, a.mood));
+  const traits = cleanTraits(mob.kind, a.traits);
+  if (traits) mob.traits = traits;
+  if (Array.isArray(a.parentNames)) mob.parentNames = a.parentNames.slice(0, 2).map((n) => (typeof n === 'string' ? n.slice(0, 24) : null));
   mob.breedCooldown = Math.max(0, (a.breedCooldown ?? 0) - away);
   if (a.baby) {
     const grow = (a.grow || 300) - away;

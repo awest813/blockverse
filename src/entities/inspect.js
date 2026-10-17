@@ -5,8 +5,9 @@ import { itemInfo } from '../items/items.js';
 import { worldClock } from '../core/clock.js';
 import { DAY_LENGTH_SECONDS } from '../core/constants.js';
 import { moodRate, moodWord } from '../world/ranch.js';
+import { traitLines, trait } from './traits.js';
 
-const WOOL = new Map([[0xf2f0ea, 'white'], [0xe8dcc0, 'cream'], [0xb8b6b0, 'grey']]);
+const WOOL = new Map([[0xffffff, 'white'], [0xf3ecdc, 'cream'], [0xdedcd8, 'light grey']]);
 const secs = (s) => (s >= 90 ? `${Math.round(s / 60)} min` : `${Math.max(1, Math.round(s))} s`);
 const cap = (t) => t[0].toUpperCase() + t.slice(1);
 
@@ -21,7 +22,10 @@ export function describeAnimal(m) {
     const days = (worldClock.now - m.born) / DAY_LENGTH_SECONDS;
     lines.push(days < 1 ? 'Born today' : `Born ${Math.floor(days)} day${days >= 2 ? 's' : ''} ago`);
   }
-  if (m.parents) lines.push('Bred on your ranch');
+  if (m.parents) {
+    const [a, b] = m.parentNames ?? [];
+    lines.push(a && b ? `Bred on your ranch, out of ${a} and ${b}` : a || b ? `Bred on your ranch, out of ${a || b}` : 'Bred on your ranch');
+  }
   const max = m.tamed ? m.maxTamedHealth ?? m.maxHealth : m.maxHealth;
   if (Number.isFinite(m.health)) lines.push(`Health ${Math.ceil(m.health)}${Number.isFinite(max) ? ` / ${max}` : ''}`);
   // its pen and how it feels about it
@@ -49,10 +53,12 @@ export function describeAnimal(m) {
     else lines.push(m.saddled ? 'Saddled' : 'No saddle');
   }
   if (m.kind === 'sheep') {
-    const wool = WOOL.get(m.woolTint) ?? 'dyed';
+    const wool = m.dye ?? WOOL.get(m.woolTint) ?? 'dyed';
     lines.push(m.sheared ? `Shorn — wool grows back in ${secs((m.regrow ?? 0) / moodRate(m))}` : `Fleece: ${wool}`);
   }
-  if (m.kind === 'chicken' && !m.baby && Number.isFinite(m.eggTimer)) lines.push(`Next egg in about ${secs(m.eggTimer / moodRate(m))}`);
+  if (m.golden) lines.push('Golden plumage: lays half as often again');
+  if (!m.tamed) lines.push(...traitLines(m));
+  if (m.kind === 'chicken' && !m.baby && Number.isFinite(m.eggTimer)) lines.push(`Next egg in about ${secs(m.eggTimer / (moodRate(m) * trait(m, 'laying') * (m.golden ? 1.5 : 1)))}`);
   if (Number.isFinite(m.milkAt) && (m.kind === 'cow' || m.kind === 'goat')) {
     const left = m.milkAt - worldClock.now;
     lines.push(left > 0 ? `Milk again in ${secs(left)}` : 'Ready to milk');

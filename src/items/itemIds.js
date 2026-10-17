@@ -145,4 +145,12 @@ export const I = {
   DRAGON_BOOTS: 387,
   DRAKE_EGG: 388,        // hatches an ember whelp
   NAME_TAG: 389,         // names an animal (it's yours from then on)
+  RED_DYE: 390,          // dyes: wool, carpets and sheep (items/dyes.js)
+  YELLOW_DYE: 391,
+  ORANGE_DYE: 392,
+  PINK_DYE: 393,
+  GREEN_DYE: 394,
+  BROWN_DYE: 395,
+  BLACK_DYE: 396,
+  GREY_DYE: 397,
 };

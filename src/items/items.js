@@ -115,6 +115,14 @@ item(I.DRAGON_SCALE, 'dragon_scale', 'Dragon Scale');
 item(I.DRAGON_FANG, 'dragon_fang', 'Dragon Fang');
 item(I.DRAKE_EGG, 'drake_egg', 'Drake Egg', { stack: 16 });
 item(I.NAME_TAG, 'name_tag', 'Name Tag', { stack: 16 });
+item(I.RED_DYE, 'red_dye', 'Red Dye');
+item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
+item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
+item(I.PINK_DYE, 'pink_dye', 'Pink Dye');
+item(I.GREEN_DYE, 'green_dye', 'Green Dye');
+item(I.BROWN_DYE, 'brown_dye', 'Brown Dye');
+item(I.BLACK_DYE, 'black_dye', 'Black Dye');
+item(I.GREY_DYE, 'grey_dye', 'Grey Dye');
 item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
 item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
@@ -242,6 +250,14 @@ const USES = new Map([
   [I.DRAGON_FANG, 'The Scorch Dragon\u2019s: with a scale and a stick, an Ember Blade'],
   [I.EMBER_BLADE, 'Sets what it strikes alight'],
   [I.NAME_TAG, 'Use it on an animal to name it: a named animal is yours, and never wanders off for good'],
+  [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.ORANGE_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.PINK_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.GREEN_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.BROWN_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.BLACK_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
+  [I.GREY_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.DRAKE_EGG, 'Set it down and it hatches an ember whelp: a little drake that follows you and spits fire at monsters'],
   [I.DRAGON_HELMET, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
   [I.DRAGON_CHESTPLATE, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
@@ -250,7 +266,7 @@ const USES = new Map([
   [B.CAKE, 'Set it down and eat it a slice at a time (when you\u2019re hungry); seven slices'],
   [B.COOKING_POT, 'Set it over a fire, fill it with water, add 2-4 foods and ladle the meal out with bowls'],
   [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
-  [I.BONE_MEAL, 'Use on crops, saplings or grass to make them grow'],
+  [I.BONE_MEAL, 'Use on crops, saplings or grass to make them grow; it\u2019s white dye too'],
   [I.WHEAT_SEEDS, 'Plant on farmland (till grass with a hoe)'],
   [I.CARROT, 'Plant on farmland, or eat; pigs love them'],
   [I.POTATO, 'Plant on farmland, or bake in a furnace'],

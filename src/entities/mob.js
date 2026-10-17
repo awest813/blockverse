@@ -10,6 +10,7 @@ import { itemInfo } from '../items/items.js';
 import { SMELTING } from '../items/recipes.js';
 import { worldClock } from '../core/clock.js';
 import { HAPPY, NO_BREEDING } from '../world/ranch.js';
+import { inheritTraits, trait } from './traits.js';
 
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
@@ -192,15 +193,21 @@ export class Mob {
     // a baby!
     this.love = mate.love = 0;
     this.breedCooldown = mate.breedCooldown = 300;
-    const baby = new this.constructor(this.scene, this.world, this.x, this.y + 0.2, this.z);   // (on this parent's side)
-    baby.setBaby(true);
-    baby.persistent = true;
-    baby.born = worldClock.now;
-    baby.parents = [this.ensureId(), mate.ensureId()];
-    this.inherit?.(baby, mate);   // (a foal takes after its parents)
-    this.fx?.spawn?.(baby);
-    this.fx?.hearts?.(baby.x, baby.y + 0.6, baby.z, 6);
-    this.fx?.sound(this.hurtSound ?? this.ambientSound ?? 'pickup', { pos: baby, pitch: 1.6 });
+    // a big litter now and then (twins: a pig's litters run in the family)
+    const twins = Math.random() < (trait(this, 'litter') + trait(mate, 'litter')) / 2 - 1;
+    for (let n = twins ? 2 : 1; n > 0; n--) {
+      const baby = new this.constructor(this.scene, this.world, this.x, this.y + 0.2, this.z);   // (on this parent's side; twins jostle apart)
+      baby.setBaby(true);
+      baby.persistent = true;
+      baby.born = worldClock.now;
+      baby.parents = [this.ensureId(), mate.ensureId()];
+      if (this.name || mate.name) baby.parentNames = [this.name ?? null, mate.name ?? null];
+      inheritTraits(baby, this, mate);
+      this.inherit?.(baby, mate);   // (a foal takes after its parents; a lamb's fleece)
+      this.fx?.spawn?.(baby);
+      this.fx?.hearts?.(baby.x, baby.y + 0.6, baby.z, 6);
+    }
+    this.fx?.sound(this.hurtSound ?? this.ambientSound ?? 'pickup', { pos: this, pitch: 1.6 });
   }
 
   // a fence, gate or trough within a few blocks: someone's pen

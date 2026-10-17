@@ -794,6 +794,31 @@ tile('wool', (ctx, rng) => {
   }
 });
 
+// dyed wool, the same weave in each colour
+function dyedWool(c) {
+  return (ctx, rng) => {
+    fillNoise(ctx, rng, [[c, 7], [shade(c, 0.93), 4], [shade(c, 1.06), 3]]);
+    for (let y = 0; y < TILE; y += 4) for (let x = 0; x < TILE; x += 4) if ((x + y) % 8 === 0) rect(ctx, x, y, 2, 1, shade(c, 0.86));
+  };
+}
+tile('red_wool', dyedWool([168, 48, 44]));
+tile('yellow_wool', dyedWool([222, 188, 52]));
+tile('orange_wool', dyedWool([220, 120, 38]));
+tile('pink_wool', dyedWool([232, 148, 168]));
+tile('green_wool', dyedWool([84, 116, 40]));
+tile('brown_wool', dyedWool([108, 72, 42]));
+tile('black_wool', dyedWool([34, 32, 32]));
+tile('grey_wool', dyedWool([104, 104, 100]));
+// dyes: a little heap of powder
+tile('red_dye', (ctx, rng) => blobIcon(ctx, rng, [[168, 48, 44], shade([168, 48, 44], 0.8), shade([168, 48, 44], 1.15)]));
+tile('yellow_dye', (ctx, rng) => blobIcon(ctx, rng, [[222, 188, 52], shade([222, 188, 52], 0.8), shade([222, 188, 52], 1.15)]));
+tile('orange_dye', (ctx, rng) => blobIcon(ctx, rng, [[220, 120, 38], shade([220, 120, 38], 0.8), shade([220, 120, 38], 1.15)]));
+tile('pink_dye', (ctx, rng) => blobIcon(ctx, rng, [[232, 148, 168], shade([232, 148, 168], 0.8), shade([232, 148, 168], 1.15)]));
+tile('green_dye', (ctx, rng) => blobIcon(ctx, rng, [[84, 116, 40], shade([84, 116, 40], 0.8), shade([84, 116, 40], 1.15)]));
+tile('brown_dye', (ctx, rng) => blobIcon(ctx, rng, [[108, 72, 42], shade([108, 72, 42], 0.8), shade([108, 72, 42], 1.15)]));
+tile('black_dye', (ctx, rng) => blobIcon(ctx, rng, [[34, 32, 32], shade([34, 32, 32], 0.8), shade([34, 32, 32], 1.15)]));
+tile('grey_dye', (ctx, rng) => blobIcon(ctx, rng, [[104, 104, 100], shade([104, 104, 100], 0.8), shade([104, 104, 100], 1.15)]));
+
 tile('pumpkin_side', (ctx, rng) => {
   const o = [216, 128, 32], oD = [184, 102, 24], oL = [236, 152, 52];
   rect(ctx, 0, 0, TILE, TILE, o);

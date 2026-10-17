@@ -125,6 +125,23 @@ export const B = {
   CHARRED_STONE: 118,    // the portal frame block
   EMBER_PORTAL: 119,     // inside a lit frame; meta: 0 spans x, 1 spans z
   SCORCHED_BRICKS: 120,  // the ruined castles' walls
+  RED_WOOL: 121,
+  YELLOW_WOOL: 122,
+  ORANGE_WOOL: 123,
+  PINK_WOOL: 124,
+  GREEN_WOOL: 125,
+  BROWN_WOOL: 126,
+  BLACK_WOOL: 127,
+  GREY_WOOL: 128,
+  WHITE_CARPET: 129,      // carpets: a sixteenth of a block, any colour
+  RED_CARPET: 130,
+  YELLOW_CARPET: 131,
+  ORANGE_CARPET: 132,
+  PINK_CARPET: 133,
+  GREEN_CARPET: 134,
+  BROWN_CARPET: 135,
+  BLACK_CARPET: 136,
+  GREY_CARPET: 137,
 };
 
 // Tool classes
@@ -311,6 +328,17 @@ reg(def(B.STONE_BRICKS, 'stone_bricks', 'Stone Bricks', { hardness: 1.5, tool: T
 reg(def(B.MOSSY_COBBLE, 'mossy_cobble', 'Mossy Cobblestone', { hardness: 2, tool: TOOL_PICKAXE, minTier: 1 }));
 reg(def(B.OBSIDIAN, 'obsidian', 'Obsidian', { hardness: 30, tool: TOOL_PICKAXE, minTier: 4 }));
 reg(def(B.WOOL, 'wool', 'Wool', { hardness: 0.8, sound: 'cloth' }));
+// dyed wool, and carpets of every colour (see items/dyes.js)
+for (const c of ['red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey']) {
+  const Name = c[0].toUpperCase() + c.slice(1);
+  reg(def(B[`${c.toUpperCase()}_WOOL`], `${c}_wool`, `${Name} Wool`, { hardness: 0.8, sound: 'cloth' }));
+}
+for (const c of ['white', 'red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey']) {
+  const Name = c[0].toUpperCase() + c.slice(1);
+  reg(def(B[`${c.toUpperCase()}_CARPET`], `${c}_carpet`, `${Name} Carpet`, {
+    solid: false, render: R_SHAPE, shape: 'carpet', opacity: 0, hardness: 0.1, sound: 'cloth', textures: c === 'white' ? 'wool' : `${c}_wool`,
+  }));
+}
 reg(def(B.PUMPKIN, 'pumpkin', 'Pumpkin', {
   hardness: 1, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face' },

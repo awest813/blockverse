@@ -14,6 +14,7 @@ export const FACE_PX = 0, FACE_NX = 1, FACE_PY = 2, FACE_NY = 3, FACE_PZ = 4, FA
 const ICON_BOXES = {
   slab: [[0, 0, 0, 16, 8, 16]],
   layer: [[0, 0, 0, 16, 3, 16]],
+  carpet: [[0, 0, 0, 16, 2, 16]],
   stairs: [[0, 0, 0, 16, 8, 16], [0, 8, 0, 8, 16, 16]],
 };
 
