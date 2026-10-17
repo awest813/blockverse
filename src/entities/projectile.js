@@ -124,9 +124,15 @@ export class Arrow {
 // and bursts harmlessly on whatever block it meets.
 const fireGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
 export class Fireball extends Arrow {
-  constructor(scene, world, x, y, z, vx, vy, vz, damage) {
-    super(scene, world, x, y, z, vx, vy, vz, damage, 'mob', false);
+  // owner 'player': a pet's, which hits monsters (never you or your animals)
+  constructor(scene, world, x, y, z, vx, vy, vz, damage, owner = 'mob') {
+    super(scene, world, x, y, z, vx, vy, vz, damage, owner, false);
     this.gravity = 0;
+  }
+
+  hitMob(m) {
+    if (!m.fireproof) m.fireTime = Math.max(m.fireTime ?? 0, 3);
+    super.hitMob(m);
   }
 
   makeMesh() { return new THREE.Mesh(fireGeo, new THREE.MeshBasicMaterial({ color: 0xffa040, fog: false })); }

@@ -669,6 +669,15 @@ export class Interaction {
     }
     if (!t) return false;
 
+    // a drake egg set down hatches an ember whelp, yours from the shell
+    if (held.id === I.DRAKE_EGG) {
+      const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
+      if (isSolid(this.world.getBlockW(x, y, z)) || isSolid(this.world.getBlockW(x, y + 1, z))) return false;
+      if (!creative) p.consumeHeld(1);
+      this.cb.hatch?.('whelp', x + 0.5, y, z + 0.5);
+      this.useCooldown = 0.5;
+      return true;
+    }
     // an Ember Core on a finished charred-stone frame lights a portal
     if (held.id === I.EMBER_CORE) {
       if (t.id !== B.CHARRED_STONE) return false;

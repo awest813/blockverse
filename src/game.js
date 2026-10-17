@@ -225,6 +225,7 @@ export class Game {
       crumbs: (id) => this.crumbs(id),
       steam: (x, y, z) => this.sparks(x, y, z, 0xe8e8ec, 12),
       portalLit: (f) => this.portalLit(f),
+      hatch: (kind, x, y, z) => this.hatchPet(kind, x, y, z),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -459,6 +460,20 @@ export class Game {
     // (after this frame: the Game is closed down on the way, and the rest of
     // the frame mustn't run on a disposed world)
     setTimeout(() => this.uiHooks?.travel?.(to, arrive), 0);
+  }
+
+  // a pet hatched (an ember whelp from its egg): tame from the start
+  hatchPet(kind, x, y, z) {
+    const Cls = PET_CLASSES[kind];
+    if (!Cls) return;
+    const pet = new Cls(this.scene, this.world, x, y, z);
+    pet.tamed = true;
+    pet.onTamed();
+    pet.health = pet.maxTamedHealth;
+    this.entities.addMob(pet);
+    this.sparks(x, y + 0.4, z, 0xff8a2a, 18);
+    this.sfx?.play('drake', { pos: { x, y, z }, pitch: 1.6 });
+    this.hud.showLabel(`An ${pet.petName ?? kind} hatches! It follows you; right-click it to have it perch.`);
   }
 
   // ---------- the Scorch Dragon ----------

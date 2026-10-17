@@ -113,6 +113,7 @@ item(I.BROOD_EMBER, 'brood_ember', 'Brood Ember');
 item(I.EMBER_CORE, 'ember_core', 'Ember Core');
 item(I.DRAGON_SCALE, 'dragon_scale', 'Dragon Scale');
 item(I.DRAGON_FANG, 'dragon_fang', 'Dragon Fang');
+item(I.DRAKE_EGG, 'drake_egg', 'Drake Egg', { stack: 16 });
 item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
 item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
@@ -239,6 +240,7 @@ const USES = new Map([
   [I.DRAGON_SCALE, 'From the Scorch Dragon (and now and then an ash drake): armour that turns fire'],
   [I.DRAGON_FANG, 'The Scorch Dragon\u2019s: with a scale and a stick, an Ember Blade'],
   [I.EMBER_BLADE, 'Sets what it strikes alight'],
+  [I.DRAKE_EGG, 'Set it down and it hatches an ember whelp: a little drake that follows you and spits fire at monsters'],
   [I.DRAGON_HELMET, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
   [I.DRAGON_CHESTPLATE, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
   [I.DRAGON_LEGGINGS, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
@@ -265,7 +267,7 @@ const USES = new Map([
 export const itemUse = (id) => USES.get(id) ?? null;
 
 // Rare finds: they glint where they lie, and picking one up is announced.
-const RARE = new Set([I.DRAGON_SCALE, I.DRAGON_FANG, I.EMBER_BLADE, I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER, I.EMBER_CORE, I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
+const RARE = new Set([I.DRAKE_EGG, I.DRAGON_SCALE, I.DRAGON_FANG, I.EMBER_BLADE, I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER, I.EMBER_CORE, I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
   I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);
 export const isRare = (id) => RARE.has(id);
 

@@ -41,6 +41,13 @@ export class EntityManager {
         this.projectiles.push(f);
         this.fx.sound('fireball', { pos: { x, y, z } });
       },
+      // an ember whelp's: at monsters
+      petFireball: (x, y, z, vx, vy, vz, dmg) => {
+        const f = new Fireball(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player');
+        f.onBurst = (s) => { this.fx.spark?.(s.x, s.y, s.z, 0xff8a2a, 6); };
+        this.projectiles.push(f);
+        this.fx.sound('fireball', { pos: { x, y, z }, vol: 0.5 });
+      },
       // the player's bow
       fire: (x, y, z, vx, vy, vz, dmg, pickup) => {
         const a = new Arrow(this.scene, this.world, x, y, z, vx, vy, vz, dmg, 'player', pickup);

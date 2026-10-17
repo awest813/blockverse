@@ -117,6 +117,7 @@ A second dimension, under a night that never ends: a burnt forest of charred tre
 - **Ash drakes** circle overhead and spit fireballs that set you alight (fire there never harms a block)
 - **The Scorch Dragon** roosts on a mesa crowned with smouldering spires (your first arrival says which way). It wheels round its roost loosing fire and dives at you; hurt to half, it calls its drakes and comes down low to breathe fire. It's back the next time you come
 - **Spoils**: dragon scales (from the dragon, and now and then a drake) make **dragon scale armour**, as strong as diamond and turning a fifth of fire and lava damage per piece; the dragon's fang, a scale and a stick make the **Ember Blade**, which sets what it strikes alight. Castles and spires give **scorched bricks** and charred stone to build with
+- **Pets of the Scorchlands**: **cinder hounds** roam the burnt forest in ones and twos. Tame one with bones: fire and lava can't hurt it, it guards you like a dog, and its bite sets monsters alight. The dragon (and, rarely, an ash drake) leaves a **drake egg**: set it down and an **ember whelp** hatches, a little drake that flies at your shoulder and spits fire at monsters. Both follow you through portals
 - `/dimension scorchlands` (and `overworld`) to go straight there
 
 ### 🌗 Living environment

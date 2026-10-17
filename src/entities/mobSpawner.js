@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
-import { SkeletonKnight, AshDrake } from './scorchMobs.js';
+import { SkeletonKnight, AshDrake, CinderHound } from './scorchMobs.js';
 import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican, Crab } from './animals.js';
 
 // night spawn mix: [class, weight]
@@ -30,6 +30,7 @@ const GULL_CAP = 5;
 const PELICAN_CAP = 4;
 const CRAB_CAP = 5;
 const DRAKE_CAP = 2;
+const HOUND_CAP = 2;
 // a desert has the one kind of animal: don't let camels fill the cap
 const KIND_CAP = new Map([[Camel, 4]]);
 // these live on sand rather than grass
@@ -98,6 +99,11 @@ export class MobSpawner {
       if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
       // ash drakes take wing from anywhere (they don't need the dark)
       if (this.difficulty > 0 && count(mobs, AshDrake) < DRAKE_CAP && Math.random() < 0.2) this.trySpawnLocal(player, AshDrake, () => true);
+      // cinder hounds roam the burnt forest in ones and twos (at any difficulty: they're wild animals)
+      const hounds = mobs.filter((m) => m instanceof CinderHound && !m.tamed).length;
+      if (hounds < HOUND_CAP && Math.random() < 0.15) {
+        this.trySpawnLocal(player, CinderHound, (wx, wz, ground) => ground === B.ASHEN_GRASS || ground === B.ASH, Math.min(HOUND_CAP - hounds, 1 + (Math.random() < 0.4 ? 1 : 0)));
+      }
       return;
     }
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);

@@ -1108,6 +1108,14 @@ tile('dragon_scale', (ctx) => {
   for (let y = 6; y < 12; y++) px(ctx, 8, y, d);
   px(ctx, 6, 9, d); px(ctx, 10, 9, d);
 });
+// a drake's egg: speckled, warm red-black, a crack of light down one side
+tile('drake_egg', (ctx, rng) => {
+  const shell = [70, 30, 26], dark = [40, 18, 16], hot = [255, 140, 50];
+  for (let y = 3; y < 14; y++) { const w = Math.round(Math.sqrt(1 - ((y - 9) / 6.5) ** 2) * 9) - (y < 7 ? 2 - ((y - 3) >> 1) : 0); rect(ctx, 8 - (w >> 1), y, w, 1, shell); }
+  for (let i = 0; i < 9; i++) px(ctx, 5 + ((rng() * 6) | 0), 5 + ((rng() * 8) | 0), dark);
+  px(ctx, 9, 6, hot); px(ctx, 10, 7, hot); px(ctx, 9, 8, hot); px(ctx, 10, 9, [255, 200, 120]);
+  px(ctx, 6, 5, [120, 60, 50]);
+});
 tile('dragon_fang', (ctx) => {
   const ivory = [238, 228, 200], shadow = [190, 176, 146], root = [120, 40, 30];
   for (let i = 0; i < 10; i++) { rect(ctx, 4 + i, 2 + i, 3 - (i >> 2) || 1, 1, i > 6 ? shadow : ivory); }

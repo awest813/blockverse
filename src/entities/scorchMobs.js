@@ -4,11 +4,13 @@
 //                    turns blows and arrows from the front; it drops while
 //                    the knight swings, and enough battering knocks it aside.
 //   Ash Drake, Scorch Dragon  (fliers: below)
+//   Cinder Hound, Ember Whelp  (pets: at the end)
 
 import { Mob } from './mob.js';
 import { Zombie } from './mobs.js';
 import { I } from '../items/itemIds.js';
-import { B } from '../blocks/blocks.js';
+import { B, isSolid } from '../blocks/blocks.js';
+import { Dog, PET_CLASSES } from './animals.js';
 import { makeStack } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
@@ -259,6 +261,7 @@ export class AshDrake extends Flier {
   onDeath() {
     const drops = [{ id: I.CHARCOAL, count: (Math.random() * 3) | 0 }];
     if (Math.random() < 0.25) drops.push(makeStack(I.DRAGON_SCALE, 1));
+    if (Math.random() < 0.04) drops.push(makeStack(I.DRAKE_EGG, 1));
     this.dropFn?.(drops);
   }
 }
@@ -441,6 +444,147 @@ export class ScorchDragon extends Flier {
   onDeath() {
     const roll = (lo, hi) => lo + ((Math.random() * (hi - lo + 1)) | 0);
     this.dropFn?.([makeStack(I.DRAGON_SCALE, roll(6, 10)), makeStack(I.DRAGON_FANG, 1), makeStack(I.DIAMOND, roll(2, 4)),
-      makeStack(I.GOLD_INGOT, roll(4, 8)), makeStack(I.GOLDEN_APPLE, 1)]);
+      makeStack(I.GOLD_INGOT, roll(4, 8)), makeStack(I.GOLDEN_APPLE, 1), makeStack(I.DRAKE_EGG, 1)]);
   }
 }
+
+// ---------- the Scorchlands' pets ----------
+
+//   Cinder Hound  a soot-black hound with embers for eyes, roaming the burnt
+//                 forest in ones and twos. Like a dog: it bites back if
+//                 hit, tames with bones, and guards you. Fire can't hurt it,
+//                 and its bite sets monsters alight.
+export class CinderHound extends Dog {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'cinderhound';
+    this.petName = 'cinder hound';
+    this.health = 12;
+    this.maxTamedHealth = 30;
+    this.biteDamage = 5;
+    this.speed = 1.6; this.fleeSpeed = 4;
+    this.fireproof = true;
+    this.ambientSound = 'dog';
+  }
+
+  buildModel() {
+    const fur = 0x2e2828, dark = 0x1a1616, ember = 0xe8641a;
+    this.part(0.46, 0.42, 0.84, fur, 0, 0.62, 0.05);                       // body
+    this.glowPart(0.3, 0.05, 0.5, ember, 0, 0.84, 0.05, 0.6);              // embers along the back
+    this.part(0.42, 0.38, 0.38, fur, 0, 0.84, -0.52);                      // head
+    this.part(0.22, 0.16, 0.22, dark, 0, 0.74, -0.78);                     // muzzle
+    this.part(0.07, 0.06, 0.03, 0x0a0a0a, 0, 0.79, -0.9);
+    this.part(0.1, 0.18, 0.06, dark, -0.14, 1.08, -0.52);                  // ears
+    this.part(0.1, 0.18, 0.06, dark, 0.14, 1.08, -0.52);
+    this.glowPart(0.06, 0.05, 0.02, 0xffa030, -0.1, 0.9, -0.715);          // ember eyes
+    this.glowPart(0.06, 0.05, 0.02, 0xffa030, 0.1, 0.9, -0.715);
+    this.collar = this.part(0.46, 0.08, 0.12, fur, 0, 0.74, -0.36);
+    this.tail = this.part(0.1, 0.1, 0.44, fur, 0, 0.74, 0.62);
+    this.glowPart(0.11, 0.11, 0.1, ember, 0, 0.74, 0.86, 0.7);             // a smouldering tail tip
+    this.quadLegs(fur, 0.14, 0.44, 0.15, 0.3, 0.44);
+  }
+
+  // its bite sets monsters alight (not the fireproof ones)
+  onBite(target) {
+    if (target.hostile && !target.fireproof) target.fireTime = Math.max(target.fireTime ?? 0, 3);
+  }
+}
+
+//   Ember Whelp  a drake hatched from a Drake Egg: yours from the shell. It
+//                flies at your shoulder and spits fire at monsters that come
+//                near; right-click to have it perch (or follow again).
+export class EmberWhelp extends AshDrake {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'whelp';
+    this.petName = 'ember whelp';
+    this.hostile = false;
+    this.tamed = false;
+    this.sitting = false;
+    this.health = 20;
+    this.maxTamedHealth = 20;
+    this.w = 0.55; this.h = 0.45;
+    this.group.scale.setScalar(0.6);
+    this.speed = 4; this.fleeSpeed = 7;
+    this.ambientSound = null;
+    this.orbit = Math.random() * Math.PI * 2;
+    this.spitT = 1;
+  }
+
+  onTamed() {}
+
+  interact(player) {
+    if (!this.tamed) return false;
+    this.sitting = !this.sitting;
+    this.fx?.notify(this.sitting ? 'Your ember whelp perches' : 'Your ember whelp follows you');
+    return true;
+  }
+
+  update(dt, player) {
+    if (this.tamed && !this.dead && this.health < this.maxTamedHealth) this.health = Math.min(this.maxTamedHealth, this.health + dt * 0.25);
+    super.update(dt, player);
+  }
+
+  think(dt, player, playerDist) {
+    this.spitT -= dt;
+    this.moving = true;
+    if (!this.tamed) {
+      // (only ever summoned wild: it drifts about, harmless)
+      this.stateTime -= dt;
+      if (this.stateTime <= 0) {
+        this.stateTime = 2 + Math.random() * 3;
+        this.targetYaw = this.yaw + (Math.random() - 0.5) * 2.5;
+        this.targetVy = clamp((this.groundBelow() + 4 - this.y) * 0.5, -2, 2);
+      }
+      return;
+    }
+    if (this.sitting) {
+      // perch: settle on the ground and fold up
+      this.moving = false;
+      this.targetVy = this.onGround ? 0 : -2;
+      return;
+    }
+    // a monster near you: spit fire at it
+    const foe = this.nearestFoe(player);
+    if (foe && this.spitT <= 0 && this.canSeeMob(foe)) {
+      this.spitT = 1.6 + Math.random() * 0.8;
+      const ox = this.x, oy = this.y + 0.3, oz = this.z;
+      const dx = foe.x - ox, dy = foe.y + foe.h * 0.5 - oy, dz = foe.z - oz, len = Math.hypot(dx, dy, dz) || 1;
+      this.targetYaw = Math.atan2(-dx, -dz);
+      this.fx?.petFireball?.(ox, oy, oz, (dx / len) * 16, (dy / len) * 16, (dz / len) * 16, 4);
+    }
+    // keep at your shoulder, wheeling slowly
+    this.orbit += dt * 0.9;
+    const tx = player.x + Math.cos(this.orbit) * 1.6, tz = player.z + Math.sin(this.orbit) * 1.6;
+    const far = Math.hypot(tx - this.x, tz - this.z);
+    this.flyTo(tx, player.y + 2.1, tz);
+    this.moving = far > 0.6;
+    this.dashSpeed = playerDist > 8 ? 9 : 0;
+  }
+
+  nearestFoe(player) {
+    let best = null, bd = 12;
+    for (const m of this.fx?.mobs?.() ?? []) {
+      if (!m.hostile || m.dead || m.dying !== undefined || m.kind === 'creeper') continue;   // (a creeper is best left alone)
+      const d = Math.hypot(m.x - player.x, m.y - player.y, m.z - player.z);
+      if (d < bd) { best = m; bd = d; }
+    }
+    return best;
+  }
+
+  // a clear line from its mouth to the monster's middle
+  canSeeMob(m) {
+    const ox = this.x, oy = this.y + 0.3, oz = this.z;
+    const dx = m.x - ox, dy = m.y + m.h * 0.5 - oy, dz = m.z - oz;
+    const steps = Math.ceil(Math.hypot(dx, dy, dz) / 0.3);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      if (isSolid(this.world.getBlockW(Math.floor(ox + dx * t), Math.floor(oy + dy * t), Math.floor(oz + dz * t)))) return false;
+    }
+    return true;
+  }
+
+  onDeath() {}   // (a pet leaves nothing behind)
+}
+
+Object.assign(PET_CLASSES, { cinderhound: CinderHound, whelp: EmberWhelp });

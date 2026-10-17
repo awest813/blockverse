@@ -36,6 +36,7 @@ const DEATH_MESSAGES = {
   knight: 'You were cut down by a Skeleton Knight',
   captain: 'You were bested by the Knight Captain',
   drake: 'You were burnt to a crisp by an Ash Drake',
+  cinderhound: 'You were mauled by a Cinder Hound',
   fireball: 'You were struck by a fireball',
   dragon: 'You were torn apart by the Scorch Dragon',
   dragonfire: 'You were burnt to ashes by the Scorch Dragon',

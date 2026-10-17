@@ -1017,7 +1017,7 @@ class Pet extends Animal {
     if (this.tamed) {
       this.sitting = !this.sitting;
       this.moving = false;
-      this.fx?.notify(this.sitting ? `Your ${this.kind} is sitting` : `Your ${this.kind} follows you`);
+      this.fx?.notify(this.sitting ? `Your ${this.petName ?? this.kind} is sitting` : `Your ${this.petName ?? this.kind} follows you`);
       return true;
     }
     if (held?.id !== this.tameItem) return false;
@@ -1026,10 +1026,10 @@ class Pet extends Animal {
       this.tamed = true;
       this.health = this.maxTamedHealth;
       this.onTamed();
-      this.fx?.notify(`You tamed a ${this.kind}! Right-click it to make it sit or follow.`);
+      this.fx?.notify(`You tamed a ${this.petName ?? this.kind}! Right-click it to make it sit or follow.`);
       this.fx?.sound('pickup');
     } else {
-      this.fx?.notify(`The ${this.kind} isn't sure about you yet…`);
+      this.fx?.notify(`The ${this.petName ?? this.kind} isn't sure about you yet…`);
     }
     return true;
   }
@@ -1103,6 +1103,7 @@ export class Dog extends Pet {
       if (this.dist(target) < 1.5 && this.biteCooldown <= 0 && Math.abs(target.y - this.y) < 1.5) {
         if (cause) target.damage(dmg, cause); else target.damage(dmg, this);
         this.biteCooldown = 1;
+        this.onBite?.(target);
       }
     };
     if (this.tamed) {
@@ -1110,11 +1111,11 @@ export class Dog extends Pet {
       // (only ones it can reach: not a zombie idling in a cave far below)
       const foe = !this.sitting && this.nearest((m) => m.hostile && m.kind !== 'creeper'
         && Math.hypot(m.x - player.x, m.z - player.z) < 10 && Math.abs(m.y - this.y) < 3, 14);
-      if (foe) { bite(foe, 4); return; }
+      if (foe) { bite(foe, this.biteDamage ?? 4); return; }
       this.follow(player, playerDist);
       return;
     }
-    if (this.angry > 0 && !player.dead && playerDist < 16) { bite(player, 3, 'dog'); return; }
+    if (this.angry > 0 && !player.dead && playerDist < 16) { bite(player, 3, this.kind); return; }
     if (this.state === 'chase') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
     super.think(dt, player, playerDist);
   }

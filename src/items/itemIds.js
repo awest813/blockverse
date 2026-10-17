@@ -143,4 +143,5 @@ export const I = {
   DRAGON_CHESTPLATE: 385,
   DRAGON_LEGGINGS: 386,
   DRAGON_BOOTS: 387,
+  DRAKE_EGG: 388,        // hatches an ember whelp
 };

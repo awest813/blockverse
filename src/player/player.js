@@ -12,7 +12,7 @@ import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
-const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain', 'drake', 'fireball', 'dragon', 'dragonfire']);   // (explosions hurt at any difficulty)
+const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain', 'cinderhound', 'drake', 'fireball', 'dragon', 'dragonfire']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze', 'poison']);
 const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
 const DRAGON_SCALE = new Set([I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS]);
