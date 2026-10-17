@@ -24,7 +24,7 @@ export class SkeletonKnight extends Zombie {
     this.health = 30;
     this.speed = 1.1;
     this.fleeSpeed = 2.5;
-    this.meleeDamage = 5;
+    this.meleeDamage = 4;
     this.swing = 0;        // >0: a stroke coming
     this.guardDown = 0;    // >0: shield knocked aside
     this.soaked = 0;
@@ -233,7 +233,7 @@ export class AshDrake extends Flier {
       this.orbit += dt * 0.7 * this.orbitDir;
       this.flyTo(player.x + Math.cos(this.orbit) * 8, player.y + 5, player.z + Math.sin(this.orbit) * 8);
       if (this.shootCooldown <= 0 && playerDist < 22 && this.canSee(player, 0.4)) {
-        this.shootCooldown = 2.6 + Math.random() * 1.6;
+        this.shootCooldown = 3.2 + Math.random() * 1.6;
         this.spit(player, 14, 3);
       }
       return;
@@ -363,7 +363,7 @@ export class ScorchDragon extends Flier {
         this.targetYaw = Math.atan2(-dx, -dz);
         this.dashSpeed = Math.max(2, (speed * Math.hypot(dx, dz)) / len);
         this.targetVy = (speed * dy) / len;
-        if (this.dist3(player) < 3.2 && this.meleeHit(player, 8, 'dragon')) {
+        if (this.dist3(player) < 3.2 && this.meleeHit(player, 7, 'dragon')) {
           const dx = player.x - this.x, dz = player.z - this.z, d = Math.hypot(dx, dz) || 1;
           player.vx += (dx / d) * 10;
           player.vz += (dz / d) * 10;
@@ -399,7 +399,7 @@ export class ScorchDragon extends Flier {
         if (!engaged) break;
         if ((this.volleyT -= dt) <= 0) {
           this.volleyT = this.enraged ? 3.5 : 5;
-          if (this.dist3(player) < 40 && this.canSee(player, 1.2)) for (const s of [-0.12, 0, 0.12]) this.spit(player, 16, 4, s);
+          if (this.dist3(player) < 40 && this.canSee(player, 1.2)) for (const s of [-0.12, 0, 0.12]) this.spit(player, 16, 3, s);
         }
         if ((this.attackT -= dt) <= 0) {
           this.attackT = this.enraged ? 7 : 10;

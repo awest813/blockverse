@@ -21,8 +21,9 @@ export const LAVA_LEVEL = 38;   // lava lakes fill up to here
 // the cell (so it never reaches the next), and nothing grows inside it
 const CELL = 6;
 const CASTLE_R = 11;     // half its width
-const CLEAR_R = 15;      // trees keep this far from its middle
+const CLEAR_R = 20;      // trees keep this far from its middle (and its causeway)
 const ROOST_R = 21;      // the roost's mesa reaches this far out
+const STAIR_END = 23;    // and its stair (a step down a block from the rim at 14)
 
 // [id, min, max, chance]
 const CASTLE_LOOT = [
@@ -103,7 +104,7 @@ export class ScorchGen {
   // inside a castle's grounds or on the roost (where nothing else is built)
   nearStructure(wx, wz) {
     const r = this.roost();
-    if (Math.max(Math.abs(wx - r.x), Math.abs(wz - r.z)) <= ROOST_R + 3) return true;
+    if (Math.max(Math.abs(wx - r.x), Math.abs(wz - r.z)) <= STAIR_END + 3) return true;
     const c = this.castleIn(Math.floor(wx / CHUNK_X), Math.floor(wz / CHUNK_Z));
     return !!c && Math.max(Math.abs(wx - c.ox), Math.abs(wz - c.oz)) <= CLEAR_R;
   }
@@ -120,8 +121,19 @@ export class ScorchGen {
     const hs = [];
     for (let dx = -ROOST_R; dx <= ROOST_R; dx += 4) for (let dz = -ROOST_R; dz <= ROOST_R; dz += 4) hs.push(Math.floor(this.columnAt(x + dx, z + dz).h));
     hs.sort((p, q) => p - q);
-    const top = Math.min(CHUNK_Y - 30, Math.max(LAVA_LEVEL + 8, hs[hs.length >> 1] + 8));
-    this._roost = { x, z, y: top + 1, cx, cz, side: (rng() * 4) | 0 };
+    const median = hs[hs.length >> 1];
+    // the stair goes down the side where the land at its foot is nearest
+    // the land round about, and the top is set so the stair meets it there
+    const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    let side = 0, foot = median, best = Infinity;
+    DIRS.forEach(([sx, sz], i) => {
+      const h = Math.floor(this.columnAt(x + sx * (STAIR_END + 1), z + sz * (STAIR_END + 1)).h);
+      const cost = Math.abs(h - median) + (h <= LAVA_LEVEL ? 20 : 0);
+      if (cost < best) { best = cost; side = i; foot = h; }
+    });
+    const rise = STAIR_END - 13;
+    const top = Math.min(CHUNK_Y - 30, Math.max(LAVA_LEVEL + 8, median + 3, Math.min(median + 10, foot + rise)));
+    this._roost = { x, z, y: top + 1, cx, cz, side };
     return this._roost;
   }
 
@@ -267,6 +279,25 @@ export class ScorchGen {
     }
     // the gate: a three-wide arch in the wall facing f.gate
     for (let a = -1; a <= 1; a++) for (let k = 0; k < 4; k++) { const [wx, wz] = at(a, W); put(wx, y + k, wz, B.AIR, false); }
+    // the way in: a causeway from the gate to the land outside, sloping no
+    // more than a block a step (a castle on a rise, or in a hollow, is still
+    // walked into)
+    {
+      const [ex, ez] = at(0, W + 9);
+      const outside = Math.floor(this.columnAt(ex, ez).h) + 1;
+      for (let b = W + 1; b <= W + 8; b++) {
+        const hy = Math.round(y + ((outside - y) * (b - W)) / 9);
+        for (let a = -2; a <= 2; a++) {
+          const [wx, wz] = at(a, b);
+          for (let yy = hy - 6; yy < hy; yy++) {
+            const cur = get(wx, yy, wz);
+            if (yy === hy - 1) put(wx, yy, wz, Math.abs(a) === 2 ? B.SCORCHED_BRICKS : B.SCORCHED_STONE, false);
+            else if (cur === B.AIR || cur === B.LAVA) put(wx, yy, wz, B.SCORCHED_STONE, false);
+          }
+          for (let yy = hy; yy < hy + 4; yy++) put(wx, yy, wz, B.AIR, false);
+        }
+      }
+    }
     // corner towers: hollow, five across, one fallen to a stump
     const fallen = (rng() * 4) | 0;
     [[-W, -W], [W, -W], [W, W], [-W, W]].forEach(([tx, tz], i) => {
@@ -320,6 +351,7 @@ export class ScorchGen {
       const dx = -W + 1 + ((rng() * (2 * W - 1)) | 0), dz = -W + 1 + ((rng() * (2 * W - 1)) | 0);
       const id = rng() < 0.7 ? brick() : B.CHARRED_LOG;
       if (Math.max(Math.abs(dx), Math.abs(dz)) <= K + 1) continue;   // (the keep's doorstep stays clear)
+      if (Math.abs(f.gate & 1 ? dz : dx) <= 1) continue;               // (and the way from the gate to its door)
       put(ox + dx, y, oz + dz, id);
       if (rng() < 0.3) put(ox + dx, y + 1, oz + dz, brick());
     }
@@ -348,7 +380,7 @@ export class ScorchGen {
     }
     // the stair: a step down per block from the rim, out over the skirt
     const [sx, sz] = [[0, -1], [1, 0], [0, 1], [-1, 0]][f.side];
-    for (let k = 0; k <= ROOST_R - 13; k++) {
+    for (let k = 0; k <= STAIR_END - 14; k++) {
       for (let w = -1; w <= 1; w++) {
         const wx = ox + sx * (14 + k) + sz * w, wz = oz + sz * (14 + k) + sx * w;
         const sy = top - k;

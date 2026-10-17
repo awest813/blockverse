@@ -237,7 +237,7 @@ export class KnightCaptain extends BossMixin(SkeletonKnight) {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
     this.kind = 'captain';
-    this.meleeDamage = 7;
+    this.meleeDamage = 6;
     this.chargeCooldown = 3;
     this.charging = 0;
     bossify(this, { name: 'Knight Captain', health: 70, scale: 1.35 });
