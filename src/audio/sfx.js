@@ -6,18 +6,19 @@ const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
   arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks', crit: 'blocks', weak: 'blocks', sweep: 'blocks',
+  simmer: 'blocks', ladle: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
   camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
+const RANGE = { simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
 const LIMITS = { pickup: [2, 0.06], mobhurt: [3, 0.1], mobdeath: [3, 0.1], explode: [2, 0.12], hit: [3, 0.05], step: [2, 0.08], splash: [2, 0.1], arrowhit: [3, 0.06], swim: [1, 0.2],
-  crackle: [2, 0.3], lavapop: [2, 0.3] };
+  crackle: [2, 0.3], lavapop: [2, 0.3], simmer: [1, 0.4] };
 
 export class Sfx {
   constructor() {
@@ -538,6 +539,15 @@ export class Sfx {
         break;
       case 'splash':
         this.noise({ freq: 1100, q: 0.4, dur: 0.25, gain: 0.35, type: 'highpass', pitchDrop: 600 });
+        break;
+      case 'simmer':   // a pot on the boil: a few soft bubbles
+        for (let i = 0; i < 2 + (Math.random() * 3 | 0); i++) {
+          this.later(() => this.tone({ freq: (300 + Math.random() * 300) * detune, endFreq: 700 * detune, dur: 0.05, gain: 0.05, type: 'sine' }), i * 90 + Math.random() * 60);
+        }
+        break;
+      case 'ladle':    // a wet scoop and a clink on the bowl
+        this.noise({ freq: 900 * detune, q: 0.8, dur: 0.18, gain: 0.18, type: 'lowpass' });
+        this.later(() => this.tone({ freq: 1900 * detune, dur: 0.08, gain: 0.05, type: 'triangle' }), 120);
         break;
     }
   }

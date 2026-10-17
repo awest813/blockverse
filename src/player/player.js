@@ -47,6 +47,7 @@ export class Player {
     this.airTimer = 0;
     this.fireTime = 0;     // seconds left burning
     this.poisonTime = 0;   // seconds of a scorpion's venom left
+    this.warmTime = 0;     // seconds a hot meal keeps the cold out
     this.exhaustion = 0;
 
     // inventory: 36 slots (0-8 hotbar), stacks are {id, count, dur?} | null
@@ -364,6 +365,7 @@ export class Player {
   // each piece of leather armour keeps a fifth of the chill out. Chilled
   // through, you stiffen up; frozen, it starts to hurt.
   updateCold(dt) {
+    if (this.warmTime > 0) this.warmTime = Math.max(0, this.warmTime - dt);
     this.coldTimer = (this.coldTimer ?? 0) - dt;
     if (this.coldTimer <= 0) {
       this.coldTimer = 0.5;
@@ -375,6 +377,7 @@ export class Player {
       const outside = this.world.getSkyW(x, ey, z) >= 12;
       let rate;
       if (warm) rate = -1 / 5;
+      else if (this.warmTime > 0) rate = cold && this.inWater ? 1 / 45 : -1 / 12;   // a hot meal inside you
       else if (cold && this.inWater) rate = 1 / 15;
       else if (cold && night && outside) rate = 1 / 80;
       else rate = -1 / 30;
@@ -471,6 +474,7 @@ export class Player {
     this.fireTime = 0;
     this.freeze = 0;
     this.poisonTime = 0;
+    this.warmTime = 0;
   }
 
   // ---- inventory helpers ----

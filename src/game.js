@@ -18,6 +18,7 @@ import { Containers } from './ui/containers.js';
 import { tickFurnaces } from './items/furnace.js';
 import { tickSaplings } from './world/saplings.js';
 import { tickCampfires } from './items/campfire.js';
+import { tickPots } from './items/cookingPot.js';
 import { tickSpawners } from './entities/spawners.js';
 import { tickRandomGrowth } from './world/randomTicks.js';
 import { tickFires } from './world/fire.js';
@@ -85,6 +86,7 @@ function needsSaving(c) {
     if (TICKING.has(st.kind)) return true;
     if (st.kind === 'furnace' && st.burnLeft > 0) return true;
     if (st.kind === 'campfire' && st.slots?.some(Boolean)) return true;
+    if (st.kind === 'pot' && st.water && st.items?.length >= 2 && !st.meal) return true;   // simmering
   }
   return false;
 }
@@ -144,7 +146,7 @@ export class Game {
       } : null,
     });
     this.scene.add(this.world.group);
-    this.campfireFx = new CampfireFx(this.scene, this.world, atlas);
+    this.campfireFx = new CampfireFx(this.scene, this.world, atlas, (name, opts) => this.sfx?.play(name, opts));
     this.signFx = new SignFx(this.scene, this.world);
 
     this.player = new Player(this.world);
@@ -629,6 +631,7 @@ export class Game {
     let id = t.id === B.FURNACE_LIT ? B.FURNACE : t.id;
     if (cropFamily(id)) id = cropFamily(id)[2];   // crops pick their seed (or carrot / potato)
     else if (id === B.OAK_DOOR_TOP) id = B.OAK_DOOR;
+    else if (id === B.COCONUT) id = I.COCONUT;   // a hanging coconut picks the nut
     else if (!isBlockItem(id) || id === B.WATER || id === B.LAVA || id === B.FIRE) return;
     const p = this.player;
     const inv = p.inventory;
@@ -1338,6 +1341,7 @@ export class Game {
     tickFurnaces(this.world, dt);
     tickSaplings(this.world, dt);
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
+    tickPots(this.world, dt, (x, y, z) => this.sfx?.play('simmer', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, vol: 1.5 }));
     if (!away) tickSpawners(this, dt);
     tickFarmTech(this, dt);
     tickRandomGrowth(this.world, this.player, dt);

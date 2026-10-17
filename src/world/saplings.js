@@ -85,17 +85,25 @@ function growTree(world, x, y, z, st) {
   const rng = mulberry32((x * 73856093) ^ (z * 19349663) ^ (Date.now() & 0xffff));
   const size = 4 + ((rng() * 3) | 0);
   const height = size + (kind === 'birch' ? 2 : kind === 'spruce' ? 4 : kind === 'palm' ? 3 : 0) + 1;
-  // the whole canopy must be in loaded chunks (no half-tree at a border)
-  for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) {
+  // the whole canopy must be in loaded chunks (no half-tree at a border); a
+  // palm's fronds reach further, from a trunk that may lean two blocks over
+  const reach = kind === 'palm' ? 6 : 3;
+  for (const [dx, dz] of [[-reach, -reach], [reach, -reach], [-reach, reach], [reach, reach]]) {
     if (!world.isLoaded(x + dx, z + dz)) { st.grow = 30; return; }
   }
   // need open air (or leaves) for the trunk; otherwise try again a little later
+  // (a palm's leaning trunk could go up to two blocks any way: all of that too,
+  // so it never grows through a wall or a chest)
+  const open = (wx, wy, wz) => {
+    const b = blockInfo(world.getBlockW(wx, wy, wz));
+    return wy < CHUNK_Y && (b.id === B.AIR || b.replaceable || LEAVES.has(b.id));
+  };
   for (let i = 1; i <= height; i++) {
-    const b = blockInfo(world.getBlockW(x, y + i, z));
-    if (y + i >= CHUNK_Y || (b.id !== B.AIR && !b.replaceable && !LEAVES.has(b.id))) {
-      st.grow = 30;
-      return;
+    let ok = open(x, y + i, z);
+    if (kind === 'palm' && i >= 3) {
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let d = 1; d <= 2; d++) ok &&= open(x + dx * d, y + i, z + dz * d);
     }
+    if (!ok) { st.grow = 30; return; }
   }
   const put = (wx, wy, wz, id, onlyAir = true) => {
     const cur = blockInfo(world.getBlockW(wx, wy, wz));

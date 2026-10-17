@@ -424,7 +424,7 @@ export class Horse extends Animal {
   loadExtra(e) {
     this.setCoat(e.coat);
     for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
-    this.jumpV = Math.max(this.jumpV, 10.4);   // horses saved before every horse could clear a fence
+    if (this.kind === 'horse') this.jumpV = Math.max(this.jumpV, 10.4);   // horses saved before every horse could clear a fence (camels never do)
     this.owned = !!e.owned;
     this.setSaddled(!!e.saddled);
   }
@@ -451,10 +451,11 @@ export class Horse extends Animal {
       say('Saddled — use it with an empty hand to ride; sneak to get off');
       return true;
     }
-    // golden food breeds a tamed pair, like any farm animal
-    if (this.owned && this.likes(held?.id)) return super.interact(player, held);
     // food calms a wild horse (and heals or grows any horse)
     const calm = held && this.tamingFood.get(held.id);
+    // golden food (a camel's cactus) breeds a tamed pair, like any farm animal,
+    // unless it's hurt and the food can heal it
+    if (this.owned && this.likes(held?.id) && !(calm && this.health < this.maxHealth)) return super.interact(player, held);
     if (calm) {
       const hungry = this.baby || !this.owned || this.health < this.maxHealth;
       if (!hungry) return false;
@@ -1598,9 +1599,11 @@ export class Pelican extends Duck {
   loadExtra() {}
 
   think(dt, player, playerDist) {
-    // floating: now and then dip the bill in for a fish
+    // floating: now and then dip the bill in for a fish (not on a lead, or when frightened)
+    const free = !this.leash && this.state !== 'flee';
+    if (!free) this.fishing = 0;
     if (this.fishing > 0) { this.fishing -= dt; this.moving = false; return; }
-    if (this.inWater && this.state !== 'flee' && Math.random() < dt / 12) {
+    if (free && this.inWater && Math.random() < dt / 12) {
       this.fishing = 1.2;
       this.fx?.sound('splash', { pos: this, vol: 0.35 });
       return;

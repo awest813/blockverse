@@ -91,6 +91,10 @@ export class Hints {
         'Leather armour', 'Cow leather makes light armour — a good start before iron.'],
       ['campfire', () => RAW_FOOD.some((id) => has([id])), B.CAMPFIRE,
         'Cook on a campfire', `3 sticks, coal or charcoal and 3 logs make a Campfire. ${cap(k('use'))} it with raw meat or fish to cook — no fuel needed.`],
+      ['pot', () => this.seen.has('campfire') && (has([I.BRICK_ITEM], 3) || has([I.BOWL]) || has([B.COOKING_POT])), B.COOKING_POT,
+        'Cooking pot', `7 bricks make a Cooking Pot. Set it on a campfire, fill it with water, ${k('use')} it with 2\u20134 foods (meat, fish, carrots, potatoes, mushrooms, pumpkin, coconut…) and ladle the meal out with bowls. Hot meals keep the cold out.`],
+      ['camel', () => g.entities.mobs.some((m) => m.kind === 'camel' && !m.owned && !m.baby && Math.hypot(m.x - p.x, m.z - p.z) < 12), I.SADDLE,
+        'Camels', `Tame one like a horse: feed it cactus or wheat and ${k('use')} it with an empty hand until it trusts you, then saddle it.`],
       ['bed', () => has([B.WOOL], 3), B.BED,
         'Bed', '3 wool + 3 planks make a Bed. Sleep to skip the night and set your respawn point.'],
     ];

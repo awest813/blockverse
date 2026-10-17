@@ -5,6 +5,8 @@
 import { B, BLOCKS } from './blocks.js';
 
 const P = 1 / 16;
+// a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
+const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -99,6 +101,22 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     // an open wooden box
     case 'trough': return [[0, 0, 0, 1, 3 * P, 1], [0, 3 * P, 0, 1, 10 * P, 2 * P], [0, 3 * P, 14 * P, 1, 10 * P, 1],
       [0, 3 * P, 2 * P, 2 * P, 10 * P, 14 * P], [14 * P, 3 * P, 2 * P, 1, 10 * P, 14 * P]];
+    // a clay pot on short legs (they reach down into a fire below it); the
+    // seventh entry of a box names its own tile: the water or stew inside
+    case 'pot': {
+      if (collision) return [[2 * P, 0, 2 * P, 14 * P, 11 * P, 14 * P]];
+      const boxes = [[3 * P, 0, 3 * P, 13 * P, 2 * P, 13 * P],
+        [2 * P, 2 * P, 2 * P, 14 * P, 9 * P, 4 * P], [2 * P, 2 * P, 12 * P, 14 * P, 9 * P, 14 * P],
+        [2 * P, 2 * P, 4 * P, 4 * P, 9 * P, 12 * P], [12 * P, 2 * P, 4 * P, 14 * P, 9 * P, 12 * P],
+        // the rim, a little proud of the walls
+        [P, 9 * P, P, 15 * P, 11 * P, 3 * P], [P, 9 * P, 13 * P, 15 * P, 11 * P, 15 * P],
+        [P, 9 * P, 3 * P, 3 * P, 11 * P, 13 * P], [13 * P, 9 * P, 3 * P, 15 * P, 11 * P, 13 * P],
+        // a tripod down into the fire (hidden inside a solid block below)
+        [3 * P, -11 * P, 3 * P, 4.5 * P, 0, 4.5 * P], [11.5 * P, -11 * P, 3 * P, 13 * P, 0, 4.5 * P], [7.25 * P, -11 * P, 11.5 * P, 8.75 * P, 0, 13 * P]];
+      const fill = POT_FILL[meta];
+      if (fill) boxes.push([4 * P, 2 * P, 4 * P, 12 * P, (meta === 1 ? 8 : 8.5) * P, 12 * P, fill]);
+      return boxes;
+    }
     case 'coconut': return [[5 * P, 7 * P, 5 * P, 11 * P, 14 * P, 11 * P], [7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P]];   // a nut on a short stalk
     case 'lantern': {
       // body and cap (a hanging one dangles on a chain from the block above)
@@ -127,6 +145,7 @@ export function shapeBoxes(id, meta, nb, collision = false) {
 }
 
 // boxes for a block in the world (world needs getBlockW and getMetaW)
+// (a cooking pot is picked and outlined by its plain body, not its legs and rim)
 export function worldBoxes(world, x, y, z, id, collision = false) {
-  return shapeBoxes(id, world.getMetaW(x, y, z), (dx, dz) => world.getBlockW(x + dx, y, z + dz), collision);
+  return shapeBoxes(id, world.getMetaW(x, y, z), (dx, dz) => world.getBlockW(x + dx, y, z + dz), collision || id === B.COOKING_POT);
 }

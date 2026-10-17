@@ -1,8 +1,10 @@
-// Campfire visuals: the food cooking on each nearby fire, and rising smoke.
+// Campfire visuals: the food cooking on each nearby fire, and rising smoke;
+// and the steam (and bubbling) off a cooking pot on the boil.
 
 import * as THREE from 'three';
 import { B } from '../blocks/blocks.js';
-import { forEachCampfire, CAMPFIRE_SLOTS } from '../items/campfire.js';
+import { forEachCampfire, forEachBlockEntity, CAMPFIRE_SLOTS } from '../items/campfire.js';
+import { potHeated } from '../items/cookingPot.js';
 
 const RANGE = 28;          // only decorate fires this close to the player
 const SMOKE_EVERY = 0.35;  // seconds between puffs per lit fire
@@ -23,11 +25,13 @@ function smokeTexture() {
 }
 
 export class CampfireFx {
-  constructor(scene, world, atlas) {
+  constructor(scene, world, atlas, sound = null) {
     this.scene = scene;
     this.world = world;
     this.atlas = atlas;
+    this.sound = sound;        // (name, opts) for a pot's bubbling
     this.fires = new Map();    // "x,y,z" -> {food: Mesh[], smokeTimer, x, y, z}
+    this.pots = [];            // {x, y, z, cooking, timer} for hot pots nearby
     this.smoke = [];
     this.scanTimer = 0;
     this.iconTex = new Map();
@@ -66,22 +70,31 @@ export class CampfireFx {
     }
     for (const s of this.smoke) {
       s.age += dt;
-      const k = s.age / SMOKE_LIFE;
-      s.sprite.position.y += dt * 1.1;
+      const k = s.age / (s.steam ? SMOKE_LIFE * 0.6 : SMOKE_LIFE);
+      s.sprite.position.y += dt * (s.steam ? 0.9 : 1.1);
       s.sprite.position.x += s.drift * dt;
-      s.sprite.scale.setScalar(0.35 + k * 1.1);
-      s.sprite.material.opacity = 0.55 * (1 - k);
+      s.sprite.scale.setScalar(s.steam ? 0.25 + k * 0.7 : 0.35 + k * 1.1);
+      s.sprite.material.opacity = (s.steam ? 0.4 : 0.55) * (1 - k);
       if (k >= 1) { this.scene.remove(s.sprite); s.sprite.material.dispose(); }
     }
-    this.smoke = this.smoke.filter((s) => s.age < SMOKE_LIFE);
+    // steam off a hot pot of water; one with a meal on bubbles too
+    for (const pot of this.pots) {
+      pot.timer -= dt;
+      if (pot.timer > 0) continue;
+      pot.timer = (pot.cooking ? 0.45 : 0.8) * (0.7 + Math.random() * 0.6);
+      this.puff(pot.x + 0.5, pot.y + 0.65, pot.z + 0.5, true);
+      if (pot.cooking && Math.random() < 0.5) this.sound?.('simmer', { pos: { x: pot.x + 0.5, y: pot.y + 0.5, z: pot.z + 0.5 } });
+    }
+    this.smoke = this.smoke.filter((s) => s.age < (s.steam ? SMOKE_LIFE * 0.6 : SMOKE_LIFE));
   }
 
-  puff(x, y, z) {
+  puff(x, y, z, steam = false) {
     if (this.smoke.length > 80) return;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.smokeTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+    if (steam) sprite.material.color.setRGB(1.25, 1.25, 1.3);   // whiter than smoke
     sprite.position.set(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3);
     this.scene.add(sprite);
-    this.smoke.push({ sprite, age: 0, drift: (Math.random() - 0.5) * 0.3 });
+    this.smoke.push({ sprite, age: 0, drift: (Math.random() - 0.5) * 0.3, steam });
   }
 
   // match meshes to the campfires (and the food on them) near the player
@@ -115,6 +128,16 @@ export class CampfireFx {
         }
       });
     });
+    // hot pots of water nearby (keeping their puff timers)
+    const old = new Map(this.pots.map((p) => [`${p.x},${p.y},${p.z}`, p]));
+    this.pots = [];
+    forEachBlockEntity(this.world, 'pot', (x, y, z, st) => {
+      if (Math.abs(x - player.x) > RANGE || Math.abs(z - player.z) > RANGE) return;
+      if (!st.water || this.world.getBlockW(x, y, z) !== B.COOKING_POT || !potHeated(this.world, x, y, z)) return;
+      const pot = old.get(`${x},${y},${z}`) ?? { x, y, z, timer: Math.random() * 0.5 };
+      pot.cooking = st.items.length >= 2 || !!st.meal;
+      this.pots.push(pot);
+    });
     // fires that were broken or left behind
     for (const [key, f] of this.fires) {
       if (seen.has(key)) continue;
@@ -128,6 +151,7 @@ export class CampfireFx {
     for (const s of this.smoke) { this.scene.remove(s.sprite); s.sprite.material.dispose(); }
     this.fires.clear();
     this.smoke = [];
+    this.pots = [];
     for (const t of this.iconTex.values()) t.dispose();
     this.smokeTex.dispose();
     this.foodGeo.dispose();

@@ -8,9 +8,9 @@ import { itemInfo } from './items.js';
 
 export const CAMPFIRE_SLOTS = 4;
 
-// raw foods the furnace can cook
+// what the furnace turns into food (raw meat, potatoes, eggs, kelp)
 export function campfireCookable(id) {
-  return SMELTING.has(id) && (itemInfo(id)?.food ?? 0) > 0;
+  return SMELTING.has(id) && (itemInfo(SMELTING.get(id).id)?.food ?? 0) > 0;
 }
 
 export function campfireState(world, x, y, z) {
@@ -33,11 +33,14 @@ export function addToCampfire(world, x, y, z, id) {
 }
 
 // Call fn(x, y, z, state) for every campfire in loaded chunks.
-export function forEachCampfire(world, fn) {
+export const forEachCampfire = (world, fn) => forEachBlockEntity(world, 'campfire', fn);
+
+// ... or every block entity of some kind (cooking pots)
+export function forEachBlockEntity(world, kind, fn) {
   for (const chunk of world.chunks.values()) {
     if (!chunk.blockEntities.size) continue;
     for (const [idx, st] of chunk.blockEntities) {
-      if (st.kind !== 'campfire') continue;
+      if (st.kind !== kind) continue;
       const y = idx % CHUNK_Y;
       const rest = (idx - y) / CHUNK_Y;
       const lz = rest % 16, lx = (rest - lz) / 16;

@@ -251,7 +251,7 @@ export function buildChunkGeometry(world, chunk, atlas) {
                 lights[i * 2] = (skyAcc / cnt / 15) * f.shade;
                 lights[i * 2 + 1] = (blAcc / cnt / 15) * f.shade;
               }
-              opaque.quad(x, y, z, corners, uvs, atlas.faceLayer(id, f.face), lights, false);
+              opaque.quad(x, y, z, corners, uvs, bx[6] ? atlas.layer(bx[6]) : atlas.faceLayer(id, f.face), lights, false);
             }
           }
           continue;

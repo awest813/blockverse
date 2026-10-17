@@ -41,6 +41,8 @@ function item(id, name, display, opts = {}) {
     heal: opts.heal ?? 0,          // health restored on eating (golden apple)
     eatTime: opts.eatTime ?? 1.6,  // seconds of holding use to eat/drink
     drink: opts.drink ?? false,    // milk: drinkable without being food
+    warms: opts.warms ?? 0,        // seconds a hot meal keeps the cold out
+    cures: opts.cures ?? false,    // settles a scorpion's venom
   });
 }
 
@@ -129,7 +131,21 @@ item(I.WHALE_OIL, 'whale_oil', 'Whale Oil', { burnTime: 160 });
 item(I.FISHING_ROD, 'fishing_rod', 'Fishing Rod', { stack: 1, tool: { class: 'rod', tier: 0, speed: 1, durability: 64, damage: 1 }, burnTime: 10 });
 item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
 item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, sat: 9.6, heal: 8 });
-item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, sat: 7.2, stack: 1, returns: I.BOWL });
+item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, sat: 7.2, stack: 1, returns: I.BOWL, warms: 60 });
+// cooking: quick bites from the furnace and the crafting table, and hot meals
+// from the cooking pot (they come in a bowl, warm you through, and some do more)
+item(I.FRIED_EGG, 'fried_egg', 'Fried Egg', { food: 4, sat: 4.8, eatTime: 1.1 });
+item(I.SUSHI, 'sushi', 'Sushi Roll', { food: 3, sat: 4.2, eatTime: 0.9 });
+item(I.APPLE_PIE, 'apple_pie', 'Apple Pie', { food: 8, sat: 5.6 });
+item(I.COCONUT_MILK, 'coconut_milk', 'Coconut Milk', { food: 2, sat: 1.2, stack: 1, drink: true, returns: I.BOWL, cures: true, eatTime: 1.2 });
+const meal = (id, name, display, food, sat, extra = {}) => item(id, name, display, { food, sat, stack: 1, returns: I.BOWL, warms: 120, eatTime: 1.8, ...extra });
+meal(I.BEEF_STEW, 'beef_stew', 'Beef Stew', 10, 14);
+meal(I.CHICKEN_SOUP, 'chicken_soup', 'Chicken Soup', 8, 9.6, { heal: 4 });
+meal(I.FISH_CHOWDER, 'fish_chowder', 'Fish Chowder', 9, 11);
+meal(I.VEGETABLE_SOUP, 'vegetable_soup', 'Vegetable Soup', 7, 8.4);
+meal(I.PUMPKIN_SOUP, 'pumpkin_soup', 'Pumpkin Soup', 7, 8.4);
+meal(I.COCONUT_CURRY, 'coconut_curry', 'Coconut Curry', 10, 12, { warms: 180 });
+meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 6, 6);
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
@@ -200,8 +216,13 @@ const BLOCK_BURN = new Map([
 // One line on what a thing is for, shown in its tooltip (the less obvious ones)
 const USES = new Map([
   [I.LEAD, 'Use on a farm animal to lead it; use a fence post to tie it up'],
-  [I.GOAT_HORN, 'Blow it to call your horses'],
-  [I.SADDLE, 'Put it on a horse that trusts you, then ride it'],
+  [I.GOAT_HORN, 'Blow it to call your horses and camels'],
+  [I.SADDLE, 'Put it on a horse or camel that trusts you, then ride it'],
+  [I.BOWL, 'Ladles a meal out of a cooking pot; holds stew and coconut milk'],
+  [I.CHICKEN_SOUP, 'Good for what ails you'],
+  [I.COCONUT_MILK, 'Settles scorpion venom'],
+  [I.COCONUT, 'Eat it, or crack it into a bowl for coconut milk'],
+  [B.COOKING_POT, 'Set it over a fire, fill it with water, add 2-4 foods and ladle the meal out with bowls'],
   [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
   [I.BONE_MEAL, 'Use on crops, saplings or grass to make them grow'],
   [I.WHEAT_SEEDS, 'Plant on farmland (till grass with a hoe)'],
@@ -209,6 +230,7 @@ const USES = new Map([
   [I.POTATO, 'Plant on farmland, or bake in a furnace'],
   [I.SHEARS, 'Shear sheep for wool'],
   [I.BUCKET, 'Scoops water and lava; milks cows and goats'],
+  [I.MILK_BUCKET, 'Puts out flames and settles venom'],
   [B.HAY_BALE, 'Nine wheat; feeds a trough or calms a horse'],
   [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed'],
   [B.COMPOSTER, 'Plant scraps in, bone meal out'],

@@ -132,6 +132,10 @@ shaped(I.FISHING_ROD, 1, ['..S', '.SX', 'S.X'], { S: [I.STICK], X: [I.STRING] })
 shapeless(I.FLINT_AND_STEEL, 1, [[I.IRON_INGOT], [I.FLINT]]);
 shapeless(I.SUGAR, 1, [[B.SUGAR_CANE]]);
 shapeless(I.PUMPKIN_PIE, 1, [[B.PUMPKIN], [I.SUGAR], [I.EGG]]);
+shapeless(I.APPLE_PIE, 1, [[I.APPLE], [I.WHEAT], [I.SUGAR], [I.EGG]]);
+shapeless(I.SUSHI, 2, [[I.FISH_RAW], [I.DRIED_KELP]]);
+shapeless(I.COCONUT_MILK, 1, [[I.COCONUT], [I.BOWL]]);
+shaped(B.COOKING_POT, 1, ['B.B', 'B.B', 'BBB'], { B: [I.BRICK_ITEM] });
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });
@@ -277,6 +281,7 @@ export const SMELTING = new Map([
   [I.FISH_RAW, { id: I.FISH_COOKED, count: 1 }],
   [I.POTATO, { id: I.BAKED_POTATO, count: 1 }],
   [I.DUCK_RAW, { id: I.DUCK_COOKED, count: 1 }],
+  [I.EGG, { id: I.FRIED_EGG, count: 1 }],
   [B.OAK_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.BIRCH_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.SPRUCE_LOG, { id: I.CHARCOAL, count: 1 }],

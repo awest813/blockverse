@@ -95,9 +95,10 @@ export class MobSpawner {
     if (dayFactor > 0.5 && gulls < GULL_CAP && Math.random() < 0.5) this.trySpawnBird(player, true);
     // a beach is a thin strip and a desert's scorpions come out at any hour:
     // these get a pass of their own rather than waiting on the biome tables
-    if (count(mobs, Pelican) < PELICAN_CAP && Math.random() < 0.3) {
+    const pelicans = count(mobs, Pelican);
+    if (pelicans < PELICAN_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Pelican, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
-        && this.world.gen.columnAt(wx, wz).t >= 0.45, 1 + ((Math.random() * 3) | 0));   // pelicans like it warm
+        && this.world.gen.columnAt(wx, wz).t >= 0.45, Math.min(PELICAN_CAP - pelicans, 1 + ((Math.random() * 3) | 0)));   // pelicans like it warm
     }
     if (this.difficulty > 0 && count(mobs, Scorpion) < SCORPION_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Scorpion, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.DESERT);

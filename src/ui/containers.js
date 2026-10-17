@@ -159,6 +159,12 @@ export class Containers {
       d.textContent = `Restores ${info.food / 2} hunger` + (info.heal ? ` and ${info.heal / 2} hearts` : '');
       t.appendChild(d);
     }
+    if (info?.warms) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      d.textContent = `Hot: keeps the cold out for ${info.warms >= 120 ? `${info.warms / 60} minutes` : 'a minute'}`;
+      t.appendChild(d);
+    }
     if (info?.tool && WEAPON_STATS[info.tool.class]) {
       const w = WEAPON_STATS[info.tool.class];
       const d = document.createElement('div');

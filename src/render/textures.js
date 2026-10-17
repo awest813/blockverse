@@ -1380,6 +1380,74 @@ tile('mushroom_stew', (ctx) => {
   bowlShape(ctx, [170, 120, 80]);
   px(ctx, 5, 6, [214, 60, 50]); px(ctx, 9, 6, [214, 60, 50]); px(ctx, 7, 6, [200, 170, 140]);
 });
+// pot meals: a bowl of something, with a few bits showing, and a wisp of steam
+function mealIcon(ctx, broth, bits) {
+  bowlShape(ctx, broth);
+  bits.forEach(([x, col]) => px(ctx, x, 6, col));
+  for (const [x, y] of [[6, 4], [7, 3], [6, 2], [9, 4], [10, 3]]) px(ctx, x, y, [236, 236, 240]);
+}
+tile('beef_stew', (ctx) => mealIcon(ctx, [132, 74, 40], [[4, [96, 52, 30]], [6, [230, 130, 40]], [8, [222, 206, 150]], [11, [96, 52, 30]]]));
+tile('chicken_soup', (ctx) => mealIcon(ctx, [226, 196, 120], [[4, [240, 226, 196]], [7, [230, 130, 40]], [10, [240, 226, 196]]]));
+tile('fish_chowder', (ctx) => mealIcon(ctx, [232, 226, 206], [[5, [240, 170, 140]], [8, [222, 206, 150]], [11, [120, 160, 90]]]));
+tile('vegetable_soup', (ctx) => mealIcon(ctx, [196, 120, 60], [[4, [230, 130, 40]], [6, [110, 160, 70]], [9, [222, 206, 150]], [11, [214, 60, 50]]]));
+tile('pumpkin_soup', (ctx) => mealIcon(ctx, [232, 132, 40], [[5, [250, 200, 120]], [9, [250, 200, 120]]]));
+tile('coconut_curry', (ctx) => mealIcon(ctx, [226, 170, 60], [[4, [244, 238, 220]], [7, [214, 60, 50]], [10, [110, 160, 70]]]));
+tile('hearty_stew', (ctx) => mealIcon(ctx, [140, 96, 60], [[5, [110, 74, 44]], [8, [180, 150, 100]], [11, [110, 74, 44]]]));
+tile('coconut_milk', (ctx) => {
+  bowlShape(ctx, [246, 244, 236]);
+  rect(ctx, 5, 3, 6, 3, [116, 80, 44]); rect(ctx, 6, 3, 4, 2, [244, 240, 228]);   // half a shell on the rim
+});
+tile('fried_egg', (ctx) => {
+  const w = [248, 248, 244], wE = [226, 224, 216];
+  rect(ctx, 3, 5, 10, 7, w); rect(ctx, 4, 4, 7, 9, w); rect(ctx, 2, 7, 12, 3, w);
+  px(ctx, 2, 7, wE); px(ctx, 13, 9, wE); rect(ctx, 4, 12, 6, 1, wE); px(ctx, 12, 5, [210, 170, 110]);
+  rect(ctx, 6, 6, 4, 4, [246, 178, 30]); rect(ctx, 7, 5, 2, 6, [246, 178, 30]); px(ctx, 7, 6, [255, 220, 120]);
+});
+tile('sushi', (ctx) => {
+  const nori = [34, 52, 34], rice = [246, 244, 236];
+  for (const [ox, oy] of [[2, 6], [8, 3]]) {
+    rect(ctx, ox, oy, 6, 7, nori);
+    rect(ctx, ox + 1, oy + 1, 4, 3, rice);
+    rect(ctx, ox + 2, oy + 2, 2, 1, [240, 130, 90]);    // the fish
+    rect(ctx, ox, oy + 5, 6, 2, [24, 40, 26]);
+  }
+});
+tile('apple_pie', (ctx) => {
+  rect(ctx, 2, 7, 12, 5, [196, 140, 70]);
+  rect(ctx, 3, 6, 10, 2, [214, 168, 96]);
+  rect(ctx, 2, 11, 12, 1, [150, 100, 50]);
+  for (let x = 3; x < 13; x += 3) { px(ctx, x, 7, [150, 40, 30]); px(ctx, x + 1, 6, [236, 196, 130]); }   // lattice and fruit
+});
+// the cooking pot: fired clay, darker at the rim; the icon shows it steaming on its legs
+tile('pot_side', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[168, 92, 60], 6], [[150, 80, 52], 3], [[184, 106, 70], 2]]);
+  rect(ctx, 0, 5, TILE, 1, [132, 70, 44]);   // the rim's shadow
+  rect(ctx, 0, 10, TILE, 1, [186, 112, 76]); // a band round its belly
+});
+tile('pot_rim', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[180, 102, 66], 6], [[160, 88, 56], 3]]);
+  rect(ctx, 3, 3, 10, 10, [70, 40, 28]);     // the dark inside
+});
+tile('pot_water', (ctx, rng) => fillNoise(ctx, rng, [[[64, 110, 200], 6], [[80, 128, 214], 3], [[150, 190, 236], 1]]));
+tile('pot_stew', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[130, 76, 42], 6], [[112, 64, 34], 3]]);
+  for (let i = 0; i < 12; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, rng() < 0.5 ? [230, 130, 40] : [210, 196, 150]);
+});
+tile('pot_soup', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[226, 140, 50], 6], [[210, 120, 40], 3]]);
+  for (let i = 0; i < 10; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, rng() < 0.5 ? [250, 200, 120] : [110, 160, 70]);
+});
+tile('pot_chowder', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[230, 222, 196], 6], [[214, 204, 176], 3]]);
+  for (let i = 0; i < 10; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, rng() < 0.5 ? [240, 170, 140] : [230, 130, 40]);
+});
+tile('cooking_pot', (ctx) => {
+  const c = [168, 92, 60], cD = [128, 68, 42], cL = [196, 120, 80];
+  rect(ctx, 3, 7, 10, 6, c); rect(ctx, 2, 6, 12, 2, cL); rect(ctx, 3, 12, 10, 1, cD);
+  rect(ctx, 4, 6, 8, 1, [64, 110, 200]);                                     // water
+  rect(ctx, 4, 13, 1, 2, cD); rect(ctx, 11, 13, 1, 2, cD);                    // legs
+  for (const [x, y] of [[6, 4], [7, 3], [6, 2], [9, 4], [10, 3], [9, 1]]) px(ctx, x, y, [236, 236, 240]);   // steam
+});
 
 // --- TNT ---
 tile('tnt_side', (ctx, rng) => {

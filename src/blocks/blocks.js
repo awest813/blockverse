@@ -112,6 +112,7 @@ export const B = {
   PALM_LEAVES: 106,
   PALM_SAPLING: 107,
   COCONUT: 108,          // hanging under a palm's fronds (drops the coconut item)
+  COOKING_POT: 109,
 };
 
 // Tool classes
@@ -409,6 +410,13 @@ reg(def(B.COLLECTOR, 'collector', 'Collector', {
 // holds animal feed; animals nearby help themselves (and breed). {kind: 'trough', slots: [3]}
 reg(def(B.TROUGH, 'trough', 'Feeding Trough', {
   render: R_SHAPE, shape: 'trough', opacity: 0, hardness: 0.8, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'trough',
+}));
+// a clay pot for stews: set it over a fire, fill it with water, put food in and
+// ladle the meal out with bowls. Block entity {kind: 'pot'} (items/cookingPot.js);
+// meta says what's in it for the look: 0 nothing, 1 water, 2+ a meal's colour
+reg(def(B.COOKING_POT, 'cooking_pot', 'Cooking Pot', {
+  render: R_SHAPE, shape: 'pot', opacity: 0, hardness: 1, tool: TOOL_PICKAXE, sound: 'stone',
+  textures: { top: 'pot_rim', bottom: 'pot_side', side: 'pot_side' }, icon: 'cooking_pot',
 }));
 // an iron lantern burning whale oil: stands on a block, or hangs under one (meta 1)
 reg(def(B.LANTERN, 'lantern', 'Lantern', {

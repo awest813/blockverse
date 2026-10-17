@@ -52,7 +52,9 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Item drops with physics that magnetize toward you and merge into your inventory
 - **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
 - **Recipe book** beside every crafting grid: search and categories, shape previews, ghost layouts for recipes you can't make yet, and one-click grid filling
-- **Campfire** (sticks, coal/charcoal, logs): cooks four raw foods at once with no fuel, glows, smokes, and burns anyone standing in it; shovel to put out, torch to relight
+- **Campfire** (sticks, coal/charcoal, logs): cooks four raw foods (meat, fish, potatoes, eggs, kelp) at once with no fuel, glows, smokes, and burns anyone standing in it; shovel to put out, torch to relight
+- **Cooking pot** (7 bricks): set it over a campfire (or a fire, lava or a lit furnace), fill it with a water bucket and put in two to four foods. It steams and bubbles for half a minute, then you ladle out three or four helpings with bowls: **beef stew**, **chicken soup** (heals too), **fish chowder**, **vegetable soup**, **pumpkin soup**, **coconut curry** and mushroom stew, or a **hearty stew** from anything else. Hot meals keep the cold out for a couple of minutes, and an empty-handed look in the pot tells you what's cooking
+- **More food**: fry eggs, roll **sushi** (raw fish and dried kelp), bake **apple pie**, and crack a coconut into a bowl for **coconut milk**, which settles scorpion venom like milk does
 - **Smelting guide** beside the furnace that loads ingredients and the right amount of fuel in one click
 - Inventory comforts: drag to split stacks across slots, double-click to gather a stack, shift-click quick moves
 - Storage blocks (iron, gold, diamond, coal), paper → books → bookshelves, jack o'lanterns, bowls and mushroom stew, charcoal
@@ -110,7 +112,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 
 ### 🖥️ Complete game shell
 - Main menu with **multiple worlds**: create (name + text/number seed + game mode), play, rename, delete
-- **Saving is automatic** (IndexedDB) every 10 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces and campfires, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
+- **Saving is automatic** (IndexedDB) every 10 seconds, when the tab is hidden and on quit: changed chunks, chests, furnaces, campfires and cooking pots, growing crops, player state and inventory (even what's on the cursor), pets and kept animals, items on the ground, and the time of day. Each save is a single transaction, so a crash can't leave a chest and your inventory out of step; a failed save is retried and reported
 - A world can only be open in one tab at a time (two copies would save over each other); damaged chunks are regenerated rather than crashing the world, and the browser is asked to keep the saves even when space runs low
 - Pause menu with a controls cheat sheet, settings (render distance, FOV, resolution (Auto lowers it while frames are slow and restores it when there's headroom), frame rate limit, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`

@@ -9,6 +9,7 @@ import { I } from '../items/itemIds.js';
 import { growCrop, cropTime, CROP_FAMILIES, isRipe } from '../world/saplings.js';
 import { useComposter, useTrough, describeMachine, FEEDS } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
+import { usePot, potContents } from '../items/cookingPot.js';
 import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
@@ -65,6 +66,7 @@ export function entityContents(st) {
   if (st.kind === 'chest') return st.slots.filter(Boolean);
   if (st.kind === 'campfire') return st.slots.filter(Boolean).map((s) => ({ id: s.id, count: 1 }));
   if (st.kind === 'trough') return st.slots.filter(Boolean);
+  if (st.kind === 'pot') return potContents(st);
   if (st.kind === 'composter' && st.level >= 7) return [{ id: I.BONE_MEAL, count: 1 }];   // a full one's bone meal
   return [];
 }
@@ -317,6 +319,9 @@ export class Interaction {
     // a goat horn calls your horses
     if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
+    // the cooking pot: water, food, then bowls
+    if (t && t.id === B.COOKING_POT && !p.sneaking
+      && usePot(this, t, held, { creative: p.mode === GAMEMODE_CREATIVE, itemName: (id) => itemInfo(id)?.display ?? '?' })) { this.useCooldown = 0.25; return; }
     if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER) && !p.sneaking && !(held && isBlockItem(held.id))) {
       this.cb.notify?.(describeMachine(this.world, t));
       this.useCooldown = 0.3;
@@ -512,6 +517,12 @@ export class Interaction {
     if (info.sickly && this.dropRng() < info.sickly) { p.addExhaustion(10); this.cb.notify?.('That didn\'t agree with you…'); }
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
     if (held.id === I.MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
+    if (info.cures) p.poisonTime = 0;
+    // a hot meal warms you through and keeps the cold out for a while
+    if (info.warms) {
+      if (p.freeze > 0.15) this.cb.notify?.('That warms you right through');
+      p.warmTime = Math.max(p.warmTime ?? 0, info.warms);
+    }
     p.consumeHeld(1);
     // stew and milk leave their container behind
     if (info.returns) {
@@ -617,8 +628,8 @@ export class Interaction {
     if (held.id === I.BUCKET || held.id === I.WATER_BUCKET || held.id === I.LAVA_BUCKET || held.id === B.LILY_PAD) {
       return this.useFluidItem(held);
     }
-    // snowballs and eggs are for throwing
-    if (held.id === I.SNOWBALL || held.id === I.EGG) {
+    // snowballs and eggs are for throwing (an egg aimed at a campfire goes on to fry)
+    if (held.id === I.SNOWBALL || (held.id === I.EGG && !(t && CAMPFIRES.has(t.id)))) {
       this.cb.throwItem?.(held.id === I.EGG ? 'egg' : 'snowball');
       if (!creative) p.consumeHeld(1);
       this.useCooldown = 0.25;
