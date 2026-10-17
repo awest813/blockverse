@@ -121,6 +121,7 @@ export const TOOL_NONE = null;
 export const TOOL_PICKAXE = 'pickaxe';
 export const TOOL_AXE = 'axe';
 export const TOOL_SHOVEL = 'shovel';
+export const TOOL_HOE = 'hoe';         // leaves and hay: a hoe cuts through them
 
 // Render kinds
 export const R_NONE = 0;   // air
@@ -209,7 +210,7 @@ reg(def(B.OAK_LOG, 'oak_log', 'Oak Log', {
   textures: { top: 'oak_log_top', bottom: 'oak_log_top', side: 'oak_log' },
 }));
 reg(def(B.OAK_LEAVES, 'oak_leaves', 'Oak Leaves', {
-  render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf',
+  render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf',
   drop: (rng) => {
     const drops = [];
     if (rng() < 0.05) drops.push({ id: I.APPLE, count: 1 });
@@ -223,13 +224,13 @@ reg(def(B.BIRCH_LOG, 'birch_log', 'Birch Log', {
   hardness: 2, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'birch_log_top', bottom: 'birch_log_top', side: 'birch_log' },
 }));
-reg(def(B.BIRCH_LEAVES, 'birch_leaves', 'Birch Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: leafDrops(B.BIRCH_SAPLING) }));
+reg(def(B.BIRCH_LEAVES, 'birch_leaves', 'Birch Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf', drop: leafDrops(B.BIRCH_SAPLING) }));
 reg(def(B.BIRCH_PLANKS, 'birch_planks', 'Birch Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
 reg(def(B.SPRUCE_LOG, 'spruce_log', 'Spruce Log', {
   hardness: 2, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'spruce_log_top', bottom: 'spruce_log_top', side: 'spruce_log' },
 }));
-reg(def(B.SPRUCE_LEAVES, 'spruce_leaves', 'Spruce Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: leafDrops(B.SPRUCE_SAPLING) }));
+reg(def(B.SPRUCE_LEAVES, 'spruce_leaves', 'Spruce Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf', drop: leafDrops(B.SPRUCE_SAPLING) }));
 reg(def(B.SPRUCE_PLANKS, 'spruce_planks', 'Spruce Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
 // coconut palms on warm beaches: a ringed trunk, drooping fronds, coconuts
 reg(def(B.PALM_LOG, 'palm_log', 'Palm Log', {
@@ -237,7 +238,7 @@ reg(def(B.PALM_LOG, 'palm_log', 'Palm Log', {
   textures: { top: 'palm_log_top', bottom: 'palm_log_top', side: 'palm_log' },
 }));
 reg(def(B.PALM_LEAVES, 'palm_leaves', 'Palm Fronds', {
-  render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf',
+  render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf',
   drop: (rng) => {
     const drops = [];
     if (rng() < 0.1) drops.push({ id: I.STICK, count: 1 });
@@ -391,7 +392,7 @@ reg(def(B.KELP, 'kelp', 'Kelp', { solid: false, render: R_CROSS, opacity: 1, har
 reg(def(B.SEAGRASS, 'seagrass', 'Seagrass', { solid: false, render: R_CROSS, opacity: 1, hardness: 0, sound: 'leaf', waterlogged: true, replaceable: true, drop: null }));
 // ---- farming & husbandry ----
 reg(def(B.HAY_BALE, 'hay_bale', 'Hay Bale', {
-  hardness: 0.5, sound: 'leaf', textures: { top: 'hay_bale_top', bottom: 'hay_bale_top', side: 'hay_bale_side' },
+  hardness: 0.5, tool: TOOL_HOE, sound: 'leaf', textures: { top: 'hay_bale_top', bottom: 'hay_bale_top', side: 'hay_bale_side' },
 }));
 // feed it plant scraps; when it's full, out comes bone meal. Block entity {kind: 'composter', level 0..7}
 reg(def(B.COMPOSTER, 'composter', 'Composter', {

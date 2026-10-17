@@ -2,7 +2,7 @@
 // { input, fuel, output, burnLeft, burnTotal, cook }
 
 import { B } from '../blocks/blocks.js';
-import { SMELTING, SMELT_TIME } from './recipes.js';
+import { SMELTING, SMELT_TIME, CRAFT_REMAINDER } from './recipes.js';
 import { itemInfo, maxStack } from './items.js';
 import { CHUNK_Y } from '../core/constants.js';
 
@@ -49,7 +49,8 @@ export function tickFurnaces(world, dt) {
           st.burnLeft = burn;
           st.burnTotal = burn;
           st.fuel.count--;
-          if (st.fuel.count <= 0) st.fuel = null;
+          // a lava bucket leaves its bucket in the fuel slot
+          if (st.fuel.count <= 0) st.fuel = CRAFT_REMAINDER.has(st.fuel.id) ? { id: CRAFT_REMAINDER.get(st.fuel.id), count: 1 } : null;
           chunk.modified = true;
           changed = true;
         }

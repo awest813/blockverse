@@ -42,7 +42,8 @@ shaped(B.TROUGH, 1, ['P.P', 'PPP'], { P: ANY_PLANKS });
 shaped(B.SPRINKLER, 1, ['.I.', 'IWI', '.I.'], { I: [I.IRON_INGOT], W: [I.WATER_BUCKET] });
 shaped(B.HARVESTER, 1, ['III', 'IHI', 'ICI'], { I: [I.IRON_INGOT], H: [I.IRON_HOE], C: [B.CHEST] });
 shaped(B.COLLECTOR, 1, ['I.I', 'ICI', '.I.'], { I: [I.IRON_INGOT], C: [B.CHEST] });
-shaped(I.GOLDEN_CARROT, 1, ['GGG', 'GCG', 'GGG'], { G: [I.GOLD_INGOT], C: [I.CARROT] });
+// (four ingots: eight, as for a golden apple, was a lot for a carrot that feeds one animal)
+shaped(I.GOLDEN_CARROT, 1, ['.G.', 'GCG', '.G.'], { G: [I.GOLD_INGOT], C: [I.CARROT] });
 shaped(I.SADDLE, 1, ['LLL', 'LIL'], { L: [I.LEATHER], I: [I.IRON_INGOT] });
 shaped(I.LEAD, 2, ['SS.', 'SL.', '..S'], { S: [I.STRING], L: [I.LEATHER] });
 shaped(B.CHEST, 1, ['XXX', 'X.X', 'XXX'], { X: ANY_PLANKS });
@@ -97,7 +98,9 @@ shapeless(B.JACK_O_LANTERN, 1, [[B.PUMPKIN], [B.TORCH]]);
 shaped(B.CAMPFIRE, 1, ['.S.', 'SCS', 'LLL'], { S: [I.STICK], C: [I.COAL, I.CHARCOAL], L: ANY_LOG });
 
 // a campfire cooks whatever the furnace turns into food (items/campfire.js)
-export const CAMPFIRE_TIME = 20;   // seconds per item (furnace: SMELT_TIME, but needs fuel)
+// (four at once, so about 7.5 s an item: a little quicker than a furnace's
+// 10, and free, but not twice as fast as it used to be)
+export const CAMPFIRE_TIME = 30;   // seconds per item (furnace: SMELT_TIME, but needs fuel)
 
 shaped(I.BOWL, 4, ['P.P', '.P.'], { P: ANY_PLANKS });
 shapeless(I.MUSHROOM_STEW, 1, [[I.BOWL], [B.MUSHROOM_BROWN], [B.MUSHROOM_RED]]);

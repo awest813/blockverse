@@ -176,6 +176,16 @@ export class Containers {
       d.textContent = `${info.tool.damage} attack damage, ${(1 / w.cooldown).toFixed(1)} hits/s` + (extra.length ? ` · ${extra.join(', ')}` : '');
       t.appendChild(d);
     }
+    // digging tools: how fast, and (pickaxes) what they can bring home
+    const DIGS = { pickaxe: 'stone and ores', axe: 'wood', shovel: 'dirt, sand and gravel', hoe: 'leaves and hay' };
+    if (info?.tool && DIGS[info.tool.class]) {
+      const d = document.createElement('div');
+      d.className = 'tooltip-sub';
+      const harvests = info.tool.class === 'pickaxe'
+        ? ` · harvests ${['', 'stone and coal', 'iron ore too', 'gold, diamond and redstone too', 'obsidian too'][info.tool.tier] ?? ''}` : '';
+      d.textContent = `Digs ${DIGS[info.tool.class]} ${info.tool.speed}× faster than a hand${harvests}`;
+      t.appendChild(d);
+    }
     const use = itemUse(stack.id);
     if (use) {
       const d = document.createElement('div');
@@ -633,7 +643,7 @@ export class Containers {
     book.appendChild(grid);
     const hint = document.createElement('div');
     hint.className = 'inv-hint';
-    hint.textContent = 'Fuel: coal and charcoal burn longest; wood, planks and sticks work too';
+    hint.textContent = 'Fuel: a lava bucket burns longest (you keep the bucket), then whale oil, coal and charcoal; wood, planks and sticks work too';
     book.appendChild(hint);
     return book;
   }

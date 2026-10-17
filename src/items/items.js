@@ -115,7 +115,7 @@ item(I.BOOK, 'book', 'Book');
 item(I.BOWL, 'bowl', 'Bowl', { burnTime: 5 });
 item(I.BUCKET, 'bucket', 'Bucket', { stack: 16 });
 item(I.WATER_BUCKET, 'water_bucket', 'Water Bucket', { stack: 1 });
-item(I.LAVA_BUCKET, 'lava_bucket', 'Lava Bucket', { stack: 1 });
+item(I.LAVA_BUCKET, 'lava_bucket', 'Lava Bucket', { stack: 1, burnTime: 1000 });   // fuel for 100 items; the bucket stays behind
 item(I.MILK_BUCKET, 'milk_bucket', 'Milk Bucket', { stack: 1, drink: true, returns: I.BUCKET });
 item(I.SNOWBALL, 'snowball', 'Snowball', { stack: 16 });
 item(I.DRIED_KELP, 'dried_kelp', 'Dried Kelp', { food: 1, eatTime: 0.8 });
@@ -228,8 +228,10 @@ const USES = new Map([
   [I.CARROT, 'Plant on farmland, or eat; pigs love them'],
   [I.POTATO, 'Plant on farmland, or bake in a furnace'],
   [I.SHEARS, 'Shear sheep for wool'],
+  ...[I.WOOD_HOE, I.STONE_HOE, I.IRON_HOE, I.GOLD_HOE, I.DIAMOND_HOE].map((id) => [id, 'Till grass or dirt into farmland']),
   [I.BUCKET, 'Scoops water and lava; milks cows and goats'],
   [I.MILK_BUCKET, 'Puts out flames and settles venom'],
+  [I.LAVA_BUCKET, 'Pour it out, or burn it in a furnace: it smelts 100 items, and you keep the bucket'],
   [B.HAY_BALE, 'Nine wheat; feeds a trough or calms a horse'],
   [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed'],
   [B.COMPOSTER, 'Plant scraps in, bone meal out'],
