@@ -9,6 +9,14 @@ import { SELLS, RETURNS, BUYS, priceOf, sell, bump } from '../world/market.js';
 import { describeAnimal } from '../entities/inspect.js';
 
 const name = (id) => itemInfo(id)?.display ?? '?';
+
+// into the pack; what doesn't fit drops at your feet (just that, not the lot)
+function giveOrDrop(g, id, n) {
+  const p = g.player;
+  if (!(n > 0)) return;
+  const left = p.give(id, n);
+  if (left > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: left }]);
+}
 const coinsText = (v) => (v >= 10 ? `${Math.round(v)}` : v.toFixed(1).replace(/\.0$/, ''));
 
 export class RanchPanel {
@@ -118,9 +126,9 @@ export class RanchPanel {
     if (n <= 0) return;
     p.take(id, n);
     const back = RETURNS.get(id);
-    if (back && p.give(back, n) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: back, count: n }]);
+    if (back) giveOrDrop(g, back, n);
     const coins = sell(g.worldMeta, id, n);
-    if (coins && p.give(I.COIN, coins) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: coins }]);
+    giveOrDrop(g, I.COIN, coins);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup', { pitch: 1.4 });
     this.renderMarket();
@@ -132,7 +140,7 @@ export class RanchPanel {
       if (p.countOf(I.COIN) < cost) return;
       p.take(I.COIN, cost);
     }
-    if (p.give(id, 1) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: 1 }]);
+    giveOrDrop(g, id, 1);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup');
     if (this.kind === 'trader') this.renderTrader(); else this.renderMarket();
@@ -183,8 +191,8 @@ export class RanchPanel {
     p.take(id, n);
     want[2] -= n;
     const back = RETURNS.get(id);
-    if (back && p.give(back, n) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: back, count: n }]);
-    if (p.give(I.COIN, price * n) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: price * n }]);
+    if (back) giveOrDrop(g, back, n);
+    giveOrDrop(g, I.COIN, price * n);
     bump(g.worldMeta, 'coins', price * n);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup', { pitch: 1.4 });

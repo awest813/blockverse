@@ -177,7 +177,7 @@ shapeless(I.BERRY_PIE, 1, [[I.BERRIES], [I.BERRIES], [I.WHEAT], [I.SUGAR], EGG])
 shapeless(I.SUSHI, 3, [[I.FISH_RAW], [I.DRIED_KELP], [I.RICE]]);
 shaped(B.CANDLE, 2, ['S', 'H'], { S: [I.STRING], H: [I.HONEYCOMB] });
 shapeless(I.MELON_SEEDS, 1, [[I.MELON_SLICE]]);
-shaped(B.SHEARER, 1, ['I.I', 'ISI', 'IRI'], { I: [I.IRON_INGOT], S: [I.SHEARS], R: [B.CHEST] });
+shaped(B.SHEARER, 1, ['I.I', 'IRI', 'III'], { I: [I.IRON_INGOT], R: [B.CHEST] });   // (fit it with shears: use a pair on it)
 shaped(B.MILKER, 1, ['I.I', 'IBI', 'PRP'], { I: [I.IRON_INGOT], B: [I.BUCKET], P: ANY_PLANKS, R: [B.CHEST] });
 shaped(I.WATERING_CAN, 1, ['I..', 'IBI', '.I.'], { I: [I.IRON_INGOT], B: [I.BUCKET] });
 shaped(B.MELON, 1, ['MMM', 'MMM', 'MMM'], { M: [I.MELON_SLICE] });

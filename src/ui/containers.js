@@ -1142,7 +1142,7 @@ export class Containers {
     if (items.length !== 2 || items[0].id !== items[1].id || items[0].dur === undefined) return null;
     const info = itemInfo(items[0].id);
     const max = info?.tool?.durability ?? info?.armor?.durability ?? info?.bow?.durability;
-    if (!max) return null;
+    if (!max || info?.tool?.class === 'watering') return null;   // (water isn't wear)
     return { id: items[0].id, count: 1, dur: Math.min(max, items[0].dur + items[1].dur + Math.floor(max * 0.05)) };
   }
 

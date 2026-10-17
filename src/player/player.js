@@ -572,6 +572,7 @@ export class Player {
     const s = this.inventory[this.selected];
     if (!s || s.dur === undefined) return;
     if (!any && !itemInfo(s.id)?.tool) return;   // armour or a bow used as a club doesn't wear
+    if (itemInfo(s.id)?.tool?.class === 'watering') return;   // (a watering can's 'wear' is the water in it)
     s.dur -= n;
     if (s.dur <= 0) {
       this.inventory[this.selected] = null;

@@ -201,6 +201,7 @@ function refillTrough(w, st, x, y, z) {
     const n = Math.min(s.count, roomFor(st.slots, s.id));
     if (!n) continue;
     addTo(st.slots, s.id, n);
+    w.markModified(x, z);   // (the trough's chunk too: it may not be the chest's)
     s.count -= n;
     if (s.count <= 0) chest.st.slots[i] = null;
     w.markModified(chest.x, chest.z);
@@ -420,7 +421,7 @@ export function describeMachine(w, t) {
   const chest = chestBeside(w, t.x, t.y, t.z);
   if (t.id === B.SHEARER) {
     const dur = w.blockEntityAt(t.x, t.y, t.z)?.dur ?? 0;
-    return dur > 0 ? `Auto-shearer: shears good for ${dur} more fleece${dur === 1 ? '' : 's'}${chest ? ', into the chest beside it' : ' (no chest: the wool drops)'}` : 'Auto-shearer: its shears are worn out — use a pair of shears on it';
+    return dur > 0 ? `Auto-shearer: shears good for ${dur} more fleece${dur === 1 ? '' : 's'}${chest ? ', into the chest beside it' : ' (no chest: the wool drops)'}` : 'Auto-shearer: no shears in it (or they\u2019re worn out) — use a pair of shears on it';
   }
   if (t.id === B.MILKER) {
     const buckets = chest ? chest.st.slots.reduce((n, s) => n + (s?.id === I.BUCKET ? s.count : 0), 0) : 0;

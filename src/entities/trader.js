@@ -115,6 +115,24 @@ function arrivalSpot(world, p) {
   return { x: at.x + 0.5, y, z: at.z + 0.5, stall: at.stall };
 }
 
+// A visit from a save, checked once a session (an imported file may say
+// anything): times within reason, a real spot, and wares at whole prices.
+const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+const checked = new WeakSet();   // (visits checked this session: not saved, so a reload checks again)
+function checkVisit(T, now) {
+  if (!T || typeof T !== 'object' || Array.isArray(T)) return { next: now + DAY_LENGTH_SECONDS, visit: 0 };
+  const out = { visit: whole(T.visit, 0, 1e9) ? T.visit : 0 };
+  out.next = Number.isFinite(T.next) ? Math.min(T.next, now + EVERY) : now + DAY_LENGTH_SECONDS;
+  const spot = [T.x, T.y, T.z].every(Number.isFinite);
+  if (spot && Number.isFinite(T.until) && T.until > now) {
+    Object.assign(out, { until: Math.min(T.until, now + STAY), x: T.x, y: T.y, z: T.z });
+    out.offers = (Array.isArray(T.offers) ? T.offers : []).filter((o) => Array.isArray(o) && Number.isInteger(o[0]) && whole(o[1], 1, 999)).slice(0, 4);
+    out.wants = (Array.isArray(T.wants) ? T.wants : []).filter((o) => Array.isArray(o) && Number.isInteger(o[0]) && whole(o[1], 1, 999) && whole(o[2], 0, 8)).slice(0, 2);
+    out.judged = (Array.isArray(T.judged) ? T.judged : []).filter((id) => typeof id === 'string').slice(0, 64);
+  }
+  return out;
+}
+
 // Every couple of seconds: does the trader come, stay or go?
 let timer = 0;
 export function tickTrader(game, dt) {
@@ -122,7 +140,7 @@ export function tickTrader(game, dt) {
   if (timer > 0 || game.dimension !== 'overworld') return;
   timer = 2;
   const meta = game.worldMeta, now = worldClock.now, p = game.player;
-  if (!meta.trader || typeof meta.trader !== 'object') meta.trader = { next: now + DAY_LENGTH_SECONDS, visit: 0 };
+  if (!meta.trader || typeof meta.trader !== 'object' || !checked.has(meta.trader)) { meta.trader = checkVisit(meta.trader, now); checked.add(meta.trader); }
   const T = meta.trader;
   const live = game.entities.mobs.find((m) => m.kind === 'trader' && !m.dead);
   const night = game.isNight();
@@ -161,8 +179,12 @@ export function judge(game, led) {
   const T = game.worldMeta.trader;
   if (!T) return false;
   T.judged = Array.isArray(T.judged) ? T.judged : [];
-  const fresh = led.filter((m) => !T.judged.includes(m.ensureId()));
-  if (!fresh.length) { game.hud.showLabel('Those have been judged this visit: come back next time'); return false; }
+  // grown animals of your own, three entries a visit
+  const yours = led.filter((m) => m.persistent && !m.baby);
+  if (!yours.length) { game.hud.showLabel('Only grown animals of your own can be entered in the fair'); return false; }
+  const room = Math.max(0, 3 - T.judged.length);
+  const fresh = yours.filter((m) => !T.judged.includes(m.ensureId())).slice(0, room);
+  if (!fresh.length) { game.hud.showLabel(room ? 'Those have been judged this visit: come back next time' : 'The fair\u2019s full this visit: three entries a visit'); return false; }
   const p = game.player, said = [];
   for (const m of fresh) {
     T.judged.push(m.id);
@@ -173,7 +195,10 @@ export function judge(game, led) {
     const place = score >= 0.72 ? 2 : score >= 0.5 ? 1 : 0;
     const prize = Math.round(4 + score * 26);
     if (RIBBONS.indexOf(m.ribbon) < place) m.ribbon = RIBBONS[place];
-    if (p.mode !== GAMEMODE_CREATIVE && p.give(I.COIN, prize) > 0) game.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: prize }]);
+    if (p.mode !== GAMEMODE_CREATIVE) {
+      const left = p.give(I.COIN, prize);
+      if (left > 0) game.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: left }]);
+    }
     bump(game.worldMeta, 'coins', prize);
     said.push(`${m.name ?? 'Your ' + (m.label ?? m.kind)}: ${RIBBONS[place]} ribbon, ${prize} coins`);
     game.sparks?.(m.x, m.y + m.h + 0.3, m.z, place === 2 ? 0x4060e0 : place === 1 ? 0xd04040 : 0xe0c040, 12);

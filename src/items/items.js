@@ -311,7 +311,7 @@ const USES = new Map([
   [I.HONEYCOMB, 'Shears take it from a full beehive. With string: a candle'],
   [B.CANDLE, 'A small, steady light that stands on any block'],
   [I.WATERING_CAN, 'Fill it at water; use it on crops to hurry along the stage they\u2019re at (a 3\u00d73 patch a go)'],
-  [B.SHEARER, 'Shears sheep in full fleece within 3 blocks into a chest beside it. Its shears wear out: use shears on it to fit new ones'],
+  [B.SHEARER, 'Use a pair of shears on it to fit them; then it shears sheep in full fleece within 3 blocks into a chest beside it, until the shears wear out'],
   [B.MILKER, 'Fills empty buckets from a chest beside it with milk from cows and goats within 3 blocks'],
   [I.MELON_SEEDS, 'Plant on farmland: a grown stem sets melons beside it (a harvester picks them)'],
   ...[I.BLUE_DYE, I.CYAN_DYE, I.PURPLE_DYE].map((id) => [id, 'Use it on a sheep to dye its fleece, or craft it with wool']),

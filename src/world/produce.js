@@ -222,7 +222,7 @@ function usePress(it, t, held) {
 
 const HIVE_BEES = 3, HIVE_HONEY = 5;
 const HONEY_WORK = 240;   // bee-seconds of the world's clock (with flowers about) to a bowl of honey
-const FLOWERS = new Set([B.DANDELION, B.POPPY]);
+const FLOWERS = new Set([B.DANDELION, B.POPPY, B.CORNFLOWER]);
 
 function flowersNear(w, x, y, z) {
   let n = 0;

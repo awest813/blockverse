@@ -177,6 +177,19 @@ Twenty-four scripted playthroughs ran with no crashes or console errors. Generat
 
 Still to do: a stable block, farmland moisture and light, seasons, crop quality, hide grade.
 
+### Audit, round 2 (done)
+
+Fixed:
+- Coin and bucket payouts could duplicate items when the inventory was nearly full: they now drop only what doesn't fit.
+- The watering can could wear out or be mended like a tool.
+- A trough refilled from a chest in another chunk could lose its feed on reload.
+- The auto-shearer now holds one real pair of shears: it's placed empty, fitted by hand, and gives the pair back when broken or refitted.
+- Cornflowers now need ground and count as flowers for bees.
+- Saved trader visits are checked on load: times clamped, a real spot, whole prices.
+- The fair takes only grown animals of your own, three entries a visit.
+
+Thirty-six playthroughs on generator 11 had no crashes or console errors. The one harness flake (lighting the portal on a slow frame) now retries.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

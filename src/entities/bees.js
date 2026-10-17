@@ -6,7 +6,7 @@
 import { Mob } from './mob.js';
 import { B } from '../blocks/blocks.js';
 
-const FLOWERS = new Set([B.DANDELION, B.POPPY]);
+const FLOWERS = new Set([B.DANDELION, B.POPPY, B.CORNFLOWER]);
 
 export class Bee extends Mob {
   constructor(scene, world, x, y, z) {

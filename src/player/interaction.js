@@ -24,7 +24,7 @@ const BUSH_GROUND = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);   // where a berr
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CANDLE, B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CANDLE, B.CORNFLOWER, B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);
@@ -73,6 +73,7 @@ export function entityContents(st) {
   if (st.kind === 'pot') return potContents(st);
   if (st.kind === 'composter' && st.level >= 7) return [{ id: I.BONE_MEAL, count: 1 }];   // a full one's bone meal
   if (st.kind === 'nest') return nestContents(st);
+  if (st.kind === 'shearer') return Number.isInteger(st.dur) && st.dur > 0 ? [{ id: I.SHEARS, count: 1, dur: Math.min(238, st.dur) }] : [];   // (its shears, as worn as they are)
   if (st.kind === 'churn') return Number.isInteger(st.milk) && st.milk > 0 ? [{ id: I.MILK_BUCKET, count: Math.min(4, st.milk) }] : [];   // (the milk not yet churned, back in buckets)
   if (st.kind === 'press') return pressContents(st);   // (the cheese that's ready)
   return [];
@@ -347,11 +348,17 @@ export class Interaction {
     // new shears for the auto-shearer
     if (t && t.id === B.SHEARER && held?.id === I.SHEARS && !p.sneaking) {
       const st = this.world.blockEntityAt(t.x, t.y, t.z) ?? { kind: 'shearer', dur: 0 };
-      st.dur = Math.min(476, (st.dur ?? 0) + (held.dur ?? 238));
+      const old = Number.isInteger(st.dur) && st.dur > 0 ? st.dur : 0;
+      st.dur = held.dur ?? 238;
       this.world.setBlockEntity(t.x, t.y, t.z, st);
-      if (p.mode !== GAMEMODE_CREATIVE) p.consumeHeld(1);
+      if (p.mode !== GAMEMODE_CREATIVE) {
+        p.consumeHeld(1);
+        // the pair it had comes back out
+        if (old) { if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: I.SHEARS, count: 1, dur: old }; else this.cb.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.SHEARS, count: 1, dur: old }], true); }
+        p.events.dispatchEvent(new CustomEvent('inventory'));
+      }
       this.cb.playSound('equip', {});
-      this.cb.notify?.(`New shears fitted: good for ${st.dur} fleeces`);
+      this.cb.notify?.(`Shears fitted: good for ${st.dur} fleeces`);
       this.useCooldown = 0.3;
       return;
     }
@@ -528,7 +535,7 @@ export class Interaction {
     // farm machines keep a little state of their own
     const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
       [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 },
-      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.SHEARER]: { kind: 'shearer', dur: 238 }, [B.MILKER]: { kind: 'milker' }, [B.BEEHIVE]: { kind: 'hive', bees: 0, honey: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
+      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.SHEARER]: { kind: 'shearer', dur: 0 }, [B.MILKER]: { kind: 'milker' }, [B.BEEHIVE]: { kind: 'hive', bees: 0, honey: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
     if (machine) this.world.setBlockEntity(px, py, pz, machine);
     // a new sprinkler hurries along crops already growing nearby, not just their next stage
     if (info.id === B.SPRINKLER) {
