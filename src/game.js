@@ -43,6 +43,7 @@ import { BlockUpdates } from './world/blockUpdates.js';
 import { worldClock } from './core/clock.js';
 import { describeAnimal } from './entities/inspect.js';
 import { catchUpChunk } from './world/saplings.js';
+import { tickRanch } from './world/ranch.js';
 import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -1589,6 +1590,7 @@ export class Game {
       this.updateWeather(dt);
       this.updateInspect(dt);
       (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
+      tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash

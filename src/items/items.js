@@ -260,7 +260,7 @@ const USES = new Map([
   [I.MILK_BUCKET, 'Puts out flames and settles venom'],
   [I.LAVA_BUCKET, 'Pour it out, or burn it in a furnace: it smelts 100 items, and you keep the bucket'],
   [B.HAY_BALE, 'Nine wheat; feeds a trough or calms a horse'],
-  [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed'],
+  [B.TROUGH, 'Fill with feed: animals nearby eat, grow and breed. Or pour in a bucket of water: a pen with water keeps its animals happy'],
   [B.COMPOSTER, 'Plant scraps in, bone meal out'],
   [B.SPRINKLER, 'Crops within 4 blocks grow much faster'],
   [B.HARVESTER, 'Reaps and replants ripe crops within 4 blocks into a chest beside it'],

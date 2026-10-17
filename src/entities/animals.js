@@ -9,6 +9,7 @@ import { itemInfo } from '../items/items.js';
 import { B, isSolid as isSolidId, isWater } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { worldClock } from '../core/clock.js';
+import { moodRate } from '../world/ranch.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -117,7 +118,7 @@ export class Chicken extends Animal {
     if (this.dead) return;
     // grown hens lay an egg every few minutes
     // (not while it's frozen in an unloaded chunk: the egg would fall through)
-    if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt;
+    if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt * moodRate(this);
     if (this.eggTimer <= 0) {
       this.eggTimer = 300 + Math.random() * 300;
       if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }
@@ -148,7 +149,7 @@ function milk(animal, player, held) {
     animal.fx?.notify?.(`Milked not long ago: ready again in ${Math.ceil(left)}s`);
     return false;
   }
-  animal.milkAt = worldClock.now + MILK_COOLDOWN;
+  animal.milkAt = worldClock.now + MILK_COOLDOWN / moodRate(animal);   // (a happy cow sooner)
   if (player.mode !== GAMEMODE_CREATIVE) {
     if (held.count > 1) {
       player.consumeHeld(1);

@@ -9,6 +9,7 @@ import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
 import { SMELTING } from '../items/recipes.js';
 import { worldClock } from '../core/clock.js';
+import { HAPPY, NO_BREEDING } from '../world/ranch.js';
 
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
@@ -17,6 +18,8 @@ import { worldClock } from '../core/clock.js';
 const GUIDED = new Set(['tempt', 'follow', 'called', 'flee']);
 const FENCES = new Set([B.OAK_FENCE, B.OAK_FENCE_GATE]);
 const PEN = new Set([B.OAK_FENCE, B.OAK_FENCE_GATE, B.TROUGH]);
+// what makes a pen miserable (the reasons a card gives)
+const BAD = new Set(['crowded', 'cramped', 'hungry', 'thirsty', 'out in the rain', 'cold at night', 'frightened']);
 const cookedId = (id) => ((itemInfo(id)?.food ?? 0) > 0 ? SMELTING.get(id)?.id ?? null : null);
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
@@ -122,9 +125,19 @@ export class Mob {
   // and the feeding trough.
   feed(id, boost = 60) {
     if (this.baby) {
+      this.fedAt = worldClock.now;
       this.grow = id === I.GOLDEN_CARROT ? 0 : Math.max(0, this.grow - boost);
     } else {
       if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return false;   // not hungry yet
+      if (this.unhappy()) {
+        // it eats, but it's in no mood: a miserable pen breeds nothing
+        if (worldClock.now - (this.fedAt ?? -1e9) < 30) return false;
+        this.fedAt = worldClock.now;
+        this.fx?.notify?.(`Too unhappy to breed: ${this.moodWhy.filter((w) => BAD.has(w)).join(', ') || 'its pen'}`);
+        this.fx?.sound('eat', { vol: 0.6, pos: this });
+        return true;
+      }
+      this.fedAt = worldClock.now;
       this.love = 30;
     }
     this.persistent = true;
@@ -133,12 +146,18 @@ export class Mob {
     return true;
   }
 
+  // in a pen it hates (see world/ranch.js)
+  unhappy() {
+    return !!this.pen && Number.isFinite(this.mood) && this.mood < NO_BREEDING && !!this.moodWhy;
+  }
+
   // right-click with its food: fall in love (or help a baby grow)
   interact(player, held) {
     if (!this.likes(held?.id)) return false;
     if (this.feed(held.id)) { if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1); }
     // not hungry: say why (rather than swallowing the click)
     else if (this.love > 0) this.fx?.notify?.('It\u2019s ready to breed: bring it another of its kind');
+    else if (this.unhappy()) this.fx?.notify?.('It\u2019s just eaten, and it\u2019s too unhappy to breed');
     else this.fx?.notify?.(`It can breed again in ${Math.ceil(this.breedCooldown ?? 0)}s`);
     return true;
   }
@@ -146,7 +165,7 @@ export class Mob {
   breedTick(dt) {
     this.breedCooldown = Math.max(0, (this.breedCooldown ?? 0) - dt);
     if (this.baby) {
-      this.grow -= dt;
+      this.grow -= dt * (this.mood >= HAPPY ? 1.25 : 1);   // (a happy pen's young grow faster)
       if (this.grow <= 0) { this.setBaby(false); this.fx?.spark?.(this.x, this.y + this.h, this.z, 0x9fe870, 8); }
       // no room to grow (pressed into a fence, say): try again in a moment
       if (!this.baby && !nudgeFree(this.world, this)) this.setBaby(true, 3);

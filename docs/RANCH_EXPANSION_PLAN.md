@@ -50,6 +50,10 @@ coverage, sleep catch-up).
 5. **Inspect** (sneak + use with an empty hand)
    - A card showing species, age, owner, health, breeding cooldown, traits, product timers and mood.
 
+### Step 2 (done)
+
+Pens (`world/ranch.js`): a bounded flood fill over the ground an animal can walk, hemmed in by fences, closed gates, walls, troughs, closed doors and drops of more than three blocks, and needing something built on its edge. Pens are cached for ten seconds and dropped on any nearby edit. A penned animal is kept and gets a `home`. Mood (saved) comes from room per animal, food, water (a pond or a water trough: a trough with a bucket of water in it), shelter at night or in rain, and monsters nearby. It scales wool regrowth, egg laying, the milk cooldown and babies' growth, and stops breeding below 25.
+
 ## Phase 2: breeding and genetics
 
 1. **Traits per species** (in `saveExtra`/`loadExtra`)

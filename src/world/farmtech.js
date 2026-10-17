@@ -95,6 +95,30 @@ function roomFor(slots, id) {
 export function useTrough(it, t, held) {
   const w = it.world, p = it.player;
   const st = troughState(w, t.x, t.y, t.z);
+  // a water trough: a bucket of water fills an empty one (and a bucket takes it back)
+  const watered = (w.getMetaW(t.x, t.y, t.z) & 1) === 1;
+  if (held?.id === I.WATER_BUCKET && !watered) {
+    if (st.slots.some(Boolean)) { it.cb.notify?.('Empty the feed out first: a trough holds feed or water, not both'); return true; }
+    if (w.dimension === 'scorch') return false;   // (it'd only boil away: the bucket's own hiss)
+    w.setBlock(t.x, t.y, t.z, B.TROUGH, 1);
+    w.setBlockEntity(t.x, t.y, t.z, st);
+    swapBucket(it, held, I.BUCKET);
+    it.cb.playSound('splash', {});
+    it.cb.notify?.('A water trough: animals in a pen with water are happier');
+    return true;
+  }
+  if (watered) {
+    if (held?.id === I.BUCKET) {
+      w.setBlock(t.x, t.y, t.z, B.TROUGH, 0);
+      w.setBlockEntity(t.x, t.y, t.z, st);
+      swapBucket(it, held, I.WATER_BUCKET);
+      it.cb.playSound('splash', {});
+      return true;
+    }
+    if (held && !FEEDS.has(held.id) && held.id !== B.HAY_BALE) return false;
+    it.cb.notify?.('A water trough — it holds water, not feed');
+    return true;
+  }
   const bale = held?.id === B.HAY_BALE;
   if (!held || (!FEEDS.has(held.id) && !bale)) {
     if (held && itemInfo(held.id)?.food) {
@@ -116,6 +140,17 @@ export function useTrough(it, t, held) {
   w.setBlockEntity(t.x, t.y, t.z, st);
   it.cb.playSound('place', { block: 'leaf' });
   return true;
+}
+
+// the held bucket becomes `id` (one of a stack: the filled one goes in the pack)
+function swapBucket(it, held, id) {
+  const p = it.player;
+  if (p.mode === GAMEMODE_CREATIVE) return;
+  if (held.count > 1) {
+    p.consumeHeld(1);
+    if (p.give(id, 1) > 0) it.cb.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: 1 }]);
+  } else p.inventory[p.selected] = { id, count: 1 };
+  p.events.dispatchEvent(new CustomEvent('inventory'));
 }
 
 function blockInfoName(id) {
@@ -164,7 +199,7 @@ function tickTrough(game, st, x, y, z) {
     if (id && m.feed(id, 15)) fed = true;   // (a mouthful a visit: a trough-fed baby grows up in about two minutes, not twenty-five seconds)
   }
   // then adults, two at a time of the same kind, so they pair up
-  const ready = near.filter((m) => !m.baby && !(m.love > 0) && !((m.breedCooldown ?? 0) > 0));
+  const ready = near.filter((m) => !m.baby && !(m.love > 0) && !((m.breedCooldown ?? 0) > 0) && !m.unhappy());
   const byKind = new Map();
   for (const m of ready) byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m]);
   for (const group of byKind.values()) {
@@ -286,7 +321,7 @@ export function tickFarmTech(game, dt) {
       const x = chunk.cx * 16 + lx, z = chunk.cz * 16 + lz;
       if (st.kind === 'harvester') { if (world.getBlockW(x, y, z) === B.HARVESTER) tickHarvester(game, st, x, y, z); }
       else if (st.kind === 'collector') { if (world.getBlockW(x, y, z) === B.COLLECTOR) tickCollector(game, x, y, z); }
-      else if (st.kind === 'trough') { if (world.getBlockW(x, y, z) === B.TROUGH) tickTrough(game, st, x, y, z); }
+      else if (st.kind === 'trough') { if (world.getBlockW(x, y, z) === B.TROUGH && !(world.getMetaW(x, y, z) & 1)) tickTrough(game, st, x, y, z); }
       else if (st.kind === 'sprinkler' && Math.hypot(x - player.x, z - player.z) < 24 && world.getBlockW(x, y, z) === B.SPRINKLER) {
         game.sparks?.(x + 0.5, y + 0.7, z + 0.5, 0x7ab8f0, 5);   // a little spray
       }

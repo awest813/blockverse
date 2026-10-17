@@ -101,8 +101,13 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     // a little brass head on a pipe
     case 'sprinkler': return [[5 * P, 0, 5 * P, 11 * P, 2 * P, 11 * P], [7 * P, 2 * P, 7 * P, 9 * P, 8 * P, 9 * P], [4 * P, 8 * P, 4 * P, 12 * P, 10 * P, 12 * P]];
     // an open wooden box
-    case 'trough': return [[0, 0, 0, 1, 3 * P, 1], [0, 3 * P, 0, 1, 10 * P, 2 * P], [0, 3 * P, 14 * P, 1, 10 * P, 1],
-      [0, 3 * P, 2 * P, 2 * P, 10 * P, 14 * P], [14 * P, 3 * P, 2 * P, 1, 10 * P, 14 * P]];
+    // (meta bit 0: full of water)
+    case 'trough': {
+      const boxes = [[0, 0, 0, 1, 3 * P, 1], [0, 3 * P, 0, 1, 10 * P, 2 * P], [0, 3 * P, 14 * P, 1, 10 * P, 1],
+        [0, 3 * P, 2 * P, 2 * P, 10 * P, 14 * P], [14 * P, 3 * P, 2 * P, 1, 10 * P, 14 * P]];
+      if ((meta & 1) && !collision) boxes.push([2 * P, 3 * P, 2 * P, 14 * P, 8.5 * P, 14 * P, 'pot_water']);
+      return boxes;
+    }
     // a clay pot on short legs (they reach down into a fire below it); the
     // seventh entry of a box names its own tile: the water or stew inside
     case 'pot': {

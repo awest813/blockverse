@@ -9,6 +9,8 @@ import { B, isWater } from '../blocks/blocks.js';
 import { makeStack } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { generateTile } from '../render/textures.js';
+import { moodRate } from '../world/ranch.js';
+import { worldClock } from '../core/clock.js';
 
 // the wool block's own weave, shared by every sheep's fleece
 let woolTex = null;
@@ -165,7 +167,7 @@ export class Sheep extends Mob {
   }
 
   think(dt, player, playerDist) {
-    if (this.sheared && (this.regrow -= dt) <= 0) this.setSheared(false);
+    if (this.sheared && (this.regrow -= dt * moodRate(this)) <= 0) this.setSheared(false);
     // sheep graze: head down for a mouthful. A shorn sheep or a lamb eats the
     // grass down to dirt (the fleece comes back, the lamb grows); a sheep in
     // full fleece just nibbles, so a flock doesn't strip the land bare
@@ -181,6 +183,7 @@ export class Sheep extends Mob {
         const bx = Math.floor(this.x), by = Math.floor(this.y - 0.1), bz = Math.floor(this.z);
         if ((this.sheared || this.baby) && this.world.getBlockW(bx, by, bz) === B.GRASS) {
           this.world.setBlock(bx, by, bz, B.DIRT);
+          this.fedAt = worldClock.now;
           this.fx?.sound('break', { block: 'leaf', pos: this, vol: 0.5 });
           if (this.baby) this.grow = Math.max(0, this.grow - 60);
           else this.setSheared(false);

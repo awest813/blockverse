@@ -5,7 +5,8 @@
 //    wither away a few seconds later, dropping what leaves drop. Leaves a
 //    player placed (meta 1) stay.
 
-import { B, blockInfo, isSolid } from '../blocks/blocks.js';
+import { B, blockInfo, isSolid, isWater } from '../blocks/blocks.js';
+import { penEdited } from './ranch.js';
 import { FallingBlock } from '../entities/fallingBlock.js';
 
 export const FALLS = new Set([B.SAND, B.GRAVEL]);
@@ -62,6 +63,8 @@ export class BlockUpdates {
       const cells = q.splice(0, Math.min(q.length, 5 * 600));
       for (let i = 0; i < cells.length; i += 5) {
         const x = cells[i], y = cells[i + 1], z = cells[i + 2], old = cells[i + 3], now = cells[i + 4];
+        // a fence, gate or trough changed: the pens about it are looked at again
+        if (isSolid(old) || isSolid(now) || isWater(old) !== isWater(now)) penEdited(w, x, z);
         // something gone from under sand or gravel (or sand set down on nothing)
         if (FALLS.has(now)) this.tryFall(x, y, z);
         if (unsupported(now)) this.tryFall(x, y + 1, z);
