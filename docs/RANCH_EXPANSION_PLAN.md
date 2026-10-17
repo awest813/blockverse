@@ -153,6 +153,10 @@ A review pass over the branch fixed:
 
 Twenty-four scripted playthroughs ran with no crashes or console errors. Generator determinism is unchanged (0 of 162 mismatches). With 157 penned animals the ranch tick costs about 0.07 ms a frame.
 
+### Generator 11 (done)
+
+`featuresV11` is a separate decoration pass with its own random stream (`coordRng(..., 1111)`), so a version-11 world is version 10 plus cornflowers (plains and forests), ripe berry bushes (snowy forests, the snowy plains and a few forests) and wild rice (swamp and river banks next to water). These are placed as `rooted` features, only on grass or dirt. Versions 1–10 are byte-identical (`cmp9`/`cmp10`). The market sells rice, berries and cornflowers for older worlds. New colours: blue, cyan and purple. Berry bushes are a crop family that is picked rather than cut. Rice needs water right beside its farmland.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

@@ -176,4 +176,11 @@ export const I = {
   HONEY_BREAD: 418,
   COIN: 419,             // the market's money
   LEDGER: 420,           // the ranch's book: every animal of yours, and what the ranch has made
+  BERRIES: 421,          // from berry bushes (plant one to grow a bush)
+  RICE: 422,             // plant it on farmland right by water
+  BLUE_DYE: 423,
+  CYAN_DYE: 424,
+  PURPLE_DYE: 425,
+  BERRY_PIE: 426,
+  FRIED_RICE: 427,
 };

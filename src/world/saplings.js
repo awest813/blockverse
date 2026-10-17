@@ -71,6 +71,8 @@ export const CROP_FAMILIES = [
   [B.BEETROOTS_0, B.BEETROOTS_3, I.BEETROOT_SEEDS],
   [B.PEPPERS_0, B.PEPPERS_3, I.SCORCH_PEPPER],
   [B.PUMPKIN_STEM_0, B.PUMPKIN_STEM_3, I.PUMPKIN_SEEDS, B.PUMPKIN],
+  [B.BERRY_BUSH_0, B.BERRY_BUSH_3, I.BERRIES],
+  [B.RICE_0, B.RICE_3, I.RICE],
 ];
 export const cropFamily = (id) => CROP_FAMILIES.find(([a, b]) => id >= a && id <= b) ?? null;
 // (a grown stem isn't ripe: its pumpkins are what's picked)

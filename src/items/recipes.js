@@ -123,6 +123,9 @@ shapeless(I.BLACK_DYE, 1, [[I.COAL, I.CHARCOAL]]);
 shapeless(I.ORANGE_DYE, 2, [[I.RED_DYE], [I.YELLOW_DYE]]);
 shapeless(I.PINK_DYE, 2, [[I.RED_DYE], [I.BONE_MEAL]]);
 shapeless(I.GREY_DYE, 2, [[I.BLACK_DYE], [I.BONE_MEAL]]);
+shapeless(I.BLUE_DYE, 2, [[B.CORNFLOWER]]);
+shapeless(I.CYAN_DYE, 2, [[I.BLUE_DYE], [I.GREEN_DYE]]);
+shapeless(I.PURPLE_DYE, 2, [[I.RED_DYE], [I.BLUE_DYE]]);
 // wool of one colour dyed another, and carpets of each
 for (const c of COLOURS) {
   shapeless(c.wool, 1, [ALL_WOOL.filter((w) => w !== c.wool), [c.dye]]);
@@ -170,6 +173,8 @@ shaped(B.BEEHIVE, 1, ['PPP', 'WWW', 'PPP'], { P: ANY_PLANKS, W: [I.WHEAT] });
 shapeless(I.PUMPKIN_SEEDS, 4, [[B.PUMPKIN]]);
 shapeless(I.RED_DYE, 1, [[I.BEETROOT]]);
 shapeless(I.HONEY_BREAD, 2, [[I.BREAD], [I.HONEY_BOWL]]);   // (the bowl comes back)
+shapeless(I.BERRY_PIE, 1, [[I.BERRIES], [I.BERRIES], [I.WHEAT], [I.SUGAR], EGG]);
+shapeless(I.SUSHI, 3, [[I.FISH_RAW], [I.DRIED_KELP], [I.RICE]]);
 // the market and the ledger
 shaped(B.MARKET_STALL, 1, ['WWW', 'S.S', 'PPP'], { W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }), S: [I.STICK], P: ANY_PLANKS });
 shapeless(I.LEDGER, 1, [[I.BOOK], [I.FEATHER]]);

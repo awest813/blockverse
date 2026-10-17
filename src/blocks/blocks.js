@@ -150,6 +150,11 @@ export const B = {
   PEPPERS_0: 149, PEPPERS_1: 150, PEPPERS_2: 151, PEPPERS_3: 152,   // Scorch peppers: the Scorchlands only
   BEEHIVE: 153,          // bees move in by flowers; honey for a bowl
   MARKET_STALL: 154,     // sell what the ranch makes, buy what it needs
+  CORNFLOWER: 155,       // (generator 11) blue flowers on the plains: blue dye
+  BERRY_BUSH_0: 156, BERRY_BUSH_1: 157, BERRY_BUSH_2: 158, BERRY_BUSH_3: 159,   // a ripe one gives berries and grows them again
+  RICE_0: 160, RICE_1: 161, RICE_2: 162, RICE_3: 163,   // grows on farmland right by water
+  BLUE_WOOL: 164, CYAN_WOOL: 165, PURPLE_WOOL: 166,
+  BLUE_CARPET: 167, CYAN_CARPET: 168, PURPLE_CARPET: 169,
 };
 
 // Tool classes
@@ -337,11 +342,11 @@ reg(def(B.MOSSY_COBBLE, 'mossy_cobble', 'Mossy Cobblestone', { hardness: 2, tool
 reg(def(B.OBSIDIAN, 'obsidian', 'Obsidian', { hardness: 30, tool: TOOL_PICKAXE, minTier: 4 }));
 reg(def(B.WOOL, 'wool', 'Wool', { hardness: 0.8, sound: 'cloth' }));
 // dyed wool, and carpets of every colour (see items/dyes.js)
-for (const c of ['red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey']) {
+for (const c of ['red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey', 'blue', 'cyan', 'purple']) {
   const Name = c[0].toUpperCase() + c.slice(1);
   reg(def(B[`${c.toUpperCase()}_WOOL`], `${c}_wool`, `${Name} Wool`, { hardness: 0.8, sound: 'cloth' }));
 }
-for (const c of ['white', 'red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey']) {
+for (const c of ['white', 'red', 'yellow', 'orange', 'pink', 'green', 'brown', 'black', 'grey', 'blue', 'cyan', 'purple']) {
   const Name = c[0].toUpperCase() + c.slice(1);
   reg(def(B[`${c.toUpperCase()}_CARPET`], `${c}_carpet`, `${Name} Carpet`, {
     solid: false, render: R_SHAPE, shape: 'carpet', opacity: 0, hardness: 0.1, sound: 'cloth', textures: c === 'white' ? 'wool' : `${c}_wool`,
@@ -405,6 +410,18 @@ for (let stage = 0; stage < 4; stage++) {
 reg(def(B.BEEHIVE, 'beehive', 'Beehive', {
   hardness: 0.6, tool: TOOL_AXE, sound: 'wood', textures: { top: 'beehive_top', bottom: 'beehive_top', side: 'beehive_side', front: 'beehive_front' },
 }));
+reg(def(B.CORNFLOWER, 'cornflower', 'Cornflower', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
+for (let stage = 0; stage < 4; stage++) {
+  // a berry bush: picked, not cut down (breaking a ripe one gives its berries too)
+  reg(def(B.BERRY_BUSH_0 + stage, `berry_bush_${stage}`, 'Berry Bush', {
+    ...plant, hardness: 0.1, textures: `berry_bush_stage_${stage}`,
+    drop: stage < 3 ? () => [{ id: I.BERRIES, count: 1 }] : (rng) => [{ id: I.BERRIES, count: 2 + ((rng() * 2) | 0) }],
+  }));
+  reg(def(B.RICE_0 + stage, `rice_${stage}`, 'Rice', {
+    ...plant, hardness: 0, textures: `rice_stage_${stage}`,
+    drop: stage < 3 ? () => [{ id: I.RICE, count: 1 }] : (rng) => [{ id: I.RICE, count: 2 + ((rng() * 3) | 0) }],
+  }));
+}
 reg(def(B.MARKET_STALL, 'market_stall', 'Market Stall', {
   render: R_SHAPE, shape: 'stall', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'market_stall',
 }));
@@ -580,7 +597,7 @@ export function isSolid(id) {
 // growing wheat, a door's top half, fire)
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
-    (id >= B.CARROTS_0 && id <= B.POTATOES_3) || (id >= B.BEETROOTS_0 && id <= B.PEPPERS_3) ||
+    (id >= B.CARROTS_0 && id <= B.POTATOES_3) || (id >= B.BEETROOTS_0 && id <= B.PEPPERS_3) || (id >= B.BERRY_BUSH_0 && id <= B.RICE_3 && id !== B.BERRY_BUSH_3) ||
     id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT || id === B.EMBER_PORTAL;
 }
 

@@ -20,6 +20,7 @@ const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.B
 const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.PALM_SAPLING]);
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS, B.ASH, B.ASHEN_GRASS]);   // (a hoe makes farmland of the Scorchlands' ash too)
 const SAND_SOIL = new Set([B.SAND, B.GRASS, B.DIRT]);   // a palm takes root on sand (or ordinary ground)
+const BUSH_GROUND = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);   // where a berry bush takes root
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
@@ -334,6 +335,8 @@ export class Interaction {
     if (held?.id === I.LEDGER) { this.cb.openLedger?.(); this.useCooldown = 0.5; return; }
     if (t && t.id === B.MARKET_STALL && !p.sneaking && !(held && isBlockItem(held.id))) { this.cb.openMarket?.(); this.useCooldown = 0.5; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
+    // a ripe berry bush: pick it (it grows them again)
+    if (t && t.id === B.BERRY_BUSH_3 && !p.sneaking && !(held && isBlockItem(held.id)) && held?.id !== I.BONE_MEAL) { this.pickBerries(t); this.useCooldown = 0.3; return; }
     // the nest, the churn and the cheese press
     if (t && (t.id === B.NEST || t.id === B.CHURN || t.id === B.CHEESE_PRESS || t.id === B.BEEHIVE) && !p.sneaking && useProduce(this, t, held)) { this.useCooldown = 0.25; return; }
     // a cake: a slice at a time
@@ -390,7 +393,8 @@ export class Interaction {
       const info = itemInfo(held.id);
       const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
       const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
-      const planting = info?.places && t?.id === B.FARMLAND && t.ny === 1;     // a carrot aimed at farmland is planted
+      const planting = (info?.places && t?.id === B.FARMLAND && t.ny === 1)     // a carrot aimed at farmland is planted
+        || (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1);   // (and berries on the grass)
       const feeding = t && (t.id === B.TROUGH || t.id === B.COMPOSTER);          // or goes in the trough / composter
       if ((info?.food || info?.drink) && wantsIt && !cooking && !planting && !feeding && p.mode !== GAMEMODE_CREATIVE) {
         this.eating = { id: held.id, slot: p.selected, t: 0, need: info.eatTime, auto: this.inputMode === 'touch' };
@@ -544,6 +548,14 @@ export class Interaction {
       this.cb.playSound('burp', {});
     } else this.world.setBlock(t.x, t.y, t.z, B.CAKE, eaten);
     return true;
+  }
+
+  pickBerries(t) {
+    const n = 2 + ((this.dropRng() * 2) | 0);
+    this.cb.spawnDrops(t.x + 0.5, t.y + 0.6, t.z + 0.5, [{ id: I.BERRIES, count: n }]);
+    this.world.setBlock(t.x, t.y, t.z, B.BERRY_BUSH_1);
+    this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'crop', grow: cropTime(this.world, t.x, t.y, t.z, this.dropRng) * 1.5 });
+    this.cb.playSound('break', { block: 'leaf' });
   }
 
   finishEating(held) {
@@ -772,9 +784,23 @@ export class Interaction {
       return true;
     }
 
+    // berries: a bush of your own, on the grass
+    if (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1) {
+      if (above !== B.AIR) return true;
+      this.world.setBlock(t.x, t.y + 1, t.z, B.BERRY_BUSH_0);
+      this.world.setBlockEntity(t.x, t.y + 1, t.z, { kind: 'crop', grow: cropTime(this.world, t.x, t.y + 1, t.z, this.dropRng) * 1.5 });
+      this.cb.playSound('place', { block: 'leaf' });
+      if (!creative) p.consumeHeld(1);
+      return true;
+    }
+
     // seeds: plant on top of farmland
     if (info?.places) {
       if (t.id !== B.FARMLAND || t.ny !== 1 || above !== B.AIR) return true;
+      // rice wants its feet wet: water right beside the farmland
+      if (info.places === B.RICE_0 && ![[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]].some(([dx, dz]) => isWater(this.world.getBlockW(t.x + dx, t.y, t.z + dz)))) {
+        this.cb.notify?.('Rice grows only in farmland right next to water'); return true;
+      }
       // Scorch peppers want the Scorchlands' heat
       if (info.places === B.PEPPERS_0 && this.world.dimension !== 'scorch') { this.cb.notify?.('Scorch peppers only grow in the Scorchlands\u2019 heat'); return true; }
       this.world.setBlock(t.x, t.y + 1, t.z, info.places);

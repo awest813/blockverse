@@ -47,7 +47,7 @@ function smoothstep(a, b, x) {
 //     that cross chunk borders, flower meadows and bushes, structures kept
 //     apart without losing desert temples and wells, and a clear way in to
 //     every temple and shrine.
-export const LATEST_GEN = 10;
+export const LATEST_GEN = 11;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -567,7 +567,46 @@ export class WorldGen {
         }
       }
     }
+    if (this.version >= 11) this.featuresV11(cx, cz, features);
     return features;
+  }
+
+  // Generator 11: cornflowers out on the plains, berry bushes in the snowy
+  // forests (and the odd one at the edge of the woods), wild rice on swamp
+  // and river banks. Drawn from a stream of their own after everything
+  // else, so the rest of the land is just as generator 10 made it.
+  featuresV11(cx, cz, features) {
+    const rng = coordRng(this.seed, cx, cz, 1111);
+    const count = (n) => Math.floor(n / 4 + rng());
+    for (let q = 0; q < 4; q++) {
+      const qx = cx * CHUNK_X + (q & 1) * 8, qz = cz * CHUNK_Z + (q >> 1) * 8;
+      const biome = this.biomeAt(qx + 4, qz + 4);
+      const spot = (ok, lo = SEA_LEVEL + 1, hi = 255) => {
+        const wx = qx + ((rng() * 8) | 0), wz = qz + ((rng() * 8) | 0);
+        const col = this.columnAt(wx, wz);
+        const h = Math.floor(col.h);
+        if (h < lo || h > hi || !ok(this.biomeOf(col)) || !this.groundOk(wx, h, wz)) return null;
+        return { wx, wz, h };
+      };
+      const cornflowers = { [BIOME.PLAINS]: 5, [BIOME.BIRCH_FOREST]: 2, [BIOME.FOREST]: 0.6 }[biome] ?? 0;
+      for (let i = count(cornflowers); i > 0; i--) {
+        const s = spot((b) => b === BIOME.PLAINS || b === BIOME.BIRCH_FOREST || b === BIOME.FOREST);
+        if (s) features.push({ type: 'rooted', block: B.CORNFLOWER, wx: s.wx, wy: s.h + 1, wz: s.wz });
+      }
+      const berries = { [BIOME.SNOWY_FOREST]: 3, [BIOME.SNOWY]: 0.8, [BIOME.FOREST]: 0.5 }[biome] ?? 0;
+      for (let i = count(berries); i > 0; i--) {
+        const s = spot((b) => b === BIOME.SNOWY_FOREST || b === BIOME.SNOWY || b === BIOME.FOREST);
+        if (s) features.push({ type: 'rooted', block: B.BERRY_BUSH_3, wx: s.wx, wy: s.h + 1, wz: s.wz });
+      }
+      // wild rice where the bank meets the water
+      const rice = { [BIOME.SWAMP]: 10, [BIOME.RIVER]: 4 }[biome] ?? 0;
+      for (let i = count(rice); i > 0; i--) {
+        const s = spot((b) => b === BIOME.SWAMP || b === BIOME.RIVER, SEA_LEVEL, SEA_LEVEL + 1);
+        if (!s) continue;
+        const wet = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => this.columnAt(s.wx + dx, s.wz + dz).h < SEA_LEVEL);
+        if (wet) features.push({ type: 'rooted', block: B.RICE_3, wx: s.wx, wy: s.h + 1, wz: s.wz });
+      }
+    }
   }
 
   chunkFeaturesV1(cx, cz) {
@@ -679,6 +718,14 @@ export class WorldGen {
       case 'plant':
         put(f.wx, f.wy, f.wz, f.block);
         break;
+      case 'rooted': {
+        // (generator 11) a plant that needs soil under it: grass or dirt, not sand or stone
+        const x = f.wx - cx * CHUNK_X, z = f.wz - cz * CHUNK_Z;
+        if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || f.wy < 1 || f.wy >= CHUNK_Y) break;
+        const below = blocks[blockIndex(x, f.wy - 1, z)];
+        if (below === B.GRASS || below === B.DIRT || below === B.SNOWY_GRASS) put(f.wx, f.wy, f.wz, f.block);
+        break;
+      }
       case 'bush': {
         // (generator 10) a log stub with a rounded clump of leaves over it
         put(f.wx, f.wy, f.wz, B.OAK_LOG);

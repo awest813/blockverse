@@ -5,7 +5,8 @@
 //   yellow  a dandelion            orange  red + yellow
 //   pink    red + bone meal        green   a cactus, smelted
 //   brown   a brown mushroom       black   coal or charcoal
-//   grey    black + bone meal
+//   grey    black + bone meal      blue    a cornflower
+//   cyan    blue + green           purple  red + blue
 
 import { B } from '../blocks/blocks.js';
 import { I } from './itemIds.js';
@@ -21,13 +22,16 @@ export const COLOURS = [
   { key: 'brown', rgb: [108, 72, 42], tint: 0x8a6040, dye: I.BROWN_DYE, wool: B.BROWN_WOOL, carpet: B.BROWN_CARPET },
   { key: 'black', rgb: [34, 32, 32], tint: 0x3a3634, dye: I.BLACK_DYE, wool: B.BLACK_WOOL, carpet: B.BLACK_CARPET },
   { key: 'grey', rgb: [104, 104, 100], tint: 0x8e8c88, dye: I.GREY_DYE, wool: B.GREY_WOOL, carpet: B.GREY_CARPET },
+  { key: 'blue', rgb: [52, 72, 168], tint: 0x5068d0, dye: I.BLUE_DYE, wool: B.BLUE_WOOL, carpet: B.BLUE_CARPET },
+  { key: 'cyan', rgb: [32, 136, 148], tint: 0x40a8b4, dye: I.CYAN_DYE, wool: B.CYAN_WOOL, carpet: B.CYAN_CARPET },
+  { key: 'purple', rgb: [112, 52, 156], tint: 0x9058c0, dye: I.PURPLE_DYE, wool: B.PURPLE_WOOL, carpet: B.PURPLE_CARPET },
 ];
 export const COLOUR = Object.fromEntries(COLOURS.map((c) => [c.key, c]));
 export const colourOfDye = (id) => COLOURS.find((c) => c.dye === id) ?? null;
 export const ALL_WOOL = COLOURS.map((c) => c.wool);
 
 // two fleeces' lamb: some pairs blend, otherwise it takes after one parent
-const BLENDS = { 'red+white': 'pink', 'red+yellow': 'orange', 'black+white': 'grey' };
+const BLENDS = { 'red+white': 'pink', 'red+yellow': 'orange', 'black+white': 'grey', 'blue+green': 'cyan', 'blue+red': 'purple' };
 export function blendColours(a, b) {
   if (a === b) return a;
   return BLENDS[[a, b].sort().join('+')] ?? null;

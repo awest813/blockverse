@@ -137,6 +137,12 @@ item(I.HONEY_BOWL, 'honey_bowl', 'Bowl of Honey', { food: 6, sat: 2.4, stack: 1,
 item(I.HONEY_BREAD, 'honey_bread', 'Honey Bread', { food: 7, sat: 8 });
 item(I.COIN, 'coin', 'Coin');
 item(I.LEDGER, 'ledger', 'Ranch Ledger', { stack: 1 });
+item(I.BERRIES, 'berries', 'Berries', { food: 2, sat: 1.2 });
+item(I.RICE, 'rice', 'Rice', { places: B.RICE_0 });
+item(I.BLUE_DYE, 'blue_dye', 'Blue Dye');
+item(I.CYAN_DYE, 'cyan_dye', 'Cyan Dye');
+item(I.PURPLE_DYE, 'purple_dye', 'Purple Dye');
+item(I.BERRY_PIE, 'berry_pie', 'Berry Pie', { food: 8, sat: 4.8 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -182,6 +188,7 @@ meal(I.PUMPKIN_SOUP, 'pumpkin_soup', 'Pumpkin Soup', 7, 8.4);
 meal(I.COCONUT_CURRY, 'coconut_curry', 'Coconut Curry', 10, 12, { warms: 180 });
 meal(I.BEETROOT_SOUP, 'beetroot_soup', 'Beetroot Soup', 6, 7.2);
 meal(I.SPICY_STEW, 'spicy_stew', 'Spicy Stew', 8, 9.6, { warms: 300, wards: 180 });
+meal(I.FRIED_RICE, 'fried_rice', 'Fried Rice', 9, 10.8);
 meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 6, 6);
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
@@ -294,6 +301,10 @@ const USES = new Map([
   [B.MARKET_STALL, 'Use it to sell eggs, milk, butter, cheese, wool, honey and more for coins (prices drop when you sell a lot of one thing), and buy what a ranch needs'],
   [I.COIN, 'Spend them at a market stall'],
   [I.LEDGER, 'Read it: every animal that\u2019s yours, wherever it is, and what your ranch has made'],
+  [I.BERRIES, 'Pick them from berry bushes in the snowy forests (use a ripe bush); set one on grass to grow a bush of your own'],
+  [I.RICE, 'Plant it on farmland right next to water. In a pot with an egg, meat or vegetables: fried rice; with raw fish and dried kelp: sushi'],
+  [B.CORNFLOWER, 'Makes blue dye'],
+  ...[I.BLUE_DYE, I.CYAN_DYE, I.PURPLE_DYE].map((id) => [id, 'Use it on a sheep to dye its fleece, or craft it with wool']),
   [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

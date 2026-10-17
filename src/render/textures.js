@@ -581,6 +581,34 @@ function flower(ctx, rng, petal, center) {
 
 tile('dandelion', (ctx, rng) => flower(ctx, rng, [240, 214, 42], [200, 160, 30]));
 tile('poppy', (ctx, rng) => flower(ctx, rng, [214, 48, 48], [40, 40, 40]));
+tile('cornflower', (ctx, rng) => flower(ctx, rng, [70, 100, 220], [40, 50, 120]));
+// berry bushes: a low tangle of leaves, red berries once ripe; rice: tall
+// thin stalks, nodding heads of grain when ripe
+for (let stage = 0; stage < 4; stage++) {
+  tile(`berry_bush_stage_${stage}`, (ctx, rng) => {
+    const leaf = [52, 104, 52], dark = [36, 78, 40], h = 5 + stage * 3;
+    for (let i = 0; i < 26 + stage * 14; i++) {
+      const x = 1 + ((rng() * 14) | 0), y = TILE - 1 - ((rng() * h) | 0);
+      px(ctx, x, y, rng() < 0.5 ? leaf : dark);
+    }
+    if (stage === 3) for (let i = 0; i < 9; i++) { const x = 2 + ((rng() * 12) | 0), y = TILE - 2 - ((rng() * (h - 2)) | 0); px(ctx, x, y, [200, 30, 50]); px(ctx, x, y - 1, [240, 80, 90]); }
+  });
+  tile(`rice_stage_${stage}`, (ctx, rng) => {
+    const stalk = [110, 170, 70], ripe = [214, 196, 120], h = 5 + stage * 3;
+    for (const x of [2, 5, 8, 11, 14]) {
+      const top = TILE - h + ((rng() * 2) | 0);
+      for (let y = top; y < TILE; y++) px(ctx, x, y, stage === 3 && y < top + 3 ? ripe : stalk);
+      if (stage >= 2) { px(ctx, x + 1, top, stage === 3 ? ripe : [150, 190, 90]); px(ctx, x + 1, top + 1, stage === 3 ? ripe : [150, 190, 90]); }
+    }
+  });
+}
+tile('berries', (ctx) => {
+  for (const [x, y] of [[5, 6], [8, 5], [7, 8], [10, 8], [5, 10], [9, 11]]) { rect(ctx, x, y, 2, 2, [200, 30, 50]); px(ctx, x, y, [244, 100, 110]); }
+  px(ctx, 9, 3, [52, 104, 52]); px(ctx, 10, 2, [52, 104, 52]);
+});
+tile('rice', (ctx, rng) => {
+  for (let i = 0; i < 14; i++) { const x = 4 + ((rng() * 8) | 0), y = 5 + ((rng() * 8) | 0); px(ctx, x, y, [240, 236, 220]); px(ctx, x + 1, y, [210, 204, 186]); }
+});
 
 tile('sugar_cane', (ctx, rng) => {
   for (const x of [3, 8, 12]) {
@@ -809,6 +837,9 @@ tile('green_wool', dyedWool([84, 116, 40]));
 tile('brown_wool', dyedWool([108, 72, 42]));
 tile('black_wool', dyedWool([34, 32, 32]));
 tile('grey_wool', dyedWool([104, 104, 100]));
+tile('blue_wool', dyedWool([52, 72, 168]));
+tile('cyan_wool', dyedWool([32, 136, 148]));
+tile('purple_wool', dyedWool([112, 52, 156]));
 // dyes: a little heap of powder
 tile('red_dye', (ctx, rng) => blobIcon(ctx, rng, [[168, 48, 44], shade([168, 48, 44], 0.8), shade([168, 48, 44], 1.15)]));
 tile('yellow_dye', (ctx, rng) => blobIcon(ctx, rng, [[222, 188, 52], shade([222, 188, 52], 0.8), shade([222, 188, 52], 1.15)]));
@@ -818,6 +849,9 @@ tile('green_dye', (ctx, rng) => blobIcon(ctx, rng, [[84, 116, 40], shade([84, 11
 tile('brown_dye', (ctx, rng) => blobIcon(ctx, rng, [[108, 72, 42], shade([108, 72, 42], 0.8), shade([108, 72, 42], 1.15)]));
 tile('black_dye', (ctx, rng) => blobIcon(ctx, rng, [[34, 32, 32], shade([34, 32, 32], 0.8), shade([34, 32, 32], 1.15)]));
 tile('grey_dye', (ctx, rng) => blobIcon(ctx, rng, [[104, 104, 100], shade([104, 104, 100], 0.8), shade([104, 104, 100], 1.15)]));
+tile('blue_dye', (ctx, rng) => blobIcon(ctx, rng, [[52, 72, 168], shade([52, 72, 168], 0.8), shade([52, 72, 168], 1.15)]));
+tile('cyan_dye', (ctx, rng) => blobIcon(ctx, rng, [[32, 136, 148], shade([32, 136, 148], 0.8), shade([32, 136, 148], 1.15)]));
+tile('purple_dye', (ctx, rng) => blobIcon(ctx, rng, [[112, 52, 156], shade([112, 52, 156], 0.8), shade([112, 52, 156], 1.15)]));
 
 tile('pumpkin_side', (ctx, rng) => {
   const o = [216, 128, 32], oD = [184, 102, 24], oL = [236, 152, 52];
@@ -1625,6 +1659,13 @@ tile('sushi', (ctx) => {
     rect(ctx, ox, oy + 5, 6, 2, [24, 40, 26]);
   }
 });
+tile('berry_pie', (ctx) => {
+  rect(ctx, 2, 7, 12, 5, [196, 140, 70]);
+  rect(ctx, 3, 6, 10, 2, [214, 168, 96]);
+  rect(ctx, 2, 11, 12, 1, [150, 100, 50]);
+  for (let x = 3; x < 13; x += 3) { px(ctx, x, 7, [150, 20, 50]); px(ctx, x + 1, 6, [200, 40, 70]); }
+});
+tile('fried_rice', (ctx) => mealIcon(ctx, [226, 206, 150], [[4, [246, 210, 60]], [7, [110, 160, 70]], [10, [230, 130, 40]]]));
 tile('apple_pie', (ctx) => {
   rect(ctx, 2, 7, 12, 5, [196, 140, 70]);
   rect(ctx, 3, 6, 10, 2, [214, 168, 96]);
