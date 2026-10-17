@@ -1812,6 +1812,31 @@ for (let stage = 0; stage < 4; stage++) {
     for (let y = TILE - h + 2; y < TILE - 1; y += 4) { rect(ctx, 3, y, 4, 2, rng() < 0.5 ? vine : dark); rect(ctx, 9, y + 1, 4, 2, rng() < 0.5 ? vine : dark); }
   });
 }
+tile('candle_wax', (ctx, rng) => fillNoise(ctx, rng, [[[238, 214, 150], 6], [[226, 198, 128], 3], [[248, 230, 176], 2]]));
+tile('candle_wick', (ctx) => { rect(ctx, 0, 0, TILE, TILE, [255, 196, 80]); rect(ctx, 4, 0, 8, 6, [255, 240, 170]); rect(ctx, 0, 12, TILE, 4, [60, 40, 30]); });
+tile('candle', (ctx) => {
+  rect(ctx, 6, 7, 4, 7, [238, 214, 150]); rect(ctx, 6, 7, 1, 7, [248, 230, 176]); rect(ctx, 9, 7, 1, 7, [214, 186, 116]);
+  px(ctx, 8, 6, [60, 40, 30]); rect(ctx, 7, 3, 2, 3, [255, 196, 80]); px(ctx, 8, 2, [255, 240, 170]);
+});
+tile('honeycomb', (ctx) => {
+  for (let y = 3; y < 13; y += 3) for (let x = 2 + ((y / 3) & 1) * 2; x < 13; x += 4) { rect(ctx, x, y, 3, 2, [232, 170, 30]); px(ctx, x + 1, y, [250, 210, 90]); px(ctx, x + 1, y + 1, [190, 120, 20]); }
+});
+tile('melon_side', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[96, 150, 44], 5], [[80, 130, 36], 3], [[112, 168, 56], 2]]);
+  for (let x = 1; x < TILE; x += 4) for (let y = 0; y < TILE; y++) px(ctx, x + ((y >> 2) & 1), y, [150, 196, 80]);   // stripes
+});
+tile('melon_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[96, 150, 44], 5], [[80, 130, 36], 3], [[112, 168, 56], 2]]);
+  rect(ctx, 7, 7, 2, 2, [90, 70, 40]);
+});
+tile('melon_slice', (ctx) => {
+  for (let i = 0; i < 10; i++) { rect(ctx, 3 + i, 12 - Math.round(i * 0.6), 1, 2 + Math.round(Math.sin((i / 9) * Math.PI) * 5), [222, 60, 60]); }
+  for (let i = 0; i < 10; i++) px(ctx, 3 + i, 13 - Math.round(i * 0.6) + 1, [96, 150, 44]);
+  for (const [x, y] of [[6, 10], [9, 8], [8, 11]]) px(ctx, x, y, [30, 24, 20]);
+});
+tile('melon_seeds', (ctx, rng) => {
+  for (let i = 0; i < 7; i++) { const x = 4 + ((rng() * 8) | 0), y = 5 + ((rng() * 7) | 0); rect(ctx, x, y, 2, 1, [50, 40, 30]); px(ctx, x, y + 1, [90, 72, 52]); }
+});
 tile('beehive_side', (ctx, rng) => {
   planks(ctx, rng, [196, 156, 92]);
   for (const y of [4, 11]) rect(ctx, 0, y, TILE, 1, [150, 110, 56]);

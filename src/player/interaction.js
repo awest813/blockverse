@@ -24,7 +24,7 @@ const BUSH_GROUND = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);   // where a berr
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CANDLE, B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);

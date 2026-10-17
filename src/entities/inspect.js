@@ -48,7 +48,7 @@ export function describeAnimal(m) {
   }
   // what makes it itself
   if (m.rideable) {
-    lines.push(`Speed ${m.gallop.toFixed(1)} m/s · jump ${(m.jumpV * m.jumpV / 52).toFixed(1)} blocks`);
+    lines.push(`${m.coatName ? cap(m.coatName) + ' · ' : ''}Speed ${m.gallop.toFixed(1)} m/s · jump ${(m.jumpV * m.jumpV / 52).toFixed(1)} blocks`);
     if (!m.owned) lines.push(`Trust ${Math.round(m.temper ?? 0)}%`);
     else lines.push([m.saddled ? 'Saddled' : 'No saddle', m.armour ? itemInfo(m.armour)?.display : null, m.bags ? `saddlebags (${m.bags.filter(Boolean).length}/${m.bags.length})` : null].filter(Boolean).join(' · '));
   }

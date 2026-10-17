@@ -143,6 +143,9 @@ item(I.BLUE_DYE, 'blue_dye', 'Blue Dye');
 item(I.CYAN_DYE, 'cyan_dye', 'Cyan Dye');
 item(I.PURPLE_DYE, 'purple_dye', 'Purple Dye');
 item(I.BERRY_PIE, 'berry_pie', 'Berry Pie', { food: 8, sat: 4.8 });
+item(I.HONEYCOMB, 'honeycomb', 'Honeycomb');
+item(I.MELON_SLICE, 'melon_slice', 'Melon Slice', { food: 2, sat: 1.2 });
+item(I.MELON_SEEDS, 'melon_seeds', 'Melon Seeds', { places: B.MELON_STEM_0 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -304,6 +307,9 @@ const USES = new Map([
   [I.BERRIES, 'Pick them from berry bushes in the snowy forests (use a ripe bush); set one on grass to grow a bush of your own'],
   [I.RICE, 'Plant it on farmland right next to water. In a pot with an egg, meat or vegetables: fried rice; with raw fish and dried kelp: sushi'],
   [B.CORNFLOWER, 'Makes blue dye'],
+  [I.HONEYCOMB, 'Shears take it from a full beehive. With string: a candle'],
+  [B.CANDLE, 'A small, steady light that stands on any block'],
+  [I.MELON_SEEDS, 'Plant on farmland: a grown stem sets melons beside it (a harvester picks them)'],
   ...[I.BLUE_DYE, I.CYAN_DYE, I.PURPLE_DYE].map((id) => [id, 'Use it on a sheep to dye its fleece, or craft it with wool']),
   [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

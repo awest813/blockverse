@@ -183,4 +183,7 @@ export const I = {
   PURPLE_DYE: 425,
   BERRY_PIE: 426,
   FRIED_RICE: 427,
+  HONEYCOMB: 428,        // shears on a full hive; wax for candles
+  MELON_SLICE: 429,
+  MELON_SEEDS: 430,
 };

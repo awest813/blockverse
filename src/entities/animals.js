@@ -396,7 +396,10 @@ export class Duck extends Animal {
 const COATS = [
   [0x7a4e2c, 0x2e1c10, 'bay'], [0x9a5a28, 0x6a3a18, 'chestnut'], [0x2c2622, 0x141210, 'black'],
   [0xd8d2c8, 0xb8b0a4, 'white'], [0x8c8680, 0x3c3834, 'grey'], [0xc49a5c, 0xece2cc, 'palomino'],
+  // patterned coats, only ever bred (now and then a foal is born with one): [coat, mane, name, patches]
+  [0xe8e4dc, 0x2c2622, 'piebald', 0x2c2622], [0x7a4e2c, 0x2e1c10, 'skewbald', 0xe8e4dc],
 ];
+const PLAIN_COATS = 6;
 // horse armour: how much of each hurt it turns, and its colour (dragon scale shrugs off fire and lava too)
 export const HORSE_ARMOUR = new Map([
   [I.LEATHER_HORSE_ARMOR, { cut: 0.12, colour: 0x8a5a32 }], [I.IRON_HORSE_ARMOR, { cut: 0.2, colour: 0xc8c8cc }],
@@ -434,7 +437,7 @@ export class Horse extends Animal {
   }
 
   buildModel() {
-    this.coat = (Math.random() * COATS.length) | 0;
+    this.coat = (Math.random() * PLAIN_COATS) | 0;
     this.coatParts = []; this.maneParts = [];
     const c = COATS[this.coat], muzzle = 0x2a2420, hoof = 0x3a3028;
     const coat = (m) => (this.coatParts.push(this.materials.at(-1)), m);
@@ -461,6 +464,10 @@ export class Horse extends Animal {
       this.part(0.08, 0.04, 0.12, 0xa0a0a8, -0.36, 1.1, 0), this.part(0.08, 0.04, 0.12, 0xa0a0a8, 0.36, 1.1, 0),
     ];
     for (const m of this.saddleParts) m.visible = false;
+    // the patches of a patterned coat
+    this.patchParts = [this.part(0.64, 0.4, 0.5, 0xffffff, 0, 1.28, -0.25), this.part(0.64, 0.34, 0.44, 0xffffff, 0, 1.14, 0.42), this.part(0.32, 0.22, 0.3, 0xffffff, 0, 1.92, -1.0)];
+    this.patchMats = this.materials.slice(-3);
+    for (const m of this.patchParts) m.visible = false;
   }
 
   // restore a saved coat
@@ -469,7 +476,12 @@ export class Horse extends Animal {
     this.coat = i;
     for (const m of this.coatParts) m.base.setHex(COATS[i][0]);
     for (const m of this.maneParts) m.base.setHex(COATS[i][1]);
+    const patch = COATS[i][3];
+    for (const m of this.patchParts ?? []) m.visible = patch !== undefined;
+    if (patch !== undefined) for (const m of this.patchMats) m.base.setHex(patch);
   }
+
+  get coatName() { return this.kind === 'horse' ? COATS[this.coat]?.[2] : null; }
 
   saveExtra() {
     return { coat: this.coat, gallop: this.gallop, jumpV: this.jumpV, maxHealth: this.maxHealth, temper: this.temper, owned: this.owned, saddled: this.saddled,
@@ -480,7 +492,12 @@ export class Horse extends Animal {
   // (give or take a little of its own), and if they were yours it already
   // half trusts you
   inherit(baby, mate) {
-    if (this.kind === 'horse') baby.setCoat(Math.random() < 0.5 ? this.coat : mate.coat);
+    if (this.kind === 'horse') {
+      // one parent's coat; a patterned parent passes its pattern on half the time, and now and then a foal is born patterned
+      const patterned = [this, mate].find((h) => COATS[h.coat]?.[3] !== undefined);
+      const coat = patterned && Math.random() < 0.5 ? patterned.coat : Math.random() < 0.03 ? PLAIN_COATS + ((Math.random() * 2) | 0) : (Math.random() < 0.5 ? this : mate).coat;
+      baby.setCoat(coat);
+    }
     const mix = (a, b, spread) => (a + b) / 2 + (Math.random() - 0.5) * spread;
     baby.gallop = Math.max(7.5, Math.min(11.5, mix(this.gallop, mate.gallop, 1.2)));
     baby.jumpV = this.kind === 'horse' ? Math.max(10.4, Math.min(12.6, mix(this.jumpV, mate.jumpV, 0.6))) : mix(this.jumpV, mate.jumpV, 0.3);

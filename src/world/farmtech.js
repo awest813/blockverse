@@ -263,11 +263,12 @@ function tickHarvester(game, st, x, y, z) {
       for (let dz = -REACH; dz <= REACH && reaped < 6; dz++) {
         const cx = x + dx, cy = y + dy, cz = z + dz;
         const id = w.getBlockW(cx, cy, cz);
-        // a pumpkin a stem has set: picked, and the stem left to set another
-        if (id === B.PUMPKIN && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([sx, sz]) => w.getBlockW(cx + sx, cy, cz + sz) === B.PUMPKIN_STEM_3)) {
+        // a pumpkin (or melon) a stem has set: picked, and the stem left to set another
+        const stem = id === B.PUMPKIN ? B.PUMPKIN_STEM_3 : id === B.MELON ? B.MELON_STEM_3 : 0;
+        if (stem && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([sx, sz]) => w.getBlockW(cx + sx, cy, cz + sz) === stem)) {
           w.setBlock(cx, cy, cz, B.AIR);
-          const left = chest ? store(w, chest, { id: B.PUMPKIN, count: 1 }) : 1;
-          if (left > 0) game.entities.spawnDrops(cx + 0.5, cy + 0.3, cz + 0.5, [{ id: B.PUMPKIN, count: left }]);
+          const left = chest ? store(w, chest, { id, count: 1 }) : 1;
+          if (left > 0) game.entities.spawnDrops(cx + 0.5, cy + 0.3, cz + 0.5, [{ id, count: left }]);
           reaped++;
           continue;
         }

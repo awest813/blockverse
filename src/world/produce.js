@@ -272,9 +272,19 @@ function useHive(it, t, held) {
     it.cb.playSound('pickup', {});
     return true;
   }
+  // shears: the comb from a full hive
+  if (held?.id === I.SHEARS) {
+    if (st.honey < HIVE_HONEY) { it.cb.notify?.(`The comb isn\u2019t full yet (honey ${st.honey}/${HIVE_HONEY})`); return true; }
+    st.honey = 0;
+    w.setBlockEntity(t.x, t.y, t.z, st);
+    give(it, I.HONEYCOMB, 3);
+    if (it.player.mode !== GAMEMODE_CREATIVE) it.player.damageHeldTool(1);
+    it.cb.playSound('shear', {});
+    return true;
+  }
   if (held && isBlockItem(held.id)) return false;
   if (!st.bees) it.cb.notify?.('An empty hive: bees move in when there are flowers close by (two or more)');
-  else it.cb.notify?.(`Beehive: ${st.bees} bee${st.bees > 1 ? 's' : ''}, honey ${st.honey}/${HIVE_HONEY}${st.honey ? ' — take it with a bowl' : ''}`);
+  else it.cb.notify?.(`Beehive: ${st.bees} bee${st.bees > 1 ? 's' : ''}, honey ${st.honey}/${HIVE_HONEY}${st.honey >= HIVE_HONEY ? ' — a bowl takes honey, shears the comb' : st.honey ? ' — take it with a bowl' : ''}`);
   return true;
 }
 

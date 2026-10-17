@@ -73,12 +73,13 @@ export const CROP_FAMILIES = [
   [B.PUMPKIN_STEM_0, B.PUMPKIN_STEM_3, I.PUMPKIN_SEEDS, B.PUMPKIN],
   [B.BERRY_BUSH_0, B.BERRY_BUSH_3, I.BERRIES],
   [B.RICE_0, B.RICE_3, I.RICE],
+  [B.MELON_STEM_0, B.MELON_STEM_3, I.MELON_SEEDS, B.MELON],
 ];
 export const cropFamily = (id) => CROP_FAMILIES.find(([a, b]) => id >= a && id <= b) ?? null;
 // (a grown stem isn't ripe: its pumpkins are what's picked)
 export const isRipe = (id) => CROP_FAMILIES.some(([, ripe, , fruit]) => id === ripe && !fruit);
 
-// A grown stem sets a pumpkin on open ground beside it (one at a time).
+// A grown stem sets a pumpkin (or melon) on open ground beside it (one at a time).
 const FRUIT_GROUND = new Set([B.DIRT, B.GRASS, B.FARMLAND, B.SNOWY_GRASS, B.ASH, B.ASHEN_GRASS]);
 function setFruit(world, x, y, z, fruit, rng) {
   const sides = [[1, 0], [-1, 0], [0, 1], [0, -1]];

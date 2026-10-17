@@ -155,6 +155,9 @@ export const B = {
   RICE_0: 160, RICE_1: 161, RICE_2: 162, RICE_3: 163,   // grows on farmland right by water
   BLUE_WOOL: 164, CYAN_WOOL: 165, PURPLE_WOOL: 166,
   BLUE_CARPET: 167, CYAN_CARPET: 168, PURPLE_CARPET: 169,
+  CANDLE: 170,           // beeswax: a small, warm light
+  MELON: 171,
+  MELON_STEM_0: 172, MELON_STEM_1: 173, MELON_STEM_2: 174, MELON_STEM_3: 175,   // a grown stem sets melons beside it
 };
 
 // Tool classes
@@ -422,6 +425,18 @@ for (let stage = 0; stage < 4; stage++) {
     drop: stage < 3 ? () => [{ id: I.RICE, count: 1 }] : (rng) => [{ id: I.RICE, count: 2 + ((rng() * 3) | 0) }],
   }));
 }
+reg(def(B.CANDLE, 'candle', 'Candle', {
+  solid: false, render: R_SHAPE, shape: 'candle', opacity: 0, lightEmit: 12, hardness: 0.1, sound: 'cloth', textures: 'candle_wax', icon: 'candle',
+}));
+reg(def(B.MELON, 'melon', 'Melon', {
+  hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: { top: 'melon_top', bottom: 'melon_top', side: 'melon_side' },
+  drop: (rng) => [{ id: I.MELON_SLICE, count: 3 + ((rng() * 5) | 0) }],
+}));
+for (let stage = 0; stage < 4; stage++) {
+  reg(def(B.MELON_STEM_0 + stage, `melon_stem_${stage}`, 'Melon Stem', {
+    ...plant, hardness: 0, textures: `pumpkin_stem_stage_${stage}`, drop: () => [{ id: I.MELON_SEEDS, count: 1 }],
+  }));
+}
 reg(def(B.MARKET_STALL, 'market_stall', 'Market Stall', {
   render: R_SHAPE, shape: 'stall', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'market_stall',
 }));
@@ -597,7 +612,7 @@ export function isSolid(id) {
 // growing wheat, a door's top half, fire)
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
-    (id >= B.CARROTS_0 && id <= B.POTATOES_3) || (id >= B.BEETROOTS_0 && id <= B.PEPPERS_3) || (id >= B.BERRY_BUSH_0 && id <= B.RICE_3 && id !== B.BERRY_BUSH_3) ||
+    (id >= B.CARROTS_0 && id <= B.POTATOES_3) || (id >= B.BEETROOTS_0 && id <= B.PEPPERS_3) || (id >= B.BERRY_BUSH_0 && id <= B.RICE_3 && id !== B.BERRY_BUSH_3) || (id >= B.MELON_STEM_0 && id <= B.MELON_STEM_3) ||
     id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT || id === B.EMBER_PORTAL;
 }
 

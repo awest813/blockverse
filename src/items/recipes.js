@@ -175,6 +175,9 @@ shapeless(I.RED_DYE, 1, [[I.BEETROOT]]);
 shapeless(I.HONEY_BREAD, 2, [[I.BREAD], [I.HONEY_BOWL]]);   // (the bowl comes back)
 shapeless(I.BERRY_PIE, 1, [[I.BERRIES], [I.BERRIES], [I.WHEAT], [I.SUGAR], EGG]);
 shapeless(I.SUSHI, 3, [[I.FISH_RAW], [I.DRIED_KELP], [I.RICE]]);
+shaped(B.CANDLE, 2, ['S', 'H'], { S: [I.STRING], H: [I.HONEYCOMB] });
+shapeless(I.MELON_SEEDS, 1, [[I.MELON_SLICE]]);
+shaped(B.MELON, 1, ['MMM', 'MMM', 'MMM'], { M: [I.MELON_SLICE] });
 // the market and the ledger
 shaped(B.MARKET_STALL, 1, ['WWW', 'S.S', 'PPP'], { W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }), S: [I.STICK], P: ANY_PLANKS });
 shapeless(I.LEDGER, 1, [[I.BOOK], [I.FEATHER]]);

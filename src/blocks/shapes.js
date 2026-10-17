@@ -8,7 +8,7 @@ const P = 1 / 16;
 // a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
 const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
 // tiles shapes draw beyond their block's own textures (the atlas needs them)
-export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner', 'nest_egg', 'cheese_round', 'red_wool', 'wool'];
+export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner', 'nest_egg', 'cheese_round', 'red_wool', 'wool', 'candle_wick'];
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -99,6 +99,8 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     case 'pad': return [[P, -0.125, P, 1 - P, -0.1, 1 - P]];
     case 'layer': return [[0, 0, 0, 1, 2 * P, 1]];
     case 'carpet': return [[0, 0, 0, 1, P, 1]];
+    // a stub of beeswax with its wick
+    case 'candle': return collision ? [] : [[6 * P, 0, 6 * P, 10 * P, 7 * P, 10 * P], [7.5 * P, 7 * P, 7.5 * P, 8.5 * P, 9 * P, 8.5 * P, 'candle_wick']];
     // a ring of straw, and the eggs in it
     case 'nest': {
       const boxes = [[2 * P, 0, 2 * P, 14 * P, P, 14 * P], [P, 0, P, 15 * P, 3 * P, 3 * P], [P, 0, 13 * P, 15 * P, 3 * P, 15 * P],
