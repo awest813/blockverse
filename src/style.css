@@ -194,6 +194,27 @@ html, body {
 
 #held-item-label.warn { color: #ff8a80; }
 
+/* status effects (a hot meal's warmth, venom): beside the hotbar, or at the
+   top where there's no room for them there */
+#effects {
+  position: absolute; right: calc(50% + 222px); bottom: 12px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  pointer-events: none;
+}
+.effect {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 8px 2px 4px; border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  font-size: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap;
+}
+.effect img { width: 16px; height: 16px; image-rendering: pixelated; }
+.effect-warm { color: #ffd59a; }
+.effect-poison { color: #b8e08a; }
+.effect.ending { animation: pulse 1s ease-in-out infinite; }
+@media (max-width: 760px) { #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 48px; flex-direction: row; } }
+[data-narrow] #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 48px; flex-direction: row; }
+#hud.touch #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 112px; flex-direction: row; }
+
 #sleep-fade {
   position: absolute; inset: 0; z-index: 3;
   display: flex; align-items: center; justify-content: center;

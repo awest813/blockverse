@@ -190,6 +190,7 @@ export class Interaction {
     this.bowCharge = 0;
 
     // ---- using / placing (right mouse, button 2) ----
+    if (!input.mouseDown(2)) this.heldUse = null;   // (some uses want a fresh press)
     if (input.mouseDown(2) && this.placeCooldown <= 0 && this.useCooldown <= 0) {
       this.useOrPlace();
       this.placeCooldown = 0.24;
@@ -321,7 +322,7 @@ export class Interaction {
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // the cooking pot: water, food, then bowls
     if (t && t.id === B.COOKING_POT && !p.sneaking
-      && usePot(this, t, held, { creative: p.mode === GAMEMODE_CREATIVE, itemName: (id) => itemInfo(id)?.display ?? '?' })) { this.useCooldown = 0.25; return; }
+      && usePot(this, t, held, { creative: p.mode === GAMEMODE_CREATIVE, itemName: (id) => itemInfo(id)?.display ?? '?' })) { this.useCooldown = Math.max(this.useCooldown, 0.25); return; }
     if (t && (t.id === B.HARVESTER || t.id === B.COLLECTOR || t.id === B.SPRINKLER) && !p.sneaking && !(held && isBlockItem(held.id))) {
       this.cb.notify?.(describeMachine(this.world, t));
       this.useCooldown = 0.3;

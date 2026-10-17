@@ -424,7 +424,8 @@ export class Horse extends Animal {
   loadExtra(e) {
     this.setCoat(e.coat);
     for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
-    if (this.kind === 'horse') this.jumpV = Math.max(this.jumpV, 10.4);   // horses saved before every horse could clear a fence (camels never do)
+    if (this.kind === 'horse') this.jumpV = Math.max(this.jumpV, 10.4);   // horses saved before every horse could clear a fence
+    else this.jumpV = Math.min(this.jumpV, 8.6);                         // camels never could (whatever an old save says)
     this.owned = !!e.owned;
     this.setSaddled(!!e.saddled);
   }

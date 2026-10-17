@@ -231,6 +231,9 @@ export function buildChunkGeometry(world, chunk, atlas) {
               if (flush && OPACITY[getBlock(wx + d[0], y + d[1], wz + d[2])] >= 15) continue;
               const corners = f.corners.map((c) => [c[0] ? bx[3] : bx[0], c[1] ? bx[4] : bx[1], c[2] ? bx[5] : bx[2]]);
               const uvs = corners.map(FACE_UV[fi]);
+              // a box reaching below its cell (a pot's legs): sample the tile's
+              // bottom rows rather than smearing its edge
+              if (bx[1] < 0) for (const uv of uvs) if (fi !== 2 && fi !== 3) uv[1] += 1;
               const ox = wx + (flush ? d[0] : 0), oy = y + (flush ? d[1] : 0), oz = wz + (flush ? d[2] : 0);
               for (let i = 0; i < 4; i++) {
                 const c = corners[i];

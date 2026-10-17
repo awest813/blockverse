@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { TILE, tileNames, generateTile } from './textures.js';
 import { BLOCKS, blockInfo, R_CROSS, R_TORCH, R_SOLID, R_CUTOUT, R_BLEND } from '../blocks/blocks.js';
 import { itemInfo } from '../items/items.js';
+import { SHAPE_TILES } from '../blocks/shapes.js';
 
 // Face order used by the mesher: +x, -x, +y, -y, +z, -z
 export const FACE_PX = 0, FACE_NX = 1, FACE_PY = 2, FACE_NY = 3, FACE_PZ = 4, FACE_NZ = 5;
@@ -18,7 +19,16 @@ const ICON_BOXES = {
 
 export class Atlas {
   constructor() {
-    const names = tileNames();
+    // only what blocks draw goes on the GPU: item icons are drawn from their
+    // own canvases, and the array must stay under WebGL2's 256-layer minimum
+    const used = new Set(['ice', ...SHAPE_TILES]);
+    for (const b of BLOCKS) {
+      if (!b || b.render === 0) continue;
+      const t = b.textures;
+      if (typeof t === 'string') used.add(t);
+      else for (const k of ['top', 'bottom', 'side', 'front']) if (t?.[k]) used.add(t[k]);
+    }
+    const names = tileNames().filter((n) => used.has(n));
     this.layerOfName = new Map();
     this.count = names.length;
 

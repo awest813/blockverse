@@ -628,7 +628,8 @@ export class WorldGen {
       const lean = [[1, 0], [-1, 0], [0, 1], [0, -1]][(rng() * 4) | 0];
       let x = wx, z = wz;
       for (let i = 0; i < h; i++) {
-        if (i >= 3 && i % 3 === 0 && rng() < 0.7) { x += lean[0]; z += lean[1]; }
+        // a step over: logs side by side at that height, so the trunk stays joined
+        if (i >= 3 && i % 3 === 0 && rng() < 0.7) { put(x, wy + i, z, B.PALM_LOG, false); x += lean[0]; z += lean[1]; }
         put(x, wy + i, z, B.PALM_LOG, false);
       }
       const top = wy + h;

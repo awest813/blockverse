@@ -7,6 +7,8 @@ import { B, BLOCKS } from './blocks.js';
 const P = 1 / 16;
 // a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
 const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
+// tiles shapes draw beyond their block's own textures (the atlas needs them)
+export const SHAPE_TILES = POT_FILL.filter(Boolean);
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 

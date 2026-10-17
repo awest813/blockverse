@@ -4,6 +4,7 @@
 import { itemInfo } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { HUD_ICONS } from './icons.js';
+import { I as I_ITEMS } from '../items/itemIds.js';
 
 export function durabilityColor(frac) {
   return frac > 0.5 ? '#4caf50' : frac > 0.2 ? '#ffb300' : '#e53935';
@@ -51,6 +52,7 @@ export class Hud {
     this.hungerEl = document.getElementById('hunger-bar');
     this.airEl = document.getElementById('air-bar');
     this.armorEl = document.getElementById('armor-bar');
+    this.effectsEl = document.getElementById('effects');
     this.labelEl = document.getElementById('held-item-label');
     this.debugEl = document.getElementById('debug-overlay');
     this.promptEl = document.getElementById('click-to-play');
@@ -153,8 +155,32 @@ export class Hud {
     this._labelTimer = setTimeout(() => { this.labelEl.style.opacity = '0'; }, 1600);
   }
 
+  // what's on you for now: a hot meal's warmth, venom, with the time left
+  renderEffects() {
+    const p = this.player;
+    const fx = p.mode === GAMEMODE_CREATIVE || p.dead ? [] : [
+      p.warmTime > 0 && ['warm', 'Warm', p.warmTime],
+      p.poisonTime > 0 && ['poison', 'Poisoned', p.poisonTime],
+    ].filter(Boolean);
+    const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;   // whole seconds
+    const key = fx.map(([k, , s]) => `${k}${Math.ceil(s)}`).join('|');
+    if (key === this._fxKey) return;
+    this._fxKey = key;
+    this.effectsEl.replaceChildren(...fx.map(([kind, label, secs]) => {
+      const chip = document.createElement('div');
+      chip.className = `effect effect-${kind}`;
+      const img = document.createElement('img');
+      img.src = kind === 'warm' ? this.atlas.icon(I_ITEMS.BEEF_STEW) : HUD_ICONS.poisonFull;
+      img.alt = '';
+      chip.append(img, `${label} ${clock(Math.ceil(secs))}`);
+      if (secs < 10 && kind === 'warm') chip.classList.add('ending');
+      return chip;
+    }));
+  }
+
   renderStats() {
     const p = this.player;
+    this.renderEffects();
     const creative = p.mode === GAMEMODE_CREATIVE;
     // called several times a second; only touch the DOM when something changed
     const armor = p.armorPoints();

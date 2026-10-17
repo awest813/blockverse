@@ -7,6 +7,7 @@
 import { B } from '../blocks/blocks.js';
 import { I } from './itemIds.js';
 import { forEachBlockEntity } from './campfire.js';
+import { itemInfo } from './items.js';
 
 export const POT_MAX_ITEMS = 4;
 export const SIMMER_TIME = 30;   // seconds over the heat, counted from the last thing put in
@@ -84,7 +85,9 @@ export function tickPots(world, dt, onCooked) {
     st.t += dt;
     if (st.t < SIMMER_TIME) return;
     st.meal = potMeal(st.items).id;
-    st.servings = Math.min(POT_MAX_ITEMS, st.items.length + 1);
+    // a proper recipe stretches to a helping more than went in; a pot of
+    // odds and ends to a helping less
+    st.servings = st.meal === I.HEARTY_STEW ? Math.max(1, st.items.length - 1) : Math.min(POT_MAX_ITEMS, st.items.length + 1);
     showPot(world, x, y, z, st);
     onCooked?.(x, y, z, st);
   });
@@ -114,6 +117,11 @@ export function usePot(it, t, held, { creative, itemName }) {
     return true;
   };
 
+  // pouring in and scooping out want a fresh press each (held down, the
+  // bucket would go back and forth)
+  const water = held?.id === I.WATER_BUCKET || (held?.id === I.BUCKET && st.water && !st.items.length && !st.meal);
+  if (water && it.heldUse === 'pot-water') return true;
+  if (water) it.heldUse = 'pot-water';
   if (held?.id === I.WATER_BUCKET) {
     if (st.water) { say('There’s water in the pot already'); return true; }
     st.water = true;
@@ -140,17 +148,20 @@ export function usePot(it, t, held, { creative, itemName }) {
     return true;
   }
   if (held && potIngredient(held.id)) {
-    if (!st.water) { say('Fill the pot with water first (a water bucket)'); return true; }
-    if (st.items.length >= POT_MAX_ITEMS) { say('The pot is full — let it cook'); return true; }
+    // a dry or full pot doesn't stand between a hungry player and their food
+    const eat = itemInfo(held.id)?.food > 0 && p.hunger < 20 && !creative;
+    if (!st.water) { if (eat) return false; say('Fill the pot with water first (a water bucket)'); return true; }
+    if (st.items.length >= POT_MAX_ITEMS) { if (eat) return false; say('The pot is full — let it cook'); return true; }
     st.items.push(held.id);
     st.t = 0;   // it simmers from the last thing in
+    it.useCooldown = 0.4;   // one at a time, even with the button held
     if (!creative) p.consumeHeld(1);
-    if (st.items.length >= 2 && !potHeated(w, t.x, t.y, t.z)) say('Now set it over a fire to cook');
+    if (st.items.length >= 2 && !potHeated(w, t.x, t.y, t.z)) say('Now set it over a campfire to cook');
     return done('splash', { vol: 0.25, pitch: 1.6 });
   }
   if (held && held.id !== I.BOWL) return false;
   // how it's getting on
-  if (!st.water) say('An empty pot: fill it with water, put in 2–4 foods and set it over a fire');
+  if (!st.water) say('An empty pot: fill it with water, put in 2–4 foods and set it over a campfire');
   else if (st.items.length < 2) say(st.items.length ? 'Put in at least one more food' : 'Water’s in: now put in 2–4 foods');
   else if (!potHeated(w, t.x, t.y, t.z)) say(`${itemName(potMeal(st.items).id)}, waiting for a fire under the pot`);
   else say(`${itemName(potMeal(st.items).id)} is simmering — ready in ${Math.max(1, Math.ceil(SIMMER_TIME - st.t))}s`);
