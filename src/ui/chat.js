@@ -18,7 +18,7 @@ for (const mod of [MOBS, ANIMALS, BOSSES, SCORCH_MOBS]) {
   }
 }
 
-const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother', 'skeletonknight', 'knightcaptain']);
+const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother', 'skeletonknight', 'knightcaptain', 'ashdrake', 'scorchdragon']);
 
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd', 'dimension'];

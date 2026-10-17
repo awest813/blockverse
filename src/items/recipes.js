@@ -74,6 +74,7 @@ for (const [mat, helmet, chest, legs, boots] of [
   [I.IRON_INGOT, I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS],
   [I.GOLD_INGOT, I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS],
   [I.DIAMOND, I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS],
+  [I.DRAGON_SCALE, I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS],
 ]) {
   const keys = { X: [mat] };
   shaped(helmet, 1, ['XXX', 'X.X'], keys);
@@ -145,6 +146,7 @@ shapeless(I.COCONUT_MILK, 1, [[I.COCONUT], [I.BOWL]]);
 shaped(B.COOKING_POT, 1, ['B.B', 'B.B', 'BBB'], { B: [I.BRICK_ITEM] });
 // the key to the Scorchlands: an ember from each kind of dungeon guardian
 shapeless(I.EMBER_CORE, 1, [[I.BRUTE_EMBER], [I.ARCHER_EMBER], [I.BROOD_EMBER], [I.DIAMOND], [I.REDSTONE_DUST]]);
+shaped(I.EMBER_BLADE, 1, ['F', 'D', 'S'], { F: [I.DRAGON_FANG], D: [I.DRAGON_SCALE], S: [I.STICK] });
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });
 shaped(B.GLOWSTONE, 1, ['XX', 'XX'], { X: [I.REDSTONE_DUST] });

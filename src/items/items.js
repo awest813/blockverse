@@ -111,6 +111,8 @@ item(I.BRUTE_EMBER, 'brute_ember', 'Brute\u2019s Ember');
 item(I.ARCHER_EMBER, 'archer_ember', 'Archer\u2019s Ember');
 item(I.BROOD_EMBER, 'brood_ember', 'Brood Ember');
 item(I.EMBER_CORE, 'ember_core', 'Ember Core');
+item(I.DRAGON_SCALE, 'dragon_scale', 'Dragon Scale');
+item(I.DRAGON_FANG, 'dragon_fang', 'Dragon Fang');
 item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
 item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
@@ -156,6 +158,7 @@ for (const [mat, mult, points, ids] of [
   ['iron', 15, [2, 6, 5, 2], [I.IRON_HELMET, I.IRON_CHESTPLATE, I.IRON_LEGGINGS, I.IRON_BOOTS]],
   ['gold', 7, [2, 5, 3, 1], [I.GOLD_HELMET, I.GOLD_CHESTPLATE, I.GOLD_LEGGINGS, I.GOLD_BOOTS]],
   ['diamond', 33, [3, 8, 6, 3], [I.DIAMOND_HELMET, I.DIAMOND_CHESTPLATE, I.DIAMOND_LEGGINGS, I.DIAMOND_BOOTS]],
+  ['dragon', 40, [3, 8, 6, 3], [I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS]],   // (and it turns fire: Player.damage)
 ]) {
   ARMOR_SLOTS.forEach((piece, slot) => {
     const display = `${mat[0].toUpperCase()}${mat.slice(1)} ${piece[0].toUpperCase()}${piece.slice(1)}`;
@@ -184,6 +187,10 @@ for (const [mat, ids] of [
 // the Ancient Blade: found only in temples
 item(I.ANCIENT_SWORD, 'ancient_sword', 'Ancient Blade', {
   stack: 1, tool: { class: 'sword', tier: 4, speed: 8, durability: 900, damage: 8 },
+});
+// the Ember Blade: a dragon's fang on a hilt of its scales; sets what it hits alight
+item(I.EMBER_BLADE, 'ember_blade', 'Ember Blade', {
+  stack: 1, tool: { class: 'sword', tier: 4, speed: 8, durability: 1400, damage: 9, ignites: 4 },
 });
 
 // How each weapon class swings: seconds to a full-strength hit, extra reach
@@ -229,6 +236,13 @@ const USES = new Map([
   [I.BROOD_EMBER, 'From a Brood Mother: one of the three embers an Ember Core needs'],
   [I.EMBER_CORE, 'Use it on a ring of charred stone (4 wide, 5 tall) to open a portal to the Scorchlands'],
   [B.CHARRED_STONE, 'A portal\u2019s frame: a ring 4 wide and 5 tall (corners optional), lit with an Ember Core'],
+  [I.DRAGON_SCALE, 'From the Scorch Dragon (and now and then an ash drake): armour that turns fire'],
+  [I.DRAGON_FANG, 'The Scorch Dragon\u2019s: with a scale and a stick, an Ember Blade'],
+  [I.EMBER_BLADE, 'Sets what it strikes alight'],
+  [I.DRAGON_HELMET, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
+  [I.DRAGON_CHESTPLATE, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
+  [I.DRAGON_LEGGINGS, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
+  [I.DRAGON_BOOTS, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
   [B.CAKE, 'Set it down and eat it a slice at a time (when you\u2019re hungry); seven slices'],
   [B.COOKING_POT, 'Set it over a fire, fill it with water, add 2-4 foods and ladle the meal out with bowls'],
   [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
@@ -251,7 +265,7 @@ const USES = new Map([
 export const itemUse = (id) => USES.get(id) ?? null;
 
 // Rare finds: they glint where they lie, and picking one up is announced.
-const RARE = new Set([I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER, I.EMBER_CORE, I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
+const RARE = new Set([I.DRAGON_SCALE, I.DRAGON_FANG, I.EMBER_BLADE, I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER, I.EMBER_CORE, I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
   I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);
 export const isRare = (id) => RARE.has(id);
 

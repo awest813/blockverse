@@ -1,7 +1,8 @@
 // The Scorchlands: a burnt forest under a night that never ends. Rolling
 // ash hills thick with charred trees and glowing stumps, open ash wastes
-// with lava lakes and spires of charred stone, and here and there the ruin
-// of a castle, held by skeleton knights. Pure and deterministic like
+// with lava lakes and spires of charred stone, here and there the ruin of
+// a castle, held by skeleton knights, and somewhere not far from the middle
+// the Scorch Dragon's roost. Pure and deterministic like
 // worldgen.js (it runs in the generation workers), with its own version
 // numbers: the overworld's generators never change for it.
 
@@ -21,6 +22,7 @@ export const LAVA_LEVEL = 38;   // lava lakes fill up to here
 const CELL = 6;
 const CASTLE_R = 11;     // half its width
 const CLEAR_R = 15;      // trees keep this far from its middle
+const ROOST_R = 21;      // the roost's mesa reaches this far out
 
 // [id, min, max, chance]
 const CASTLE_LOOT = [
@@ -88,7 +90,9 @@ export class ScorchGen {
       }
       hs.sort((a, b) => a - b);
       const y = hs[hs.length >> 1] + 1;
-      if (wet <= hs.length * 0.15 && hs[hs.length - 1] - hs[0] <= 12 && y + 16 < CHUNK_Y) {
+      const r = this.roost();
+      const clearOfRoost = Math.max(Math.abs(ox - r.x), Math.abs(oz - r.z)) > 48;
+      if (clearOfRoost && wet <= hs.length * 0.15 && hs[hs.length - 1] - hs[0] <= 12 && y + 16 < CHUNK_Y) {
         plan = { ox, oz, y, gate: (rng() * 4) | 0, cx: ccx, cz: ccz };
       }
     }
@@ -96,10 +100,29 @@ export class ScorchGen {
     return plan;
   }
 
-  // inside a castle's grounds (where nothing else is built)
-  nearCastle(wx, wz) {
+  // inside a castle's grounds or on the roost (where nothing else is built)
+  nearStructure(wx, wz) {
+    const r = this.roost();
+    if (Math.max(Math.abs(wx - r.x), Math.abs(wz - r.z)) <= ROOST_R + 3) return true;
     const c = this.castleIn(Math.floor(wx / CHUNK_X), Math.floor(wz / CHUNK_Z));
     return !!c && Math.max(Math.abs(wx - c.ox), Math.abs(wz - c.oz)) <= CLEAR_R;
+  }
+
+  // The Scorch Dragon's roost: a mesa crowned with spires, 100-140 blocks
+  // from the middle, standing a few blocks over the land round it.
+  // {x, z, y (standing on top), cx, cz}
+  roost() {
+    if (this._roost) return this._roost;
+    const rng = coordRng(this.seed, 0, 0, 2024);
+    const a = rng() * Math.PI * 2, d = 100 + rng() * 40;
+    const cx = Math.floor((Math.cos(a) * d) / CHUNK_X), cz = Math.floor((Math.sin(a) * d) / CHUNK_Z);
+    const x = cx * CHUNK_X + 8, z = cz * CHUNK_Z + 8;
+    const hs = [];
+    for (let dx = -ROOST_R; dx <= ROOST_R; dx += 4) for (let dz = -ROOST_R; dz <= ROOST_R; dz += 4) hs.push(Math.floor(this.columnAt(x + dx, z + dz).h));
+    hs.sort((p, q) => p - q);
+    const top = Math.min(CHUNK_Y - 30, Math.max(LAVA_LEVEL + 8, hs[hs.length >> 1] + 8));
+    this._roost = { x, z, y: top + 1, cx, cz, side: (rng() * 4) | 0 };
+    return this._roost;
   }
 
   // {h, t, m, wastes (0..1), lava} for a column
@@ -179,11 +202,13 @@ export class ScorchGen {
       const wx = cx * CHUNK_X + ((rng() * 16) | 0), wz = cz * CHUNK_Z + ((rng() * 16) | 0);
       const col = this.columnAt(wx, wz);
       const h = Math.floor(col.h);
-      if (col.lava || h <= LAVA_LEVEL || !this.groundOk(wx, h, wz) || this.nearCastle(wx, wz)) return null;
+      if (col.lava || h <= LAVA_LEVEL || !this.groundOk(wx, h, wz) || this.nearStructure(wx, wz)) return null;
       return { wx, wz, h, col };
     };
     const castle = this.castleIn(cx, cz);
     if (castle && castle.cx === cx && castle.cz === cz) out.push({ type: 'castle', ...castle, wx: castle.ox, wz: castle.oz });
+    const roost = this.roost();
+    if (roost.cx === cx && roost.cz === cz) out.push({ type: 'roost', ...roost, wx: roost.x, wz: roost.z });
     const centre = this.columnAt(cx * CHUNK_X + 8, cz * CHUNK_Z + 8);
     const forest = 1 - centre.wastes;
     // dead trees: thick in the forest, a few out on the wastes
@@ -300,6 +325,57 @@ export class ScorchGen {
     }
   }
 
+  // The roost: a flat-topped mesa of scorched stone with a stair up one
+  // side, a crown of tall spires round its rim, each smouldering at the
+  // tip, and a ring of burnt logs for a nest in the middle.
+  buildRoost(put, f, rng, get) {
+    const { x: ox, z: oz } = f, top = f.y - 1;
+    for (let dx = -ROOST_R; dx <= ROOST_R; dx++) {
+      for (let dz = -ROOST_R; dz <= ROOST_R; dz++) {
+        const r = Math.hypot(dx, dz);
+        const surface = rng() < 0.35 ? B.ASH : B.SCORCHED_STONE;
+        if (r > ROOST_R + 0.5) continue;
+        const h = r <= 14 ? top : Math.round(top - (r - 14) * 1.6);
+        const wx = ox + dx, wz = oz + dz;
+        for (let y = h + 1; y < top + 24; y++) put(wx, y, wz, B.AIR, false);
+        // down to the land (through any lava or hollow under it)
+        for (let y = h; y > 0; y--) {
+          const cur = get(wx, y, wz);
+          if (cur === -1 || (y < h && cur !== B.AIR && cur !== B.LAVA)) break;
+          put(wx, y, wz, y === h && r <= 14 ? surface : B.SCORCHED_STONE, false);
+        }
+      }
+    }
+    // the stair: a step down per block from the rim, out over the skirt
+    const [sx, sz] = [[0, -1], [1, 0], [0, 1], [-1, 0]][f.side];
+    for (let k = 0; k <= ROOST_R - 13; k++) {
+      for (let w = -1; w <= 1; w++) {
+        const wx = ox + sx * (14 + k) + sz * w, wz = oz + sz * (14 + k) + sx * w;
+        const sy = top - k;
+        for (let y = sy - 3; y <= sy; y++) put(wx, y, wz, B.SCORCHED_BRICKS, false);
+        for (let y = sy + 1; y <= sy + 3; y++) put(wx, y, wz, B.AIR, false);
+      }
+    }
+    // the crown: eight spires round the rim, smouldering at their tips
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const bx = ox + Math.round(Math.cos(a) * 12), bz = oz + Math.round(Math.sin(a) * 12);
+      const tall = 10 + ((rng() * 8) | 0);
+      for (let k = 0; k < tall; k++) {
+        const wide = k < tall * 0.4 ? 1 : 0;
+        for (let dx = -wide; dx <= wide; dx++) for (let dz = -wide; dz <= wide; dz++) put(bx + dx, top + 1 + k, bz + dz, B.CHARRED_STONE, false);
+      }
+      put(bx, top + 1 + tall, bz, B.SMOULDERING_STUMP, false);
+    }
+    // the nest
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      const nx = ox + Math.round(Math.cos(a) * 4.5), nz = oz + Math.round(Math.sin(a) * 4.5);
+      put(nx, top + 1, nz, B.CHARRED_LOG, false);
+      if (rng() < 0.4) put(nx, top + 2, nz, B.CHARRED_LOG, false);
+    }
+  }
+
   applyFeature(blocks, cx, cz, f, entities) {
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
@@ -310,10 +386,12 @@ export class ScorchGen {
       return i;
     };
     const rng = coordRng(this.seed, f.wx, f.wz, f.seed ?? 7);
-    if (f.type === 'castle') this.buildCastle(put, f, rng, entities, (wx, wy, wz) => {
+    const get = (wx, wy, wz) => {
       const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
-      return x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z ? -1 : blocks[blockIndex(x, wy, z)];
-    });
+      return x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 0 || wy >= CHUNK_Y ? -1 : blocks[blockIndex(x, wy, z)];
+    };
+    if (f.type === 'castle') this.buildCastle(put, f, rng, entities, get);
+    else if (f.type === 'roost') this.buildRoost(put, f, rng, get);
     else if (f.type === 'tree') {
       // a bare black trunk with a few crooked branches and the odd clump of
       // dead leaves; some have snapped off short

@@ -12,9 +12,11 @@ import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
-const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain']);   // (explosions hurt at any difficulty)
+const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain', 'drake', 'fireball', 'dragon', 'dragonfire']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze', 'poison']);
 const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
+const DRAGON_SCALE = new Set([I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS]);
+const FIERY = new Set(['fire', 'lava', 'fireball', 'dragonfire']);
 
 export class Player {
   constructor(world) {
@@ -425,6 +427,12 @@ export class Player {
         amount = Math.max(0.5, Math.round(amount * (1 - Math.min(20, pts) / 25) * 2) / 2);
         this.wearArmor(Math.max(1, Math.floor(amount / 2)));
       }
+    }
+    // dragon scale turns fire: a fifth less from flames and lava per piece
+    if (FIERY.has(cause)) {
+      const scales = this.armor.filter((s) => s && DRAGON_SCALE.has(s.id)).length;
+      if (scales) amount = Math.max(0, Math.round(amount * (1 - 0.2 * scales) * 2) / 2);
+      if (amount <= 0) return;
     }
     this.health -= amount;
     this.events.dispatchEvent(new CustomEvent('hurt', { detail: { amount, cause } }));

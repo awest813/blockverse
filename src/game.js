@@ -37,6 +37,7 @@ import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { dimensionOf, genVersionOf, arrivalPoint, OVERWORLD, SCORCH } from './world/dimensions.js';
+import { ScorchDragon } from './entities/scorchMobs.js';
 import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -180,6 +181,7 @@ export class Game {
     this.entities.fx.dust = (x, y, z) => this.sparks(x, y, z, 0x8a7a64, 18);
     this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
+    this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
     // a dungeon boss beaten: its cage remembers, so it stays beaten
     this.entities.fx.bossDown = (boss) => {
       const c = boss.home?.cage?.split(',').map(Number);
@@ -188,6 +190,7 @@ export class Game {
       // its cage's chunk may be unloaded (you led it far away): the world
       // remembers, and the cage learns when it next loads
       else if (boss.home?.cage) (this.worldMeta.defeatedCages ??= []).push(boss.home.key ?? boss.home.cage);
+      if (boss.kind === 'dragon') this.dragonSlain = true;   // (until you next come to the Scorchlands)
       this.hud.showLabel(`${boss.boss.name} defeated!`);
       this.sfx?.play('victory');
       this.sparks(boss.x, boss.y + boss.h * 0.6, boss.z, 0xffd84a, 30);
@@ -424,6 +427,13 @@ export class Game {
       const first = !this.worldMeta.seenScorch;
       this.worldMeta.seenScorch = true;
       this.hud.showLabel(first ? 'The Scorchlands. The night never ends here.' : 'The Scorchlands', true);
+      // the first time: which way the dragon's roost lies
+      const r = this.world.gen.roost?.(), p = this.player;
+      if (first && r) {
+        const dx = r.x - p.x, dz = r.z - p.z;
+        const dir = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(Math.atan2(dz, dx) / (Math.PI / 4)) % 8) + 8) % 8];
+        setTimeout(() => { if (this.running) this.hud.toast('A dragon\u2019s roost', `A crown of smouldering spires stands to the ${dir}, about ${Math.round(Math.hypot(dx, dz) / 10) * 10} blocks away. Something huge circles over it.`, I.DRAGON_SCALE); }, 4500);
+      }
     } else this.hud.showLabel('Home again', false);
   }
 
@@ -438,6 +448,26 @@ export class Game {
       if (m.tamed && !m.sitting && !m.dead && m.dying === undefined && Math.hypot(m.x - p.x, m.z - p.z) < 8) m.travelling = true;
     }
     this.uiHooks?.travel?.(to, arrive);
+  }
+
+  // ---------- the Scorch Dragon ----------
+
+  // Come near its roost and the dragon rises, unless you've beaten it this
+  // visit (it's back the next time you come to the Scorchlands).
+  updateDragon(dt) {
+    this._dragonT = (this._dragonT ?? 0) - dt;
+    if (this._dragonT > 0 || this.dragonSlain || this.mobSpawner.difficulty === 0) return;
+    this._dragonT = 1;
+    const roost = this.world.gen.roost?.(), p = this.player;
+    if (!roost || p.dead || Math.hypot(p.x - roost.x, p.z - roost.z) > 40 || !this.world.isLoaded(roost.x, roost.z)) return;
+    if (this.entities.mobs.some((m) => m.kind === 'dragon' && !m.dead && m.dying === undefined)) return;
+    const d = new ScorchDragon(this.scene, this.world, roost.x + 0.5, roost.y + 18, roost.z + 0.5).setDifficulty(this.mobSpawner.difficulty);
+    // its spoils land on the roost, not wherever it falls (over lava, say)
+    d.dropFn = (drops) => this.entities.spawnDrops(roost.x + 0.5, roost.y + 1, roost.z + 0.5, drops);
+    this.entities.addMob(d);
+    this.sfx?.play('dragon', { pos: d, vol: 1.3 });
+    this.hud.showLabel(this.worldMeta.metDragon ? 'The Scorch Dragon has come back to its roost!' : 'The Scorch Dragon rises from its roost!', true);
+    this.worldMeta.metDragon = true;
   }
 
   // ---------- ember portals ----------
@@ -740,6 +770,9 @@ export class Game {
     if (crit) dmg *= 1.5;
     if (!best.damage(dmg, p)) return true;
     this.sinceAttack = 0;
+    // the Ember Blade sets what it strikes alight
+    const ignites = held ? itemInfo(held.id)?.tool?.ignites : 0;
+    if (ignites && !best.fireproof && !best.dead) best.fireTime = Math.max(best.fireTime ?? 0, ignites);
     const dir = p.lookDir();
     const hd = Math.hypot(dir.x, dir.z) || 1;
     // extra knockback for heavy weapons (scaled by charge)
@@ -782,6 +815,15 @@ export class Game {
       const a = Math.random() * Math.PI * 2;
       this.sparkList.push({ sprite, t: 0, vx: Math.cos(a) * (1.5 + Math.random() * 2), vy: 1 + Math.random() * 2.5, vz: Math.sin(a) * (1.5 + Math.random() * 2) });
     }
+  }
+
+  // a tongue of dragon fire, flying out along (vx, vy, vz) and fading
+  flame(x, y, z, vx, vy, vz) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: Math.random() < 0.5 ? 0xff7a20 : 0xffc048, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+    sprite.scale.setScalar(0.35 + Math.random() * 0.3);
+    sprite.position.set(x, y, z);
+    this.scene.add(sprite);
+    this.sparkList.push({ sprite, t: 0, g: -2, life: 0.7, vx, vy, vz });
   }
 
   // a bite of food: a few crumbs in its own colours fall from in front of your face
@@ -1337,6 +1379,7 @@ export class Game {
       this.mobSpawner.update(dt, this.player, day);
       this.tickBlockEntities(dt);
       this.updatePortals(dt);
+      if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash
       if (this.player.onGround && !this.player.flying) {
@@ -1371,7 +1414,7 @@ export class Game {
     for (const m of this.entities.mobs) {
       if (!m.boss || m.dead || m.dying !== undefined) continue;
       const d = Math.hypot(m.x - this.player.x, m.y - this.player.y, m.z - this.player.z);
-      if (d < bd && (d < 14 || m.state === 'chase')) { boss = m; bd = d; }
+      if (d < bd && (d < 14 || m.state === 'chase' || (m.kind === 'dragon' && d < 64))) { boss = m; bd = d; }
     }
     this.hud.setBoss(this.player.dead ? null : boss);
     this.sinceAttack += dt;

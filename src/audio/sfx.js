@@ -361,6 +361,29 @@ export class Sfx {
         this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.6, gain: 0.04, type: 'sawtooth', hold: 0.3 });
         this.later(() => this.tone({ freq: 125 * detune, endFreq: 150, dur: 0.4, gain: 0.03, type: 'sawtooth' }), 380);
         break;
+      case 'fireball':   // a gout of flame spat out
+        this.noise({ freq: 700, q: 0.7, dur: 0.45, gain: 0.2, type: 'lowpass', pitchDrop: 400 });
+        this.tone({ freq: 160 * detune, endFreq: 90, dur: 0.3, gain: 0.06, type: 'sawtooth' });
+        break;
+      case 'fizz':       // a fireball bursting on stone
+        this.noise({ freq: 2400 * detune, q: 0.6, dur: 0.3, gain: 0.14, type: 'highpass', pitchDrop: 1200 });
+        break;
+      case 'drake':      // an ash drake's thin, rasping shriek
+        this.tone({ freq: 620 * detune, endFreq: 380, dur: 0.45, gain: 0.07, type: 'sawtooth' });
+        this.noise({ freq: 1800, q: 1.5, dur: 0.35, gain: 0.05 });
+        break;
+      case 'dragon':     // the Scorch Dragon: a vast, rolling roar
+        this.tone({ freq: 48 * detune, endFreq: 92, dur: 0.9, gain: 0.18, type: 'sawtooth' });
+        this.noise({ freq: 260, q: 0.6, dur: 1.8, gain: 0.2, type: 'lowpass' });
+        this.later(() => this.tone({ freq: 92 * detune, endFreq: 40, dur: 1.4, gain: 0.16, type: 'sawtooth' }), 800);
+        break;
+      case 'wingbeat':   // a great leathery wingbeat
+        this.noise({ freq: 180, q: 0.5, dur: 0.35, gain: 0.16, type: 'lowpass' });
+        break;
+      case 'breath':     // a roaring stream of fire
+        this.noise({ freq: 900, q: 0.4, dur: 1.2, gain: 0.16, type: 'bandpass', pitchDrop: 300 });
+        this.noise({ freq: 200, q: 0.5, dur: 1.2, gain: 0.12, type: 'lowpass' });
+        break;
       case 'clang':      // steel on a shield
         this.tone({ freq: 880 * detune, endFreq: 820, dur: 0.25, gain: 0.12, type: 'square' });
         this.tone({ freq: 1320 * detune, dur: 0.18, gain: 0.06, type: 'triangle' });

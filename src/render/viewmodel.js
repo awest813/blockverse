@@ -20,7 +20,7 @@ const SLEEVE = new THREE.Color(0x3d8a9e);
 // a chestplate shows on the arm: its plate colour and a darker cuff
 const ARMOUR = {
   leather: [0x8a5a34, 0x5e3a1e], iron: [0xc9ccd1, 0x8a9098],
-  gold: [0xf0c648, 0xb88a22], diamond: [0x62d8e2, 0x2a96a4],
+  gold: [0xf0c648, 0xb88a22], diamond: [0x62d8e2, 0x2a96a4], dragon: [0x962820, 0x5c1612],
 };
 
 function tileTexture(name) {

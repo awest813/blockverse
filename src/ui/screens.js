@@ -35,6 +35,10 @@ const DEATH_MESSAGES = {
   spiderling: 'You were swarmed by spiderlings',
   knight: 'You were cut down by a Skeleton Knight',
   captain: 'You were bested by the Knight Captain',
+  drake: 'You were burnt to a crisp by an Ash Drake',
+  fireball: 'You were struck by a fireball',
+  dragon: 'You were torn apart by the Scorch Dragon',
+  dragonfire: 'You were burnt to ashes by the Scorch Dragon',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
-import { SkeletonKnight } from './scorchMobs.js';
+import { SkeletonKnight, AshDrake } from './scorchMobs.js';
 import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican, Crab } from './animals.js';
 
 // night spawn mix: [class, weight]
@@ -29,6 +29,7 @@ const SCORPION_CAP = 3;
 const GULL_CAP = 5;
 const PELICAN_CAP = 4;
 const CRAB_CAP = 5;
+const DRAKE_CAP = 2;
 // a desert has the one kind of animal: don't let camels fill the cap
 const KIND_CAP = new Map([[Camel, 4]]);
 // these live on sand rather than grass
@@ -95,6 +96,8 @@ export class MobSpawner {
     // the Scorchlands: monsters only, and it's always night there
     if (this.dimension === 'scorch') {
       if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
+      // ash drakes take wing from anywhere (they don't need the dark)
+      if (this.difficulty > 0 && count(mobs, AshDrake) < DRAKE_CAP && Math.random() < 0.2) this.trySpawnLocal(player, AshDrake, () => true);
       return;
     }
     if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);

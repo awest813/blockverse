@@ -135,4 +135,12 @@ export const I = {
   ARCHER_EMBER: 378,
   BROOD_EMBER: 379,
   EMBER_CORE: 380,
+  // the Scorch Dragon's (and the drakes') spoils
+  DRAGON_SCALE: 381,
+  DRAGON_FANG: 382,
+  EMBER_BLADE: 383,
+  DRAGON_HELMET: 384,
+  DRAGON_CHESTPLATE: 385,
+  DRAGON_LEGGINGS: 386,
+  DRAGON_BOOTS: 387,
 };

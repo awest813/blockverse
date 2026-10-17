@@ -462,6 +462,7 @@ export class Mob {
   // On fire (sun, lava, campfires): 1 damage a second (2 for undead in the
   // sun), flames on the model; water puts it out.
   updateFire(dt) {
+    if (this.fireproof) { this.fireTime = 0; if (this.flames?.visible) this.showFlames(false); return; }   // (the Scorchlands' fliers)
     const inLava = entityInBlock(this.world, this, B.LAVA);
     if (inLava) {
       this.fireTime = Math.max(this.fireTime ?? 0, 8);

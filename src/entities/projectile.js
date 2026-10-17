@@ -60,7 +60,7 @@ export class Arrow {
       return;
     }
 
-    this.vy -= GRAVITY * dt;
+    this.vy -= (this.gravity ?? GRAVITY) * dt;
     if (isWater(this.world.getBlockW(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z)))) {
       const k = Math.exp(-WATER_DRAG * dt);
       this.vx *= k; this.vy *= k; this.vz *= k;
@@ -89,6 +89,7 @@ export class Arrow {
       if (!player.dead && Math.abs(this.x - player.x) < 0.4 && Math.abs(this.z - player.z) < 0.4
         && this.y > player.y && this.y < player.y + 1.85) {
         player.damage(this.damage, this.cause ?? 'skeleton');
+        this.onHitPlayer?.(player);
         // knock the player back along the arrow's path
         const len = Math.hypot(this.vx, this.vz) || 1;
         player.vx += (this.vx / len) * 4;
@@ -116,6 +117,37 @@ export class Arrow {
     this.dead = true;
     this.scene.remove(this.mesh);
     this.mesh.material.dispose();
+  }
+}
+
+// A drake's (or the dragon's) fireball: flies straight, sets you alight,
+// and bursts harmlessly on whatever block it meets.
+const fireGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
+export class Fireball extends Arrow {
+  constructor(scene, world, x, y, z, vx, vy, vz, damage) {
+    super(scene, world, x, y, z, vx, vy, vz, damage, 'mob', false);
+    this.gravity = 0;
+  }
+
+  makeMesh() { return new THREE.Mesh(fireGeo, new THREE.MeshBasicMaterial({ color: 0xffa040, fog: false })); }
+
+  shade() {}   // it glows
+
+  orient() {
+    this.mesh.position.set(this.x, this.y, this.z);
+    this.mesh.rotation.x += 0.3; this.mesh.rotation.y += 0.2;
+    this.mesh.material.color.setHex(Math.sin(this.age * 30) > 0 ? 0xffa040 : 0xff6a20);
+  }
+
+  update(dt, player, mobs, onPickup) {
+    // water puts it out
+    if (isWater(this.world.getBlockW(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z)))) { this.hitBlock(); return; }
+    super.update(dt, player, mobs, onPickup);
+  }
+
+  hitBlock() {
+    this.onBurst?.(this);
+    this.kill();
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { ItemDrop } from './itemDrop.js';
 import { chunkKey } from '../world/chunk.js';
-import { Arrow } from './projectile.js';
+import { Arrow, Fireball } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Pelican, Crab } from './animals.js';
@@ -31,6 +31,15 @@ export class EntityManager {
         a.onStick = (s) => this.fx.sound('arrowhit', { pos: s });
         this.projectiles.push(a);
         this.fx.sound('shoot', { pos: { x, y, z } });
+      },
+      // a drake's or the dragon's fireball (it never harms a block)
+      fireball: (x, y, z, vx, vy, vz, dmg, cause = 'fireball') => {
+        const f = new Fireball(this.scene, this.world, x, y, z, vx, vy, vz, dmg);
+        f.cause = cause;
+        f.onBurst = (s) => { this.fx.spark?.(s.x, s.y, s.z, 0xff8a2a, 10); this.fx.sound('fizz', { pos: s }); };
+        f.onHitPlayer = (p) => { p.fireTime = Math.max(p.fireTime ?? 0, 3); };
+        this.projectiles.push(f);
+        this.fx.sound('fireball', { pos: { x, y, z } });
       },
       // the player's bow
       fire: (x, y, z, vx, vy, vz, dmg, pickup) => {

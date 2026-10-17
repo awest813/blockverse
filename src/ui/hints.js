@@ -99,6 +99,8 @@ export class Hints {
         'A guardian\u2019s ember', 'Each kind of dungeon guardian (Zombie Brute, Bone Archer, Brood Mother) keeps an ember. All three, a diamond and redstone make an Ember Core.'],
       ['ember-core', () => has([I.EMBER_CORE]), B.CHARRED_STONE,
         'Ember Core', `Build a ring of charred stone 4 wide and 5 tall (corners optional) and ${k('use')} the core on it. The portal leads to the Scorchlands: stand in it to cross.`],
+      ['dragon-scale', () => has([I.DRAGON_SCALE]), I.DRAGON_SCALE,
+        'Dragon scale', 'Scales make armour like diamond\u2019s that also turns fire and lava. The Scorch Dragon\u2019s fang, a scale and a stick make the Ember Blade.'],
       ['bed', () => has([B.WOOL], 3), B.BED,
         'Bed', '3 wool + 3 planks make a Bed. Sleep to skip the night and set your respawn point.'],
     ];
