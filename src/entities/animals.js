@@ -12,6 +12,7 @@ import { worldClock } from '../core/clock.js';
 import { moodRate } from '../world/ranch.js';
 import { trait } from './traits.js';
 import { layEgg } from '../world/produce.js';
+import { tally } from '../world/market.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -170,6 +171,7 @@ function milk(animal, player, held) {
   }
   animal.milkAt = worldClock.now + MILK_COOLDOWN / (moodRate(animal) * trait(animal, 'milk'));   // (a happy cow sooner, a good milker too)
   const milk = animal.milkItem ?? I.MILK_BUCKET;   // (a goat's is goat milk)
+  tally('milk');
   if (player.mode !== GAMEMODE_CREATIVE) {
     if (held.count > 1) {
       player.consumeHeld(1);

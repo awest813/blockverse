@@ -149,6 +149,7 @@ export const B = {
   PUMPKIN_STEM_0: 145, PUMPKIN_STEM_1: 146, PUMPKIN_STEM_2: 147, PUMPKIN_STEM_3: 148,   // a grown stem sets pumpkins beside it
   PEPPERS_0: 149, PEPPERS_1: 150, PEPPERS_2: 151, PEPPERS_3: 152,   // Scorch peppers: the Scorchlands only
   BEEHIVE: 153,          // bees move in by flowers; honey for a bowl
+  MARKET_STALL: 154,     // sell what the ranch makes, buy what it needs
 };
 
 // Tool classes
@@ -403,6 +404,9 @@ for (let stage = 0; stage < 4; stage++) {
 }
 reg(def(B.BEEHIVE, 'beehive', 'Beehive', {
   hardness: 0.6, tool: TOOL_AXE, sound: 'wood', textures: { top: 'beehive_top', bottom: 'beehive_top', side: 'beehive_side', front: 'beehive_front' },
+}));
+reg(def(B.MARKET_STALL, 'market_stall', 'Market Stall', {
+  render: R_SHAPE, shape: 'stall', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'market_stall',
 }));
 reg(def(B.TNT, 'tnt', 'TNT', {
   hardness: 0, sound: 'leaf',

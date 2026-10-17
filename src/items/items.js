@@ -135,6 +135,8 @@ item(I.PUMPKIN_SEEDS, 'pumpkin_seeds', 'Pumpkin Seeds', { places: B.PUMPKIN_STEM
 item(I.SCORCH_PEPPER, 'scorch_pepper', 'Scorch Pepper', { food: 1, sat: 0.6, places: B.PEPPERS_0, warms: 30 });
 item(I.HONEY_BOWL, 'honey_bowl', 'Bowl of Honey', { food: 6, sat: 2.4, stack: 1, returns: I.BOWL, cures: true });
 item(I.HONEY_BREAD, 'honey_bread', 'Honey Bread', { food: 7, sat: 8 });
+item(I.COIN, 'coin', 'Coin');
+item(I.LEDGER, 'ledger', 'Ranch Ledger', { stack: 1 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -289,6 +291,9 @@ const USES = new Map([
   [I.SCORCH_PEPPER, 'Grows only in the Scorchlands\u2019 heat (plant it on farmland there). In a pot with meat or potatoes: spicy stew'],
   [I.SPICY_STEW, 'Warms you through and halves the harm from fire and lava for three minutes'],
   [I.HONEY_BOWL, 'Sweet, and settles venom'],
+  [B.MARKET_STALL, 'Use it to sell eggs, milk, butter, cheese, wool, honey and more for coins (prices drop when you sell a lot of one thing), and buy what a ranch needs'],
+  [I.COIN, 'Spend them at a market stall'],
+  [I.LEDGER, 'Read it: every animal that\u2019s yours, wherever it is, and what your ranch has made'],
   [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

@@ -170,6 +170,9 @@ shaped(B.BEEHIVE, 1, ['PPP', 'WWW', 'PPP'], { P: ANY_PLANKS, W: [I.WHEAT] });
 shapeless(I.PUMPKIN_SEEDS, 4, [[B.PUMPKIN]]);
 shapeless(I.RED_DYE, 1, [[I.BEETROOT]]);
 shapeless(I.HONEY_BREAD, 2, [[I.BREAD], [I.HONEY_BOWL]]);   // (the bowl comes back)
+// the market and the ledger
+shaped(B.MARKET_STALL, 1, ['WWW', 'S.S', 'PPP'], { W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }), S: [I.STICK], P: ANY_PLANKS });
+shapeless(I.LEDGER, 1, [[I.BOOK], [I.FEATHER]]);
 // horse armour: a padded blanket under each
 for (const [mat, armour] of [[I.LEATHER, I.LEATHER_HORSE_ARMOR], [I.IRON_INGOT, I.IRON_HORSE_ARMOR], [I.GOLD_INGOT, I.GOLD_HORSE_ARMOR], [I.DIAMOND, I.DIAMOND_HORSE_ARMOR], [I.DRAGON_SCALE, I.DRAGON_HORSE_ARMOR]]) {
   shaped(armour, 1, ['X.X', 'XWX', 'XXX'], { X: [mat], W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }) });

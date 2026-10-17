@@ -1809,6 +1809,22 @@ tile('honey_bread', (ctx) => {
   rect(ctx, 2, 6, 12, 6, [176, 112, 48]); rect(ctx, 3, 5, 10, 1, [196, 134, 64]); rect(ctx, 2, 11, 12, 1, [138, 84, 34]);
   rect(ctx, 3, 5, 9, 2, [232, 170, 30]); px(ctx, 5, 7, [232, 170, 30]); px(ctx, 10, 7, [232, 170, 30]);   // honey running down
 });
+tile('coin', (ctx) => {
+  const g = [240, 196, 58], d = [190, 146, 36], l = [255, 236, 140];
+  for (let y = 3; y < 13; y++) { const w = Math.round(Math.sqrt(25 - (y - 7.5) ** 2)); rect(ctx, 8 - w, y, w * 2, 1, g); px(ctx, 8 + w - 1, y, d); }
+  rect(ctx, 6, 5, 4, 1, l); rect(ctx, 7, 6, 2, 4, d);   // a stamped mark
+});
+tile('ledger', (ctx) => {
+  rect(ctx, 3, 2, 10, 12, [96, 64, 36]); rect(ctx, 4, 3, 8, 10, [124, 84, 48]); rect(ctx, 3, 2, 2, 12, [70, 44, 24]);
+  rect(ctx, 6, 5, 5, 1, [236, 222, 190]); rect(ctx, 6, 7, 5, 1, [236, 222, 190]); rect(ctx, 6, 9, 3, 1, [236, 222, 190]);
+  for (let i = 0; i < 4; i++) px(ctx, 12 + (i & 1), 10 + i, [236, 236, 236]);   // a quill
+});
+tile('market_stall', (ctx) => {
+  for (let x = 1; x < 15; x++) rect(ctx, x, 2, 1, 3, ((x >> 1) & 1) ? [236, 236, 230] : [196, 50, 44]);   // the awning
+  rect(ctx, 2, 5, 1, 9, [112, 76, 40]); rect(ctx, 13, 5, 1, 9, [112, 76, 40]);
+  rect(ctx, 1, 10, 14, 4, [150, 104, 60]); rect(ctx, 1, 10, 14, 1, [176, 128, 72]);
+  rect(ctx, 4, 8, 2, 2, [236, 196, 84]); rect(ctx, 7, 8, 2, 2, [240, 230, 206]); rect(ctx, 10, 8, 2, 2, [150, 30, 50]);   // wares
+});
 tile('carrot', (ctx) => {
   const o = [236, 128, 32], oD = [196, 92, 20], oL = [250, 170, 80];
   for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 12 - i, 3 - (i > 6 ? 1 : 0), 2, o); px(ctx, 3 + i, 13 - i, oD); }

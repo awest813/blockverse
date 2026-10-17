@@ -12,6 +12,7 @@ import { generateTile } from '../render/textures.js';
 import { moodRate } from '../world/ranch.js';
 import { trait } from './traits.js';
 import { COLOUR, colourOfDye, blendColours } from '../items/dyes.js';
+import { tally } from '../world/market.js';
 import { worldClock } from '../core/clock.js';
 
 // the wool block's own weave, shared by every sheep's fleece
@@ -188,7 +189,9 @@ export class Sheep extends Mob {
     if (this.sheared || this.baby) return true;
     this.setSheared(true);
     this.persistent = true;   // a sheep you're shearing is one of yours: kept and saved
-    this.dropFn?.([{ id: this.woolId(), count: Math.max(1, Math.floor(trait(this, 'fleece') + Math.random())) }]);
+    const wool = Math.max(1, Math.floor(trait(this, 'fleece') + Math.random()));
+    this.dropFn?.([{ id: this.woolId(), count: wool }]);
+    tally('wool', wool);
     if (player.mode !== GAMEMODE_CREATIVE) player.damageHeldTool(1);
     this.fx?.sound('shear', { pos: this });
     this.fx?.sound('sheep', { pos: this, pitch: 1.1 });   // an indignant bleat

@@ -15,6 +15,7 @@ import { I } from '../items/itemIds.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { worldClock } from '../core/clock.js';
 import { isBlockItem } from '../items/items.js';
+import { tally } from './market.js';
 
 export const NEST_MAX = 16;
 const CHURN_MAX = 4, CHURNS = 6;     // buckets a churn holds; turns of the dasher per bucket
@@ -107,6 +108,7 @@ function walkable(world, m, x, z) {
 // Lay an egg: in a nest close by if there's one (a hen likes a nest), or
 // on the ground.
 export function layEgg(m, id) {
+  tally('eggs');
   const n = nestFor(m.world, m);
   if (!n) { m.dropFn?.([{ id, count: 1 }]); return false; }
   const w = m.world, st = nestState(w, n.x, n.y, n.z);
@@ -172,6 +174,7 @@ function useChurn(it, t, held) {
     st.work = 0;
     st.milk--;
     give(it, I.BUTTER, 2);
+    tally('butter', 2);
     it.cb.notify?.(st.milk ? `Butter! (${st.milk} more bucket${st.milk > 1 ? 's' : ''} to churn)` : 'Butter!');
   } else it.cb.notify?.(`Churning… ${st.work}/${CHURNS}`);
   w.setBlockEntity(t.x, t.y, t.z, st);
@@ -204,6 +207,7 @@ function usePress(it, t, held) {
   if (ready) {
     st.batches = st.batches.filter((b) => b > now);
     give(it, I.CHEESE, ready);
+    tally('cheese', ready);
     setMeta(w, t.x, t.y, t.z, B.CHEESE_PRESS, st.batches.length ? 1 : 0, st);
     w.setBlockEntity(t.x, t.y, t.z, st);
     it.cb.playSound('pickup', {});
@@ -256,6 +260,7 @@ function useHive(it, t, held) {
   if (held?.id === I.BOWL) {
     if (!st.honey) { it.cb.notify?.(st.bees ? 'No honey yet: the bees are still at work' : 'No bees, no honey: set the hive by flowers'); return true; }
     st.honey--;
+    tally('honey');
     w.setBlockEntity(t.x, t.y, t.z, st);
     const p = it.player;
     if (p.mode !== GAMEMODE_CREATIVE) {

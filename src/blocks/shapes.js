@@ -8,7 +8,7 @@ const P = 1 / 16;
 // a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
 const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
 // tiles shapes draw beyond their block's own textures (the atlas needs them)
-export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner', 'nest_egg', 'cheese_round'];
+export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner', 'nest_egg', 'cheese_round', 'red_wool', 'wool'];
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -112,6 +112,13 @@ export function shapeBoxes(id, meta, nb, collision = false) {
       const up = meta & 1 ? 0 : 2 * P;
       return [[4 * P, 0, 4 * P, 12 * P, 12 * P, 12 * P], [3.5 * P, 2 * P, 3.5 * P, 12.5 * P, 3 * P, 12.5 * P], [3.5 * P, 9 * P, 3.5 * P, 12.5 * P, 10 * P, 12.5 * P],
         [5 * P, 12 * P, 5 * P, 11 * P, 13 * P, 11 * P], [7.5 * P, 13 * P, 7.5 * P, 8.5 * P, 14 * P + up, 8.5 * P], [5.5 * P, 13 * P + up, 7.5 * P, 10.5 * P, 14 * P + up, 8.5 * P]];
+    }
+    // a counter under a striped awning on four posts
+    case 'stall': {
+      if (collision) return [[0, 0, 0, 1, 9 * P, 1]];
+      return [[0, 0, 3 * P, 1, 8 * P, 1], [0, 8 * P, 2 * P, 1, 9 * P, 1],
+        [0, 9 * P, 13 * P, P, 15 * P, 14 * P], [15 * P, 9 * P, 13 * P, 1, 15 * P, 14 * P], [0, 0, 0, P, 15 * P, P], [15 * P, 0, 0, 1, 15 * P, P],
+        [0, 15 * P, 0, 4 * P, 1, 1, 'red_wool'], [4 * P, 15 * P, 0, 8 * P, 1, 1, 'wool'], [8 * P, 15 * P, 0, 12 * P, 1, 1, 'red_wool'], [12 * P, 15 * P, 0, 1, 1, 1, 'wool']];
     }
     // a frame with a screw and a follower plate; a cheese inside when there's one pressing
     case 'press': {

@@ -27,6 +27,8 @@ import { ScorchFx } from './render/scorchFx.js';
 import { WeatherFx } from './render/weatherFx.js';
 import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
+import { RanchPanel } from './ui/ranchPanel.js';
+import { bindStats } from './world/market.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -229,6 +231,8 @@ export class Game {
       throwItem: (kind) => this.throwItem(kind),
       castRod: () => this.castRod(),
       editSign: (x, y, z) => this.signEditor.open(x, y, z),
+      openMarket: () => this.ranchPanel.openMarket(),
+      openLedger: () => this.ranchPanel.openLedger(),
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
       tieLeashes: (t) => this.tieLeashes(t),
@@ -263,6 +267,8 @@ export class Game {
     this.weatherFx = this.dimension === SCORCH ? null : new WeatherFx(this.scene);
     this.containers = new Containers(this);
     this.signEditor = new SignEditor(this);
+    this.ranchPanel = new RanchPanel(this);
+    bindStats(worldMeta);
     this._furnaceUiTimer = 0;
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
     this.mobSpawner.dimension = this.dimension;
@@ -731,6 +737,10 @@ export class Game {
   bindKeys() {
     const input = this.input;
     this.input.onKeyDown = (code, e) => {
+      if (this.ranchPanel.isOpen()) {
+        if (code === 'Escape' || input.is(code, 'inventory')) this.ranchPanel.close();
+        return true;
+      }
       if (this.signEditor.isOpen()) {
         if (code === 'Escape') this.signEditor.close(!!this.signEditor.prompt);   // (Escape cancels a name)
         return true;

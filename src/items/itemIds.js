@@ -174,4 +174,6 @@ export const I = {
   SPICY_STEW: 416,       // wards off fire for a while
   HONEY_BOWL: 417,
   HONEY_BREAD: 418,
+  COIN: 419,             // the market's money
+  LEDGER: 420,           // the ranch's book: every animal of yours, and what the ranch has made
 };

@@ -12,6 +12,7 @@ import { worldClock } from '../core/clock.js';
 import { HAPPY, NO_BREEDING } from '../world/ranch.js';
 import { inheritTraits, trait } from './traits.js';
 import { findPath } from '../world/pathing.js';
+import { tally } from '../world/market.js';
 
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
@@ -196,6 +197,7 @@ export class Mob {
     this.breedCooldown = mate.breedCooldown = 300;
     // a big litter now and then (twins: a pig's litters run in the family)
     const twins = Math.random() < (trait(this, 'litter') + trait(mate, 'litter')) / 2 - 1;
+    tally('born', twins ? 2 : 1);
     for (let n = twins ? 2 : 1; n > 0; n--) {
       const baby = new this.constructor(this.scene, this.world, this.x, this.y + 0.2, this.z);   // (on this parent's side; twins jostle apart)
       baby.setBaby(true);
