@@ -34,6 +34,34 @@ export function tickSaplings(world, dt) {
   }
 }
 
+// A saved chunk loaded again: its crops grow as they would have since it was
+// saved (up to two days' worth), a stage at a time; saplings count down and
+// grow on the next tick (a tree needs its neighbours loaded).
+const CATCH_UP_MAX = 2 * 1200;
+export function catchUpChunk(world, chunk, savedAt, now) {
+  let secs = Math.min(CATCH_UP_MAX, now - savedAt);
+  if (!(secs > 1) || !chunk.blockEntities.size) return;
+  const crops = [];
+  for (const [idx, st] of chunk.blockEntities) {
+    if (st.kind === 'sapling') st.grow = Math.max(0, st.grow - secs);
+    else if (st.kind === 'crop') {
+      const y = idx % CHUNK_Y, rest = (idx - y) / CHUNK_Y, lz = rest % 16, lx = (rest - lz) / 16;
+      crops.push([chunk.cx * 16 + lx, y, chunk.cz * 16 + lz]);
+    }
+  }
+  for (const [x, y, z] of crops) {
+    let left = secs;
+    for (let n = 0; n < 4; n++) {
+      const st = world.blockEntityAt(x, y, z);
+      if (st?.kind !== 'crop') break;
+      if (st.grow > left) { st.grow -= left; break; }
+      left -= Math.max(0, st.grow);
+      growCrop(world, x, y, z, 1, Math.random);
+    }
+  }
+  chunk.modified = true;
+}
+
 // Crops: four stages each, planted from seeds or the vegetable itself.
 // [first stage, ripe stage, what replanting it costs]
 export const CROP_FAMILIES = [

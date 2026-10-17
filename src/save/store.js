@@ -139,7 +139,8 @@ export class SaveStore {
       const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
       const store = tx.objectStore('chunks');
       for (const c of chunks) {
-        store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()] },
+        // t: the world's clock when written (growth catches up from it on load)
+        store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()], t: Number.isFinite(meta.clock) ? meta.clock : undefined },
           this.chunkKey(meta.id, c.cx, c.cz, dimension));
       }
       tx.objectStore('worlds').put(meta);
@@ -191,6 +192,8 @@ export class SaveStore {
         if (o[k] === undefined) continue;
         if (!Array.isArray(o[k])) delete o[k];
         else o[k] = o[k].filter((e) => placed(e) && (k !== 'drops' || (Number.isInteger(e.id) && Number.isInteger(e.count) && e.count > 0)));
+        // (an animal's name: text, and short)
+        if (k !== 'drops') for (const e of o[k]) { if (e.name !== undefined && typeof e.name !== 'string') delete e.name; else if (e.name) e.name = e.name.slice(0, 24); }
       }
     };
     lists(meta);
@@ -265,7 +268,7 @@ export class SaveStore {
       console.warn(`chunk ${cx},${cz}: saved data is damaged; regenerating it`);
       return null;
     }
-    return { blocks, meta, blockEntities: validEntities(v.blockEntities) };
+    return { blocks, meta, blockEntities: validEntities(v.blockEntities), t: Number.isFinite(v.t) ? v.t : undefined };
   }
 }
 

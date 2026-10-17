@@ -280,6 +280,8 @@ export class World {
       // for a save) needs writing again; the rest is already on disk
       chunk.modified = !!saved?.dirty;
       this.chunks.set(key, chunk);
+      // time passed since it was saved: what was growing there catches up
+      if (Number.isFinite(saved?.t)) this.onChunkLoaded?.(chunk, saved.t);
       this.lightQueue.push(chunk);
       // neighbors may now be meshable / need border remesh
       for (let dx = -1; dx <= 1; dx++) {

@@ -8,6 +8,7 @@ import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
 import { SMELTING } from '../items/recipes.js';
+import { worldClock } from '../core/clock.js';
 
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
@@ -175,6 +176,8 @@ export class Mob {
     const baby = new this.constructor(this.scene, this.world, this.x, this.y + 0.2, this.z);   // (on this parent's side)
     baby.setBaby(true);
     baby.persistent = true;
+    baby.born = worldClock.now;
+    baby.parents = [this.ensureId(), mate.ensureId()];
     this.inherit?.(baby, mate);   // (a foal takes after its parents)
     this.fx?.spawn?.(baby);
     this.fx?.hearts?.(baby.x, baby.y + 0.6, baby.z, 6);
@@ -360,6 +363,11 @@ export class Mob {
     this.animate(dt);
 
     this.group.position.set(this.x, this.y, this.z);
+    // its name tag floats over its head (seen from close by)
+    if (this.nameSprite) {
+      this.nameSprite.position.set(this.x, this.y + this.h + 0.4, this.z);
+      this.nameSprite.visible = playerDistSq < 16 * 16;
+    }
     this.group.rotation.y = this.yaw;
 
     if (this.leash) this.leashTick(dt);
@@ -730,6 +738,7 @@ export class Mob {
 
   die() {
     if (this.dying !== undefined) return;
+    if (this.name) this.fx?.notify?.(`${this.name} has died`);
     if (!this.baby && !this.noLoot) {   // (summoned minions drop nothing)
       // an animal that dies on fire drops its meat cooked
       if (this.fireTime > 0 && this.dropFn) {
@@ -747,9 +756,46 @@ export class Mob {
     this.moving = false;
   }
 
+  // A name (from a name tag), shown over its head: a little canvas sprite.
+  setName(name) {
+    this.name = typeof name === 'string' && name.trim() ? name.trim().slice(0, 24) : null;
+    if (this.nameSprite) {
+      this.scene.remove(this.nameSprite);
+      this.nameSprite.material.map.dispose();
+      this.nameSprite.material.dispose();
+      this.nameSprite = null;
+    }
+    if (!this.name) return;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    ctx.font = '600 28px system-ui, sans-serif';
+    const w = Math.ceil(ctx.measureText(this.name).width) + 20;
+    c.width = w; c.height = 40;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, 0, w, 40);
+    ctx.font = '600 28px system-ui, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.name, 10, 21);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+    sprite.scale.set(0.3 * (w / 40), 0.3, 1);
+    sprite.renderOrder = 2;
+    this.scene.add(sprite);
+    this.nameSprite = sprite;
+  }
+
+  // a stable id, once it's someone's (for the ledger and family trees)
+  ensureId() {
+    this.id ??= Math.random().toString(36).slice(2, 10);
+    return this.id;
+  }
+
   kill() {
     this.dead = true;
     this.scene.remove(this.group);
+    if (this.nameSprite) this.setName(null);
     if (this.rope) { this.scene.remove(this.rope); this.rope.material.dispose(); this.rope = null; }
     for (const { mat } of this.materials) mat.dispose();
     // part boxes are shared; anything else built for this mob goes; flames have their own material

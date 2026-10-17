@@ -40,6 +40,9 @@ import { BIOME_NAMES, BIOME } from './world/worldgen.js';
 import { dimensionOf, genVersionOf, arrivalPoint, OVERWORLD, SCORCH } from './world/dimensions.js';
 import { ScorchDragon } from './entities/scorchMobs.js';
 import { BlockUpdates } from './world/blockUpdates.js';
+import { worldClock } from './core/clock.js';
+import { describeAnimal } from './entities/inspect.js';
+import { catchUpChunk } from './world/saplings.js';
 import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -154,16 +157,19 @@ export class Game {
         const c = this.unsaved.get(`${cx},${cz}`);
         if (c) {
           this.unsaved.delete(`${cx},${cz}`);
-          return { blocks: c.blocks, meta: c.meta, blockEntities: [...c.blockEntities.entries()], dirty: true };
+          return { blocks: c.blocks, meta: c.meta, blockEntities: [...c.blockEntities.entries()], dirty: true, t: c.evictedAt };
         }
         return store.loadChunk(worldMeta.id, cx, cz, this.dimension);
       } : null,
       onChunkEvicted: store ? (c) => {
         if (!needsSaving(c)) return;
+        c.evictedAt = worldClock.now;
         this.unsaved.set(`${c.cx},${c.cz}`, c);
         this.saveEvery = Math.min(this.saveEvery, 3000);   // an evicted chunk is written within a few seconds
       } : null,
     });
+    // a saved chunk read back in: its crops catch up on the time it was away
+    this.world.onChunkLoaded = (c, t) => catchUpChunk(this.world, c, t, worldClock.now);
     this.scene.add(this.world.group);
     this.campfireFx = new CampfireFx(this.scene, this.world, atlas, (name, opts) => this.sfx?.play(name, opts));
     this.signFx = new SignFx(this.scene, this.world);
@@ -278,7 +284,11 @@ export class Game {
       if (button === 2 && !this.uiOpen && !this.player.dead) {
         const m = this.mobUnderCrosshair();
         const held = this.player.heldStack();
-        if (m && this.useLead(m, held)) {
+        if (m && held?.id === I.NAME_TAG && !m.hostile && m.kind !== 'falling') {
+          this.nameAnimal(m);
+          this.interaction.placeCooldown = 0.35;
+          this.interaction.useCooldown = 0.35;
+        } else if (m && this.useLead(m, held)) {
           this.interaction.placeCooldown = 0.35;
           this.interaction.useCooldown = 0.35;
         } else if (m?.interact?.(this.player, held)) {
@@ -299,6 +309,8 @@ export class Game {
 
     // fraction of a day, 0 = sunrise (a damaged save's NaN/Infinity: morning)
     this.time = Number.isFinite(worldMeta.timeOfDay) ? ((worldMeta.timeOfDay % 1) + 1) % 1 : 0.05;
+    // seconds of game time since the world began (crops catching up, animals' ages)
+    worldClock.now = Number.isFinite(worldMeta.clock) && worldMeta.clock >= 0 ? worldMeta.clock : 0;
     this.day = Number.isInteger(worldMeta.day) && worldMeta.day > 0 ? worldMeta.day : 1;   // days survived, shown at each sunrise
     this.sleeping = false;
     this.setDifficulty(worldMeta.difficulty ?? 2);
@@ -691,7 +703,7 @@ export class Game {
     const input = this.input;
     this.input.onKeyDown = (code, e) => {
       if (this.signEditor.isOpen()) {
-        if (code === 'Escape') this.signEditor.close();
+        if (code === 'Escape') this.signEditor.close(!!this.signEditor.prompt);   // (Escape cancels a name)
         return true;
       }
       if (this.uiHooks?.handleKey?.(code, e)) return true;
@@ -785,6 +797,33 @@ export class Game {
   // the mob under the crosshair within reach, unless a block is in front of it
   // Leads: put one on an animal, or take it back off (a horse you climb on
   // gives its lead back by itself).
+  // Sneaking while looking at an animal shows its card (a few times a second)
+  updateInspect(dt) {
+    this._inspectT = (this._inspectT ?? 0) - dt;
+    if (this._inspectT > 0) return;
+    this._inspectT = 0.2;
+    const p = this.player;
+    const m = p.sneaking && !p.dead ? this.mobUnderCrosshair(3) : null;
+    this.hud.setInspect(m && !m.hostile && m.kind !== 'falling' && m.kind !== 'tnt' ? describeAnimal(m) : null);
+  }
+
+  // A name tag on an animal: type a name; it's yours from then on.
+  nameAnimal(m) {
+    const species = m.petName ?? m.label ?? m.kind;
+    this.signEditor.openPrompt(m.name ? `Rename ${m.name}` : `Name this ${species}`, m.name ?? '', 24, (text) => {
+      const name = text.trim();
+      if (!name || m.dead || m.dying !== undefined) return;
+      const tagged = this.player.heldStack()?.id === I.NAME_TAG;
+      if (!tagged) return;   // (put away while typing)
+      if (this.player.mode !== GAMEMODE_CREATIVE) this.player.consumeHeld(1);
+      m.setName(name);
+      m.persistent = true;
+      m.ensureId();
+      this.sfx?.play('place', { block: 'cloth' });
+      this.hud.showLabel(`${name} the ${species} is yours`);
+    });
+  }
+
   useLead(m, held) {
     const p = this.player;
     if (m.leash) {
@@ -1055,6 +1094,9 @@ export class Game {
       pet.sitting = !!p.sitting;
       pet.health = p.health ?? pet.maxTamedHealth;
       if (Number.isInteger(p.coat)) pet.setCoat?.(p.coat);
+      if (typeof p.name === 'string') pet.setName(p.name);
+      if (typeof p.id === 'string') pet.id = p.id;
+      if (Number.isFinite(p.born)) pet.born = p.born;
       this.entities.addMob(pet);
     }
   }
@@ -1325,6 +1367,7 @@ export class Game {
       // the night passes for the farm too: crops and saplings nearby grow as
       // if you'd stayed up (a stage at a time, as they would)
       const skipped = ((1 - this.time) % 1) * DAY_LENGTH_SECONDS;
+      worldClock.now += skipped;
       for (let t = 0; t < skipped; t += 20) tickSaplings(this.world, Math.min(20, skipped - t));
       this.time = 0;
       this.newDay();
@@ -1515,7 +1558,7 @@ export class Game {
     // the pause menu, and night fell while it was up)
     const away = this.paused || document.hidden;
 
-    if (!away) this.time += dt / DAY_LENGTH_SECONDS;
+    if (!away) { this.time += dt / DAY_LENGTH_SECONDS; worldClock.now += dt; }
     if (this.time >= 1) {
       this.time %= 1;
       this.newDay();
@@ -1544,6 +1587,7 @@ export class Game {
       this.tickBlockEntities(dt);
       this.updatePortals(dt);
       this.updateWeather(dt);
+      this.updateInspect(dt);
       (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
@@ -1892,10 +1936,12 @@ export class Game {
       // tamed pets travel with the save
       pets: this.entities.mobs.filter((m) => m.tamed && !m.dead && m.dying === undefined).map((m) => ({
         kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health, ...(Number.isInteger(m.coat) ? { coat: m.coat } : {}),
+        ...(m.name ? { name: m.name } : {}), ...(m.id ? { id: m.id } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}),
         ...(m.travelling ? { travel: true } : {}),   // coming through the portal with you
       })),
       animals: this.entities.keptAnimals(),
       timeOfDay: this.time,
+      clock: Math.round(worldClock.now),
       ...(this.dimension === SCORCH ? {} : { weather: { kind: this.weather.kind, t: Math.round(this.weather.t) } }),
       day: this.day,
       difficulty: this.difficulty,
@@ -1953,6 +1999,7 @@ export class Game {
       () => this.weatherFx?.dispose(),
       () => this.signFx?.dispose(),
       () => this.sky?.dispose(),
+      () => this.hud?.setInspect(null),
       () => this.hud?.hide(),
       () => { for (const id of ['frost-overlay', 'portal-overlay']) { const f = document.getElementById(id); if (f) f.style.opacity = '0'; } },   // (shared: not into the next world)
       () => document.removeEventListener('visibilitychange', this._onVisibility),

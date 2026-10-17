@@ -146,6 +146,24 @@ export class Hud {
   }
 
   // text defaults to the held item's name
+  // the inspect card under the crosshair ({title, lines} or null to hide)
+  setInspect(card) {
+    this.inspectEl ??= document.getElementById('inspect-card');
+    const el = this.inspectEl;
+    if (!el) return;
+    const key = card ? card.title + '|' + card.lines.join('|') : '';
+    if (key === this._inspectKey) return;
+    this._inspectKey = key;
+    el.classList.toggle('hidden', !card);
+    if (!card) return;
+    el.textContent = '';
+    const t = document.createElement('div');
+    t.className = 'title';
+    t.textContent = card.title;
+    el.appendChild(t);
+    for (const line of card.lines) { const d = document.createElement('div'); d.textContent = line; el.appendChild(d); }
+  }
+
   showLabel(text = null, warn = false) {
     const s = this.player.heldStack();
     this.labelEl.textContent = text ?? (s ? itemInfo(s.id)?.display ?? '' : '');

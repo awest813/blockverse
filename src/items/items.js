@@ -114,6 +114,7 @@ item(I.EMBER_CORE, 'ember_core', 'Ember Core');
 item(I.DRAGON_SCALE, 'dragon_scale', 'Dragon Scale');
 item(I.DRAGON_FANG, 'dragon_fang', 'Dragon Fang');
 item(I.DRAKE_EGG, 'drake_egg', 'Drake Egg', { stack: 16 });
+item(I.NAME_TAG, 'name_tag', 'Name Tag', { stack: 16 });
 item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
 item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
@@ -240,6 +241,7 @@ const USES = new Map([
   [I.DRAGON_SCALE, 'From the Scorch Dragon (and now and then an ash drake): armour that turns fire'],
   [I.DRAGON_FANG, 'The Scorch Dragon\u2019s: with a scale and a stick, an Ember Blade'],
   [I.EMBER_BLADE, 'Sets what it strikes alight'],
+  [I.NAME_TAG, 'Use it on an animal to name it: a named animal is yours, and never wanders off for good'],
   [I.DRAKE_EGG, 'Set it down and it hatches an ember whelp: a little drake that follows you and spits fire at monsters'],
   [I.DRAGON_HELMET, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],
   [I.DRAGON_CHESTPLATE, 'Each piece of dragon scale turns a fifth of the harm from fire and lava'],

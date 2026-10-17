@@ -1438,6 +1438,15 @@ tile('chicken_raw', (ctx) => drumstick(ctx, [236, 190, 170], [210, 160, 140]));
 tile('chicken_cooked', (ctx) => drumstick(ctx, [196, 128, 60], [160, 96, 40]));
 tile('duck_raw', (ctx) => drumstick(ctx, [214, 140, 128], [176, 104, 96]));
 tile('duck_cooked', (ctx) => drumstick(ctx, [150, 82, 36], [112, 58, 24]));
+// a name tag: a pale card with a punched hole and a loop of string
+tile('name_tag', (ctx) => {
+  const card = [232, 220, 190], edge = [180, 164, 128], ink = [90, 80, 70];
+  rect(ctx, 4, 6, 9, 6, card); rect(ctx, 5, 5, 7, 8, card);
+  rect(ctx, 4, 12, 9, 1, edge); rect(ctx, 13, 6, 1, 6, edge);
+  px(ctx, 6, 8, [120, 100, 80]);   // the hole
+  rect(ctx, 8, 8, 3, 1, ink); rect(ctx, 8, 10, 4, 1, ink);
+  for (const [x, y] of [[5, 7], [4, 6], [3, 5], [3, 4], [4, 3], [5, 3]]) px(ctx, x, y, [200, 200, 200]);
+});
 tile('lead', (ctx) => {
   const R = [168, 128, 76], D = [120, 88, 50];
   for (let a = 0; a < 26; a++) { const t = a / 26 * Math.PI * 2; px(ctx, Math.round(8 + Math.cos(t) * 4), Math.round(6 + Math.sin(t) * 3), a % 3 ? R : D); }   // the loop

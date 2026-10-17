@@ -8,6 +8,7 @@ import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
 import { B, isSolid as isSolidId, isWater } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
+import { worldClock } from '../core/clock.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -58,13 +59,7 @@ export class Cow extends Animal {
   // a bucket fills with milk
   interact(player, held) {
     if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
-    if (player.mode !== GAMEMODE_CREATIVE) {
-      if (held.count > 1) {
-        player.consumeHeld(1);
-        if (player.give(I.MILK_BUCKET, 1) > 0) this.dropFn?.([{ id: I.MILK_BUCKET, count: 1 }]);   // no room: it drops by the cow
-      } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
-      player.events.dispatchEvent(new CustomEvent('inventory'));
-    }
+    if (!milk(this, player, held)) return true;
     this.persistent = true;   // (your milk cow: kept, not left to wander off)
     this.fx?.sound('cow', { vol: 0.8, pos: this });
     return true;
@@ -144,7 +139,16 @@ export class Chicken extends Animal {
 }
 
 // a bucket fills with milk (cows and goats)
+// A bucket of milk, if she's had time to make more since the last (two
+// minutes of game time: a dairy wants a herd). Returns false if not yet.
+const MILK_COOLDOWN = 120;
 function milk(animal, player, held) {
+  const left = (animal.milkAt ?? 0) - worldClock.now;
+  if (left > 0 && player.mode !== GAMEMODE_CREATIVE) {
+    animal.fx?.notify?.(`Milked not long ago: ready again in ${Math.ceil(left)}s`);
+    return false;
+  }
+  animal.milkAt = worldClock.now + MILK_COOLDOWN;
   if (player.mode !== GAMEMODE_CREATIVE) {
     if (held.count > 1) {
       player.consumeHeld(1);
@@ -152,6 +156,7 @@ function milk(animal, player, held) {
     } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
     player.events.dispatchEvent(new CustomEvent('inventory'));
   }
+  return true;
 }
 
 // Mountain goats: sure-footed (long drops don't hurt), leap about, give
@@ -170,7 +175,7 @@ export class Goat extends Animal {
 
   interact(player, held) {
     if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
-    milk(this, player, held);
+    if (!milk(this, player, held)) return true;
     this.persistent = true;
     this.fx?.sound('goat', { vol: 0.8, pos: this });
     return true;

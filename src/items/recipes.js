@@ -146,6 +146,7 @@ shapeless(I.COCONUT_MILK, 1, [[I.COCONUT], [I.BOWL]]);
 shaped(B.COOKING_POT, 1, ['B.B', 'B.B', 'BBB'], { B: [I.BRICK_ITEM] });
 // the key to the Scorchlands: an ember from each kind of dungeon guardian
 shapeless(I.EMBER_CORE, 1, [[I.BRUTE_EMBER], [I.ARCHER_EMBER], [I.BROOD_EMBER], [I.DIAMOND], [I.REDSTONE_DUST]]);
+shapeless(I.NAME_TAG, 1, [[I.PAPER], [I.STRING]]);
 shaped(I.EMBER_BLADE, 1, ['F', 'D', 'S'], { F: [I.DRAGON_FANG], D: [I.DRAGON_SCALE], S: [I.STICK] });
 shaped(I.GOLDEN_APPLE, 1, ['GGG', 'GAG', 'GGG'], { G: [I.GOLD_INGOT], A: [I.APPLE] });
 shaped(B.BRICKS, 1, ['XX', 'XX'], { X: [I.BRICK_ITEM] });

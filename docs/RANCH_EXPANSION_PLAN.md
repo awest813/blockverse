@@ -25,6 +25,8 @@ coverage, sleep catch-up).
 
 ## Phase 1: foundations (persistence, time, identity)
 
+*Done:* the world clock (`core/clock.js`, saved as `worldMeta.clock`, chunks stamped with the clock when saved and caught up on load), stable animal ids, `born` and `parents`, name tags with floating names, the sneak inspect card (`entities/inspect.js`) and the milk cooldown. Ownership stays the `persistent` flag, which every route above already sets.
+
 1. **Ranch ownership model** (`entities/mob.js`, `entityManager.js`)
    - Replace `persistent` with `owner: 'player' | null` plus `home: {x,y,z}`, set by:
      - feeding, milking, shearing, a lead, a name tag;

@@ -806,6 +806,13 @@ html, body {
   -webkit-mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
   mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
 }
+/* sneak and look at an animal: who it is */
+#inspect-card {
+  position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+  max-width: 280px; padding: 6px 10px; border-radius: 4px; pointer-events: none;
+  background: rgba(0, 0, 0, 0.6); color: #fff; font: 600 12px/1.45 system-ui, sans-serif; text-shadow: 1px 1px 0 #000;
+}
+#inspect-card .title { font-size: 13px; color: #ffe08a; margin-bottom: 2px; }
 /* an ember portal taking hold: a swirling red-orange glow closing in */
 #portal-overlay {
   position: absolute; inset: 0; pointer-events: none; opacity: 0;

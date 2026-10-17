@@ -7,6 +7,7 @@ import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Pelican, Crab } from './animals.js';
 import { isRare } from '../items/items.js';
+import { worldClock } from '../core/clock.js';
 
 // animals that can be kept (stashed while far away, saved with the world)
 const KEPT = { pig: Pig, sheep: Sheep, cow: Cow, chicken: Chicken, goat: Goat, horse: Horse, duck: Duck,
@@ -212,13 +213,13 @@ export class EntityManager {
 // ---- kept animals ----
 
 // Kept animals far away are stashed (not simulated). Babies still grow and
-// cooldowns still run out while they're stashed this session: the stash notes
-// when (wall time, this session only: nothing ages while the game is closed).
-const SESSION = Math.random().toString(36).slice(2);
+// cooldowns still run out while they're stashed: the stash notes when, by
+// the world's clock (game time: nothing ages while the game is closed).
 
 export function serializeAnimal(m) {
   const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared,
-    at: { s: SESSION, t: Math.round(performance.now()) } };
+    at: Math.round(worldClock.now), id: m.ensureId(), ...(Number.isFinite(m.milkAt) ? { milkAt: m.milkAt } : {}),
+    ...(m.name ? { name: m.name } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
   if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
@@ -231,8 +232,13 @@ export function restoreAnimal(scene, world, a) {
   const mob = new Cls(scene, world, a.x, a.y + 0.05, a.z);
   mob.persistent = true;
   mob.health = a.health ?? mob.health;
-  // time away this session (paused game or hidden tab included: capped at an hour)
-  const away = a.at?.s === SESSION ? Math.min(3600, Math.max(0, (performance.now() - a.at.t) / 1000)) : 0;
+  // game time since it was stashed (capped: two days at most)
+  const away = Number.isFinite(a.at) ? Math.min(2400, Math.max(0, worldClock.now - a.at)) : 0;
+  if (typeof a.id === 'string') mob.id = a.id;
+  if (Number.isFinite(a.milkAt)) mob.milkAt = a.milkAt;
+  if (Number.isFinite(a.born)) mob.born = a.born;
+  if (Array.isArray(a.parents)) mob.parents = a.parents.filter((p) => typeof p === 'string').slice(0, 2);
+  if (typeof a.name === 'string') mob.setName(a.name);
   mob.breedCooldown = Math.max(0, (a.breedCooldown ?? 0) - away);
   if (a.baby) {
     const grow = (a.grow || 300) - away;

@@ -144,4 +144,5 @@ export const I = {
   DRAGON_LEGGINGS: 386,
   DRAGON_BOOTS: 387,
   DRAKE_EGG: 388,        // hatches an ember whelp
+  NAME_TAG: 389,         // names an animal (it's yours from then on)
 };

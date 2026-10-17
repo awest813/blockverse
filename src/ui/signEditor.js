@@ -13,7 +13,46 @@ export class SignEditor {
     this.pos = null;
   }
 
-  isOpen() { return !!this.pos; }
+  isOpen() { return !!this.pos || !!this.prompt; }
+
+  // A one-line text box (naming an animal): onDone(text) on Enter or Done,
+  // nothing on Escape.
+  openPrompt(title, value, max, onDone) {
+    const g = this.game;
+    this.prompt = { onDone };
+    g.setUiOpen(true);
+    this.root.innerHTML = '';
+    const screen = document.createElement('div');
+    screen.className = 'screen dim container-screen';
+    const h = document.createElement('h2');
+    h.className = 'sign-title';
+    h.textContent = title;
+    const board = document.createElement('div');
+    board.className = 'sign-board';
+    const input = document.createElement('input');
+    input.className = 'sign-line';
+    input.maxLength = max;
+    input.value = value;
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.setAttribute('aria-label', title);
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); this.close(); }
+      else if (e.key === 'Escape') { e.preventDefault(); this.close(true); }
+    });
+    board.appendChild(input);
+    const done = document.createElement('button');
+    done.type = 'button';
+    done.className = 'btn small primary';
+    done.textContent = 'Done';
+    done.addEventListener('click', () => this.close());
+    screen.append(h, board, done);
+    this.root.appendChild(screen);
+    this.inputs = [input];
+    input.focus();
+    input.select();
+  }
 
   open(x, y, z) {
     const g = this.game;
@@ -64,7 +103,17 @@ export class SignEditor {
     this.inputs[0].focus();
   }
 
-  close() {
+  close(cancel = false) {
+    if (this.prompt) {
+      const { onDone } = this.prompt;
+      const text = this.inputs[0].value;
+      this.prompt = null;
+      this.root.innerHTML = '';
+      this.game.setUiOpen(false);
+      this.game.input.requestLock();
+      if (!cancel) onDone(text);
+      return;
+    }
     if (!this.pos) return;
     const g = this.game;
     const { x, y, z } = this.pos;
