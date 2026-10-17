@@ -1,4 +1,5 @@
 {
+  "id": "./",
   "name": "BlockVerse",
   "short_name": "BlockVerse",
   "description": "An open-source voxel sandbox game that runs in your browser.",

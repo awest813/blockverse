@@ -4,6 +4,13 @@
 
 import { resolveBindings } from './keybinds.js';
 
+// left and right modifier keys stand in for each other (Shift, Ctrl, Alt):
+// the defaults name the left one, and the right one used to do nothing
+const TWIN_KEYS = {
+  ShiftLeft: 'ShiftRight', ShiftRight: 'ShiftLeft', ControlLeft: 'ControlRight', ControlRight: 'ControlLeft',
+  AltLeft: 'AltRight', AltRight: 'AltLeft', MetaLeft: 'MetaRight', MetaRight: 'MetaLeft',
+};
+
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -130,7 +137,9 @@ export class Input {
   }
 
   down(code) {
-    return !this.captured && (this.keys.has(code) || this.virtualKeys.has(code));
+    if (this.captured) return false;
+    const twin = TWIN_KEYS[code];   // a modifier bound to one side works from either
+    return this.keys.has(code) || this.virtualKeys.has(code) || (!!twin && this.keys.has(twin));
   }
 
   // ---- virtual input (gamepad / touch) ----
@@ -178,7 +187,8 @@ export class Input {
 
   // does this key code trigger the action?
   is(code, id) {
-    return this.bindings[id] === code;
+    const b = this.bindings[id];
+    return b === code || TWIN_KEYS[b] === code;
   }
 
   mouseDown(button) {

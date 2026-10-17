@@ -6,7 +6,7 @@ Explore an infinite procedurally generated world. Mine blocks, craft tools, smel
 
 > 🎮 **[Play it now →](https://awest813.github.io/blockverse/)**
 
-BlockVerse is an original, from-scratch implementation of the classic voxel-sandbox genre, in the spirit of games like Minecraft. It is an unofficial fan project, **not affiliated with, endorsed by, or connected to Mojang or Microsoft** in any way. Every line of code is original, and every texture and sound is **generated procedurally at runtime** — the project ships zero image or audio assets.
+BlockVerse is an original, from-scratch implementation of the classic voxel-sandbox genre, in the spirit of games like Minecraft. It is an unofficial fan project, **not affiliated with, endorsed by, or connected to Mojang or Microsoft** in any way. Every line of code is original, and every in-game texture and sound is **generated procedurally at runtime**: the game itself uses no image or audio files (the only pictures in the repository are the app icons, the link-preview image and the screenshots in this README).
 
 ![Plains biome](docs/screenshots/plains.jpg)
 
@@ -52,7 +52,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Item drops with physics that magnetize toward you and merge into your inventory
 - **Crafting**: 2×2 personal grid and a 3×3 crafting table, with shaped (including mirrored) and shapeless recipes — tools, torches, chests, beds, building blocks and more
 - **Recipe book** beside every crafting grid: search and categories, shape previews, ghost layouts for recipes you can't make yet, and one-click grid filling
-- **Campfire** (sticks, coal/charcoal, logs): cooks four raw foods (meat, fish, potatoes, eggs, kelp) at once with no fuel, glows, smokes, and burns anyone standing in it; shovel to put out, torch to relight
+- **Campfire** (sticks, coal/charcoal, logs): cooks up to four foods at once (raw meat and fish, potatoes, eggs, kelp) with no fuel, glows, smokes, and burns anyone standing in it; shovel to put out, torch to relight
 - **Cooking pot** (7 bricks): set it over a campfire (or a fire, lava or a lit furnace), fill it with a water bucket and put in two to four foods. It steams and bubbles for half a minute, then you ladle out three or four helpings with bowls: **beef stew**, **chicken soup** (heals too), **fish chowder**, **vegetable soup**, **pumpkin soup**, **coconut curry** and mushroom stew, or a **hearty stew** from anything else (odds and ends go less far: a helping fewer than went in). Hot meals keep the cold out for a couple of minutes (a note beside the hotbar counts down the warmth, and any venom), and an empty-handed look in the pot tells you what's cooking
 - **Cake** (three milk buckets, two sugar, an egg and three wheat; the buckets come back): set it down to share and eat it a slice at a time, seven slices, when you're hungry
 - **More food**: fry eggs, cook **crab**, roll **sushi** (raw fish and dried kelp), bake **apple pie**, and crack a coconut into a bowl for **coconut milk**, which settles scorpion venom like milk does
@@ -67,7 +67,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Beds**: sleep through the night when no monsters are near, and respawn at your bed
 - **Saplings** drop from leaves and grow into new trees (palm saplings take to sand); coconuts hang under palm fronds, a filling snack; dead bushes give a stick or two (the desert's only wood), and grass creeps back over bare dirt beside it
 - **Farming**: tall grass drops seeds; till grass with a hoe, plant wheat on farmland (faster near water), bake bread, and speed things up with bone meal (which also grows grass and flowers). Sugar cane and cactus grow taller over time
-- **Farm automation**: carrots and potatoes (rare from tall grass, zombies and chests) grow on farmland alongside wheat. Bake potatoes, and press nine wheat into a **hay bale**. A **sprinkler** (iron around a water bucket, which you get back empty) makes crops within 4 blocks grow about 3× faster. A **harvester** (iron, an iron hoe and a chest) reaps ripe crops within 4 blocks, replants them, and puts the harvest in a chest beside it (with no chest, the crops are left where they grew). A **collector** pulls dropped items within 4 blocks into a chest beside it, which suits egg and wool pens. A **composter** turns plants and food scraps into bone meal
+- **Farm automation**: carrots and potatoes (rare from tall grass, zombies and chests) grow on farmland alongside wheat. Bake potatoes, and press nine wheat into a **hay bale**. A **sprinkler** (iron around a water bucket, which you get back empty) makes crops within 4 blocks grow about 3.5× faster. A **harvester** (iron, an iron hoe and a chest) reaps ripe crops within 4 blocks, replants them, and puts the harvest in a chest beside it (with no chest, the crops are left where they grew). A **collector** pulls dropped items within 4 blocks into a chest beside it, which suits egg and wool pens. A **composter** turns plants and food scraps into bone meal
 - **Building shapes**: ladders you can climb, two-high oak doors and fence gates that open and shut, fences and glass panes that link up, stairs and slabs (oak, cobblestone, stone brick) you can walk up, and signs you can write on
 - **Flint and steel** lights fires, TNT and campfires; a **fishing rod** lands fish (and the odd treasure) when the bobber ducks under; snowballs and eggs can be thrown (an egg may hatch a chick); worn tools mend when two are crafted together
 - **Whale oil**: burns twice as long as coal, makes 6 torches with a stick, and fuels **lanterns** (iron, glass panes and oil) that stand on a block or hang beneath one
@@ -126,7 +126,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 ### 🎨 100% procedural assets
 - Every block, item, and tool texture is **pixel art drawn by code** into a texture array at startup (mipmap-safe, no bleeding)
 - Inventory icons are rendered as tiny isometric cubes from the same tiles
-- All sound effects — digging, footsteps per material, hurt (by cause), eating, doors, chests, splashes, UI clicks — are **synthesized live with WebAudio**. There are no asset files in the repository at all.
+- All sound effects — digging, footsteps per material, hurt (by cause), eating, doors, chests, splashes, UI clicks — are **synthesized live with WebAudio**. The game loads no image or sound files at all.
 - Sounds are positional: they fade with distance and pan left/right; a limiter keeps a burst of explosions from clipping, and repeated sounds are throttled. Ambience: fires crackle, lava pops, caves drone, crickets sing on clear nights, and your heart pounds at low health. Audio pauses in a background tab.
 - **Music**: now and then a short generative piece drifts in — a soft pad and a wandering pentatonic melody through a long echo; brighter by day, darker at night, low and sparse in caves, and it fades out for boss fights (own volume slider)
 - Caves echo; your own block sounds (breaking, placing, doors, buckets) come from the block you're working on; flint and steel, shears, arrows landing, drawing a bow, dropping items, swimming strokes and lava buckets all have their own sounds
@@ -142,12 +142,12 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 | **Left click** | Mine block / attack |
 | **Right click** | Place block / use (crafting table, furnace) / eat |
 | **Space** | Jump / swim up (double-tap in creative: toggle flight) |
-| **Ctrl** / double-tap **W** | Sprint (underwater: swim fast where you look) |
-| **Shift** | Sneak (you won't fall off edges) / fly down / dive |
+| **Ctrl** (either side) / double-tap **W** | Sprint (underwater: swim fast where you look) |
+| **Shift** (either side) | Sneak (you won't fall off edges) / fly down / dive |
 | **1–9 / mouse wheel** | Select hotbar slot |
 | **E** | Inventory (creative: item palette) |
 | **Q** | Drop held item (Ctrl+Q: whole stack) |
-| **Middle click** | Pick block |
+| **Middle click** / **R** | Pick block |
 | **T** or **/** | Chat / command console |
 | **F1** | Hide HUD |
 | **F2** | Save a screenshot |
@@ -161,8 +161,9 @@ All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch s
 ```
 /help                       list commands
 /tp <x> <y> <z>             teleport
-/time set <day|noon|night|midnight|0..1>
+/time set <day|noon|sunset|night|midnight|0..1>
 /give <item> [count]        e.g. /give diamond_pickaxe
+/summon <mob>               e.g. /summon camel
 /gamemode <survival|creative>
 /difficulty <peaceful|easy|normal|hard>
 /seed  /spawn  /kill  /heal  /clear
@@ -173,9 +174,11 @@ All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch s
 
 ## Browser support
 
-BlockVerse runs in any current desktop or mobile browser with **WebGL 2**: Chrome, Edge, Firefox and Safari (15+), including on Chromebooks, Android phones, iPhones and iPads. If the page says WebGL 2 is missing, turn on hardware acceleration in the browser's settings. Worlds are kept in the browser's IndexedDB storage, so private/incognito windows may not be able to save; use **Export** on the world list to back a world up to a file.
+BlockVerse runs in any current desktop or mobile browser with **WebGL 2**: Chrome, Edge, Firefox and Safari (15.4+), including on Chromebooks, Android phones, iPhones and iPads. If the page says WebGL 2 is missing, turn on hardware acceleration in the browser's settings. Worlds are kept in the browser's IndexedDB storage, so private/incognito windows may not be able to save; use **Export** on the world list to back a world up to a file.
 
 On phones and tablets you can use the browser's **Add to Home Screen** to launch BlockVerse full screen like an app.
+
+> **Back up worlds you care about.** Browsers can clear a site's storage: Safari (on iPhone, iPad and Mac) deletes it for sites you haven't opened in about a week, and a home-screen app on iOS keeps its worlds separately from the same site in a Safari tab. **Export** a world now and then (it downloads one small file) and **Import** it to bring it back.
 
 ## Running locally
 

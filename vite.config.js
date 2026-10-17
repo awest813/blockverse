@@ -42,6 +42,9 @@ export default defineConfig({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1200,
+    // third-party licences (three.js's MIT notice) ship beside the game, at a
+    // path Pages keeps (it drops dot-folders like the default .vite/)
+    license: { fileName: 'licenses.md' },
     rollupOptions: {
       output: {
         // three.js changes far less often than the game: its own file stays

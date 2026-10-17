@@ -47,8 +47,8 @@ Touch controls appear automatically on the first touch.
 | W / A / S / D | Walk |
 | Mouse | Look around (click the game once to capture the mouse) |
 | Space | Jump; hold to swim upward in water |
-| Ctrl, or double-tap W | Sprint until you stop moving forward (needs food > 3 drumsticks) |
-| Shift (hold) | Sneak — slower, and you cannot walk off block edges |
+| Ctrl (either side), or double-tap W | Sprint until you stop moving forward (needs food > 3 drumsticks) |
+| Shift (either side, hold) | Sneak — slower, and you cannot walk off block edges |
 | Space ×2 (creative) | Toggle flight; Space/Shift to fly up/down |
 
 ## Interaction
@@ -68,10 +68,13 @@ Touch controls appear automatically on the first touch.
 | Right click a dog with a bone / a cat with raw fish | Try to tame it (about 1 in 3 per item) |
 | Right click your pet | Sit / follow |
 | Right click TNT while holding a torch | Light the fuse — run! |
-| Right click a campfire with raw meat or fish | Put it on to cook (up to 4 at once, ~20 s, no fuel) |
+| Right click a campfire with raw meat, fish, a potato, an egg or kelp | Put it on to cook (up to 4 at once, ~20 s, no fuel) |
+| Right click a cooking pot | Water bucket: fill it · food: put it in · bowl: ladle out the meal · empty hand: see what's cooking |
+| Right click a cake | Eat a slice (when you're hungry) |
 | Right click a lit campfire with a shovel / an unlit one with a torch | Put it out / relight it |
 | Q | Drop one of the held item (Ctrl+Q: the whole stack) |
-| Middle click | Pick block: select the targeted block in your hotbar (creative: get a stack) |
+| Middle click or R | Pick block: select the targeted block in your hotbar (creative: get a stack) |
+| F2 | Save a screenshot |
 | 1–9 / mouse wheel | Select hotbar slot |
 
 ## Screens
@@ -126,7 +129,8 @@ Touch controls appear automatically on the first touch.
 - Each block has a hardness and an optional preferred tool class.
 - Better tool tiers mine faster; some blocks need a minimum tier to drop
   anything (iron needs stone+, gold/diamond/redstone need iron+, obsidian
-  needs diamond).
+  needs diamond). Gold tools are very fast but only stone-tier: a gold
+  pickaxe gets nothing from iron, gold or diamond ore.
 - Tools lose 1 durability per block or hit; the bar under the icon shows wear.
 
 ## Commands
@@ -147,3 +151,4 @@ Open chat with `T` or `/`, then:
 | `/kill` | Give up |
 | `/clear` | Empty your inventory |
 | `/rd <2-16>` | Set render distance |
+| `/summon <mob>` | Summon a mob or animal, e.g. `/summon camel` (Tab completes names) |

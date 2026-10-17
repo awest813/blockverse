@@ -21,7 +21,7 @@ const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider'
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];
 const ARGS = {
-  time: [['set'], ['day', 'noon', 'night', 'midnight']],
+  time: [['set'], ['day', 'noon', 'sunset', 'night', 'midnight']],
   gamemode: [['survival', 'creative']],
   difficulty: [['peaceful', 'easy', 'normal', 'hard']],
 };
@@ -146,7 +146,7 @@ export class Chat {
     switch (cmd) {
       case 'help':
         this.message('/tp <x> <y> <z> — teleport');
-        this.message('/time set <day|noon|night|midnight|0..1>');
+        this.message('/time set <day|noon|sunset|night|midnight|0..1>');
         this.message('/give <item> [count] — e.g. /give diamond_pickaxe');
         this.message('/gamemode <survival|creative>');
         this.message('/summon <mob> — e.g. /summon dolphin');

@@ -9,9 +9,11 @@ on:
 permissions:
   contents: read
 
+# a newer push supersedes an older build, but a deploy already under way
+# finishes (cancelling it mid-way can leave the site half-published)
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -25,12 +27,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v4
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    # only main goes live (a manual run from another branch just builds)
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:

@@ -16,7 +16,7 @@ The world is an infinite grid of **chunks**, each `16 × 128 × 16` blocks
 | `meta` | `Uint8Array` (lazy) | orientation for furnaces / pumpkins etc. |
 | `skyLight`, `blockLight` | `Uint8Array` | 0–15 light per cell |
 | `heightMap`, `biomeMap` | `Uint8Array(256)` | terrain queries, debug, mob spawning |
-| `blockEntities` | `Map<cellIndex, state>` | furnace contents |
+| `blockEntities` | `Map<cellIndex, state>` | per-block state: furnaces, chests, campfires, cooking pots, crops, saplings, spawners, signs, troughs and other machines |
 
 The flat index is `(x * 16 + z) * 128 + y` — columns are contiguous in
 memory, which makes vertical scans (skylight, surface queries) cache-friendly.
@@ -177,4 +177,5 @@ Game.loop()
 ```
 
 A hidden-tab worker ticker keeps this loop running (at reduced fidelity) when
-the browser throttles page timers.
+the browser throttles page timers. In a hidden tab only block entities tick
+(furnaces, crops, saplings, cooking pots); the player, mobs and the clock wait.

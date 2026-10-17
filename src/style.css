@@ -37,6 +37,13 @@ html, body {
 #hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; zoom: var(--gui); }
 /* phones: never shrink the HUD and its thumb controls below a usable size */
 #hud.touch { zoom: max(var(--gui), 0.85); }
+/* notched phones (the page runs edge to edge): keep the thumb controls and
+   hotbar out from under the notch and the home bar; the screen-wide overlays
+   still reach every edge */
+#hud.touch { inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+#hud.touch #vignette, #hud.touch #sleep-fade, #hud.touch #frost-overlay {
+  inset: calc(-1 * env(safe-area-inset-top, 0px)) calc(-1 * env(safe-area-inset-right, 0px)) calc(-1 * env(safe-area-inset-bottom, 0px)) calc(-1 * env(safe-area-inset-left, 0px));
+}
 
 #fps-counter {
   position: absolute; right: 8px; top: 8px;
@@ -327,6 +334,8 @@ html, body {
 
 #ui-root { position: absolute; inset: 0; z-index: 10; pointer-events: none; zoom: var(--gui); }
 #ui-root > * { pointer-events: auto; }
+/* menus and inventories: a quick double tap is two taps, not a zoom */
+#ui-root { touch-action: manipulation; }
 
 .screen {
   position: absolute; inset: 0;
@@ -652,6 +661,8 @@ html, body {
 }
 /* #ui-root is zoomed by --gui, so divide the viewport by it to get the real room left */
 .settings-panel { max-height: max(160px, min(680px, calc(100vh / (var(--gui) * var(--mz, 1)) - 190px))); overflow-y: auto; }   /* (tall phones show more at once) */
+/* (the visible height on mobile browsers, whose toolbars come and go) */
+.settings-panel { max-height: max(160px, min(680px, calc(100dvh / (var(--gui) * var(--mz, 1)) - 190px))); }
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
 .setting-row label, .setting-row .setting-label { flex: 1; font-size: 14px; }
 .setting-group {

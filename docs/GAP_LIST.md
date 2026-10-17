@@ -123,7 +123,7 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Items on the ground (your things after a death) are saved and come back
 - [x] A world saved on the death screen loads with you respawned (it used to soft-lock)
 - [x] One renderer for the page: quitting and loading worlds no longer leaks GPU textures; the block highlight and particles are freed
-- [x] A hidden tab keeps the world ticking but stops drawing
+- [x] A hidden tab keeps furnaces, crops and the like going but stops drawing (the player, mobs and the clock wait)
 - [x] Natural cane/cactus growth no longer makes untouched chunks save
 - [x] Doors and gates won't shut on you; ladders, signs and torches fall with their support (and in explosions)
 - [x] Only changed chunks (and ones with growing/burning/smelting things) are written each save — loaded saved chunks used to be rewritten every 20 s

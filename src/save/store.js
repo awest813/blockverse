@@ -263,9 +263,12 @@ export const DEFAULT_SETTINGS = {
   keys: {},          // action id -> KeyboardEvent.code overrides (see core/keybinds.js)
 };
 
-// first run on a low-end machine (many Chromebooks): see a little less far
+// first run on a low-end machine (many Chromebooks): see a little less far;
+// and if the system asks for less motion, the view doesn't bob as you walk
 function firstRunDefaults() {
-  return isLowEndDevice() ? { ...DEFAULT_SETTINGS, renderDistance: 6 } : { ...DEFAULT_SETTINGS };
+  const s = isLowEndDevice() ? { ...DEFAULT_SETTINGS, renderDistance: 6 } : { ...DEFAULT_SETTINGS };
+  try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) s.viewBobbing = false; } catch { /* no matchMedia */ }
+  return s;
 }
 
 export function loadSettings() {
