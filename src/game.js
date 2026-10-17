@@ -36,7 +36,8 @@ import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
-import { B, isWater, isSolid } from './blocks/blocks.js';
+import { B, isWater, isSolid, R_CROSS } from './blocks/blocks.js';
+import { raycastBlocks } from './world/raycast.js';
 import { isLowEndDevice, isChromeOS } from './ui/display.js';
 import { Music } from './audio/music.js';
 import { cropFamily } from './world/saplings.js';
@@ -171,6 +172,9 @@ export class Game {
       const c = boss.home?.cage?.split(',').map(Number);
       const st = c && this.world.blockEntityAt(c[0], c[1], c[2]);
       if (st?.kind === 'spawner') { st.boss = 'defeated'; this.world.markModified(c[0], c[2]); }
+      // its cage's chunk may be unloaded (you led it far away): the world
+      // remembers, and the cage learns when it next loads
+      else if (boss.home?.cage) (this.worldMeta.defeatedCages ??= []).push(boss.home.cage);
       this.hud.showLabel(`${boss.boss.name} defeated!`);
       this.sfx?.play('victory');
       this.sparks(boss.x, boss.y + boss.h * 0.6, boss.z, 0xffd84a, 30);
@@ -514,7 +518,12 @@ export class Game {
       const d = m.rayHit(origin, dir, REACH_DISTANCE + extraReach);
       if (d !== null && d < bestDist) { best = m; bestDist = d; }
     }
-    if (!best || (this.interaction.target && bestDist >= this.interaction.target.dist)) return null;
+    if (!best) return null;
+    // a wall stops the swing: the first solid block out to the weapon's reach
+    // (a spear's reach is longer than the block cursor's, so that alone let
+    // it hit through walls), looking past grass and flowers a chicken stands in
+    const wall = raycastBlocks(this.world, origin, dir, REACH_DISTANCE + extraReach, false, (b) => !b.solid && (b.replaceable || b.render === R_CROSS));
+    if (wall && bestDist >= wall.dist) return null;
     return best;
   }
 
@@ -547,9 +556,11 @@ export class Game {
     const dir = p.lookDir();
     const hd = Math.hypot(dir.x, dir.z) || 1;
     // extra knockback for heavy weapons (scaled by charge)
+    // (bosses shrug most of it off, as they do the blow's own knockback)
     if (w.knockback) {
-      best.vx += (dir.x / hd) * w.knockback * charge;
-      best.vz += (dir.z / hd) * w.knockback * charge;
+      const k = w.knockback * charge * (best.boss ? 0.3 : 1);
+      best.vx += (dir.x / hd) * k;
+      best.vz += (dir.z / hd) * k;
     }
     this.sfx?.play(crit ? 'crit' : charge < 0.5 ? 'weak' : 'hit', { block: 'cloth' });
     if (crit) this.sparks(best.x, best.y + best.h * 0.7, best.z, 0xfff2a8, 8);
@@ -561,6 +572,7 @@ export class Game {
         if (m === best || m.dead || m.tamed || m.owned || m === p.mount) continue;
         if (Math.hypot(m.x - best.x, m.z - best.z) > 2.2 || Math.abs(m.y - best.y) > 1.5) continue;
         if (Math.hypot(m.x - p.x, m.z - p.z) > REACH_DISTANCE) continue;
+        if (!m.canSee(p)) continue;   // not through a wall
         if (m.damage(1 + base * 0.25, p)) swept++;
       }
       this.sfx?.play('sweep');

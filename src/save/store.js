@@ -190,6 +190,7 @@ export class SaveStore {
       if (!Array.isArray(meta[k])) delete meta[k];
       else meta[k] = meta[k].filter((e) => placed(e) && (k !== 'drops' || (Number.isInteger(e.id) && Number.isInteger(e.count) && e.count > 0)));
     }
+    if (meta.defeatedCages !== undefined) meta.defeatedCages = Array.isArray(meta.defeatedCages) ? meta.defeatedCages.filter((c) => typeof c === 'string') : [];
     if (meta.playerData !== undefined && (typeof meta.playerData !== 'object' || meta.playerData === null)) delete meta.playerData;
     meta.name = meta.name.slice(0, 32);
     // a hand-edited file: fall back to the defaults rather than invalid settings

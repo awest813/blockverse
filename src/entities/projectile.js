@@ -175,6 +175,10 @@ export class Bobber extends Arrow {
     this.age += dt;
     // reel in automatically if the player wanders off
     if (this.age > 120 || Math.hypot(this.x - player.x, this.z - player.z) > 32) { this.kill(); return; }
+    // the water it floats on was scooped away: it drops
+    if (this.floating && !isWater(this.world.getBlockW(Math.floor(this.x), Math.floor(this.surface - 0.5), Math.floor(this.z)))) {
+      this.floating = false; this.biteTime = 0; this.vx = this.vz = this.vy = 0;
+    }
     if (this.floating) {
       this.y = this.surface + Math.sin(this.age * 3) * 0.03;
       if (this.biteTime > 0) {
@@ -186,20 +190,28 @@ export class Bobber extends Arrow {
       }
     } else {
       this.vy -= GRAVITY * 0.6 * dt;
-      this.x += this.vx * dt; this.y += this.vy * dt; this.z += this.vz * dt;
-      const id = this.world.getBlockW(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z));
-      if (isWater(id)) {
-        // float on top of the water column
-        let y = Math.floor(this.y);
-        while (isWater(this.world.getBlockW(Math.floor(this.x), y + 1, Math.floor(this.z)))) y++;
-        this.surface = y + 0.9;
-        this.floating = true;
-        this.wait = 5 + Math.random() * 15;
-        this.onSplash?.();
-      } else if (isSolid(id)) {
-        this.vx = this.vz = 0; this.vy = 0;
-        this.y = Math.floor(this.y) + 1.05;
-        this.grounded = true;
+      // in steps, so a fast cast can't pass through a wall on a slow frame
+      const steps = Math.max(1, Math.ceil((Math.hypot(this.vx, this.vy, this.vz) * dt) / 0.3));
+      for (let s = 0; s < steps && !this.floating; s++) {
+        const px = this.x, py = this.y, pz = this.z;
+        this.x += this.vx * dt / steps; this.y += this.vy * dt / steps; this.z += this.vz * dt / steps;
+        const id = this.world.getBlockW(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z));
+        if (isWater(id)) {
+          // float on top of the water column
+          let y = Math.floor(this.y);
+          while (isWater(this.world.getBlockW(Math.floor(this.x), y + 1, Math.floor(this.z)))) y++;
+          this.surface = y + 0.9;
+          this.floating = true;
+          this.wait = 5 + Math.random() * 15;
+          this.onSplash?.();
+        } else if (isSolid(id)) {
+          // came down on top of it: rest there; hit its side: stop against it
+          this.vx = this.vz = 0; this.vy = 0;
+          if (py >= Math.floor(this.y) + 1) this.y = Math.floor(this.y) + 1.05;
+          else { this.x = px; this.y = py; this.z = pz; }
+          this.grounded = true;
+          break;
+        }
       }
       if (this.grounded) this.vy = 0;
     }

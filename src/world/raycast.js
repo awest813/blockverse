@@ -4,7 +4,8 @@
 import { BLOCKS, B, R_SHAPE } from '../blocks/blocks.js';
 import { worldBoxes } from '../blocks/shapes.js';
 
-export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false) {
+// skip(info): blocks to look straight through (grass and flowers, for a swing)
+export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false, skip = null) {
   let x = Math.floor(origin.x);
   let y = Math.floor(origin.y);
   let z = Math.floor(origin.z);
@@ -28,7 +29,7 @@ export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false) {
   while (t <= maxDist) {
     const id = world.getBlockW(x, y, z);
     const info = BLOCKS[id];
-    if (id !== B.AIR && info && (!info.fluid || hitFluids)) {
+    if (id !== B.AIR && info && (!info.fluid || hitFluids) && !(skip && skip(info))) {
       if (info.render === R_SHAPE) {
         // part-blocks: hit the actual boxes (or pass through the gaps)
         const hit = rayBoxes(origin, dir, x, y, z, worldBoxes(world, x, y, z, id), maxDist);

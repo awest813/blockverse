@@ -30,6 +30,7 @@ export function tickSpawners(game, dt) {
       const x = chunk.cx * 16 + lx, z = chunk.cz * 16 + lz;
       if (Math.hypot(x + 0.5 - player.x, y + 0.5 - player.y, z + 0.5 - player.z) > ACTIVE_RANGE) continue;
       if (world.getBlockW(x, y, z) !== B.SPAWNER) continue;
+      if (st.boss !== 'defeated' && game.worldMeta?.defeatedCages?.includes(`${x},${y},${z}`)) { st.boss = 'defeated'; world.markModified(x, z); }   // beaten far from home
       if (st.boss !== 'defeated' && chunk.heightMap?.[lx * 16 + lz] - y >= BURIED) wakeGuardian(game, st, x, y, z);
       st.t = (st.t ?? 2) - dt;
       if (st.t > 0) continue;
