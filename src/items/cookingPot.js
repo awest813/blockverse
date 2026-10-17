@@ -23,7 +23,7 @@ const OTHER_MEAT = [I.PORKCHOP_RAW, I.PORKCHOP_COOKED, I.MUTTON_RAW, I.MUTTON_CO
 const POTATO = [I.POTATO, I.BAKED_POTATO];
 const MEAT = new Set([...BEEF, ...BIRD, ...FISH, ...OTHER_MEAT]);
 const INGREDIENTS = new Set([...MEAT, ...POTATO, I.CARROT, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.PUMPKIN,
-  B.KELP, I.DRIED_KELP, I.COCONUT, I.APPLE, I.EGG, I.WHEAT]);
+  B.KELP, I.DRIED_KELP, I.COCONUT, I.APPLE, I.EGG, I.DUCK_EGG, I.WHEAT, I.CHEESE, I.BUTTER]);
 export const potIngredient = (id) => INGREDIENTS.has(id);
 
 // Meals, most particular first: each needs one of every listed group (extras

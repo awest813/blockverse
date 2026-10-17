@@ -13,7 +13,9 @@ const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG,
 export const RECIPES = [];
 
 // ingredients that leave their container behind in the grid when used up
-export const CRAFT_REMAINDER = new Map([[I.WATER_BUCKET, I.BUCKET], [I.LAVA_BUCKET, I.BUCKET], [I.MILK_BUCKET, I.BUCKET]]);
+export const CRAFT_REMAINDER = new Map([[I.WATER_BUCKET, I.BUCKET], [I.LAVA_BUCKET, I.BUCKET], [I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET]]);
+const MILK = Object.assign([I.MILK_BUCKET, I.GOAT_MILK_BUCKET], { label: 'Milk' });
+const EGG = Object.assign([I.EGG, I.DUCK_EGG], { label: 'Egg' });
 
 function shaped(result, count, pattern, keys) {
   RECIPES.push({ type: 'shaped', result, count, pattern, keys });
@@ -152,9 +154,16 @@ shaped(B.OAK_FENCE_GATE, 1, ['SXS', 'SXS'], { X: ANY_PLANKS, S: [I.STICK] });
 shaped(I.FISHING_ROD, 1, ['..S', '.SX', 'S.X'], { S: [I.STICK], X: [I.STRING] });
 shapeless(I.FLINT_AND_STEEL, 1, [[I.IRON_INGOT], [I.FLINT]]);
 shapeless(I.SUGAR, 1, [[B.SUGAR_CANE]]);
-shapeless(I.PUMPKIN_PIE, 1, [[B.PUMPKIN], [I.SUGAR], [I.EGG]]);
-shaped(B.CAKE, 1, ['MMM', 'SES', 'WWW'], { M: [I.MILK_BUCKET], S: [I.SUGAR], E: [I.EGG], W: [I.WHEAT] });   // (the buckets come back)
-shapeless(I.APPLE_PIE, 1, [[I.APPLE], [I.WHEAT], [I.SUGAR], [I.EGG]]);
+shapeless(I.PUMPKIN_PIE, 1, [[B.PUMPKIN], [I.SUGAR], EGG]);
+shaped(B.CAKE, 1, ['MMM', 'SES', 'WWW'], { M: MILK, S: [I.SUGAR], E: EGG, W: [I.WHEAT] });   // (the buckets come back)
+shapeless(I.APPLE_PIE, 1, [[I.APPLE], [I.WHEAT], [I.SUGAR], EGG]);
+// the dairy and the henhouse
+shaped(B.NEST, 1, ['W.W', 'WWW'], { W: [I.WHEAT] });
+shaped(B.CHURN, 1, ['.S.', 'P.P', 'PPP'], { S: [I.STICK], P: ANY_PLANKS });
+shaped(B.CHEESE_PRESS, 1, ['PPP', 'SIS', 'PPP'], { P: ANY_PLANKS, S: [I.STICK], I: [I.IRON_INGOT] });
+shapeless(I.CHEESE_SANDWICH, 1, [[I.BREAD], [I.CHEESE]]);
+shapeless(I.BUTTERED_POTATO, 1, [[I.BAKED_POTATO], [I.BUTTER]]);
+shapeless(I.PANCAKES, 2, [EGG, [I.WHEAT], MILK, [I.BUTTER]]);   // (the bucket comes back)
 shapeless(I.SUSHI, 2, [[I.FISH_RAW], [I.DRIED_KELP]]);
 shapeless(I.COCONUT_MILK, 1, [[I.COCONUT], [I.BOWL]]);
 shaped(B.COOKING_POT, 1, ['B.B', 'B.B', 'BBB'], { B: [I.BRICK_ITEM] });
@@ -308,6 +317,7 @@ export const SMELTING = new Map([
   [I.POTATO, { id: I.BAKED_POTATO, count: 1 }],
   [I.DUCK_RAW, { id: I.DUCK_COOKED, count: 1 }],
   [I.EGG, { id: I.FRIED_EGG, count: 1 }],
+  [I.DUCK_EGG, { id: I.FRIED_EGG, count: 1 }],
   [I.CRAB_RAW, { id: I.CRAB_COOKED, count: 1 }],
   [B.OAK_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.BIRCH_LOG, { id: I.CHARCOAL, count: 1 }],

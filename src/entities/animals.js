@@ -11,6 +11,7 @@ import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { worldClock } from '../core/clock.js';
 import { moodRate } from '../world/ranch.js';
 import { trait } from './traits.js';
+import { layEgg } from '../world/produce.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -139,7 +140,7 @@ export class Chicken extends Animal {
     if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt * moodRate(this) * trait(this, 'laying') * (this.golden ? 1.5 : 1);
     if (this.eggTimer <= 0) {
       this.eggTimer = 300 + Math.random() * 300;
-      if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }
+      if (!this.baby && this.dying === undefined) { layEgg(this, I.EGG); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }   // (in a nest if there's one close)
     }
     // flap to fall gently
     const airborne = !this.onGround && this.vy < 0;
@@ -168,11 +169,12 @@ function milk(animal, player, held) {
     return false;
   }
   animal.milkAt = worldClock.now + MILK_COOLDOWN / (moodRate(animal) * trait(animal, 'milk'));   // (a happy cow sooner, a good milker too)
+  const milk = animal.milkItem ?? I.MILK_BUCKET;   // (a goat's is goat milk)
   if (player.mode !== GAMEMODE_CREATIVE) {
     if (held.count > 1) {
       player.consumeHeld(1);
-      if (player.give(I.MILK_BUCKET, 1) > 0) animal.dropFn?.([{ id: I.MILK_BUCKET, count: 1 }]);   // no room: it drops by the animal
-    } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
+      if (player.give(milk, 1) > 0) animal.dropFn?.([{ id: milk, count: 1 }]);   // no room: it drops by the animal
+    } else player.inventory[player.selected] = { id: milk, count: 1 };
     player.events.dispatchEvent(new CustomEvent('inventory'));
   }
   return true;
@@ -187,6 +189,7 @@ export class Goat extends Animal {
     this.w = 0.8; this.h = 1.2; this.health = 10; this.speed = 1.4; this.fleeSpeed = 3.0; this.kind = 'goat'; this.hurtSound = 'goat';
     this.ambientSound = 'goat';
     this.breedItem = I.WHEAT;
+    this.milkItem = I.GOAT_MILK_BUCKET;
     this.safeFall = 9;
     this.ram = null;      // {phase: 'aim' | 'charge', t, dir}
     this.grudge = 0;      // seconds left wanting to ram whoever hit it
@@ -366,6 +369,15 @@ export class Duck extends Animal {
     this.wings[1].rotation.z = -flap;
     // paddling: the legs swing slower, the body rocks gently
     this.group.rotation.z = this.inWater ? Math.sin(this.age * 2) * 0.06 : 0;
+    // a duck that's yours lays a duck egg now and then (on land: in a nest if there's one close)
+    if (this.persistent && !this.drake && !this.baby && this.onGround && this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) {
+      this.eggTimer = (this.eggTimer ?? 300 + Math.random() * 300) - dt * moodRate(this);
+      if (this.eggTimer <= 0) {
+        this.eggTimer = 480 + Math.random() * 420;
+        layEgg(this, I.DUCK_EGG);
+        this.fx?.sound('duck', { vol: 0.6, pos: this });
+      }
+    }
   }
 
   onDeath() {

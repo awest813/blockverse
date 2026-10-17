@@ -96,6 +96,10 @@ Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chick
    - Cheese press: milk, then time, then cheese (an aged block entity).
    - Use them in new pot recipes and cake variants.
 
+### Step 4 (done)
+
+`world/produce.js` adds the nest (`{eggs, duck}`, meta shows eggs), the churn (`{milk, work}`, six turns a bucket for two butter) and the press (`{batches: [readyAt]}` on the world clock, so it catches up for free). Hens, and kept duck hens, lay into the nearest nest they can walk to within 6 blocks; collectors empty nests. Goat milk is its own item (it heals 4). New food: cheese, cheese sandwich, buttered potato, pancakes. Eggs and milk accept either kind in recipes. Still to do: hide grade and better leather.
+
 ## Phase 4: ranch tools and automation
 
 - **Feed and water.** Trough variants: a water trough, which counts for happiness and lets troughs breed animals, and a feed bin that pulls feed from a chest behind it.

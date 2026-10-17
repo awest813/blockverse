@@ -13,6 +13,7 @@ import { I } from '../items/itemIds.js';
 import { CHUNK_Y, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { maxStack, itemInfo } from '../items/items.js';
 import { cropFamily, isRipe, cropTime } from './saplings.js';
+import { emptyNests } from './produce.js';
 
 const REACH = 4;
 const NEIGHBOURS = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
@@ -298,6 +299,8 @@ function tickCollector(game, x, y, z) {
     if (left > 0) d.count = left;
     else d.kill();
   }
+  // and the eggs from the nests round it
+  if (emptyNests(w, x, y, z, REACH, (stack) => store(w, chest, stack))) took = true;
   if (took) game.sfx?.play('pickup', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, vol: 0.4 });
 }
 

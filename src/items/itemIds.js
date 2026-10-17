@@ -153,4 +153,11 @@ export const I = {
   BROWN_DYE: 395,
   BLACK_DYE: 396,
   GREY_DYE: 397,
+  BUTTER: 398,           // from the churn
+  CHEESE: 399,           // from the cheese press
+  GOAT_MILK_BUCKET: 400,
+  DUCK_EGG: 401,
+  CHEESE_SANDWICH: 402,
+  BUTTERED_POTATO: 403,
+  PANCAKES: 404,
 };

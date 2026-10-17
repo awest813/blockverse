@@ -12,6 +12,7 @@ import { growCrop, cropTime, CROP_FAMILIES, isRipe, saplingHasRoom } from '../wo
 import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { usePot, potContents } from '../items/cookingPot.js';
+import { useProduce, nestContents, pressContents } from '../world/produce.js';
 import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
@@ -70,6 +71,8 @@ export function entityContents(st) {
   if (st.kind === 'trough') return st.slots.filter(Boolean);
   if (st.kind === 'pot') return potContents(st);
   if (st.kind === 'composter' && st.level >= 7) return [{ id: I.BONE_MEAL, count: 1 }];   // a full one's bone meal
+  if (st.kind === 'nest') return nestContents(st);
+  if (st.kind === 'press') return pressContents(st);   // (the cheese that's ready)
   return [];
 }
 
@@ -325,6 +328,8 @@ export class Interaction {
     // a goat horn calls your horses and camels
     if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
+    // the nest, the churn and the cheese press
+    if (t && (t.id === B.NEST || t.id === B.CHURN || t.id === B.CHEESE_PRESS) && !p.sneaking && useProduce(this, t, held)) { this.useCooldown = 0.25; return; }
     // a cake: a slice at a time
     if (t && t.id === B.CAKE && !p.sneaking && this.eatCake(t)) { this.useCooldown = 0.45; return; }
     // the cooking pot: water, food, then bowls
@@ -501,7 +506,8 @@ export class Interaction {
     if (info.id === B.FIRE) this.world.setBlockEntity(px, py, pz, { kind: 'fire', t: 8 });   // fire always burns out
     // farm machines keep a little state of their own
     const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
-      [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 } }[info.id];
+      [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 },
+      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
     if (machine) this.world.setBlockEntity(px, py, pz, machine);
     // a new sprinkler hurries along crops already growing nearby, not just their next stage
     if (info.id === B.SPRINKLER) {
@@ -541,7 +547,7 @@ export class Interaction {
     // some food doesn't sit well: you get hungry again fast
     if (info.sickly && this.dropRng() < info.sickly) { p.addExhaustion(10); this.cb.notify?.('That didn\'t agree with you…'); }
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
-    if (held.id === I.MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
+    if (held.id === I.MILK_BUCKET || held.id === I.GOAT_MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
     if (info.cures) p.poisonTime = 0;
     // a hot meal warms you through and keeps the cold out for a while
     if (info.warms) {

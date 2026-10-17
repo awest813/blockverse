@@ -1757,6 +1757,64 @@ tile('baked_potato', (ctx) => {
   potato(ctx, [178, 118, 54], [130, 80, 34], [210, 160, 90]);
   rect(ctx, 6, 6, 4, 2, [246, 226, 150]);   // split open, fluffy inside
 });
+// ---- the ranch's produce ----
+tile('nest_egg', (ctx, rng) => fillNoise(ctx, rng, [[[238, 226, 200], 6], [[224, 208, 176], 3], [[250, 244, 230], 2]]));
+tile('cheese_round', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[236, 196, 84], 6], [[222, 180, 64], 3], [[246, 214, 120], 2]]);
+  for (let i = 0; i < 5; i++) { const x = 2 + ((rng() * 11) | 0), y = 2 + ((rng() * 11) | 0); rect(ctx, x, y, 2, 2, [200, 156, 52]); }   // holes
+});
+tile('nest', (ctx, rng) => {
+  for (let a = 0; a < 40; a++) {   // a ring of straw
+    const t = (a / 40) * Math.PI * 2, r = 5 + rng() * 1.5;
+    px(ctx, Math.round(7.5 + Math.cos(t) * r), Math.round(9 + Math.sin(t) * r * 0.55), rng() < 0.5 ? [206, 170, 70] : [168, 132, 50]);
+  }
+  for (const [x, y] of [[5, 7], [8, 8], [6, 9]]) { rect(ctx, x, y, 3, 2, [240, 230, 206]); px(ctx, x, y, [252, 248, 236]); }
+});
+tile('churn', (ctx) => {
+  const w = [150, 104, 60], d = [112, 76, 40], band = [96, 96, 104];
+  rect(ctx, 4, 5, 8, 10, w);
+  for (const x of [5, 8, 11]) rect(ctx, x, 5, 1, 10, d);
+  rect(ctx, 3, 7, 10, 1, band); rect(ctx, 3, 12, 10, 1, band);
+  rect(ctx, 7, 1, 2, 4, [176, 128, 72]); rect(ctx, 5, 1, 6, 1, [176, 128, 72]);
+});
+tile('cheese_press', (ctx) => {
+  const w = [150, 104, 60], d = [112, 76, 40];
+  rect(ctx, 1, 13, 14, 2, d); rect(ctx, 2, 3, 2, 10, w); rect(ctx, 12, 3, 2, 10, w); rect(ctx, 1, 1, 14, 2, d);
+  rect(ctx, 7, 3, 2, 4, [120, 120, 128]); rect(ctx, 4, 7, 8, 1, w);
+  rect(ctx, 5, 9, 6, 4, [236, 196, 84]); rect(ctx, 5, 9, 6, 1, [246, 214, 120]);
+});
+tile('butter', (ctx) => {
+  rect(ctx, 3, 7, 10, 5, [244, 214, 96]); rect(ctx, 4, 6, 10, 1, [252, 232, 140]); rect(ctx, 13, 7, 1, 5, [214, 182, 70]);
+  rect(ctx, 3, 12, 10, 1, [204, 170, 60]);
+});
+tile('cheese', (ctx) => {
+  for (let y = 5; y < 13; y++) rect(ctx, 3, y, Math.min(11, 3 + (y - 5) * 2), 1, [236, 196, 84]);   // a wedge
+  rect(ctx, 3, 12, 11, 1, [206, 162, 56]);
+  for (const [x, y] of [[5, 9], [9, 11], [4, 7]]) px(ctx, x, y, [200, 156, 52]);
+});
+tile('goat_milk_bucket', (ctx) => bucket(ctx, [240, 236, 222]));
+tile('duck_egg', (ctx) => {
+  const c = [196, 222, 206], d = [160, 192, 174], l = [226, 242, 232];
+  for (let y = 3; y < 14; y++) {
+    const w = Math.round(Math.sqrt(1 - ((y - 8.5) / 5.5) ** 2) * (y < 8 ? 3.2 : 4));
+    rect(ctx, 8 - w, y, w * 2, 1, c);
+    px(ctx, 8 + w - 1, y, d);
+  }
+  px(ctx, 6, 6, l); px(ctx, 6, 7, l);
+});
+tile('cheese_sandwich', (ctx) => {
+  rect(ctx, 2, 6, 12, 3, [214, 170, 104]); rect(ctx, 2, 9, 12, 2, [236, 196, 84]); rect(ctx, 2, 11, 12, 3, [214, 170, 104]);
+  rect(ctx, 2, 5, 12, 1, [176, 120, 60]); rect(ctx, 2, 14, 12, 1, [176, 120, 60]); px(ctx, 13, 9, [246, 214, 120]);
+});
+tile('buttered_potato', (ctx) => {
+  potato(ctx, [178, 118, 54], [130, 80, 34], [210, 160, 90]);
+  rect(ctx, 6, 6, 4, 2, [246, 226, 150]);
+  rect(ctx, 6, 5, 3, 2, [252, 222, 90]);   // a knob of butter melting in
+});
+tile('pancakes', (ctx) => {
+  for (const y of [11, 9, 7]) { rect(ctx, 3, y, 10, 2, [214, 158, 84]); rect(ctx, 3, y, 10, 1, [234, 186, 110]); }
+  rect(ctx, 6, 5, 4, 2, [252, 226, 110]);   // butter on top
+});
 tile('hay_bale_side', (ctx, rng) => {
   fillNoise(ctx, rng, [[[206, 172, 70], 5], [[226, 196, 92], 3], [[176, 140, 50], 2]]);
   for (let y = 0; y < TILE; y += 2) for (let x = 0; x < TILE; x++) if (rng() < 0.25) px(ctx, x, y, [236, 210, 120]);

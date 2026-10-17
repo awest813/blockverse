@@ -115,6 +115,13 @@ item(I.DRAGON_SCALE, 'dragon_scale', 'Dragon Scale');
 item(I.DRAGON_FANG, 'dragon_fang', 'Dragon Fang');
 item(I.DRAKE_EGG, 'drake_egg', 'Drake Egg', { stack: 16 });
 item(I.NAME_TAG, 'name_tag', 'Name Tag', { stack: 16 });
+item(I.BUTTER, 'butter', 'Butter');
+item(I.CHEESE, 'cheese', 'Cheese', { food: 4, sat: 6 });
+item(I.GOAT_MILK_BUCKET, 'goat_milk_bucket', 'Goat Milk', { stack: 1, drink: true, returns: I.BUCKET, heal: 4 });
+item(I.DUCK_EGG, 'duck_egg', 'Duck Egg', { stack: 16 });
+item(I.CHEESE_SANDWICH, 'cheese_sandwich', 'Cheese Sandwich', { food: 9, sat: 11 });
+item(I.BUTTERED_POTATO, 'buttered_potato', 'Buttered Potato', { food: 7, sat: 8 });
+item(I.PANCAKES, 'pancakes', 'Pancakes', { food: 6, sat: 7 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -250,6 +257,12 @@ const USES = new Map([
   [I.DRAGON_FANG, 'The Scorch Dragon\u2019s: with a scale and a stick, an Ember Blade'],
   [I.EMBER_BLADE, 'Sets what it strikes alight'],
   [I.NAME_TAG, 'Use it on an animal to name it: a named animal is yours, and never wanders off for good'],
+  [B.NEST, 'Hens and ducks nearby lay their eggs in it: use it to collect them (or set a collector by it)'],
+  [B.CHURN, 'Pour in milk, then churn it (use it with an empty hand): two butter a bucket'],
+  [B.CHEESE_PRESS, 'Put in a bucket of milk: five minutes later, a cheese (it ripens while you\u2019re away too)'],
+  [I.BUTTER, 'Churned from milk: for buttered potatoes and pancakes'],
+  [I.GOAT_MILK_BUCKET, 'Puts out flames, settles venom and heals two hearts; churns and presses like milk'],
+  [I.DUCK_EGG, 'Cooks and bakes like a hen\u2019s egg'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.ORANGE_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

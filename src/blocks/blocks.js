@@ -142,6 +142,9 @@ export const B = {
   BROWN_CARPET: 135,
   BLACK_CARPET: 136,
   GREY_CARPET: 137,
+  NEST: 138,             // hens and ducks lay in it; meta: eggs showing (0-3)
+  CHURN: 139,            // milk in, butter out; meta: the dasher down
+  CHEESE_PRESS: 140,     // milk in, cheese out (in time); meta: a cheese in it
 };
 
 // Tool classes
@@ -438,6 +441,10 @@ reg(def(B.HAY_BALE, 'hay_bale', 'Hay Bale', {
 reg(def(B.COMPOSTER, 'composter', 'Composter', {
   hardness: 0.6, tool: TOOL_AXE, sound: 'wood', textures: { top: 'composter_top', bottom: 'oak_planks', side: 'composter_side' },
 }));
+// the ranch's dairy and henhouse (see world/produce.js)
+reg(def(B.NEST, 'nest', 'Nest', { solid: false, render: R_SHAPE, shape: 'nest', opacity: 0, hardness: 0.3, sound: 'leaf', textures: 'hay_bale_top', icon: 'nest' }));
+reg(def(B.CHURN, 'churn', 'Butter Churn', { render: R_SHAPE, shape: 'churn', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'churn' }));
+reg(def(B.CHEESE_PRESS, 'cheese_press', 'Cheese Press', { render: R_SHAPE, shape: 'press', opacity: 0, hardness: 1, tool: TOOL_AXE, sound: 'wood', textures: 'oak_planks', icon: 'cheese_press' }));
 // waters and speeds up crops within 4 blocks. Block entity {kind: 'sprinkler'}
 reg(def(B.SPRINKLER, 'sprinkler', 'Sprinkler', {
   solid: false, render: R_SHAPE, shape: 'sprinkler', opacity: 0, hardness: 1, tool: TOOL_PICKAXE, sound: 'stone', icon: 'sprinkler',

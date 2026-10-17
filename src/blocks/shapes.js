@@ -8,7 +8,7 @@ const P = 1 / 16;
 // a cooking pot's contents by meta (1 water, 2+ meals): the tile its surface shows
 const POT_FILL = [null, 'pot_water', 'pot_stew', 'pot_soup', 'pot_chowder'];
 // tiles shapes draw beyond their block's own textures (the atlas needs them)
-export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner'];
+export const SHAPE_TILES = [...POT_FILL.filter(Boolean), 'cake_inner', 'nest_egg', 'cheese_round'];
 // the four horizontal edges, indexed like placement meta: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -99,6 +99,28 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     case 'pad': return [[P, -0.125, P, 1 - P, -0.1, 1 - P]];
     case 'layer': return [[0, 0, 0, 1, 2 * P, 1]];
     case 'carpet': return [[0, 0, 0, 1, P, 1]];
+    // a ring of straw, and the eggs in it
+    case 'nest': {
+      const boxes = [[2 * P, 0, 2 * P, 14 * P, P, 14 * P], [P, 0, P, 15 * P, 3 * P, 3 * P], [P, 0, 13 * P, 15 * P, 3 * P, 15 * P],
+        [P, 0, 3 * P, 3 * P, 3 * P, 13 * P], [13 * P, 0, 3 * P, 15 * P, 3 * P, 13 * P]];
+      const eggs = [[5 * P, P, 5 * P, 8 * P, 4.5 * P, 8.5 * P, 'nest_egg'], [8.5 * P, P, 7.5 * P, 11.5 * P, 4.5 * P, 11 * P, 'nest_egg'], [5 * P, P, 9.5 * P, 8 * P, 4.5 * P, 13 * P, 'nest_egg']];
+      return collision ? [] : boxes.concat(eggs.slice(0, Math.min(3, meta)));
+    }
+    // a wooden churn with its dasher (down while churning)
+    case 'churn': {
+      if (collision) return [[4 * P, 0, 4 * P, 12 * P, 13 * P, 12 * P]];
+      const up = meta & 1 ? 0 : 2 * P;
+      return [[4 * P, 0, 4 * P, 12 * P, 12 * P, 12 * P], [3.5 * P, 2 * P, 3.5 * P, 12.5 * P, 3 * P, 12.5 * P], [3.5 * P, 9 * P, 3.5 * P, 12.5 * P, 10 * P, 12.5 * P],
+        [5 * P, 12 * P, 5 * P, 11 * P, 13 * P, 11 * P], [7.5 * P, 13 * P, 7.5 * P, 8.5 * P, 14 * P + up, 8.5 * P], [5.5 * P, 13 * P + up, 7.5 * P, 10.5 * P, 14 * P + up, 8.5 * P]];
+    }
+    // a frame with a screw and a follower plate; a cheese inside when there's one pressing
+    case 'press': {
+      if (collision) return [[P, 0, P, 15 * P, 1, 15 * P]];
+      const boxes = [[P, 0, P, 15 * P, 2 * P, 15 * P], [P, 2 * P, 7 * P, 3 * P, 14 * P, 9 * P], [13 * P, 2 * P, 7 * P, 15 * P, 14 * P, 9 * P],
+        [P, 14 * P, 6 * P, 15 * P, 16 * P, 10 * P], [7 * P, 9 * P, 7 * P, 9 * P, 14 * P, 9 * P], [4 * P, 8 * P, 4 * P, 12 * P, 9 * P, 12 * P]];
+      if (meta & 1) boxes.push([5 * P, 2 * P, 5 * P, 11 * P, 8 * P, 11 * P, 'cheese_round']);
+      return boxes;
+    }
     // a little brass head on a pipe
     case 'sprinkler': return [[5 * P, 0, 5 * P, 11 * P, 2 * P, 11 * P], [7 * P, 2 * P, 7 * P, 9 * P, 8 * P, 9 * P], [4 * P, 8 * P, 4 * P, 12 * P, 10 * P, 12 * P]];
     // an open wooden box
