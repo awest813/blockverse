@@ -10,6 +10,9 @@ const GRAVITY = 20;
 const WATER_DRAG = 2.2;   // per second: arrows slow right down underwater
 const shaftGeo = new THREE.BoxGeometry(0.05, 0.05, 0.6);
 const shaftMat = new THREE.MeshBasicMaterial({ color: 0x8a6a44 });
+// an arrow's head (at the front: +z faces where it's flying) and its fletching
+const headGeo = new THREE.BoxGeometry(0.09, 0.09, 0.1).translate(0, 0, 0.32);
+const fletchGeo = new THREE.BoxGeometry(0.14, 0.012, 0.14).translate(0, 0, -0.24);
 const ballGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
 const snowMat = new THREE.MeshBasicMaterial({ color: 0xf2f6fb });
 const eggMat = new THREE.MeshBasicMaterial({ color: 0xe8d8b4 });
@@ -33,13 +36,25 @@ export class Arrow {
     this.orient();
   }
 
-  makeMesh() { return new THREE.Mesh(shaftGeo, shaftMat.clone()); }
+  makeMesh() {
+    const m = new THREE.Mesh(shaftGeo, shaftMat.clone());
+    // a grey head, and white fletching in a cross at the tail
+    const head = new THREE.Mesh(headGeo, new THREE.MeshBasicMaterial({ color: 0x9a9aa2 }));
+    const f1 = new THREE.Mesh(fletchGeo, new THREE.MeshBasicMaterial({ color: 0xe8e8e8 }));
+    const f2 = new THREE.Mesh(fletchGeo, f1.material);
+    f2.rotation.z = Math.PI / 2;
+    m.add(head, f1, f2);
+    for (const c of m.children) c.userData.base = c.material.color.clone();
+    return m;
+  }
 
   // shaded by the light where it is, like everything else in the world
   shade() {
     if ((this._lt = (this._lt ?? 0) - 1) > 0) return;
     this._lt = 6;
-    this.mesh.material.color.copy(this.base).multiplyScalar(this.world.lightAt(this.x, this.y, this.z));
+    const l = this.world.lightAt(this.x, this.y, this.z);
+    this.mesh.material.color.copy(this.base).multiplyScalar(l);
+    for (const c of this.mesh.children) if (c.userData.base) c.material.color.copy(c.userData.base).multiplyScalar(l);
   }
 
   orient() {
@@ -118,6 +133,7 @@ export class Arrow {
     this.dead = true;
     this.scene.remove(this.mesh);
     this.mesh.material.dispose();
+    for (const c of this.mesh.children) c.material?.dispose();
   }
 }
 
