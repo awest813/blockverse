@@ -220,7 +220,7 @@ export class EntityManager {
 export function serializeAnimal(m) {
   const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared,
     at: Math.round(worldClock.now), id: m.ensureId(), ...(Number.isFinite(m.milkAt) ? { milkAt: m.milkAt } : {}),
-    ...(m.name ? { name: m.name } : {}), ...(m.travelling ? { travel: true } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(traitsOf(m) ? { traits: { ...m.traits } } : {}), ...(m.parentNames ? { parentNames: m.parentNames } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
+    ...(m.name ? { name: m.name } : {}), ...(m.travelling ? { travel: true } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(traitsOf(m) ? { traits: { ...m.traits } } : {}), ...(m.parentNames ? { parentNames: m.parentNames } : {}), ...(m.ribbon ? { ribbon: m.ribbon } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
   if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
@@ -244,6 +244,7 @@ export function restoreAnimal(scene, world, a) {
   if (Number.isFinite(a.mood)) mob.mood = Math.max(0, Math.min(100, a.mood));
   const traits = cleanTraits(mob.kind, a.traits);
   if (traits) mob.traits = traits;
+  if (['blue', 'red', 'yellow'].includes(a.ribbon)) mob.ribbon = a.ribbon;
   if (Array.isArray(a.parentNames)) mob.parentNames = a.parentNames.slice(0, 2).map((n) => (typeof n === 'string' ? n.slice(0, 24) : null));
   mob.breedCooldown = Math.max(0, (a.breedCooldown ?? 0) - away);
   if (a.baby) {

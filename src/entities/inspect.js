@@ -6,6 +6,7 @@ import { worldClock } from '../core/clock.js';
 import { DAY_LENGTH_SECONDS } from '../core/constants.js';
 import { moodRate, moodWord } from '../world/ranch.js';
 import { traitLines, trait } from './traits.js';
+import { ribbonName } from './trader.js';
 
 const WOOL = new Map([[0xffffff, 'white'], [0xf3ecdc, 'cream'], [0xdedcd8, 'light grey']]);
 const secs = (s) => (s >= 90 ? `${Math.round(s / 60)} min` : `${Math.max(1, Math.round(s))} s`);
@@ -56,6 +57,7 @@ export function describeAnimal(m) {
     const wool = m.dye ?? WOOL.get(m.woolTint) ?? 'dyed';
     lines.push(m.sheared ? `Shorn — wool grows back in ${secs((m.regrow ?? 0) / moodRate(m))}` : `Fleece: ${wool}`);
   }
+  if (m.ribbon) lines.push(`${ribbonName(m.ribbon)} at the fair`);
   if (m.golden) lines.push('Golden plumage: lays half as often again');
   if (!m.tamed) lines.push(...traitLines(m));
   if (m.kind === 'chicken' && !m.baby && Number.isFinite(m.eggTimer)) lines.push(`Next egg in about ${secs(m.eggTimer / (moodRate(m) * trait(m, 'laying') * (m.golden ? 1.5 : 1)))}`);

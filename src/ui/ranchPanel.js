@@ -5,7 +5,7 @@
 import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
-import { SELLS, RETURNS, BUYS, priceOf, sell } from '../world/market.js';
+import { SELLS, RETURNS, BUYS, priceOf, sell, bump } from '../world/market.js';
 import { describeAnimal } from '../entities/inspect.js';
 
 const name = (id) => itemInfo(id)?.display ?? '?';
@@ -135,7 +135,60 @@ export class RanchPanel {
     if (p.give(id, 1) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: 1 }]);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup');
-    this.renderMarket();
+    if (this.kind === 'trader') this.renderTrader(); else this.renderMarket();
+  }
+
+  // ---- the travelling trader ----
+
+  openTrader() {
+    this.kind = 'trader';
+    this.game.setUiOpen(true);
+    this.renderTrader();
+  }
+
+  renderTrader() {
+    const g = this.game, p = g.player, T = g.worldMeta.trader ?? {};
+    const creative = p.mode === GAMEMODE_CREATIVE;
+    const offers = (Array.isArray(T.offers) ? T.offers : []).filter((o) => Array.isArray(o) && itemInfo(o[0]) && o[1] > 0);
+    const wants = (Array.isArray(T.wants) ? T.wants : []).filter((o) => Array.isArray(o) && itemInfo(o[0]) && o[1] > 0);
+    this.frame('Travelling Trader', (win) => {
+      const purse = document.createElement('p');
+      purse.className = 'ranch-purse';
+      purse.textContent = `Your coins: ${p.countOf(I.COIN)} \u00b7 Lead an animal up to enter it in the fair`;
+      win.appendChild(purse);
+      const cols = document.createElement('div');
+      cols.className = 'ranch-cols';
+      const buyCol = document.createElement('section');
+      buyCol.innerHTML = '<h4>For sale this visit</h4>';
+      const coins = p.countOf(I.COIN);
+      for (const [id, cost] of offers) buyCol.appendChild(this.row(id, name(id), `${cost} coin${cost === 1 ? '' : 's'}`, [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
+      const wantCol = document.createElement('section');
+      wantCol.innerHTML = '<h4>Wanted</h4>';
+      for (const w of wants) {
+        const [id, price, left] = w, have = p.countOf(id);
+        wantCol.appendChild(this.row(id, name(id), left > 0 ? `pays ${price} each (${left} more wanted)` : 'has all it wants', [
+          ['Sell 1', () => this.sellToTrader(w, 1), !have || left <= 0],
+          ['Sell all', () => this.sellToTrader(w, have), !have || left <= 0],
+        ]));
+      }
+      cols.append(buyCol, wantCol);
+      win.appendChild(cols);
+    });
+  }
+
+  sellToTrader(want, n) {
+    const g = this.game, p = g.player, [id, price] = want;
+    n = Math.min(n, p.countOf(id), want[2]);
+    if (n <= 0) return;
+    p.take(id, n);
+    want[2] -= n;
+    const back = RETURNS.get(id);
+    if (back && p.give(back, n) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: back, count: n }]);
+    if (p.give(I.COIN, price * n) > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: price * n }]);
+    bump(g.worldMeta, 'coins', price * n);
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    g.sfx?.play('pickup', { pitch: 1.4 });
+    this.renderTrader();
   }
 
   // ---- the ledger ----

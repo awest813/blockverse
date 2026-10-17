@@ -29,6 +29,7 @@ import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
 import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
+import { tickTrader, judge } from './entities/trader.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -196,6 +197,8 @@ export class Game {
     this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
     this.entities.fx.openBags = (mob) => this.containers.openBags(mob);
+    this.entities.fx.openTrader = () => this.ranchPanel.openTrader();
+    this.entities.fx.judge = (led) => judge(this, led);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
     this.entities.fx.drop = (x, y, z, stacks) => this.entities.spawnDrops(x, y, z, stacks);
     // a dungeon boss beaten: its cage remembers, so it stays beaten
@@ -1656,6 +1659,7 @@ export class Game {
       this.updateInspect(dt);
       (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
       tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
+      tickTrader(this, dt);
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash

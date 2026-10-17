@@ -73,6 +73,16 @@ export function cleanTraits(kind, t) {
   return Object.keys(out).length === Object.keys(spec).length ? out : null;
 }
 
+// how well bred it is, 0..1: the mean of its traits, each across its range
+// (a horse's or camel's speed, jump and health)
+const HORSE_RANGES = { gallop: [6.2, 11.5], jumpV: [8.6, 12.6], maxHealth: [15, 35] };
+export function traitScore(m) {
+  const spec = TRAITS[m.kind], t = traitsOf(m);
+  const parts = spec ? Object.entries(spec).map(([k, [lo, hi]]) => (t[k] - lo) / (hi - lo))
+    : m.rideable ? Object.entries(HORSE_RANGES).map(([k, [lo, hi]]) => ((m[k] ?? lo) - lo) / (hi - lo)) : [0.5];
+  return Math.max(0, Math.min(1, parts.reduce((a, b) => a + b, 0) / parts.length));
+}
+
 // the card's lines: "Milk: rich"
 export function traitLines(m) {
   const t = traitsOf(m);

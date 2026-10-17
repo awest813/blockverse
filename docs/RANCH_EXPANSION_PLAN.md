@@ -164,6 +164,10 @@ Twenty-four scripted playthroughs ran with no crashes or console errors. Generat
 - Candles: a light-12 shaped block that needs ground.
 - Patterned coats (piebald, skewbald): bred only, by a 3% mutation, or inherited from a patterned parent half the time. They are drawn with patch parts.
 
+### The trader and the fair (done)
+
+`entities/trader.js` holds the visit in `worldMeta.trader` (`next`, `until`, the spot, `visit`, `offers`, `wants`, `judged`). The trader comes every 2 in-game days, by day, next to a market stall within 24 blocks (or near the player), and stays 10 minutes or until nightfall. A reload mid-visit respawns it. Each visit rolls four offers and two wants (paid double, up to 8 each, never something it's also selling). The fair judges led animals once a visit with `traitScore` (plus mood and rarity) and awards a ribbon (saved) and 4–30 coins.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.
