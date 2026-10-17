@@ -129,6 +129,9 @@ export class WorldGen {
       const fade = 1 - smoothstep(0.25, 0.5, mMask);
       if (r < RIVER_WIDTH) {
         river = (1 - r / RIVER_WIDTH) * fade;
+        // v9: the channel starts from the bank's height (where the banks
+        // end), not the land's: older versions left a cliff along the water
+        if (v9) h += (Math.min(h, SEA_LEVEL + 2.2) - h) * smoothstep(0, 1, fade);
         h += (SEA_LEVEL - 3 - h) * smoothstep(0, 0.6, river);
       } else {
         const bank = (1 - (r - RIVER_WIDTH) / (BANK_WIDTH - RIVER_WIDTH)) * fade;
