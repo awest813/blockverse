@@ -107,6 +107,18 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Difficulty** per world — Peaceful, Easy, Normal or Hard — changeable any time with `/difficulty`
 - Original box-model creatures with walk animations, knockback, fall damage, and voxel-light-aware shading
 
+### 🔥 The Scorchlands
+A second dimension, under a night that never ends: a burnt forest of charred trees and smouldering stumps on rolling ash hills, open ash wastes with lava lakes and spires of charred stone, embers drifting up and ash sifting down under a huge red moon.
+- **Getting there**: each kind of dungeon guardian (Zombie Brute, Bone Archer, Brood Mother) drops its own ember and some **charred stone**. The three embers, a diamond and redstone make an **Ember Core**. Build a ring of charred stone 4 wide and 5 tall (the corners are optional) and use the core on it: the opening fills with a glowing portal. Stand in it for a couple of seconds to cross
+- **8:1**: a block in the Scorchlands is eight at home. Going through comes out at the portal on the other side nearest the matching point, or builds one there (on a platform if you'd land over lava or water). Break any part of a frame and its portal goes out. Pets following close by come with you
+- Its rules: no beds, water boils away, and dying there sends you home to your spawn point
+- **Skeleton knights** carry a sword and a shield that turns blows and arrows from the front; it drops while they swing, and enough battering knocks it aside
+- **Ruined castles**: a broken curtain wall with a gate and corner towers round a keep, holding a knight cage, two chests of loot and the **Knight Captain**, a boss that charges across the room
+- **Ash drakes** circle overhead and spit fireballs that set you alight (fire there never harms a block)
+- **The Scorch Dragon** roosts on a mesa crowned with smouldering spires (your first arrival says which way). It wheels round its roost loosing fire and dives at you; hurt to half, it calls its drakes and comes down low to breathe fire. It's back the next time you come
+- **Spoils**: dragon scales (from the dragon, and now and then a drake) make **dragon scale armour**, as strong as diamond and turning a fifth of fire and lava damage per piece; the dragon's fang, a scale and a stick make the **Ember Blade**, which sets what it strikes alight. Castles and spires give **scorched bricks** and charred stone to build with
+- `/dimension scorchlands` (and `overworld`) to go straight there
+
 ### 🌗 Living environment
 - Full **day/night cycle** (20 min): a gradient sky dome that glows on the sun's side at sunrise and sunset, a sun and a moon, drifting blocky clouds that take the colour of the hour, and a starfield that wheels overhead at night
 - Torchlight is warm and moonlight cool; mobs, dropped items, arrows, sign lettering and your hand are all lit by the voxel light where they stand, so nothing glows in a dark cave
@@ -169,6 +181,7 @@ All keys can be rebound in **Settings → Controls**. **Gamepads** and **touch s
 /difficulty <peaceful|easy|normal|hard>
 /seed  /spawn  /kill  /heal  /clear
 /rd <2-16>                  render distance
+/dimension <overworld|scorchlands>
 ```
 
 ---
@@ -215,7 +228,8 @@ src/
 ├── core/              constants, seeded RNG, gradient noise, input, AABB physics
 ├── blocks/            block registry (hardness, tools, drops, light, render kind)
 ├── items/             item registry, crafting recipes, smelting, furnace logic
-├── world/             chunks, streaming world, worker pool, worldgen, lighting, raycast
+├── world/             chunks, streaming world, worker pool, worldgen (and the
+│                      Scorchlands' scorchgen), dimensions, portals, lighting, raycast
 ├── workers/           terrain-generation web worker
 ├── render/            procedural textures, texture-array atlas, chunk mesher (AO +
 │                      smooth light), GLSL3 chunk materials, sky, block highlight

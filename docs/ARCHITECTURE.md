@@ -71,6 +71,33 @@ chunk applies the feature lists of its **3×3 chunk neighborhood**. Feature
 lists are derived only from `(seed, cx, cz)`, so every chunk that overlaps a
 tree computes the exact same blocks for it — no seams, no ordering issues.
 
+### Dimensions
+
+A world has two dimensions, the overworld and **the Scorchlands**
+(`src/world/dimensions.js`); one is open at a time. The Scorchlands have
+their own generator, `src/world/scorchgen.js` (`ScorchGen`), with its own
+version number (`meta.scorchVersion`), so changes there never touch the
+overworld's terrain versions. Its castles and the dragon's roost are larger
+than a chunk but use the same trick as trees: each is rooted in one chunk,
+every chunk in its 3×3 neighbourhood replays the whole build with the same
+random rolls, and a clipping `put` writes only what falls in that chunk.
+
+Travelling (`Game.travel` → `travelTo` in `main.js`) saves and closes the
+running `Game`, swaps the per-dimension parts of the world entry
+(`swapDimension`: kept animals, items on the ground, pets left behind and
+where you stood go into `meta.dims[from]`; pets following you come along),
+and opens the world again in the other dimension. A block there is eight
+at home (`arrivalPoint`).
+
+**Ember portals** (`src/world/portal.js`): a ring of charred stone around a
+2×3 opening, lit with an Ember Core. The world entry lists every lit
+portal (`meta.portals`, with its dimension); going through looks for the
+listed portal on the far side nearest the scaled point (128 blocks at
+home, 16 in the Scorchlands) and otherwise builds one where you land
+(`Game.finishArrival`, once the chunks there have loaded). `World.setBlock`
+queues any change to a frame or sheet block (`portalChecks`), and
+`Game.updatePortals` puts out a portal whose frame is no longer whole.
+
 ## 3. Lighting
 
 `src/world/light.js` implements the classic two-channel voxel light model:
@@ -156,6 +183,7 @@ voxel grid, shared by the player, item drops, and mobs.
 - `worlds`: metadata — name, seed, mode, time of day, serialized player
   (position, stats, inventory, spawn point)
 - `chunks`: key `"<worldId>:<cx>,<cz>"` → `{blocks, meta, blockEntities}`
+  (the Scorchlands' chunks: `"<worldId>:s:<cx>,<cz>"`)
 
 Only **modified** chunks are stored; everything else regenerates from the
 seed. Saves happen on an autosave timer, on chunk eviction, and on quit.
