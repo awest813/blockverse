@@ -150,7 +150,7 @@ function def(id, name, display, opts = {}) {
     replaceable: opts.replaceable ?? false,  // placement can overwrite it
     fluid: opts.fluid ?? false,
     climbable: opts.climbable ?? false,      // ladders
-    shape: opts.shape ?? null,               // R_SHAPE: 'slab' | 'stairs' | 'door' | 'fence' | 'gate' | 'pane' | 'ladder' | 'pad' | 'layer' | 'lantern'
+    shape: opts.shape ?? null,               // R_SHAPE: see shapes.js (slab, stairs, door, fence, gate, pane, ladder, sign, pad, layer, lantern, sprinkler, trough, pot, cake, coconut)
     waterlogged: opts.waterlogged ?? false,  // sits in a water cell (kelp, seagrass)
     icon: opts.icon ?? null,                 // flat inventory icon tile instead of a cube
     full: opts.full ?? null,                 // slabs: the full block two of them make

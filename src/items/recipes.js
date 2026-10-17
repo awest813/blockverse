@@ -26,7 +26,7 @@ function shapeless(result, count, ingredients) {
 shapeless(B.OAK_PLANKS, 4, [[B.OAK_LOG]]);
 shapeless(B.BIRCH_PLANKS, 4, [[B.BIRCH_LOG]]);
 shapeless(B.SPRUCE_PLANKS, 4, [[B.SPRUCE_LOG]]);
-shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);   // pale palm wood planes up like birch
+shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);   // pale palm wood planks up like birch
 shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
@@ -96,8 +96,9 @@ shaped(B.BOOKSHELF, 1, ['PPP', 'BBB', 'PPP'], { P: ANY_PLANKS, B: [I.BOOK] });
 shapeless(B.JACK_O_LANTERN, 1, [[B.PUMPKIN], [B.TORCH]]);
 shaped(B.CAMPFIRE, 1, ['.S.', 'SCS', 'LLL'], { S: [I.STICK], C: [I.COAL, I.CHARCOAL], L: ANY_LOG });
 
-// what a campfire can cook: the raw foods the furnace cooks
+// a campfire cooks whatever the furnace turns into food (items/campfire.js)
 export const CAMPFIRE_TIME = 20;   // seconds per item (furnace: SMELT_TIME, but needs fuel)
+
 shaped(I.BOWL, 4, ['P.P', '.P.'], { P: ANY_PLANKS });
 shapeless(I.MUSHROOM_STEW, 1, [[I.BOWL], [B.MUSHROOM_BROWN], [B.MUSHROOM_RED]]);
 shapeless(I.BONE_MEAL, 3, [[I.BONE]]);

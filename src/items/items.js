@@ -6,11 +6,6 @@ import { I } from './itemIds.js';
 
 export { I };
 
-export const TIER_WOOD = 1;
-export const TIER_STONE = 2;
-export const TIER_IRON = 3;
-export const TIER_GOLD = 1;    // gold: fast but weak tier
-export const TIER_DIAMOND = 4;
 
 const TIER_STATS = {
   wood: { tier: 1, speed: 2, durability: 60, damage: 4 },
@@ -98,11 +93,11 @@ item(I.ARROW, 'arrow', 'Arrow');
 item(I.FLINT, 'flint', 'Flint');
 item(I.FEATHER, 'feather', 'Feather');
 item(I.LEATHER, 'leather', 'Leather');
-// put on a tamed horse to ride it
+// put on a tamed horse or camel to ride it
 item(I.SADDLE, 'saddle', 'Saddle', { stack: 1 });
 // lead an animal home; use a fence post to tie it up
 item(I.LEAD, 'lead', 'Lead');
-// knocked off a charging goat that hits rock; blow it to call your horses
+// knocked off a charging goat that hits rock; blow it to call your horses and camels
 item(I.GOAT_HORN, 'goat_horn', 'Goat Horn', { stack: 1 });
 item(I.BEEF_RAW, 'beef_raw', 'Raw Beef', { food: 3, sat: 1.8 });
 item(I.BEEF_COOKED, 'beef_cooked', 'Steak', { food: 8, sat: 12.8 });
@@ -206,7 +201,7 @@ export function weaponStats(id) {
 const BLOCK_BURN = new Map([
   [B.OAK_PLANKS, 15], [B.BIRCH_PLANKS, 15], [B.SPRUCE_PLANKS, 15],
   [B.OAK_LOG, 15], [B.BIRCH_LOG, 15], [B.SPRUCE_LOG, 15],
-  [B.CRAFTING_TABLE, 15], [B.COAL_ORE, 0], [B.DEAD_BUSH, 5],
+  [B.CRAFTING_TABLE, 15], [B.DEAD_BUSH, 5],
   [B.COAL_BLOCK, 800], [B.BOOKSHELF, 15], [B.CHEST, 15],
   [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5], [B.PALM_SAPLING, 5], [B.PALM_LOG, 15],
   [B.HAY_BALE, 20], [B.COMPOSTER, 15], [B.TROUGH, 15],
@@ -288,15 +283,4 @@ export function makeStack(id, count = 1) {
   return s;
 }
 
-export function stacksEqual(a, b) {
-  return a && b && a.id === b.id && (a.dur === undefined) === (b.dur === undefined);
-}
 
-// Try to merge stack b into a (mutates a). Returns leftover count.
-export function mergeStack(a, b) {
-  if (!stacksEqual(a, b) || a.dur !== undefined) return b.count;
-  const room = maxStack(a.id) - a.count;
-  const moved = Math.min(room, b.count);
-  a.count += moved;
-  return b.count - moved;
-}

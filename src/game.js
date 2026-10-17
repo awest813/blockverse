@@ -494,7 +494,7 @@ export class Game {
     return true;
   }
 
-  // a goat horn: a long call that brings your horses running
+  // a goat horn: a long call that brings your horses and camels running
   blowHorn() {
     const p = this.player;
     this.sfx?.play('horn');

@@ -4,7 +4,7 @@
 import { B } from '../blocks/blocks.js';
 import { SMELTING, SMELT_TIME } from './recipes.js';
 import { itemInfo, maxStack } from './items.js';
-import { blockIndex, CHUNK_Y } from '../core/constants.js';
+import { CHUNK_Y } from '../core/constants.js';
 
 export function furnaceState(world, x, y, z) {
   let st = world.blockEntityAt(x, y, z);
@@ -32,7 +32,7 @@ export function tickFurnaces(world, dt) {
   const litSwaps = []; // apply after iteration: setBlock mutates blockEntities
   for (const chunk of world.chunks.values()) {
     if (!chunk.blockEntities.size) continue;
-    for (const [idx, st] of [...chunk.blockEntities]) {
+    for (const [idx, st] of chunk.blockEntities) {   // (nothing here adds or removes entries: the lit swaps wait)
       if (st.kind !== 'furnace') continue;
       const y = idx % CHUNK_Y;
       const rest = (idx - y) / CHUNK_Y;

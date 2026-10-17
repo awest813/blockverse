@@ -6,13 +6,13 @@ import { moveEntity, entityInBlock, entityInWater, nudgeFree } from '../core/phy
 import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
+import { itemInfo } from '../items/items.js';
+import { SMELTING } from '../items/recipes.js';
 
 // raw meat -> cooked, for animals that die burning
-const COOKED = {
-  [I.PORKCHOP_RAW]: I.PORKCHOP_COOKED, [I.BEEF_RAW]: I.BEEF_COOKED, [I.MUTTON_RAW]: I.MUTTON_COOKED,
-  [I.CHICKEN_RAW]: I.CHICKEN_COOKED, [I.DUCK_RAW]: I.DUCK_COOKED, [I.FISH_RAW]: I.FISH_COOKED,
-  [I.CRAB_RAW]: I.CRAB_COOKED,
-};
+// an animal that dies burning drops its food as the furnace would cook it
+// (taken from the smelting list, so a new meat needs no entry here)
+const cookedId = (id) => ((itemInfo(id)?.food ?? 0) > 0 ? SMELTING.get(id)?.id ?? null : null);
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
 const HURT_RED = new THREE.Color(0xff3333);
@@ -270,7 +270,6 @@ export class Mob {
     }
     this.inWater = inWater;
 
-    const before = this.y;
     // a fast fall on a slow frame is cut into steps, so it can't skip a thin floor
     const steps = Math.max(1, Math.ceil((Math.abs(this.vy) * dt) / 0.4));
     const r = { onGround: false, hitWall: false };
@@ -414,7 +413,7 @@ export class Mob {
     const y = Math.floor(this.y);
     let drop = 0;
     let lava = this.world.getBlockW(ax, y, az) === B.LAVA;
-    // look as far down as the mob can safely fall (goats and horses further)
+    // look as far down as the mob can safely fall (goats, horses and sloths further)
     const safe = this.safeFall ?? 4;
     while (drop < safe && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az))) {
       if (this.world.getBlockW(ax, y - 1 - drop, az) === B.LAVA) lava = true;
@@ -700,7 +699,7 @@ export class Mob {
       // an animal that dies on fire drops its meat cooked
       if (this.fireTime > 0 && this.dropFn) {
         const drop = this.dropFn;
-        this.dropFn = (items) => drop(items.map((s) => (COOKED[s.id] ? { ...s, id: COOKED[s.id] } : s)));
+        this.dropFn = (items) => drop(items.map((s) => (cookedId(s.id) ? { ...s, id: cookedId(s.id) } : s)));
         this.onDeath?.();
         this.dropFn = drop;
       } else this.onDeath?.();

@@ -51,7 +51,7 @@ function hydrated(world, x, y, z) {
   return false;
 }
 
-// a sprinkler within 4 blocks (a level above or below counts too)
+// a sprinkler within 4 blocks (from a level below to two above)
 export function nearSprinkler(world, x, y, z) {
   for (let dy = -1; dy <= 2; dy++) {
     for (let dx = -4; dx <= 4; dx++) {

@@ -1,4 +1,4 @@
-import { CHUNK_X, CHUNK_Y, CHUNK_Z, CHUNK_VOLUME, blockIndex } from '../core/constants.js';
+import { CHUNK_Y, CHUNK_VOLUME, blockIndex } from '../core/constants.js';
 
 export function chunkKey(cx, cz) {
   return `${cx},${cz}`;

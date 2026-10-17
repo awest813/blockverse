@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z } from '../core/constants.js';
-import { BLOCKS, R_NONE, R_SOLID, R_CUTOUT, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
+import { BLOCKS, R_NONE, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
 import { shapeBoxes } from '../blocks/shapes.js';
 import { chunkKey } from '../world/chunk.js';
 import { FACE_PX, FACE_NX, FACE_PY, FACE_NY, FACE_PZ, FACE_NZ } from './atlas.js';

@@ -2,7 +2,7 @@
 // BFS flood-fill propagation across chunk borders, with incremental
 // updates when single blocks change.
 
-import { CHUNK_X, CHUNK_Y, CHUNK_Z, blockIndex, MAX_LIGHT } from '../core/constants.js';
+import { CHUNK_X, CHUNK_Y, CHUNK_Z, blockIndex } from '../core/constants.js';
 import { BLOCKS } from '../blocks/blocks.js';
 import { chunkKey } from './chunk.js';
 

@@ -2,12 +2,12 @@
 
 import { REACH_DISTANCE, GAMEMODE_CREATIVE, CHUNK_Y } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
-import { B, BLOCKS, blockInfo, R_CROSS, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
+import { B, BLOCKS, blockInfo, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
 import { growCrop, cropTime, CROP_FAMILIES, isRipe } from '../world/saplings.js';
-import { useComposter, useTrough, describeMachine, FEEDS } from '../world/farmtech.js';
+import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { usePot, potContents } from '../items/cookingPot.js';
 import { mulberry32 } from '../core/rng.js';
@@ -317,7 +317,7 @@ export class Interaction {
     if (t && t.id === B.COMPOSTER && !p.sneaking && useComposter(this, t, held)) { this.useCooldown = 0.2; return; }
     // a fence post: tie up the animals you're leading (or take back the ones tied there)
     if (t && t.id === B.OAK_FENCE && !p.sneaking && this.cb.tieLeashes?.(t)) { this.useCooldown = 0.3; return; }
-    // a goat horn calls your horses
+    // a goat horn calls your horses and camels
     if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // a cake: a slice at a time

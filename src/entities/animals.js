@@ -562,7 +562,7 @@ export class Horse extends Animal {
         if (Math.random() * 100 < this.temper + 15) {
           this.owned = true;
           this.fx?.hearts?.(this.x, this.y + this.h, this.z, 8);
-          this.fx?.notify?.(`The ${this.label} trusts you! Put a saddle on it to ride (3 leather + an iron ingot)`);
+          this.fx?.notify?.(`The ${this.label} trusts you! Put a saddle on it to ride (5 leather + an iron ingot)`);
         } else {
           this.temper = Math.min(100, this.temper + 8);
           this.fx?.sound(this.ambientSound, { pos: this, vol: 1.2 });

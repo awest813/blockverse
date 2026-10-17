@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { TILE, tileNames, generateTile } from './textures.js';
-import { BLOCKS, blockInfo, R_CROSS, R_TORCH, R_SOLID, R_CUTOUT, R_BLEND } from '../blocks/blocks.js';
+import { BLOCKS, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { itemInfo } from '../items/items.js';
 import { SHAPE_TILES } from '../blocks/shapes.js';
 
@@ -21,7 +21,7 @@ export class Atlas {
   constructor() {
     // only what blocks draw goes on the GPU: item icons are drawn from their
     // own canvases, and the array must stay under WebGL2's 256-layer minimum
-    const used = new Set(['ice', ...SHAPE_TILES]);
+    const used = new Set(SHAPE_TILES);
     for (const b of BLOCKS) {
       if (!b || b.render === 0) continue;
       const t = b.textures;

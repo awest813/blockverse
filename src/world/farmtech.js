@@ -296,7 +296,7 @@ export function describeMachine(w, t) {
     return `Sprinkler: watering ${n} crop${n === 1 ? '' : 's'} within ${REACH} blocks`;
   }
   const chest = chestBeside(w, t.x, t.y, t.z);
-  if (t.id === B.COLLECTOR) return chest ? 'Collector: gathering items within 4 blocks into the chest beside it' : 'Collector: put a chest next to it to collect into';
+  if (t.id === B.COLLECTOR) return chest ? `Collector: gathering items within ${REACH} blocks into the chest beside it` : 'Collector: put a chest next to it to collect into';
   let ripe = 0, growing = 0;
   for (let dy = -1; dy <= 1; dy++) for (let dx = -REACH; dx <= REACH; dx++) for (let dz = -REACH; dz <= REACH; dz++) {
     const id = w.getBlockW(t.x + dx, t.y + dy, t.z + dz);

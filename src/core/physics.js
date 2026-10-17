@@ -1,7 +1,7 @@
 // AABB voxel collision, shared by the player and mobs.
 // Entities are {x, y, z (feet-center), w (width), h (height), vx, vy, vz}.
 
-import { isSolid, isWater, B, BLOCKS, R_SHAPE } from '../blocks/blocks.js';
+import { isSolid, isWater, BLOCKS, R_SHAPE } from '../blocks/blocks.js';
 import { worldBoxes } from '../blocks/shapes.js';
 
 const EPS = 1e-4;

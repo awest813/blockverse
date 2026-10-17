@@ -9,7 +9,7 @@ import { moveEntity, entityInBlock, entityInWater, pointInWater } from '../core/
 import { FROZEN, BIOME } from '../world/worldgen.js';
 import { I } from '../items/itemIds.js';
 import { B } from '../blocks/blocks.js';
-import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
+import { itemInfo, makeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
 const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab']);   // (explosions hurt at any difficulty)
