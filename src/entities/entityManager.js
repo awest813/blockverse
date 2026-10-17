@@ -37,7 +37,7 @@ export class EntityManager {
         const f = new Fireball(this.scene, this.world, x, y, z, vx, vy, vz, dmg);
         f.cause = cause;
         f.onBurst = (s) => { this.fx.spark?.(s.x, s.y, s.z, 0xff8a2a, 10); this.fx.sound('fizz', { pos: s }); };
-        f.onHitPlayer = (p) => { p.fireTime = Math.max(p.fireTime ?? 0, 1.5); };   // (a short burn: there's no water to put it out in the Scorchlands)
+        f.onHitPlayer = (p) => { p.fireTime = Math.max(p.fireTime ?? 0, 1); };   // (a short burn: there's no water to put it out in the Scorchlands)
         this.projectiles.push(f);
         this.fx.sound('fireball', { pos: { x, y, z } });
       },
