@@ -130,4 +130,9 @@ export const I = {
   HEARTY_STEW: 374,
   CRAB_RAW: 375,
   CRAB_COOKED: 376,
+  // the way to the Scorchlands: one shard from each kind of dungeon guardian
+  BRUTE_EMBER: 377,
+  ARCHER_EMBER: 378,
+  BROOD_EMBER: 379,
+  EMBER_CORE: 380,
 };

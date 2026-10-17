@@ -402,6 +402,16 @@ tile('smouldering_stump_top', (ctx, rng) => {
   logTop(ctx, rng, [30, 26, 26], [160, 60, 26], [110, 36, 18]);
   for (let i = 0; i < 12; i++) px(ctx, 3 + ((rng() * 10) | 0), 3 + ((rng() * 10) | 0), rng() < 0.5 ? [255, 180, 70] : [255, 230, 140]);
 });
+tile('ember_portal', (ctx, rng) => {
+  // swirling ember light: an orange-to-violet whorl with bright motes
+  for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+    const dx = x - 7.5, dy = y - 7.5, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+    const w = Math.sin(a * 3 + r * 0.9);
+    const t = 0.5 + 0.5 * w;
+    px(ctx, x, y, [Math.round(170 + 80 * t), Math.round(50 + 70 * t * t), Math.round(90 + 60 * (1 - t))]);
+  }
+  for (let i = 0; i < 10; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, [255, 230, 170]);
+});
 tile('charred_stone', (ctx, rng) => {
   fillNoise(ctx, rng, [[[34, 30, 34], 8], [[24, 22, 26], 4], [[48, 42, 46], 3]]);
   // thin veins of ember
@@ -1451,6 +1461,25 @@ tile('hearty_stew', (ctx) => mealIcon(ctx, [140, 96, 60], [[5, [110, 74, 44]], [
 tile('coconut_milk', (ctx) => {
   bowlShape(ctx, [246, 244, 236]);
   rect(ctx, 5, 3, 6, 3, [116, 80, 44]); rect(ctx, 6, 3, 4, 2, [244, 240, 228]);   // half a shell on the rim
+});
+// the guardians' embers: a glowing coal in each one's colours, and the core
+// they make (a red-hot gem ringed in gold)
+function emberIcon(ctx, rng, core, glow, rim) {
+  rect(ctx, 5, 5, 6, 6, glow); rect(ctx, 4, 6, 8, 4, glow); rect(ctx, 6, 4, 4, 8, glow);
+  rect(ctx, 6, 6, 4, 4, core); px(ctx, 6, 6, [255, 250, 220]);
+  for (const [x, y] of [[4, 6], [11, 9], [6, 4], [9, 11], [4, 9], [11, 6]]) px(ctx, x, y, rim);
+  for (let i = 0; i < 4; i++) px(ctx, 3 + ((rng() * 10) | 0), 2 + ((rng() * 3) | 0), [255, 170, 60]);   // sparks
+}
+tile('brute_ember', (ctx, rng) => emberIcon(ctx, rng, [255, 214, 120], [214, 96, 40], [120, 150, 70]));
+tile('archer_ember', (ctx, rng) => emberIcon(ctx, rng, [255, 236, 190], [226, 140, 60], [214, 206, 180]));
+tile('brood_ember', (ctx, rng) => emberIcon(ctx, rng, [255, 190, 120], [200, 60, 50], [90, 40, 90]));
+tile('ember_core', (ctx) => {
+  const gold = [244, 200, 60], goldD = [190, 140, 30];
+  rect(ctx, 4, 3, 8, 10, gold); rect(ctx, 3, 4, 10, 8, gold);
+  rect(ctx, 4, 12, 8, 1, goldD); rect(ctx, 12, 4, 1, 8, goldD);
+  rect(ctx, 5, 5, 6, 6, [200, 40, 24]); rect(ctx, 6, 4, 4, 8, [200, 40, 24]); rect(ctx, 4, 6, 8, 4, [200, 40, 24]);
+  rect(ctx, 6, 6, 4, 4, [255, 120, 40]); rect(ctx, 7, 7, 2, 2, [255, 236, 160]);
+  px(ctx, 5, 5, [255, 200, 120]);
 });
 function crabIcon(ctx, shell, dark) {
   rect(ctx, 4, 7, 8, 5, shell); rect(ctx, 5, 6, 6, 1, shell); rect(ctx, 5, 12, 6, 1, dark);

@@ -123,6 +123,7 @@ export const B = {
   CHARRED_LEAVES: 116,
   SMOULDERING_STUMP: 117,
   CHARRED_STONE: 118,    // the portal frame block
+  EMBER_PORTAL: 119,     // inside a lit frame; meta: 0 spans x, 1 spans z
 };
 
 // Tool classes
@@ -166,6 +167,7 @@ function def(id, name, display, opts = {}) {
     full: opts.full ?? null,                 // slabs: the full block two of them make
     sound: opts.sound ?? 'stone',            // sfx family: stone|dirt|wood|sand|leaf|glass|cloth
     stack: opts.stack,                       // as an item: stack size (default 64)
+    noTarget: opts.noTarget ?? false,        // the crosshair looks straight through it (a portal)
   };
 }
 
@@ -455,6 +457,10 @@ reg(def(B.SMOULDERING_STUMP, 'smouldering_stump', 'Smouldering Stump', {
 }));
 // hard black rock with embers in its veins: a portal's frame is built from it
 reg(def(B.CHARRED_STONE, 'charred_stone', 'Charred Stone', { hardness: 4, tool: TOOL_PICKAXE, minTier: 2 }));
+// the shimmer inside a lit portal frame: walk in and wait to be taken across
+reg(def(B.EMBER_PORTAL, 'ember_portal', 'Ember Portal', {
+  solid: false, render: R_SHAPE, shape: 'portal', opacity: 0, lightEmit: 11, hardness: -1, drop: null, noTarget: true, sound: 'glass',
+}));
 // a cake to share: set it down and eat it a slice at a time (seven slices).
 // Broken, it's gone, crumbs and all.
 reg(def(B.CAKE, 'cake', 'Cake', {
@@ -512,7 +518,7 @@ export function isSolid(id) {
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
     (id >= B.CARROTS_0 && id <= B.POTATOES_3) ||
-    id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT;
+    id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT || id === B.EMBER_PORTAL;
 }
 
 export function isWater(id) {

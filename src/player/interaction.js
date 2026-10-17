@@ -1,5 +1,6 @@
 // Block interaction: targeting, breaking with progress, placing, using.
 
+import { findFrame, lightPortal } from '../world/portal.js';
 import { REACH_DISTANCE, GAMEMODE_CREATIVE, CHUNK_Y } from '../core/constants.js';
 import { raycastBlocks } from '../world/raycast.js';
 import { B, BLOCKS, blockInfo, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
@@ -667,6 +668,22 @@ export class Interaction {
       return true;
     }
     if (!t) return false;
+
+    // an Ember Core on a finished charred-stone frame lights a portal
+    if (held.id === I.EMBER_CORE) {
+      if (t.id !== B.CHARRED_STONE) return false;
+      const f = findFrame(this.world, t);
+      if (!f) {
+        this.cb.notify?.('The core needs a complete ring of charred stone: 4 wide and 5 tall, with a 2×3 opening.');
+        this.useCooldown = 0.5;
+        return true;
+      }
+      lightPortal(this.world, f);
+      if (!creative) p.consumeHeld(1);
+      this.cb.portalLit?.(f);
+      this.useCooldown = 0.5;
+      return true;
+    }
 
     // flint and steel: light TNT and campfires, or start a small fire
     if (held.id === I.FLINT_AND_STEEL) {

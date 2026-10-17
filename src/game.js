@@ -36,11 +36,9 @@ import { TouchControls } from './ui/touch.js';
 import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
-import { dimensionOf, genVersionOf, OVERWORLD, SCORCH } from './world/dimensions.js';
+import { dimensionOf, genVersionOf, arrivalPoint, OVERWORLD, SCORCH } from './world/dimensions.js';
+import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
-
-// how light the Scorchlands' endless night is (the overworld's darkest is 0.03)
-const SCORCH_DAYLIGHT = 0.13;
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
 import { B, isWater, isSolid, R_CROSS } from './blocks/blocks.js';
 import { raycastBlocks } from './world/raycast.js';
@@ -48,6 +46,11 @@ import { isLowEndDevice, isChromeOS } from './ui/display.js';
 import { Music } from './audio/music.js';
 import { cropFamily } from './world/saplings.js';
 import { tickFarmTech } from './world/farmtech.js';
+
+// how light the Scorchlands' endless night is (the overworld's darkest is 0.03)
+const SCORCH_DAYLIGHT = 0.13;
+// seconds standing in an ember portal before it takes you through
+const PORTAL_TIME = 2.5;
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -217,6 +220,7 @@ export class Game {
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       crumbs: (id) => this.crumbs(id),
       steam: (x, y, z) => this.sparks(x, y, z, 0xe8e8ec, 12),
+      portalLit: (f) => this.portalLit(f),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -359,6 +363,7 @@ export class Game {
         if (p.dead) p.respawn();
         const spot = arrive.exact ? arrive : this.arrivalSpot(arrive.x, arrive.z);
         p.x = spot.x; p.y = spot.y; p.z = spot.z;
+        this.arrived = { ...arrive, spot };   // (a portal to find or build there: finishArrival)
         p.vx = p.vy = p.vz = 0; p.fallStart = null; p.flying = false;
         return;
       }
@@ -432,6 +437,114 @@ export class Game {
       if (m.tamed && !m.sitting && !m.dead && m.dying === undefined && Math.hypot(m.x - p.x, m.z - p.z) < 8) m.travelling = true;
     }
     this.uiHooks?.travel?.(to, arrive);
+  }
+
+  // ---------- ember portals ----------
+
+  portalLit(f) {
+    rememberPortal(this.worldMeta, this.dimension, f);
+    const c = standSpot(f);
+    this.sfx?.play('portallight', { pos: { x: c.x, y: c.y + 1.5, z: c.z } });
+    this.sparks(c.x, c.y + 1.5, c.z, 0xff9a40, 16);
+    if (!this.worldMeta.litPortal) {
+      this.worldMeta.litPortal = true;
+      this.hud.showLabel('The portal flares into life. Stand in it to cross to the Scorchlands.', true);
+    }
+  }
+
+  // Each frame: put out portals whose frames were broken, and take you
+  // through when you've stood in one long enough. You must step out of the
+  // one you arrive in before it will take you back.
+  updatePortals(dt) {
+    const w = this.world, pc = w.portalChecks;
+    if (pc.length) {
+      const cells = pc.splice(0);
+      for (let i = 0; i < cells.length; i += 3) {
+        for (const f of checkPortalsNear(w, cells[i], cells[i + 1], cells[i + 2])) {
+          forgetPortal(this.worldMeta, this.dimension, f);
+          const c = standSpot(f);
+          this.sfx?.play('portalout', { pos: { x: c.x, y: c.y + 1.5, z: c.z } });
+        }
+      }
+    }
+    const p = this.player;
+    const inPortal = !p.dead && !this.travelling
+      && [0.2, 1.3].some((dy) => w.getBlockW(Math.floor(p.x), Math.floor(p.y + dy), Math.floor(p.z)) === B.EMBER_PORTAL);
+    if (!inPortal) {
+      this.portalArmed = true;
+      this.portalTime = Math.max(0, (this.portalTime ?? 0) - dt * 2);
+    } else if (this.portalArmed !== false) {
+      this.portalTime = (this.portalTime ?? 0) + dt;
+      if (this.portalTime >= (p.mode === GAMEMODE_CREATIVE ? 1 : PORTAL_TIME)) this.enterPortal();
+    }
+    // the screen glows as it takes hold
+    if (!this.portalEl) this.portalEl = document.getElementById('portal-overlay');
+    const glow = Math.min(1, (this.portalTime ?? 0) / PORTAL_TIME);
+    if (this.portalEl && Math.abs(glow - (this._portalGlow ?? 0)) > 0.01) { this._portalGlow = glow; this.portalEl.style.opacity = glow.toFixed(2); }
+    // the hum, and motes of flame drifting off the sheet, near a portal
+    this._portalFx = (this._portalFx ?? 0) - dt;
+    if (this._portalFx > 0) return;
+    this._portalFx = 0.25;
+    let near = null, nd = 14;
+    for (const q of this.worldMeta.portals ?? []) {
+      if (q.dim !== this.dimension) continue;
+      const c = standSpot(q), d = Math.hypot(c.x - p.x, c.y + 1.5 - p.y, c.z - p.z);
+      if (d < nd && w.getBlockW(q.x, q.y, q.z) === B.EMBER_PORTAL) { near = c; nd = d; }
+    }
+    if (!near) return;
+    this._portalHum = (this._portalHum ?? 0) - 0.25;
+    if (this._portalHum <= 0) { this._portalHum = 2.2; this.sfx?.play('portalhum', { pos: { x: near.x, y: near.y + 1.5, z: near.z } }); }
+    for (let i = 0; i < 2; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: Math.random() < 0.5 ? 0xff7a2a : 0xffc060, transparent: true, depthWrite: false, fog: false }));
+      sprite.scale.setScalar(0.07);
+      sprite.position.set(near.x + (Math.random() - 0.5) * 2, near.y + Math.random() * 3, near.z + (Math.random() - 0.5) * 2);
+      this.scene.add(sprite);
+      this.sparkList.push({ sprite, t: 0, g: -0.6, life: 1.4, vx: (Math.random() - 0.5) * 0.3, vy: 0.2 + Math.random() * 0.3, vz: (Math.random() - 0.5) * 0.3 });
+    }
+  }
+
+  // Through the portal: to the remembered portal on the other side nearest
+  // where you'd come out (8:1), or to open ground there, where a new one is
+  // built for you (finishArrival).
+  enterPortal() {
+    const p = this.player;
+    const here = portalAt(this.world, Math.floor(p.x), Math.floor(p.y + 0.2), Math.floor(p.z))
+      ?? portalAt(this.world, Math.floor(p.x), Math.floor(p.y + 1.3), Math.floor(p.z));
+    const to = this.dimension === SCORCH ? OVERWORLD : SCORCH;
+    const pt = arrivalPoint(this.dimension, to, p.x, p.z);
+    const link = nearestPortal(this.worldMeta, to, pt.x, pt.z);
+    this.portalTime = 0;
+    this.sfx?.play('portalgo');
+    const portal = link ? { x: link.x, y: link.y, z: link.z, axis: link.axis } : { axis: here?.axis ?? 0, build: true };
+    this.travel(to, link ? { ...standSpot(link), exact: true, portal } : { x: pt.x, z: pt.z, portal });
+  }
+
+  // Once the land around you has loaded: if you came by portal, stand in the
+  // one you came out of (building it if it isn't there).
+  finishArrival() {
+    const a = this.arrived;
+    this.arrived = null;
+    const pets = this.arrivingPets ?? [];
+    this.arrivingPets = null;
+    if (!a?.portal) return;
+    const p = this.player, w = this.world;
+    let f = a.portal.build ? null : portalAt(w, a.portal.x, a.portal.y, a.portal.z);
+    if (!f) {
+      if (!a.portal.build) forgetPortal(this.worldMeta, this.dimension, a.portal);   // gone since: a new one
+      f = buildPortal(w, Math.floor(a.spot.x), Math.floor(a.spot.y), Math.floor(a.spot.z), a.portal.axis ?? 0, this.dimension);
+      rememberPortal(this.worldMeta, this.dimension, f);
+    }
+    const s = standSpot(f);
+    p.x = s.x; p.y = s.y; p.z = s.z;
+    p.vx = p.vy = p.vz = 0; p.fallStart = null;
+    this.portalArmed = false;   // step out before it takes you back
+    // pets that came along wait on the step in front
+    const [nx, nz] = f.axis ? [1, 0] : [0, 1];
+    pets.forEach((m, i) => {
+      m.x = s.x + nx * 1.5 + (f.axis ? 0 : (i % 2) - 0.5);
+      m.z = s.z + nz * 1.5 + (f.axis ? (i % 2) - 0.5 : 0);
+      m.y = s.y; m.vx = m.vy = m.vz = 0;
+    });
   }
 
   bindKeys() {
@@ -701,12 +814,12 @@ export class Game {
   updateSparks(dt) {
     for (const s of this.sparkList) {
       s.t += dt;
-      s.vy -= 9 * dt;
+      s.vy -= (s.g ?? 9) * dt;
       s.sprite.position.x += s.vx * dt; s.sprite.position.y += s.vy * dt; s.sprite.position.z += s.vz * dt;
-      s.sprite.material.opacity = Math.max(0, 1 - s.t / 0.5);
-      if (s.t >= 0.5) { this.scene.remove(s.sprite); s.sprite.material.dispose(); }
+      s.sprite.material.opacity = Math.max(0, 1 - s.t / (s.life ?? 0.5));
+      if (s.t >= (s.life ?? 0.5)) { this.scene.remove(s.sprite); s.sprite.material.dispose(); }
     }
-    this.sparkList = this.sparkList.filter((s) => s.t < 0.5);
+    this.sparkList = this.sparkList.filter((s) => s.t < (s.life ?? 0.5));
   }
 
   // Middle click: select the targeted block in the hotbar (creative: conjure it).
@@ -762,6 +875,7 @@ export class Game {
       const k = pets.indexOf(p) % 4;
       const at = p.arriving ? { x: this.player.x + [1, -1, 0, 0][k], y: this.player.y, z: this.player.z + [0, 0, 1, -1][k] } : p;
       const pet = new Cls(this.scene, this.world, at.x, at.y, at.z);
+      if (p.arriving) (this.arrivingPets ??= []).push(pet);
       pet.tamed = true;
       pet.onTamed();
       pet.sitting = !!p.sitting;
@@ -1221,6 +1335,7 @@ export class Game {
       if (this.player.mount) this.player.syncToMount();
       this.mobSpawner.update(dt, this.player, day);
       this.tickBlockEntities(dt);
+      this.updatePortals(dt);
 
       // footsteps + splash
       if (this.player.onGround && !this.player.flying) {
@@ -1622,7 +1737,7 @@ export class Game {
       () => this.signFx?.dispose(),
       () => this.sky?.dispose(),
       () => this.hud?.hide(),
-      () => { const f = document.getElementById('frost-overlay'); if (f) f.style.opacity = '0'; },   // (shared: not into the next world)
+      () => { for (const id of ['frost-overlay', 'portal-overlay']) { const f = document.getElementById(id); if (f) f.style.opacity = '0'; } },   // (shared: not into the next world)
       () => document.removeEventListener('visibilitychange', this._onVisibility),
       () => window.removeEventListener('resize', this._onResize),
       () => this.entities?.dispose(),

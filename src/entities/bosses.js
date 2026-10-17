@@ -10,6 +10,7 @@
 import { Zombie, Skeleton, Spider } from './mobs.js';
 import { I } from '../items/itemIds.js';
 import { makeStack } from '../items/items.js';
+import { B } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 const HEALTH_BY_DIFFICULTY = [1, 0.8, 1, 1.3];   // peaceful (never summoned), easy, normal, hard
@@ -69,6 +70,10 @@ const BossMixin = (Base) => class extends Base {
   }
 };
 
+// every guardian keeps an ember of its own kind, and some charred stone:
+// three embers make an Ember Core, and ten stone a portal's frame
+const EMBER_LOOT = (ember) => [makeStack(ember, 1), makeStack(B.CHARRED_STONE, 4)];
+
 export class ZombieBrute extends BossMixin(Zombie) {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
@@ -118,7 +123,7 @@ export class ZombieBrute extends BossMixin(Zombie) {
   }
 
   onDeath() {
-    const drops = [makeStack(I.IRON_INGOT, roll(3, 6)), makeStack(I.GOLDEN_APPLE, 1), makeStack(I.ROTTEN_FLESH, roll(2, 4))];
+    const drops = [makeStack(I.IRON_INGOT, roll(3, 6)), makeStack(I.GOLDEN_APPLE, 1), makeStack(I.ROTTEN_FLESH, roll(2, 4)), ...EMBER_LOOT(I.BRUTE_EMBER)];
     if (Math.random() < 0.5) drops.push(makeStack(I.DIAMOND, 1));
     this.dropFn?.(drops);
   }
@@ -161,7 +166,7 @@ export class BoneArcher extends BossMixin(Skeleton) {
   }
 
   onDeath() {
-    const drops = [makeStack(I.BOW, 1), makeStack(I.ARROW, roll(8, 16)), makeStack(I.BONE, roll(3, 6))];
+    const drops = [makeStack(I.BOW, 1), makeStack(I.ARROW, roll(8, 16)), makeStack(I.BONE, roll(3, 6)), ...EMBER_LOOT(I.ARCHER_EMBER)];
     if (Math.random() < 0.6) drops.push(makeStack(I.DIAMOND, 1));
     this.dropFn?.(drops);
   }
@@ -219,7 +224,7 @@ export class BroodMother extends BossMixin(Spider) {
   }
 
   onDeath() {
-    const drops = [makeStack(I.STRING, roll(5, 9)), makeStack(I.DIAMOND, roll(1, 2))];
+    const drops = [makeStack(I.STRING, roll(5, 9)), makeStack(I.DIAMOND, roll(1, 2)), ...EMBER_LOOT(I.BROOD_EMBER)];
     if (Math.random() < 0.3) drops.push(makeStack(I.GOLDEN_APPLE, 1));
     this.dropFn?.(drops);
   }

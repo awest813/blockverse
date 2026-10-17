@@ -186,10 +186,29 @@ export class SaveStore {
     // lists the game iterates: anything else would stop the world opening
     // (each entry too: a null or a position that isn't a number breaks loading)
     const placed = (e) => e && typeof e === 'object' && [e.x, e.y, e.z].every(Number.isFinite);
-    for (const k of ['pets', 'animals', 'drops']) {
-      if (meta[k] === undefined) continue;
-      if (!Array.isArray(meta[k])) delete meta[k];
-      else meta[k] = meta[k].filter((e) => placed(e) && (k !== 'drops' || (Number.isInteger(e.id) && Number.isInteger(e.count) && e.count > 0)));
+    const lists = (o) => {
+      for (const k of ['pets', 'animals', 'drops']) {
+        if (o[k] === undefined) continue;
+        if (!Array.isArray(o[k])) delete o[k];
+        else o[k] = o[k].filter((e) => placed(e) && (k !== 'drops' || (Number.isInteger(e.id) && Number.isInteger(e.count) && e.count > 0)));
+      }
+    };
+    lists(meta);
+    // the other dimension's share, kept aside while you're in this one
+    if (meta.dims !== undefined) {
+      if (typeof meta.dims !== 'object' || meta.dims === null || Array.isArray(meta.dims)) delete meta.dims;
+      else {
+        for (const [d, o] of Object.entries(meta.dims)) {
+          if (typeof o !== 'object' || o === null || Array.isArray(o)) { delete meta.dims[d]; continue; }
+          lists(o);
+          if (o.pos !== undefined && !placed(o.pos)) delete o.pos;
+        }
+      }
+    }
+    if (meta.portals !== undefined) {
+      meta.portals = Array.isArray(meta.portals)
+        ? meta.portals.filter((q) => placed(q) && [q.x, q.y, q.z].every(Number.isInteger) && typeof q.dim === 'string' && (q.axis === 0 || q.axis === 1))
+        : [];
     }
     if (meta.defeatedCages !== undefined) meta.defeatedCages = Array.isArray(meta.defeatedCages) ? meta.defeatedCages.filter((c) => typeof c === 'string') : [];
     if (meta.playerData !== undefined && (typeof meta.playerData !== 'object' || meta.playerData === null)) delete meta.playerData;

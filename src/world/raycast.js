@@ -29,7 +29,7 @@ export function raycastBlocks(world, origin, dir, maxDist, hitFluids = false, sk
   while (t <= maxDist) {
     const id = world.getBlockW(x, y, z);
     const info = BLOCKS[id];
-    if (id !== B.AIR && info && (!info.fluid || hitFluids) && !(skip && skip(info))) {
+    if (id !== B.AIR && info && !info.noTarget && (!info.fluid || hitFluids) && !(skip && skip(info))) {
       if (info.render === R_SHAPE) {
         // part-blocks: hit the actual boxes (or pass through the gaps)
         const hit = rayBoxes(origin, dir, x, y, z, worldBoxes(world, x, y, z, id), maxDist);

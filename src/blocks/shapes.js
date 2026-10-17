@@ -127,6 +127,11 @@ export function shapeBoxes(id, meta, nb, collision = false) {
       if (meta) boxes.push([x0, 0, P, x0 + 0.002, 8 * P, 15 * P, 'cake_inner']);
       return boxes;
     }
+    // a portal's shimmer: a thin sheet across its frame (nothing to bump into)
+    case 'portal': {
+      if (collision) return [];
+      return [(meta & 1) ? [6 * P, 0, 0, 10 * P, 1, 1] : [0, 0, 6 * P, 1, 1, 10 * P]];
+    }
     case 'coconut': return [[5 * P, 7 * P, 5 * P, 11 * P, 14 * P, 11 * P], [7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P]];   // a nut on a short stalk
     case 'lantern': {
       // body and cap (a hanging one dangles on a chain from the block above)

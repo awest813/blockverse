@@ -41,7 +41,7 @@ html, body {
    hotbar out from under the notch and the home bar; the screen-wide overlays
    still reach every edge */
 #hud.touch { inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
-#hud.touch #vignette, #hud.touch #sleep-fade, #hud.touch #frost-overlay {
+#hud.touch #vignette, #hud.touch #sleep-fade, #hud.touch #frost-overlay, #hud.touch #portal-overlay {
   inset: calc(-1 * env(safe-area-inset-top, 0px)) calc(-1 * env(safe-area-inset-right, 0px)) calc(-1 * env(safe-area-inset-bottom, 0px)) calc(-1 * env(safe-area-inset-left, 0px));
 }
 
@@ -806,6 +806,16 @@ html, body {
   -webkit-mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
   mask: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, #000 85%);
 }
+/* an ember portal taking hold: a swirling red-orange glow closing in */
+#portal-overlay {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(ellipse 70% 65% at 50% 50%, rgba(255, 120, 40, 0.15) 30%, rgba(220, 60, 20, 0.6) 75%, rgba(120, 20, 10, 0.9) 100%),
+    repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 180, 80, 0.12) 0 6deg, transparent 6deg 14deg);
+  animation: portal-swirl 6s linear infinite;
+}
+@keyframes portal-swirl { to { filter: hue-rotate(-25deg) brightness(1.15); } }
+@media (prefers-reduced-motion: reduce) { #portal-overlay { animation: none; } }
 #fire-overlay.on { opacity: 1; animation: flicker 0.18s steps(2) infinite alternate; }
 @keyframes flicker { from { transform: scaleY(1); filter: brightness(1); } to { transform: scaleY(1.08); filter: brightness(1.25); } }
 @media (prefers-reduced-motion: reduce) { #fire-overlay.on { animation: none; } }

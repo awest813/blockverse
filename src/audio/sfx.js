@@ -361,6 +361,22 @@ export class Sfx {
         this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.6, gain: 0.04, type: 'sawtooth', hold: 0.3 });
         this.later(() => this.tone({ freq: 125 * detune, endFreq: 150, dur: 0.4, gain: 0.03, type: 'sawtooth' }), 380);
         break;
+      case 'portalhum':  // an ember portal's low, wavering thrum
+        this.tone({ freq: 98 * detune, endFreq: 92, dur: 2.4, gain: 0.05, type: 'triangle', hold: 1 });
+        this.tone({ freq: 147 * detune, endFreq: 151, dur: 2.2, gain: 0.025, type: 'sine', hold: 1 });
+        break;
+      case 'portallight': // the opening catches: a roar of flame and a ringing chord
+        this.noise({ freq: 500, q: 0.6, dur: 1.1, gain: 0.18, type: 'lowpass' });
+        [196, 294, 392].forEach((f, i) => this.later(() => this.tone({ freq: f, dur: 0.9, gain: 0.08, type: 'triangle', hold: 0.5 }), 120 + i * 90));
+        break;
+      case 'portalout':  // a portal gutters out
+        this.tone({ freq: 260 * detune, endFreq: 70, dur: 0.7, gain: 0.1, type: 'triangle' });
+        this.noise({ freq: 900, q: 0.7, dur: 0.5, gain: 0.08, type: 'lowpass', pitchDrop: 600 });
+        break;
+      case 'portalgo':   // pulled through: a rising rush
+        this.noise({ freq: 300, q: 0.5, dur: 1.6, gain: 0.2, type: 'bandpass', pitchDrop: -1800 });
+        this.tone({ freq: 110, endFreq: 440, dur: 1.4, gain: 0.08, type: 'sawtooth' });
+        break;
       case 'cricket':    // a short chirping burst on a summer night
         for (let i = 0; i < 4; i++) this.later(() => this.tone({ freq: 4400 * detune, dur: 0.025, gain: 0.025, type: 'sine' }), i * 38);
         break;

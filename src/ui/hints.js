@@ -95,6 +95,10 @@ export class Hints {
         'Cooking pot', `7 bricks make a Cooking Pot. Set it on a campfire, fill it with water, ${k('use')} it with 2\u20134 foods (meat, fish, carrots, potatoes, mushrooms, pumpkin, coconut…) and ladle the meal out with bowls. Hot meals keep the cold out.`],
       ['camel', () => g.entities.mobs.some((m) => m.kind === 'camel' && !m.owned && !m.baby && Math.hypot(m.x - p.x, m.z - p.z) < 12), I.SADDLE,
         'Camels', `Tame one like a horse: feed it cactus or wheat and ${k('use')} it with an empty hand until it trusts you, then saddle it.`],
+      ['ember', () => has([I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER]), I.EMBER_CORE,
+        'A guardian\u2019s ember', 'Each kind of dungeon guardian (Zombie Brute, Bone Archer, Brood Mother) keeps an ember. All three, a diamond and redstone make an Ember Core.'],
+      ['ember-core', () => has([I.EMBER_CORE]), B.CHARRED_STONE,
+        'Ember Core', `Build a ring of charred stone 4 wide and 5 tall (corners optional) and ${k('use')} the core on it. The portal leads to the Scorchlands: stand in it to cross.`],
       ['bed', () => has([B.WOOL], 3), B.BED,
         'Bed', '3 wool + 3 planks make a Bed. Sleep to skip the night and set your respawn point.'],
     ];

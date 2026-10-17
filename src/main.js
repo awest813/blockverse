@@ -216,6 +216,7 @@ async function openWorld(id, { heldLock = null, loadingText = null } = {}) {
   game.setUiOpen(false);
   game.updateDebug();
   if (!meta.playerData) game.showWelcomeTips();
+  game.finishArrival();   // (came by portal: stand in the one on this side)
   if (game.justArrived) game.arrivalNote();
 }
 

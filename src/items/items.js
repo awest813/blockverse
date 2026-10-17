@@ -107,6 +107,10 @@ item(I.DUCK_RAW, 'duck_raw', 'Raw Duck', { food: 2, sat: 1.2, sickly: 0.3 });
 item(I.DUCK_COOKED, 'duck_cooked', 'Roast Duck', { food: 7, sat: 8 });
 item(I.FISH_RAW, 'fish_raw', 'Raw Fish', { food: 2, sat: 0.4 });
 item(I.FISH_COOKED, 'fish_cooked', 'Cooked Fish', { food: 5, sat: 6 });
+item(I.BRUTE_EMBER, 'brute_ember', 'Brute\u2019s Ember');
+item(I.ARCHER_EMBER, 'archer_ember', 'Archer\u2019s Ember');
+item(I.BROOD_EMBER, 'brood_ember', 'Brood Ember');
+item(I.EMBER_CORE, 'ember_core', 'Ember Core');
 item(I.CRAB_RAW, 'crab_raw', 'Raw Crab', { food: 2, sat: 1.2, sickly: 0.2 });
 item(I.CRAB_COOKED, 'crab_cooked', 'Cooked Crab', { food: 6, sat: 7.2 });
 item(I.CHARCOAL, 'charcoal', 'Charcoal', { burnTime: 80 });
@@ -220,6 +224,11 @@ const USES = new Map([
   [I.COCONUT_MILK, 'Settles scorpion venom'],
   [I.COCONUT, 'Eat it, or crack it into a bowl for coconut milk'],
   [I.CRAB_RAW, 'Cook it, or put it in a fish chowder or a curry'],
+  [I.BRUTE_EMBER, 'From a Zombie Brute: one of the three embers an Ember Core needs'],
+  [I.ARCHER_EMBER, 'From a Bone Archer: one of the three embers an Ember Core needs'],
+  [I.BROOD_EMBER, 'From a Brood Mother: one of the three embers an Ember Core needs'],
+  [I.EMBER_CORE, 'Use it on a ring of charred stone (4 wide, 5 tall) to open a portal to the Scorchlands'],
+  [B.CHARRED_STONE, 'A portal\u2019s frame: a ring 4 wide and 5 tall (corners optional), lit with an Ember Core'],
   [B.CAKE, 'Set it down and eat it a slice at a time (when you\u2019re hungry); seven slices'],
   [B.COOKING_POT, 'Set it over a fire, fill it with water, add 2-4 foods and ladle the meal out with bowls'],
   [I.GOLDEN_CARROT, 'Any farm animal will breed for one; grows a baby up at once'],
@@ -242,7 +251,7 @@ const USES = new Map([
 export const itemUse = (id) => USES.get(id) ?? null;
 
 // Rare finds: they glint where they lie, and picking one up is announced.
-const RARE = new Set([I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
+const RARE = new Set([I.BRUTE_EMBER, I.ARCHER_EMBER, I.BROOD_EMBER, I.EMBER_CORE, I.DIAMOND, I.GOLDEN_APPLE, I.GOLDEN_CARROT, I.ANCIENT_SWORD, I.DIAMOND_SWORD, I.DIAMOND_PICKAXE,
   I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);
 export const isRare = (id) => RARE.has(id);
 
