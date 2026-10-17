@@ -17,6 +17,7 @@ export function tickSaplings(world, dt) {
     for (const [idx, st] of chunk.blockEntities) {
       if (st.kind !== 'sapling' && st.kind !== 'crop') continue;
       st.grow -= dt;
+      chunk.modified = true;   // (progress survives a reload, not just the last stage)
       if (st.grow > 0) continue;
       const y = idx % CHUNK_Y;
       const rest = (idx - y) / CHUNK_Y;
@@ -77,6 +78,19 @@ export function growCrop(world, x, y, z, steps, rng) {
   const next = Math.min(fam[1], id + steps);
   world.setBlock(x, y, z, next);   // clears the block entity
   if (next < fam[1]) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
+}
+
+// is there air above a sapling for at least its smallest tree? (bone meal
+// isn't wasted on one under a roof)
+export function saplingHasRoom(world, x, y, z) {
+  const kind = KIND[world.getBlockW(x, y, z)];
+  if (!kind) return false;
+  const height = 4 + (kind === 'birch' ? 2 : kind === 'spruce' ? 4 : kind === 'palm' ? 3 : 0) + 1;
+  for (let i = 1; i <= height; i++) {
+    const b = blockInfo(world.getBlockW(x, y + i, z));
+    if (!(y + i < CHUNK_Y && (b.id === B.AIR || b.replaceable || LEAVES.has(b.id)))) return false;
+  }
+  return true;
 }
 
 function growTree(world, x, y, z, st) {

@@ -66,8 +66,9 @@ export function tickRandomGrowth(world, player, dt) {
         // bare farmland with no water (or sprinkler) near dries back to dirt
         if (!world.raining && world.getBlockW(wx, top, wz) === B.FARMLAND && world.getBlockW(wx, top + 1, wz) === B.AIR
           && !hydrated(world, wx, top + 1, wz) && !sprinklerNear(world, wx, top, wz) && Math.random() < 0.25) world.setBlock(wx, top, wz, B.DIRT);
-        // find a cane/cactus stack just above the terrain
-        for (let y = ground + 1; y < Math.min(CHUNK_Y - 1, ground + 4); y++) {
+        // find a cane/cactus stack on the ground as it is now (planted on a
+        // build or down a dug-out pit, not just at the generated height)
+        for (let y = Math.max(1, top - 3); y < Math.min(CHUNK_Y - 1, top + 2); y++) {
           const id = world.getBlockW(wx, y, wz);
           if (!GROWS.has(id)) continue;
           let top = y;

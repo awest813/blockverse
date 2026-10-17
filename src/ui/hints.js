@@ -41,6 +41,7 @@ export class Hints {
   tips() {
     const g = this.game, p = g.player;
     const has = (ids, n = 1) => ids.reduce((sum, id) => sum + p.countOf(id), 0) >= n;
+    const near = (kinds, r) => g.entities.mobs.some((m) => kinds.includes(m.kind) && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < r);
     const k = (what) => g.controlLabel(what);
     return [
       ['punch-tree', () => this.playTime > 25 && !has(LOGS) && !has(PLANKS), B.OAK_LOG,
@@ -69,6 +70,14 @@ export class Hints {
         'Hay & troughs', '9 wheat make a Hay Bale. Fill a Feeding Trough with hay or crops and animals nearby feed and breed on their own.'],
       ['wheat', () => has([I.WHEAT], 3), I.BREAD,
         'Bread', '3 wheat in a row make Bread — a filling, renewable food.'],
+      ['breed', () => has([I.WHEAT, I.WHEAT_SEEDS, I.APPLE, I.CARROT]) && near(['cow', 'sheep', 'pig', 'chicken'], 8), I.WHEAT,
+        'Breeding', `Feed two animals of a kind their favourite food (${k('use')} them): wheat for cows and sheep, seeds for chickens, apples or roots for pigs. A baby follows, and grows up in a few minutes. Animals you feed, milk or pen in with a fence are yours to keep.`],
+      ['shear', () => has([I.SHEARS]) && near(['sheep'], 8), I.SHEARS,
+        'Shearing', `${cap(k('use'))} a sheep with shears for wool; its fleece grows back.`],
+      ['milk', () => has([I.BUCKET]) && near(['cow', 'goat'], 8), I.MILK_BUCKET,
+        'Milk', `${cap(k('use'))} a cow or goat with a bucket. Milk cures poison and puts out fire.`],
+      ['eggs', () => has([I.EGG]), I.EGG,
+        'Eggs', `Throw one (${k('use')}) and now and then a chick hatches, or fry them on a campfire.`],
       ['bone', () => has([I.BONE]), I.BONE_MEAL,
         'Bone meal', `Craft bones into bone meal, then ${k('use')} it on crops or saplings to make them grow.`],
       ['armor', () => has([I.IRON_INGOT], 5) || has([I.DIAMOND], 5), I.IRON_CHESTPLATE,

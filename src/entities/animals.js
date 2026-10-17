@@ -65,6 +65,7 @@ export class Cow extends Animal {
       } else player.inventory[player.selected] = { id: I.MILK_BUCKET, count: 1 };
       player.events.dispatchEvent(new CustomEvent('inventory'));
     }
+    this.persistent = true;   // (your milk cow: kept, not left to wander off)
     this.fx?.sound('cow', { vol: 0.8, pos: this });
     return true;
   }
@@ -120,7 +121,8 @@ export class Chicken extends Animal {
     super.update(dt, player);
     if (this.dead) return;
     // grown hens lay an egg every few minutes
-    this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt;
+    // (not while it's frozen in an unloaded chunk: the egg would fall through)
+    if (this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) this.eggTimer = (this.eggTimer ?? 120 + Math.random() * 240) - dt;
     if (this.eggTimer <= 0) {
       this.eggTimer = 300 + Math.random() * 300;
       if (!this.baby && this.dying === undefined) { this.dropFn?.([{ id: I.EGG, count: 1 }]); this.fx?.sound('chicken', { vol: 0.6, pos: this }); }
@@ -169,6 +171,7 @@ export class Goat extends Animal {
   interact(player, held) {
     if (held?.id !== I.BUCKET || this.baby) return super.interact(player, held);
     milk(this, player, held);
+    this.persistent = true;
     this.fx?.sound('goat', { vol: 0.8, pos: this });
     return true;
   }
@@ -203,7 +206,9 @@ export class Goat extends Animal {
     if (this.ram) return this.ramTick(dt, player);
     // something to charge at: a player who hit it, or (rarely) one who just stands about
     const target = !this.baby && !player.dead && player.mode !== GAMEMODE_CREATIVE && playerDist < 9 && this.canSee(player);
-    if (target && (this.grudge > 0 ? Math.random() < dt * 1.5 : Math.random() < dt / 60)) {
+    // (a goat that's yours, penned or on a lead, only charges when it's been hit)
+    const calm = this.persistent || this.leash;
+    if (target && (this.grudge > 0 ? Math.random() < dt * 1.5 : !calm && Math.random() < dt / 60)) {
       this.ram = { phase: 'aim', t: 0.9 };
       this.moving = false;
       this.fx?.sound('goat', { vol: 1, pos: this, pitch: 0.8 });
@@ -234,7 +239,8 @@ export class Goat extends Animal {
     this.moving = true;
     this.state = 'flee';   // (moves at fleeSpeed)
     this.fleeSpeed = 7;
-    const hitPlayer = !player.dead && Math.hypot(player.x - this.x, player.z - this.z) < (this.w + 0.6) / 2 + 0.35 && Math.abs(player.y - this.y) < 1.4;
+    const hitPlayer = !player.dead && Math.hypot(player.x - this.x, player.z - this.z) < (this.w + 0.6) / 2 + 0.35 && Math.abs(player.y - this.y) < 1.4
+      && this.clearTo(player);   // (not through a fence)
     if (hitPlayer) {
       if (player.hurtCooldown <= 0 && player.mode !== GAMEMODE_CREATIVE) player.damage(2, 'goat');
       player.vx += r.dir[0] * 10; player.vz += r.dir[1] * 10; player.vy = Math.max(player.vy, 5.5);
@@ -421,6 +427,19 @@ export class Horse extends Animal {
     return { coat: this.coat, gallop: this.gallop, jumpV: this.jumpV, maxHealth: this.maxHealth, temper: this.temper, owned: this.owned, saddled: this.saddled };
   }
 
+  // a foal takes after its parents: one's coat, their gifts between theirs
+  // (give or take a little of its own), and if they were yours it already
+  // half trusts you
+  inherit(baby, mate) {
+    if (this.kind === 'horse') baby.setCoat(Math.random() < 0.5 ? this.coat : mate.coat);
+    const mix = (a, b, spread) => (a + b) / 2 + (Math.random() - 0.5) * spread;
+    baby.gallop = Math.max(7.5, Math.min(11.5, mix(this.gallop, mate.gallop, 1.2)));
+    baby.jumpV = this.kind === 'horse' ? Math.max(10.4, Math.min(12.6, mix(this.jumpV, mate.jumpV, 0.6))) : mix(this.jumpV, mate.jumpV, 0.3);
+    baby.maxHealth = Math.round(Math.max(15, Math.min(32, mix(this.maxHealth, mate.maxHealth, 4))));
+    baby.health = baby.maxHealth;
+    if (this.owned || mate.owned) baby.temper = 60;
+  }
+
   loadExtra(e) {
     this.setCoat(e.coat);
     for (const k of ['gallop', 'jumpV', 'maxHealth', 'temper']) if (Number.isFinite(e[k])) this[k] = e[k];
@@ -458,8 +477,11 @@ export class Horse extends Animal {
     // unless it's hurt and the food can heal it
     if (this.owned && this.likes(held?.id) && !(calm && this.health < this.maxHealth)) return super.interact(player, held);
     if (calm) {
-      const hungry = this.baby || !this.owned || this.health < this.maxHealth;
-      if (!hungry) return false;
+      const hungry = this.baby || (!this.owned && this.temper < 100) || this.health < this.maxHealth;
+      if (!hungry) {
+        say(this.owned ? `Your ${this.label} isn't hungry` : `It trusts you now: climb on with an empty hand`);
+        return true;
+      }
       if (this.baby) this.grow = Math.max(0, this.grow - calm * 6);
       if (!this.owned) this.temper = Math.min(100, this.temper + calm);
       this.health = Math.min(this.maxHealth, this.health + Math.ceil(calm / 3));
@@ -1134,17 +1156,30 @@ export class Cat extends Pet {
   }
 
   buildModel() {
-    const coat = pick(CAT_COATS), eye = 0x5ac83a, nose = 0xe88a9a;
-    this.part(0.3, 0.3, 0.62, coat, 0, 0.45, 0.05);
-    this.part(0.32, 0.28, 0.28, coat, 0, 0.62, -0.38);
-    this.part(0.08, 0.1, 0.05, coat, -0.1, 0.8, -0.38);
-    this.part(0.08, 0.1, 0.05, coat, 0.1, 0.8, -0.38);
+    this.coat = (Math.random() * CAT_COATS.length) | 0;
+    const coat = CAT_COATS[this.coat], eye = 0x5ac83a, nose = 0xe88a9a;
+    const fur = [];
+    const c = (m) => { fur.push(this.materials.at(-1)); return m; };
+    c(this.part(0.3, 0.3, 0.62, coat, 0, 0.45, 0.05));
+    c(this.part(0.32, 0.28, 0.28, coat, 0, 0.62, -0.38));
+    c(this.part(0.08, 0.1, 0.05, coat, -0.1, 0.8, -0.38));
+    c(this.part(0.08, 0.1, 0.05, coat, 0.1, 0.8, -0.38));
     this.part(0.06, 0.05, 0.02, eye, -0.08, 0.65, -0.53);
     this.part(0.06, 0.05, 0.02, eye, 0.08, 0.65, -0.53);
     this.part(0.05, 0.04, 0.02, nose, 0, 0.58, -0.53);
-    this.tail = this.part(0.07, 0.07, 0.46, coat, 0, 0.6, 0.55);
+    this.tail = c(this.part(0.07, 0.07, 0.46, coat, 0, 0.6, 0.55));
     this.tail.rotation.x = -0.5;
+    const before = this.materials.length;
     this.quadLegs(coat, 0.09, 0.3, 0.1, 0.2, 0.3);
+    fur.push(...this.materials.slice(before));
+    this.furParts = fur;
+  }
+
+  // (a pet keeps its coat through saves and portals)
+  setCoat(i) {
+    if (!(i >= 0 && i < CAT_COATS.length)) return;
+    this.coat = i;
+    for (const m of this.furParts) m.base.setHex(CAT_COATS[i]);
   }
 
   think(dt, player, playerDist) {

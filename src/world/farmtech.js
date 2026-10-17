@@ -61,7 +61,8 @@ export function useComposter(it, t, held) {
 // ---- trough ----
 
 // what goes in (a hay bale goes in as nine wheat)
-export const FEEDS = new Set([I.WHEAT, I.WHEAT_SEEDS, I.CARROT, I.POTATO, I.APPLE]);
+// (every farm animal's food: pandas' cane, camels' cactus, bears' and pelicans' fish, crabs' kelp)
+export const FEEDS = new Set([I.WHEAT, I.WHEAT_SEEDS, I.CARROT, I.POTATO, I.APPLE, B.SUGAR_CANE, B.CACTUS, I.FISH_RAW, B.KELP, I.DRIED_KELP]);
 
 function troughState(w, x, y, z) {
   let st = w.blockEntityAt(x, y, z);
@@ -160,7 +161,7 @@ function tickTrough(game, st, x, y, z) {
   for (const m of near) {
     if (!m.baby || !hasFor(st, m, 1)) continue;
     const id = takeFor(st, m);
-    if (id && m.feed(id)) fed = true;
+    if (id && m.feed(id, 15)) fed = true;   // (a mouthful a visit: a trough-fed baby grows up in about two minutes, not twenty-five seconds)
   }
   // then adults, two at a time of the same kind, so they pair up
   const ready = near.filter((m) => !m.baby && !(m.love > 0) && !((m.breedCooldown ?? 0) > 0));
@@ -211,9 +212,14 @@ function store(w, chest, stack) {
 
 // ---- harvester ----
 
+// a chest with no room left for anything
+const chestFull = (chest) => chest.st.slots.every((s) => s && s.count >= maxStack(s.id));
+
 function tickHarvester(game, st, x, y, z) {
   const w = game.world;
   const chest = chestBeside(w, x, y, z);
+  // its chest full: it waits, rather than strewing the crops to rot
+  if (chest && chestFull(chest)) return;
   let reaped = 0;
   for (let dy = -1; dy <= 1 && reaped < 6; dy++) {
     for (let dx = -REACH; dx <= REACH && reaped < 6; dx++) {
@@ -302,6 +308,6 @@ export function describeMachine(w, t) {
     const id = w.getBlockW(t.x + dx, t.y + dy, t.z + dz);
     if (isRipe(id)) ripe++; else if (cropFamily(id)) growing++;
   }
-  return `Harvester: ${ripe} ripe, ${growing} growing — ${chest ? 'filling the chest beside it' : 'no chest beside it, so the crops pop out where they grew'}`;
+  return `Harvester: ${ripe} ripe, ${growing} growing — ${chest ? (chestFull(chest) ? 'its chest is full, so it waits' : 'filling the chest beside it') : 'no chest beside it, so the crops pop out where they grew'}`;
 }
 

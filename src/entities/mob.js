@@ -12,6 +12,10 @@ import { SMELTING } from '../items/recipes.js';
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
 // (taken from the smelting list, so a new meat needs no entry here)
+// states in which an animal is being led somewhere (it stops at a cliff or lava instead of going on)
+const GUIDED = new Set(['tempt', 'follow', 'called', 'flee']);
+const FENCES = new Set([B.OAK_FENCE, B.OAK_FENCE_GATE]);
+const PEN = new Set([B.OAK_FENCE, B.OAK_FENCE_GATE, B.TROUGH]);
 const cookedId = (id) => ((itemInfo(id)?.food ?? 0) > 0 ? SMELTING.get(id)?.id ?? null : null);
 
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
@@ -115,9 +119,9 @@ export class Mob {
   // Eat one: an adult falls in love, a baby grows (a golden carrot grows it
   // up at once). Returns false if it isn't hungry. Shared by hand-feeding
   // and the feeding trough.
-  feed(id) {
+  feed(id, boost = 60) {
     if (this.baby) {
-      this.grow = id === I.GOLDEN_CARROT ? 0 : Math.max(0, this.grow - 60);
+      this.grow = id === I.GOLDEN_CARROT ? 0 : Math.max(0, this.grow - boost);
     } else {
       if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return false;   // not hungry yet
       this.love = 30;
@@ -131,7 +135,10 @@ export class Mob {
   // right-click with its food: fall in love (or help a baby grow)
   interact(player, held) {
     if (!this.likes(held?.id)) return false;
-    if (this.feed(held.id) && player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+    if (this.feed(held.id)) { if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1); }
+    // not hungry: say why (rather than swallowing the click)
+    else if (this.love > 0) this.fx?.notify?.('It\u2019s ready to breed: bring it another of its kind');
+    else this.fx?.notify?.(`It can breed again in ${Math.ceil(this.breedCooldown ?? 0)}s`);
     return true;
   }
 
@@ -139,7 +146,7 @@ export class Mob {
     this.breedCooldown = Math.max(0, (this.breedCooldown ?? 0) - dt);
     if (this.baby) {
       this.grow -= dt;
-      if (this.grow <= 0) this.setBaby(false);
+      if (this.grow <= 0) { this.setBaby(false); this.fx?.spark?.(this.x, this.y + this.h, this.z, 0x9fe870, 8); }
       // no room to grow (pressed into a fence, say): try again in a moment
       if (!this.baby && !nudgeFree(this.world, this)) this.setBaby(true, 3);
       return;
@@ -151,6 +158,7 @@ export class Mob {
     let mate = null, best = 10;
     for (const m of this.fx?.mobs() ?? []) {
       if (m === this || m.kind !== this.kind || !(m.love > 0) || m.baby || m.dead || m.dying !== undefined) continue;
+      if (Math.abs(m.y - this.y) > 1 || !this.clearTo(m)) continue;   // (not through a fence, nor a floor of the barn)
       const d = Math.hypot(m.x - this.x, m.z - this.z);
       if (d < best) { best = d; mate = m; }
     }
@@ -164,11 +172,33 @@ export class Mob {
     // a baby!
     this.love = mate.love = 0;
     this.breedCooldown = mate.breedCooldown = 300;
-    const baby = new this.constructor(this.scene, this.world, (this.x + mate.x) / 2, this.y + 0.2, (this.z + mate.z) / 2);
+    const baby = new this.constructor(this.scene, this.world, this.x, this.y + 0.2, this.z);   // (on this parent's side)
     baby.setBaby(true);
     baby.persistent = true;
+    this.inherit?.(baby, mate);   // (a foal takes after its parents)
     this.fx?.spawn?.(baby);
     this.fx?.hearts?.(baby.x, baby.y + 0.6, baby.z, 6);
+    this.fx?.sound(this.hurtSound ?? this.ambientSound ?? 'pickup', { pos: baby, pitch: 1.6 });
+  }
+
+  // a fence, gate or trough within a few blocks: someone's pen
+  nearPen() {
+    const x0 = Math.floor(this.x), y0 = Math.floor(this.y), z0 = Math.floor(this.z);
+    for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) for (let dy = -1; dy <= 1; dy++) {
+      if (PEN.has(this.world.getBlockW(x0 + dx, y0 + dy, z0 + dz))) return true;
+    }
+    return false;
+  }
+
+  // a clear walk to another mob: no solid block or fence between (at knee height)
+  clearTo(m) {
+    const ox = this.x, oz = this.z, dx = m.x - ox, dz = m.z - oz;
+    const steps = Math.ceil(Math.hypot(dx, dz) / 0.25), y = Math.floor(this.y + 0.3);
+    for (let i = 1; i < steps; i++) {
+      const id = this.world.getBlockW(Math.floor(ox + (dx * i) / steps), y, Math.floor(oz + (dz * i) / steps));
+      if (isSolid(id) || FENCES.has(id)) return false;
+    }
+    return true;
   }
 
   // babies are half size, can't breed and drop nothing; they grow up in 5 minutes
@@ -212,6 +242,9 @@ export class Mob {
     if (playerDistSq > 80 * 80) {
       // animals the player has fed are kept (stashed) rather than lost
       if (!this.tamed) {
+        // a farm animal penned in (by a fence, a gate or a trough near it) is
+        // kept, like one you've fed
+        if (!this.persistent && this.breedItem && this.nearPen()) this.persistent = true;
         // (with the stash full, a kept animal stays put, unsimulated, rather than vanish)
         if (this.persistent && this.fx?.stash?.(this) === false) return;
         this.kill();
@@ -405,8 +438,9 @@ export class Mob {
       return;
     }
     // a pet following you stops at the edge (lava, a long drop) and catches
-    // up once you're clear, instead of walking in after you
-    const pet = this.tamed && this.state === 'chase';
+    // up once you're clear, instead of walking in after you; so does an
+    // animal following your food, its parent or the horn, or running off
+    const pet = (this.tamed && this.state === 'chase') || (!this.hostile && GUIDED.has(this.state));
     if ((this.state !== 'wander' && !pet) || !this.moving || !this.onGround || this.flier || this.swimmer) return;
     const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.6));
     const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.6));
@@ -593,7 +627,7 @@ export class Mob {
     this.targetYaw = this.yaw = Math.atan2(-dx, -dz);   // (a lead turns you round on the spot)
     this.moving = true;
     // the tauter the lead, the faster it's pulled along: it keeps up with a sprint
-    this.leashSpeed = Math.max(this.speed, Math.min(10, (d - LEASH_SLACK) * 2));
+    this.leashSpeed = Math.max(this.speed, Math.min(12, (d - LEASH_SLACK) * 2));   // (up to a horse's gallop)
     return true;
   }
 

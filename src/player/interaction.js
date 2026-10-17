@@ -7,7 +7,7 @@ import { B, BLOCKS, blockInfo, R_SHAPE, isSolid, isWater } from '../blocks/block
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
-import { growCrop, cropTime, CROP_FAMILIES, isRipe } from '../world/saplings.js';
+import { growCrop, cropTime, CROP_FAMILIES, isRipe, saplingHasRoom } from '../world/saplings.js';
 import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { usePot, potContents } from '../items/cookingPot.js';
@@ -766,7 +766,13 @@ export class Interaction {
 
     // bone meal: ripen a crop, or make a sapling grow right away
     if (held.id === I.BONE_MEAL) {
-      if (CROPS.has(t.id) && !isRipe(t.id)) {
+      if (CROPS.has(t.id) && isRipe(t.id)) {
+        this.cb.notify?.('It\u2019s ripe already: harvest it');
+        return true;
+      } else if (SAPLINGS.has(t.id) && !saplingHasRoom(this.world, t.x, t.y, t.z)) {
+        this.cb.notify?.('No room for a tree to grow here: clear the space above it');
+        return true;
+      } else if (CROPS.has(t.id)) {
         growCrop(this.world, t.x, t.y, t.z, 2, this.dropRng);
       } else if (SAPLINGS.has(t.id)) {
         const st = this.world.blockEntityAt(t.x, t.y, t.z);

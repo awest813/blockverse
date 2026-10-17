@@ -136,8 +136,9 @@ export class Sheep extends Mob {
     return leg;
   }
 
-  saveExtra() { return { tint: this.woolTint }; }   // (white too, or it'd be re-rolled on load)
+  saveExtra() { return { tint: this.woolTint, ...(this.sheared ? { regrow: Math.round(this.regrow) } : {}) }; }   // (white too, or it'd be re-rolled on load)
   loadExtra(e) {
+    if (Number.isFinite(e.regrow) && this.sheared) this.regrow = e.regrow;
     if (!Number.isInteger(e.tint)) return;
     this.woolTint = e.tint;
     for (const m of this.woolMats) m.base.setHex(e.tint);

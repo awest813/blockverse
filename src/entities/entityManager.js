@@ -211,8 +211,14 @@ export class EntityManager {
 
 // ---- kept animals ----
 
+// Kept animals far away are stashed (not simulated). Babies still grow and
+// cooldowns still run out while they're stashed this session: the stash notes
+// when (wall time, this session only: nothing ages while the game is closed).
+const SESSION = Math.random().toString(36).slice(2);
+
 export function serializeAnimal(m) {
-  const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared };
+  const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared,
+    at: { s: SESSION, t: Math.round(performance.now()) } };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
   if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
@@ -225,8 +231,13 @@ export function restoreAnimal(scene, world, a) {
   const mob = new Cls(scene, world, a.x, a.y + 0.05, a.z);
   mob.persistent = true;
   mob.health = a.health ?? mob.health;
-  mob.breedCooldown = a.breedCooldown ?? 0;
-  if (a.baby) mob.setBaby(true, a.grow || 300);
+  // time away this session (paused game or hidden tab included: capped at an hour)
+  const away = a.at?.s === SESSION ? Math.min(3600, Math.max(0, (performance.now() - a.at.t) / 1000)) : 0;
+  mob.breedCooldown = Math.max(0, (a.breedCooldown ?? 0) - away);
+  if (a.baby) {
+    const grow = (a.grow || 300) - away;
+    if (grow > 0) mob.setBaby(true, grow);
+  }
   if (a.sheared) mob.setSheared?.(true);
   if (a.extra) mob.loadExtra?.(a.extra);
   if (a.leash?.knot) mob.leashTo({ knot: a.leash.knot });

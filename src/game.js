@@ -1005,6 +1005,7 @@ export class Game {
       pet.onTamed();
       pet.sitting = !!p.sitting;
       pet.health = p.health ?? pet.maxTamedHealth;
+      if (Number.isInteger(p.coat)) pet.setCoat?.(p.coat);
       this.entities.addMob(pet);
     }
   }
@@ -1272,6 +1273,10 @@ export class Game {
     this.hud.sleepFade(true);
     setTimeout(() => {
       if (!this.running) return;
+      // the night passes for the farm too: crops and saplings nearby grow as
+      // if you'd stayed up (a stage at a time, as they would)
+      const skipped = ((1 - this.time) % 1) * DAY_LENGTH_SECONDS;
+      for (let t = 0; t < skipped; t += 20) tickSaplings(this.world, Math.min(20, skipped - t));
       this.time = 0;
       this.newDay();
       this.sleeping = false;
@@ -1836,7 +1841,7 @@ export class Game {
     Object.assign(this.worldMeta, {
       // tamed pets travel with the save
       pets: this.entities.mobs.filter((m) => m.tamed && !m.dead && m.dying === undefined).map((m) => ({
-        kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health,
+        kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health, ...(Number.isInteger(m.coat) ? { coat: m.coat } : {}),
         ...(m.travelling ? { travel: true } : {}),   // coming through the portal with you
       })),
       animals: this.entities.keptAnimals(),
