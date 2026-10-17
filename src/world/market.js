@@ -37,7 +37,8 @@ const GLUT = 32;          // this much of one thing piled up halves its price
 const RECOVER = 1200;     // seconds of the world's clock for a pile to shrink to a third
 
 function market(meta) {
-  const m = (meta.market ??= {});
+  if (!meta.market || typeof meta.market !== 'object' || Array.isArray(meta.market)) meta.market = {};
+  const m = meta.market;
   if (!m.glut || typeof m.glut !== 'object') m.glut = {};
   // what's been sold drains away as time passes
   const now = worldClock.now, dt = Number.isFinite(m.at) ? Math.max(0, now - m.at) : 0;

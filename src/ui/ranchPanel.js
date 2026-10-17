@@ -153,6 +153,8 @@ export class RanchPanel {
     for (const a of g.entities.stash) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: here });
     for (const a of meta.dims?.[other]?.animals ?? []) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: other });
     for (const a of meta.dims?.[other]?.pets ?? []) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: other, pet: true });
+    // (entries from an imported save may be missing a kind or a place)
+    for (let i = rows.length - 1; i >= 0; i--) if (typeof rows[i].kind !== 'string' || !rows[i].kind || !Number.isFinite(rows[i].x) || !Number.isFinite(rows[i].z)) rows.splice(i, 1);
     const stats = meta.ranchStats ?? {};
     this.frame('Ranch Ledger', (win) => {
       const tally = document.createElement('p');

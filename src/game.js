@@ -852,6 +852,8 @@ export class Game {
   // A name tag on an animal: type a name; it's yours from then on.
   nameAnimal(m) {
     const species = m.petName ?? m.label ?? m.kind;
+    // only what can be kept (farm animals, horses, your pets): a named fox would still wander off for good
+    if (!m.tamed && !KEPT_KINDS.has(m.kind)) { this.hud.showLabel(`A ${species} won\u2019t answer to a name — try a farm animal or a pet of yours`); return; }
     this.signEditor.openPrompt(m.name ? `Rename ${m.name}` : `Name this ${species}`, m.name ?? '', 24, (text) => {
       const name = text.trim();
       if (!name || m.dead || m.dying !== undefined) return;

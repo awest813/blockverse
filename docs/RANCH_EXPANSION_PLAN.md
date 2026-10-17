@@ -142,6 +142,17 @@ Beehives (`hive {bees, honey, work, at}` in `world/produce.js`) gain bees by day
 
 `world/market.js`: a sell list at base prices, falling with `glut` (32 of one item halves its price) and recovering exponentially over world time. Fractional coins stay in `market.credit`. There's a fixed buy list. The ranch tally (`ranchStats`: eggs, wool, milk, butter, cheese, honey, young born, coins) is bumped where each happens. `ui/ranchPanel.js` provides the market window (on the market stall block) and the ledger (an item), which lists live, stashed and other-dimension animals and pets. Still to do: the travelling trader, fairs.
 
+### Audit (after step 8)
+
+A review pass over the branch fixed:
+- ordinary hens re-rolling as golden on every reload;
+- name tags used up on animals that can't be kept;
+- milk lost from a broken churn;
+- pen homes carried into the other dimension;
+- unchecked market, dye and ledger data from imported saves.
+
+Twenty-four scripted playthroughs ran with no crashes or console errors. Generator determinism is unchanged (0 of 162 mismatches). With 157 penned animals the ranch tick costs about 0.07 ms a frame.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

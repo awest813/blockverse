@@ -49,7 +49,8 @@ export function swapDimension(meta, to, arrive) {
   const travellers = here.pets.filter((p) => p.travel).map(({ travel, ...p }) => p);
   here.pets = here.pets.filter((p) => !p.travel);
   // animals on your lead, and the one you rode through
-  const herd = here.animals.filter((a) => a.travel).map(({ travel, ...a }) => ({ ...a, arriving: true }));
+  // (a pen over here isn't home over there)
+  const herd = here.animals.filter((a) => a.travel).map(({ travel, home, mood, ...a }) => ({ ...a, arriving: true }));
   here.animals = here.animals.filter((a) => !a.travel);
   const pd = meta.playerData;
   if (pd) here.pos = { x: pd.x, y: pd.y, z: pd.z, yaw: pd.yaw, pitch: pd.pitch };

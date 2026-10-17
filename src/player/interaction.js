@@ -72,6 +72,7 @@ export function entityContents(st) {
   if (st.kind === 'pot') return potContents(st);
   if (st.kind === 'composter' && st.level >= 7) return [{ id: I.BONE_MEAL, count: 1 }];   // a full one's bone meal
   if (st.kind === 'nest') return nestContents(st);
+  if (st.kind === 'churn') return Number.isInteger(st.milk) && st.milk > 0 ? [{ id: I.MILK_BUCKET, count: Math.min(4, st.milk) }] : [];   // (the milk not yet churned, back in buckets)
   if (st.kind === 'press') return pressContents(st);   // (the cheese that's ready)
   return [];
 }

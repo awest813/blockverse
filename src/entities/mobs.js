@@ -146,7 +146,7 @@ export class Sheep extends Mob {
   saveExtra() { return { tint: this.woolTint, ...(this.dye ? { dye: this.dye } : {}), ...(this.sheared ? { regrow: Math.round(this.regrow) } : {}) }; }   // (white too, or it'd be re-rolled on load)
   loadExtra(e) {
     if (Number.isFinite(e.regrow) && this.sheared) this.regrow = e.regrow;
-    this.dye = COLOUR[e.dye] && e.dye !== 'white' ? e.dye : null;
+    this.dye = Object.hasOwn(COLOUR, e.dye) && e.dye !== 'white' ? e.dye : null;
     if (Number.isInteger(e.tint)) this.setTint(e.tint);
     else if (this.dye) this.setTint(COLOUR[this.dye].tint);
   }

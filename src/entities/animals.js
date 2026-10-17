@@ -125,7 +125,7 @@ export class Chicken extends Animal {
     for (const m of this.featherMats) m.base.setHex(on ? 0xe8bc48 : 0xf2f0ea);
   }
 
-  saveExtra() { return this.golden ? { golden: true } : null; }
+  saveExtra() { return { golden: !!this.golden }; }   // (plain too, or it'd be re-rolled on load)
   loadExtra(e) { this.setGolden(!!e.golden); }
 
   // a golden parent's chicks are often golden too
