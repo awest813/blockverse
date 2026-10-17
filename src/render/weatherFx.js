@@ -43,8 +43,8 @@ export class WeatherFx {
       this.r.forEach((q, i) => {
         q.y -= 16 * q.v * dt;
         if (q.y < 0) q.y += HEIGHT;
-        const x = ox + wrap(q.x - ox, BOX), z = oz + wrap(q.z - oz, BOX), y = i < n ? oy + q.y : -1000;
-        arr.set([x, y, z, x - 0.06, y + 0.8, z], i * 6);
+        const x = ox + wrap(q.x - ox, BOX), z = oz + wrap(q.z - oz, BOX), y = i < n ? oy + q.y : -1000, j = i * 6;
+        arr[j] = x; arr[j + 1] = y; arr[j + 2] = z; arr[j + 3] = x - 0.06; arr[j + 4] = y + 0.8; arr[j + 5] = z;
       });
       this.rain.geometry.attributes.position.needsUpdate = true;
       this.rain.material.opacity = 0.6 * Math.min(1, show * 1.5);
@@ -57,7 +57,8 @@ export class WeatherFx {
         q.x += Math.sin(this.t * 0.8 + q.s) * 0.4 * dt;
         q.z += Math.cos(this.t * 0.7 + q.s) * 0.4 * dt;
         if (q.y < 0) q.y += HEIGHT;
-        arr.set([ox + wrap(q.x - ox, BOX), i < n ? oy + q.y : -1000, oz + wrap(q.z - oz, BOX)], i * 3);
+        const j = i * 3;
+        arr[j] = ox + wrap(q.x - ox, BOX); arr[j + 1] = i < n ? oy + q.y : -1000; arr[j + 2] = oz + wrap(q.z - oz, BOX);
       });
       this.snow.geometry.attributes.position.needsUpdate = true;
     }

@@ -3,11 +3,8 @@
 
 import * as THREE from 'three';
 import { Mob } from './mob.js';
-import { blockInfo } from '../blocks/blocks.js';
+import { B, blockInfo } from '../blocks/blocks.js';
 import { itemTexture } from './itemDrop.js';
-
-const geo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
-geo.translate(0, 0.49, 0);
 
 export class FallingBlock extends Mob {
   constructor(scene, world, x, y, z, id) {
@@ -17,6 +14,9 @@ export class FallingBlock extends Mob {
     this.kind = 'falling';
     this.countsForCap = false;
     this.noLoot = true;
+    this.sinks = true;   // (through water to the bottom, as sand would)
+    const geo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
+    geo.translate(0, 0.49, 0);
     const mat = new THREE.MeshBasicMaterial({ map: itemTexture(id) });
     this.group.add(new THREE.Mesh(geo, mat));
     this.materials.push({ mat, base: new THREE.Color(0xffffff) });
@@ -32,7 +32,8 @@ export class FallingBlock extends Mob {
     // (two falling one on the other can land in the same moment: the upper
     // one sits on top of the lower, not inside it)
     const x = Math.floor(this.x), z = Math.floor(this.z);
-    const free = (y) => { const b = blockInfo(this.world.getBlockW(x, y, z)); return b.replaceable && !b.fluid; };
+    // (water it settles in is pushed aside: sand on the seabed)
+    const free = (y) => { const id = this.world.getBlockW(x, y, z), b = blockInfo(id); return b.replaceable && (!b.fluid || id === B.WATER); };
     let y = Math.round(this.y);
     for (let n = 0; n < 3 && !free(y); n++) y++;
     if (free(y)) this.world.setBlock(x, y, z, this.blockId);

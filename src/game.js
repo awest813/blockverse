@@ -1456,7 +1456,6 @@ export class Game {
     if (w.t <= 0) this.setWeather(w.kind === 'rain' ? 'clear' : 'rain');
     const target = w.kind === 'rain' ? 1 : 0;
     this.rainAmt += Math.sign(target - this.rainAmt) * Math.min(Math.abs(target - this.rainAmt), dt / 20);   // (twenty seconds to come on or clear)
-    this.world.raining = this.rainAmt > 0.5;
     this.sky.setOvercast(this.rainAmt);
     const p = this.player, x = Math.floor(p.x), z = Math.floor(p.z);
     const exposed = this.world.getSkyW(x, Math.floor(p.eyeY), z) >= 15;
@@ -1464,6 +1463,8 @@ export class Game {
     const biome = this.world.biomeAt(x, z);
     const kind = biome === BIOME.DESERT ? null : this.world.gen.climateAt(x, z).t < 0.28 || p.y > 96 ? 'snow' : 'rain';
     this.weatherKindHere = kind;
+    // (rain's effects where it falls: not in a desert, and snow puts out no fires)
+    this.world.raining = this.rainAmt > 0.5 && kind === 'rain';
     this.weatherFx?.update(dt, p, this.rainAmt, p.headInWater ? null : kind, this._cover);
     if (kind === 'rain' && this.world.raining && exposed && p.fireTime > 0) { p.fireTime = 0; p.events.dispatchEvent(new CustomEvent('extinguish')); }
   }

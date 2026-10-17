@@ -11,28 +11,32 @@ import { FallingBlock } from '../entities/fallingBlock.js';
 export const FALLS = new Set([B.SAND, B.GRAVEL]);
 const LOGS = new Set([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG, B.CHARRED_LOG]);
 export const LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHARRED_LEAVES]);
-const REACH = 4;   // a leaf this many steps (through leaves) from a log stays
+const REACH = 5;   // a leaf this many steps (through leaves) from a log stays (generated trees need 4)
 // (diagonals count: palm fronds and charred branches join at their edges)
 const N26 = [];
 for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) if (dx || dy || dz) N26.push([dx, dy, dz]);
 
 // nothing to hold a block up (air, water, plants, a torch...)
 const unsupported = (id) => !isSolid(id) && (blockInfo(id).replaceable || id === B.AIR || blockInfo(id).fluid);
+// a cell near (x, y, z) as one number (offsets stay within +-64)
+const rel = (dx, dy, dz) => ((dx + 64) * 128 + (dy + 64)) * 128 + (dz + 64);
 
-// does this leaf still reach a trunk?
-function attached(world, x, y, z) {
-  const seen = new Set([`${x},${y},${z}`]);
+// Walk out through leaves from (x, y, z), up to REACH steps: calls leaf(x,
+// y, z) for each leaf reached; stops early (returning true) at a log if
+// stopAtLog.
+function walkLeaves(world, x, y, z, stopAtLog, leaf) {
+  const seen = new Set([rel(0, 0, 0)]);
   let frontier = [[x, y, z]];
   for (let d = 0; d < REACH && frontier.length; d++) {
     const next = [];
     for (const [cx, cy, cz] of frontier) {
       for (const [dx, dy, dz] of N26) {
-        const nx = cx + dx, ny = cy + dy, nz = cz + dz, k = `${nx},${ny},${nz}`;
+        const nx = cx + dx, ny = cy + dy, nz = cz + dz, k = rel(nx - x, ny - y, nz - z);
         if (seen.has(k)) continue;
         seen.add(k);
         const id = world.getBlockW(nx, ny, nz);
-        if (LOGS.has(id)) return true;
-        if (LEAVES.has(id)) next.push([nx, ny, nz]);
+        if (stopAtLog && LOGS.has(id)) return true;
+        if (LEAVES.has(id)) { next.push([nx, ny, nz]); leaf?.(nx, ny, nz); }
       }
     }
     frontier = next;
@@ -40,10 +44,14 @@ function attached(world, x, y, z) {
   return false;
 }
 
+// does this leaf still reach a trunk?
+const attached = (world, x, y, z) => walkLeaves(world, x, y, z, true);
+
 export class BlockUpdates {
   constructor(game) {
     this.game = game;
     this.decay = [];   // [x, y, z, at]
+    this.queued = new Set();   // (each leaf once)
     this.t = 0;
   }
 
@@ -58,11 +66,14 @@ export class BlockUpdates {
         if (FALLS.has(now)) this.tryFall(x, y, z);
         if (unsupported(now)) this.tryFall(x, y + 1, z);
         // a trunk cut: the leaves round it may be left hanging
+        // (only the leaves joined to it through leaves: not a neighbour's)
         if (LOGS.has(old) && !LOGS.has(now)) {
-          for (let dx = -REACH; dx <= REACH; dx++) for (let dy = -REACH; dy <= REACH; dy++) for (let dz = -REACH; dz <= REACH; dz++) {
-            const lx = x + dx, ly = y + dy, lz = z + dz;
-            if (LEAVES.has(w.getBlockW(lx, ly, lz)) && w.getMetaW(lx, ly, lz) === 0) this.decay.push([lx, ly, lz, this.t + 1 + Math.random() * 7]);
-          }
+          walkLeaves(w, x, y, z, false, (lx, ly, lz) => {
+            const k = `${lx},${ly},${lz}`;
+            if (this.queued.has(k) || w.getMetaW(lx, ly, lz) !== 0) return;
+            this.queued.add(k);
+            this.decay.push([lx, ly, lz, this.t + 1 + Math.random() * 7]);
+          });
         }
       }
     }
@@ -70,8 +81,9 @@ export class BlockUpdates {
     if (this.decay.length) {
       let n = 0;
       this.decay = this.decay.filter(([x, y, z, at]) => {
-        if (at > this.t || n > 24) return true;
+        if (at > this.t || n > 8) return true;
         n++;
+        this.queued.delete(`${x},${y},${z}`);
         const id = w.getBlockW(x, y, z);
         if (!LEAVES.has(id) || w.getMetaW(x, y, z) !== 0 || attached(w, x, y, z)) return false;
         w.setBlock(x, y, z, B.AIR);

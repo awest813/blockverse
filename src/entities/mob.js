@@ -293,7 +293,7 @@ export class Mob {
       this.vy += ((this.targetVy ?? 0) - this.vy) * Math.min(1, 3 * dt);
     } else if (this.climbSpeed && this.climber && this.lastHitWall && this.moving && !inWater) {
       this.vy = this.climbSpeed;   // a slow climber (a sloth) grips the trunk: gravity doesn't win
-    } else if (inWater && this.undead) {
+    } else if (inWater && (this.undead || this.sinks)) {
       this.vy += (-1.6 - this.vy) * Math.min(1, 3 * dt); // the undead sink and walk the bottom
     } else if (inWater) {
       this.vy += (1.6 - this.vy) * Math.min(1, 3 * dt); // float up

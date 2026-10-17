@@ -16,8 +16,10 @@ export function tickSaplings(world, dt) {
     if (!chunk.blockEntities.size) continue;
     for (const [idx, st] of chunk.blockEntities) {
       if (st.kind !== 'sapling' && st.kind !== 'crop') continue;
+      // (progress survives a reload, not just the last stage: marked every
+      // ten seconds of growth, so an autosave writes it)
+      if (Math.floor(st.grow / 10) !== Math.floor((st.grow - dt) / 10)) chunk.modified = true;
       st.grow -= dt;
-      chunk.modified = true;   // (progress survives a reload, not just the last stage)
       if (st.grow > 0) continue;
       const y = idx % CHUNK_Y;
       const rest = (idx - y) / CHUNK_Y;
