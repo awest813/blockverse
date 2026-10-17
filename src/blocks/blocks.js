@@ -124,6 +124,7 @@ export const B = {
   SMOULDERING_STUMP: 117,
   CHARRED_STONE: 118,    // the portal frame block
   EMBER_PORTAL: 119,     // inside a lit frame; meta: 0 spans x, 1 spans z
+  SCORCHED_BRICKS: 120,  // the ruined castles' walls
 };
 
 // Tool classes
@@ -457,6 +458,8 @@ reg(def(B.SMOULDERING_STUMP, 'smouldering_stump', 'Smouldering Stump', {
 }));
 // hard black rock with embers in its veins: a portal's frame is built from it
 reg(def(B.CHARRED_STONE, 'charred_stone', 'Charred Stone', { hardness: 4, tool: TOOL_PICKAXE, minTier: 2 }));
+// the dark red brick of the Scorchlands' ruined castles
+reg(def(B.SCORCHED_BRICKS, 'scorched_bricks', 'Scorched Bricks', { hardness: 2, tool: TOOL_PICKAXE, minTier: 1 }));
 // the shimmer inside a lit portal frame: walk in and wait to be taken across
 reg(def(B.EMBER_PORTAL, 'ember_portal', 'Ember Portal', {
   solid: false, render: R_SHAPE, shape: 'portal', opacity: 0, lightEmit: 11, hardness: -1, drop: null, noTarget: true, sound: 'glass',

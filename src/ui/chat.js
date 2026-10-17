@@ -7,17 +7,18 @@ import { saveSettings } from '../save/store.js';
 import * as MOBS from '../entities/mobs.js';
 import * as ANIMALS from '../entities/animals.js';
 import * as BOSSES from '../entities/bosses.js';
+import * as SCORCH_MOBS from '../entities/scorchMobs.js';
 import { arrivalPoint } from '../world/dimensions.js';
 
 // /summon names -> classes (every exported mob class with a lower-case name)
 const SUMMONABLE = {};
-for (const mod of [MOBS, ANIMALS, BOSSES]) {
+for (const mod of [MOBS, ANIMALS, BOSSES, SCORCH_MOBS]) {
   for (const [name, Cls] of Object.entries(mod)) {
     if (typeof Cls === 'function' && /^[A-Z]/.test(name) && Cls.prototype?.think && name !== 'PrimedTnt') SUMMONABLE[name.toLowerCase()] = Cls;
   }
 }
 
-const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother']);
+const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother', 'skeletonknight', 'knightcaptain']);
 
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd', 'dimension'];

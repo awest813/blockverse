@@ -179,6 +179,7 @@ export class Game {
     this.entities.fx.hearts = (x, y, z, n = 4) => this.sparks(x, y, z, 0xff6a8a, n);
     this.entities.fx.dust = (x, y, z) => this.sparks(x, y, z, 0x8a7a64, 18);
     this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
+    this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
     // a dungeon boss beaten: its cage remembers, so it stays beaten
     this.entities.fx.bossDown = (boss) => {
       const c = boss.home?.cage?.split(',').map(Number);
@@ -186,7 +187,7 @@ export class Game {
       if (st?.kind === 'spawner') { st.boss = 'defeated'; this.world.markModified(c[0], c[2]); }
       // its cage's chunk may be unloaded (you led it far away): the world
       // remembers, and the cage learns when it next loads
-      else if (boss.home?.cage) (this.worldMeta.defeatedCages ??= []).push(boss.home.cage);
+      else if (boss.home?.cage) (this.worldMeta.defeatedCages ??= []).push(boss.home.key ?? boss.home.cage);
       this.hud.showLabel(`${boss.boss.name} defeated!`);
       this.sfx?.play('victory');
       this.sparks(boss.x, boss.y + boss.h * 0.6, boss.z, 0xffd84a, 30);

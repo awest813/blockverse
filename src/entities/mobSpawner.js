@@ -1,12 +1,13 @@
 // Runtime mob spawning and despawning around the player.
 
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
+import { SkeletonKnight } from './scorchMobs.js';
 import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican, Crab } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
 // the Scorchlands' monsters (no animals live there)
-const SCORCH_HOSTILES = [[Skeleton, 50], [Spider, 30], [Zombie, 20]];
+const SCORCH_HOSTILES = [[Skeleton, 35], [SkeletonKnight, 20], [Spider, 25], [Zombie, 20]];
 function pickHostile(table = HOSTILE_TABLE) {
   let r = Math.random() * table.reduce((n, [, w]) => n + w, 0);
   for (const [cls, w] of table) if ((r -= w) < 0) return cls;

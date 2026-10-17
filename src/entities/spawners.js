@@ -2,15 +2,18 @@
 // keeps conjuring its monster, ignoring light, until it's broken.
 // A dungeon's cage (buried, not a surface temple) also has a guardian: the
 // first time a player walks into the room it wakes a mini boss (bosses.js).
-// Block entity: {kind: 'spawner', mob: 'zombie' | 'skeleton' | 'spider', t,
-//                boss?: 'awake' | 'defeated'}.
+// So does the cage in a Scorchlands castle's keep (guardian: true).
+// Block entity: {kind: 'spawner', mob: 'zombie' | 'skeleton' | 'spider' | 'knight', t,
+//                guardian?: true, boss?: 'awake' | 'defeated'}.
 
 import { B, isSolid } from '../blocks/blocks.js';
 import { CHUNK_Y, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { Zombie, Skeleton, Spider } from './mobs.js';
+import { SkeletonKnight } from './scorchMobs.js';
+import { SCORCH } from '../world/dimensions.js';
 import { DUNGEON_BOSSES } from './bosses.js';
 
-const MOBS = { zombie: Zombie, skeleton: Skeleton, spider: Spider };
+const MOBS = { zombie: Zombie, skeleton: Skeleton, spider: Spider, knight: SkeletonKnight };
 const ACTIVE_RANGE = 16;   // player must be this close
 const NEARBY_CAP = 4;      // stop while this many of its mobs linger nearby
 const BOSS_RANGE = 7;      // how far into the room before the guardian wakes
@@ -30,8 +33,8 @@ export function tickSpawners(game, dt) {
       const x = chunk.cx * 16 + lx, z = chunk.cz * 16 + lz;
       if (Math.hypot(x + 0.5 - player.x, y + 0.5 - player.y, z + 0.5 - player.z) > ACTIVE_RANGE) continue;
       if (world.getBlockW(x, y, z) !== B.SPAWNER) continue;
-      if (st.boss !== 'defeated' && game.worldMeta?.defeatedCages?.includes(`${x},${y},${z}`)) { st.boss = 'defeated'; world.markModified(x, z); }   // beaten far from home
-      if (st.boss !== 'defeated' && chunk.heightMap?.[lx * 16 + lz] - y >= BURIED) wakeGuardian(game, st, x, y, z);
+      if (st.boss !== 'defeated' && game.worldMeta?.defeatedCages?.includes(cageKey(game, x, y, z))) { st.boss = 'defeated'; world.markModified(x, z); }   // beaten far from home
+      if (st.boss !== 'defeated' && (st.guardian || chunk.heightMap?.[lx * 16 + lz] - y >= BURIED)) wakeGuardian(game, st, x, y, z);
       st.t = (st.t ?? 2) - dt;
       if (st.t > 0) continue;
       st.t = 8 + Math.random() * 14;
@@ -39,6 +42,9 @@ export function tickSpawners(game, dt) {
     }
   }
 }
+
+// how the world entry names a cage (the Scorchlands' cages apart from home's)
+const cageKey = (game, x, y, z) => `${game.dimension === SCORCH ? 's:' : ''}${x},${y},${z}`;
 
 function spawnAround(game, x, y, z, Cls) {
   const mobs = game.entities.mobs;
@@ -81,7 +87,7 @@ function wakeGuardian(game, st, x, y, z) {
         if (!isSolid(world.getBlockW(sx, sy - 1, sz))) continue;
         if ([0, 1, 2].some((h) => world.getBlockW(sx, sy + h, sz) !== B.AIR)) continue;
         const boss = new Cls(game.scene, world, sx + 0.5, sy, sz + 0.5).setDifficulty(game.mobSpawner.difficulty);
-        boss.home = { x: x + 0.5, y, z: z + 0.5, cage: `${x},${y},${z}` };
+        boss.home = { x: x + 0.5, y, z: z + 0.5, cage: `${x},${y},${z}`, key: cageKey(game, x, y, z) };
         boss.fromSpawner = true;
         game.entities.addMob(boss);
         const first = st.boss !== 'awake';
@@ -89,7 +95,7 @@ function wakeGuardian(game, st, x, y, z) {
         world.markModified(x, z);
         game.sparks?.(sx + 0.5, sy + 1, sz + 0.5, 0x5a2a20, 24);
         game.sfx?.play('roar', { pos: boss });
-        game.hud?.showLabel(first ? `A ${boss.boss.name} guards this dungeon!` : `The ${boss.boss.name} is waiting.`, true);
+        game.hud?.showLabel(first ? `A ${boss.boss.name} guards this ${st.guardian ? 'keep' : 'dungeon'}!` : `The ${boss.boss.name} is waiting.`, true);
         return;
       }
     }

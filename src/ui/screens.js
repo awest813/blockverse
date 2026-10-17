@@ -33,6 +33,8 @@ const DEATH_MESSAGES = {
   bonearcher: 'You were shot by the Bone Archer',
   broodmother: 'You were devoured by the Brood Mother',
   spiderling: 'You were swarmed by spiderlings',
+  knight: 'You were cut down by a Skeleton Knight',
+  captain: 'You were bested by the Knight Captain',
   void: 'You fell out of the world',
   command: 'You were killed by a command',
 };

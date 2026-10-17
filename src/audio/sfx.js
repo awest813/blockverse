@@ -361,6 +361,15 @@ export class Sfx {
         this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.6, gain: 0.04, type: 'sawtooth', hold: 0.3 });
         this.later(() => this.tone({ freq: 125 * detune, endFreq: 150, dur: 0.4, gain: 0.03, type: 'sawtooth' }), 380);
         break;
+      case 'clang':      // steel on a shield
+        this.tone({ freq: 880 * detune, endFreq: 820, dur: 0.25, gain: 0.12, type: 'square' });
+        this.tone({ freq: 1320 * detune, dur: 0.18, gain: 0.06, type: 'triangle' });
+        this.noise({ freq: 3000, q: 2, dur: 0.06, gain: 0.15 });
+        break;
+      case 'shieldbreak': // the shield knocked aside: a heavy crack and a clatter
+        this.noise({ freq: 700, q: 0.8, dur: 0.3, gain: 0.25, type: 'lowpass' });
+        for (let i = 0; i < 3; i++) this.later(() => this.tone({ freq: 500 + Math.random() * 300, dur: 0.06, gain: 0.07, type: 'square' }), 90 + i * 70);
+        break;
       case 'portalhum':  // an ember portal's low, wavering thrum
         this.tone({ freq: 98 * detune, endFreq: 92, dur: 2.4, gain: 0.05, type: 'triangle', hold: 1 });
         this.tone({ freq: 147 * detune, endFreq: 151, dur: 2.2, gain: 0.025, type: 'sine', hold: 1 });

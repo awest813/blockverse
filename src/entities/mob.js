@@ -245,7 +245,7 @@ export class Mob {
     this.yaw += Math.max(-3 * dt, Math.min(3 * dt, dyaw));
 
     const inWater = entityInWater(this.world, this);
-    const speed = this.leashSpeed || (this.state === 'flee' || this.state === 'chase' || this.hurry ? this.fleeSpeed : this.speed);
+    const speed = this.leashSpeed || this.dashSpeed || (this.state === 'flee' || this.state === 'chase' || this.hurry ? this.fleeSpeed : this.speed);
     let dvx = 0, dvz = 0;
     if (this.moving) {
       dvx = -Math.sin(this.yaw) * speed;

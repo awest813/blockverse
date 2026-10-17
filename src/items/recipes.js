@@ -26,8 +26,8 @@ function shapeless(result, count, ingredients) {
 shapeless(B.OAK_PLANKS, 4, [[B.OAK_LOG]]);
 shapeless(B.BIRCH_PLANKS, 4, [[B.BIRCH_LOG]]);
 shapeless(B.SPRUCE_PLANKS, 4, [[B.SPRUCE_LOG]]);
-shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);
-shapeless(B.CHARRED_PLANKS, 4, [[B.CHARRED_LOG]]);   // pale palm wood planks up like birch
+shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);   // pale palm wood planks up like birch
+shapeless(B.CHARRED_PLANKS, 4, [[B.CHARRED_LOG]]);
 shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
@@ -115,6 +115,7 @@ shaped(B.TNT, 1, ['GSG', 'SGS', 'GSG'], { G: [I.GUNPOWDER], S: [B.SAND] });
 
 // building blocks
 shaped(B.STONE_BRICKS, 4, ['XX', 'XX'], { X: [B.STONE] });
+shaped(B.SCORCHED_BRICKS, 4, ['XX', 'XX'], { X: [B.SCORCHED_STONE] });
 shaped(B.SANDSTONE, 1, ['XX', 'XX'], { X: [B.SAND] });
 shaped(B.CHISELED_SANDSTONE, 1, ['X', 'X'], { X: [B.SANDSTONE] });
 shapeless(B.MOSSY_STONE_BRICKS, 2, [[B.STONE_BRICKS], [B.MOSSY_COBBLE]]);

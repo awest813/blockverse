@@ -1,6 +1,7 @@
 // The Scorchlands: a burnt forest under a night that never ends. Rolling
 // ash hills thick with charred trees and glowing stumps, open ash wastes
-// with lava lakes and spires of charred stone. Pure and deterministic like
+// with lava lakes and spires of charred stone, and here and there the ruin
+// of a castle, held by skeleton knights. Pure and deterministic like
 // worldgen.js (it runs in the generation workers), with its own version
 // numbers: the overworld's generators never change for it.
 
@@ -8,10 +9,39 @@ import { CHUNK_X, CHUNK_Y, CHUNK_Z, blockIndex } from '../core/constants.js';
 import { Noise } from '../core/noise.js';
 import { coordRng } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
+import { I } from '../items/itemIds.js';
+import { makeStack } from '../items/items.js';
 import { WorldGen, BIOME } from './worldgen.js';
 
 export const SCORCH_LATEST = 1;
 export const LAVA_LEVEL = 38;   // lava lakes fill up to here
+
+// castles: at most one per CELL×CELL chunks, its middle kept well inside
+// the cell (so it never reaches the next), and nothing grows inside it
+const CELL = 6;
+const CASTLE_R = 11;     // half its width
+const CLEAR_R = 15;      // trees keep this far from its middle
+
+// [id, min, max, chance]
+const CASTLE_LOOT = [
+  [I.GOLD_INGOT, 2, 6, 0.6], [I.IRON_INGOT, 2, 6, 0.6], [I.DIAMOND, 1, 3, 0.35], [I.GOLDEN_APPLE, 1, 2, 0.3],
+  [I.ARROW, 6, 16, 0.4], [I.BONE, 2, 6, 0.5], [I.CHARCOAL, 2, 6, 0.4], [B.CHARRED_STONE, 2, 6, 0.4],
+  [I.BREAD, 1, 3, 0.3], [I.BOOK, 1, 2, 0.25],
+  [I.IRON_SWORD, 1, 1, 0.25], [I.IRON_CHESTPLATE, 1, 1, 0.15], [I.IRON_HELMET, 1, 1, 0.15],
+  [I.DIAMOND_SWORD, 1, 1, 0.08], [I.DIAMOND_CHESTPLATE, 1, 1, 0.05], [I.ANCIENT_SWORD, 1, 1, 0.1],
+];
+
+function castleLoot(rng) {
+  const slots = new Array(27).fill(null);
+  for (const [id, lo, hi, chance] of CASTLE_LOOT) {
+    if (rng() > chance) continue;
+    let i = (rng() * 27) | 0;
+    while (slots[i]) i = (i + 1) % 27;
+    slots[i] = makeStack(id, lo + ((rng() * (hi - lo + 1)) | 0));
+  }
+  if (slots.every((s) => !s)) slots[13] = makeStack(I.GOLD_INGOT, 2);
+  return slots;
+}
 
 function smoothstep(a, b, x) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -31,6 +61,45 @@ export class ScorchGen {
     this.cave1 = new Noise(s + 5);
     this.cave2 = new Noise(s + 6);
     this.overworld = null;   // for a sapling someone plants here
+    this.castles = new Map();
+  }
+
+  // The castle of the cell holding chunk (cx, cz), or null:
+  // {ox, oz, y, gate (0 -z, 1 +x, 2 +z, 3 -x), cx, cz}
+  castleIn(cx, cz) {
+    const gx = Math.floor(cx / CELL), gz = Math.floor(cz / CELL);
+    const key = `${gx},${gz}`;
+    if (this.castles.has(key)) return this.castles.get(key);
+    if (this.castles.size > 512) this.castles.clear();
+    let plan = null;
+    const rng = coordRng(this.seed, gx, gz, 1717);
+    if (rng() < 0.45) {
+      const ccx = gx * CELL + 1 + ((rng() * (CELL - 2)) | 0), ccz = gz * CELL + 1 + ((rng() * (CELL - 2)) | 0);
+      const ox = ccx * CHUNK_X + 8, oz = ccz * CHUNK_Z + 8;
+      // somewhere fairly level and dry
+      const hs = [];
+      let wet = 0;
+      for (let dx = -CASTLE_R; dx <= CASTLE_R; dx += 3) {
+        for (let dz = -CASTLE_R; dz <= CASTLE_R; dz += 3) {
+          const col = this.columnAt(ox + dx, oz + dz);
+          if (col.lava || col.h <= LAVA_LEVEL + 1) wet++;
+          hs.push(Math.floor(col.h));
+        }
+      }
+      hs.sort((a, b) => a - b);
+      const y = hs[hs.length >> 1] + 1;
+      if (wet <= hs.length * 0.15 && hs[hs.length - 1] - hs[0] <= 12 && y + 16 < CHUNK_Y) {
+        plan = { ox, oz, y, gate: (rng() * 4) | 0, cx: ccx, cz: ccz };
+      }
+    }
+    this.castles.set(key, plan);
+    return plan;
+  }
+
+  // inside a castle's grounds (where nothing else is built)
+  nearCastle(wx, wz) {
+    const c = this.castleIn(Math.floor(wx / CHUNK_X), Math.floor(wz / CHUNK_Z));
+    return !!c && Math.max(Math.abs(wx - c.ox), Math.abs(wz - c.oz)) <= CLEAR_R;
   }
 
   // {h, t, m, wastes (0..1), lava} for a column
@@ -90,14 +159,16 @@ export class ScorchGen {
         }
       }
     }
-    // trees, stumps and spires reach a few blocks out: take them from this
-    // chunk and its neighbours, each written where it falls in this one
+    // trees, stumps, spires and castles reach out of the chunk they're
+    // rooted in: take them from this chunk and its neighbours, each written
+    // where it falls in this one
+    const entities = [];
     for (let ncx = cx - 1; ncx <= cx + 1; ncx++) {
       for (let ncz = cz - 1; ncz <= cz + 1; ncz++) {
-        for (const f of this.features(ncx, ncz)) this.applyFeature(blocks, cx, cz, f);
+        for (const f of this.features(ncx, ncz)) this.applyFeature(blocks, cx, cz, f, entities);
       }
     }
-    return { blocks, heightMap, biomeMap, entities: [] };
+    return { blocks, heightMap, biomeMap, entities };
   }
 
   // the features rooted in one chunk (decided by that chunk alone)
@@ -108,9 +179,11 @@ export class ScorchGen {
       const wx = cx * CHUNK_X + ((rng() * 16) | 0), wz = cz * CHUNK_Z + ((rng() * 16) | 0);
       const col = this.columnAt(wx, wz);
       const h = Math.floor(col.h);
-      if (col.lava || h <= LAVA_LEVEL || !this.groundOk(wx, h, wz)) return null;
+      if (col.lava || h <= LAVA_LEVEL || !this.groundOk(wx, h, wz) || this.nearCastle(wx, wz)) return null;
       return { wx, wz, h, col };
     };
+    const castle = this.castleIn(cx, cz);
+    if (castle && castle.cx === cx && castle.cz === cz) out.push({ type: 'castle', ...castle, wx: castle.ox, wz: castle.oz });
     const centre = this.columnAt(cx * CHUNK_X + 8, cz * CHUNK_Z + 8);
     const forest = 1 - centre.wastes;
     // dead trees: thick in the forest, a few out on the wastes
@@ -131,16 +204,117 @@ export class ScorchGen {
     return out;
   }
 
-  applyFeature(blocks, cx, cz, f) {
+  // A ruined castle: a curtain wall with a gate and four corner towers,
+  // broken down in places, round a courtyard of rubble and a keep. In the
+  // keep: a cage of skeleton knights, its Knight Captain, and the hoard.
+  // (Built a chunk at a time: every chunk replays the same rolls, and put
+  // writes only what falls in its own.)
+  buildCastle(put, f, rng, entities, get) {
+    const { ox, oz, y } = f;
+    const W = 10;   // the curtain wall stands this far out
+    // gate-relative (a across, b out toward the gate) to world offsets
+    const turn = [(a, b) => [a, -b], (a, b) => [b, a], (a, b) => [-a, b], (a, b) => [-b, -a]][f.gate];
+    const at = (a, b) => { const [dx, dz] = turn(a, b); return [ox + dx, oz + dz]; };
+    const brick = () => (rng() < 0.12 ? B.CHARRED_STONE : B.SCORCHED_BRICKS);
+    const set = (dx, yy, dz, id) => put(ox + dx, yy, oz + dz, id, false);
+    // the ground: cleared above, filled in below (over lava or a hollow)
+    for (let dx = -CASTLE_R; dx <= CASTLE_R; dx++) {
+      for (let dz = -CASTLE_R; dz <= CASTLE_R; dz++) {
+        for (let yy = y; yy < y + 16; yy++) set(dx, yy, dz, B.AIR);
+        for (let yy = y - 6; yy < y - 1; yy++) {
+          const cur = get(ox + dx, yy, oz + dz);
+          if (cur === B.AIR || cur === B.LAVA) set(dx, yy, dz, B.SCORCHED_STONE);
+        }
+        set(dx, y - 1, dz, rng() < 0.3 ? B.ASH : B.SCORCHED_STONE);
+      }
+    }
+    // the curtain wall: six high with merlons, broken down in two or three places
+    const breaches = [];
+    for (let i = 0, n = 2 + ((rng() * 2) | 0); i < n; i++) breaches.push({ side: (rng() * 4) | 0, at: -6 + ((rng() * 12) | 0), w: 2 + ((rng() * 3) | 0), h: (rng() * 2) | 0 });
+    for (let side = 0; side < 4; side++) {
+      for (let t = -W; t <= W; t++) {
+        const [dx, dz] = [[t, -W], [W, t], [t, W], [-W, t]][side];
+        let h = 6 - (rng() < 0.25 ? 1 + ((rng() * 2) | 0) : 0);
+        for (const br of breaches) if (br.side === side && t >= br.at && t < br.at + br.w) h = br.h;
+        for (let k = 0; k < h; k++) set(dx, y + k, dz, brick());
+        if (h === 6 && (t & 1) === 0) set(dx, y + 6, dz, brick());
+      }
+    }
+    // the gate: a three-wide arch in the wall facing f.gate
+    for (let a = -1; a <= 1; a++) for (let k = 0; k < 4; k++) { const [wx, wz] = at(a, W); put(wx, y + k, wz, B.AIR, false); }
+    // corner towers: hollow, five across, one fallen to a stump
+    const fallen = (rng() * 4) | 0;
+    [[-W, -W], [W, -W], [W, W], [-W, W]].forEach(([tx, tz], i) => {
+      const top = i === fallen ? 3 + ((rng() * 3) | 0) : 9 + ((rng() * 4) | 0);
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) {
+          const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+          for (let k = 0; k < top; k++) set(tx + dx, y + k, tz + dz, edge ? (Math.abs(dx) === 2 && Math.abs(dz) === 2 ? B.CHARRED_STONE : brick()) : B.AIR);
+          if (edge && i !== fallen && ((dx + dz) & 1) === 0) set(tx + dx, y + top, tz + dz, brick());
+        }
+      }
+      // a way in from the courtyard (beside where the wall meets it)
+      const sx = -Math.sign(tx), sz = -Math.sign(tz);
+      set(tx + sx * 2, y, tz + sz, B.AIR); set(tx + sx * 2, y + 1, tz + sz, B.AIR);
+    });
+    // the keep: nine across, two storeys, its upper floor half fallen in
+    const K = 4, KH = 9;
+    for (let dx = -K; dx <= K; dx++) {
+      for (let dz = -K; dz <= K; dz++) {
+        const edge = Math.abs(dx) === K || Math.abs(dz) === K;
+        const corner = Math.abs(dx) === K && Math.abs(dz) === K;
+        const top = KH - (edge && rng() < 0.3 ? 1 + ((rng() * 3) | 0) : 0);
+        if (edge) {
+          for (let k = 0; k < top; k++) set(dx, y + k, dz, corner ? B.CHARRED_STONE : brick());
+          if (top === KH && ((dx + dz) & 1) === 0) set(dx, y + KH, dz, brick());
+        } else {
+          set(dx, y - 1, dz, B.CHARRED_PLANKS);
+          if (rng() < 0.55) set(dx, y + 4, dz, B.CHARRED_PLANKS);   // what's left of the upper floor
+        }
+      }
+    }
+    // its door, toward the gate, and windows high up
+    for (let k = 0; k < 3; k++) { const [wx, wz] = at(0, K); put(wx, y + k, wz, B.AIR, false); }
+    for (const [a, b] of [[-K, 0], [K, 0], [0, -K]]) { const [wx, wz] = at(a, b); put(wx, y + 6, wz, B.AIR, false); }
+    // the cage in the middle, the hoard against the back wall, lanterns
+    const cage = put(ox, y, oz, B.SPAWNER, false);
+    if (cage >= 0) entities.push([cage, { kind: 'spawner', mob: 'knight', guardian: true }]);
+    const chests = [[-2, -(K - 1)], [2, -(K - 1)]];
+    for (const [a, b] of chests) {
+      const [wx, wz] = at(a, b);
+      const loot = castleLoot(rng);   // (rolled whether or not this chunk holds it)
+      const i = put(wx, y, wz, B.CHEST, false);
+      if (i >= 0) entities.push([i, { kind: 'chest', slots: loot }]);
+    }
+    for (const [a, b] of [[-(K - 1), K - 1], [K - 1, K - 1], [-(K - 1), -(K - 1)], [K - 1, -(K - 1)]]) {
+      const [wx, wz] = at(a, b);
+      put(wx, y, wz, B.LANTERN, false);
+    }
+    // rubble and dead wood across the courtyard
+    for (let i = 0; i < 40; i++) {
+      const dx = -W + 1 + ((rng() * (2 * W - 1)) | 0), dz = -W + 1 + ((rng() * (2 * W - 1)) | 0);
+      const id = rng() < 0.7 ? brick() : B.CHARRED_LOG;
+      if (Math.max(Math.abs(dx), Math.abs(dz)) <= K + 1) continue;   // (the keep's doorstep stays clear)
+      put(ox + dx, y, oz + dz, id);
+      if (rng() < 0.3) put(ox + dx, y + 1, oz + dz, brick());
+    }
+  }
+
+  applyFeature(blocks, cx, cz, f, entities) {
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
-      if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 1 || wy >= CHUNK_Y) return;
+      if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 1 || wy >= CHUNK_Y) return -1;
       const i = blockIndex(x, wy, z);
-      if (onlyAir && blocks[i] !== B.AIR) return;
+      if (onlyAir && blocks[i] !== B.AIR) return -1;
       blocks[i] = id;
+      return i;
     };
     const rng = coordRng(this.seed, f.wx, f.wz, f.seed ?? 7);
-    if (f.type === 'tree') {
+    if (f.type === 'castle') this.buildCastle(put, f, rng, entities, (wx, wy, wz) => {
+      const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
+      return x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z ? -1 : blocks[blockIndex(x, wy, z)];
+    });
+    else if (f.type === 'tree') {
       // a bare black trunk with a few crooked branches and the odd clump of
       // dead leaves; some have snapped off short
       const h = rng() < 0.2 ? 2 + ((rng() * 2) | 0) : f.size;

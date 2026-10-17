@@ -6,8 +6,11 @@
 //   Zombie Brute   (zombie cages)    slow and heavy; winds up a ground slam
 //   Bone Archer    (skeleton cages)  looses three-arrow volleys, kicks you off
 //   Brood Mother   (spider cages)    hunts in any light; calls spiderlings as she's hurt
+//   Knight Captain (the keeps of the Scorchlands' ruined castles) a knight
+//                  twice over: a heavier shield, and a charge across the room
 
 import { Zombie, Skeleton, Spider } from './mobs.js';
+import { SkeletonKnight } from './scorchMobs.js';
 import { I } from '../items/itemIds.js';
 import { makeStack } from '../items/items.js';
 import { B } from '../blocks/blocks.js';
@@ -230,5 +233,54 @@ export class BroodMother extends BossMixin(Spider) {
   }
 }
 
+export class KnightCaptain extends BossMixin(SkeletonKnight) {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'captain';
+    this.meleeDamage = 7;
+    this.chargeCooldown = 3;
+    this.charging = 0;
+    bossify(this, { name: 'Knight Captain', health: 70, scale: 1.35 });
+  }
+
+  guardBreak() { return 18; }
+
+  think(dt, player, playerDist) {
+    this.chargeCooldown -= dt;
+    // the charge: shield up, straight at you, and a heavy bash if it connects
+    if (this.charging > 0) {
+      this.charging -= dt;
+      this.moving = true;
+      this.dashSpeed = 6;
+      this.steer(player, 1);
+      if (this.dist3(player) < 2.2 * this.reach && this.meleeHit(player, this.meleeDamage - 2, this.kind)) {
+        this.charging = 0;
+        const dx = player.x - this.x, dz = player.z - this.z, d = Math.hypot(dx, dz) || 1;
+        player.vx += (dx / d) * 8;
+        player.vz += (dz / d) * 8;
+        this.fx?.sound('clang', { pos: this });
+      }
+      if (this.charging <= 0) this.dashSpeed = 0;
+      return;
+    }
+    const d = this.dist3(player);
+    if (this.state === 'chase' && this.chargeCooldown <= 0 && d > 5 && d < 14 && this.onGround && this.canSee(player)) {
+      this.charging = 1.6;
+      this.chargeCooldown = 7 + Math.random() * 3;
+      this.fx?.sound('roar', { pos: this, vol: 0.7 });
+      return;
+    }
+    super.think(dt, player, playerDist);
+    this.stayHome();
+  }
+
+  onDeath() {
+    const drops = [makeStack(I.GOLD_INGOT, roll(3, 7)), makeStack(I.DIAMOND, roll(1, 3)), makeStack(I.GOLDEN_APPLE, 1),
+      makeStack(I.BONE, roll(2, 5)), makeStack(B.CHARRED_STONE, roll(4, 8))];
+    if (Math.random() < 0.35) drops.push(makeStack(I.DIAMOND_SWORD, 1));
+    this.dropFn?.(drops);
+  }
+}
+
 // which boss guards a cage of each monster
-export const DUNGEON_BOSSES = { zombie: ZombieBrute, skeleton: BoneArcher, spider: BroodMother };
+export const DUNGEON_BOSSES = { zombie: ZombieBrute, skeleton: BoneArcher, spider: BroodMother, knight: KnightCaptain };

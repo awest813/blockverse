@@ -412,6 +412,20 @@ tile('ember_portal', (ctx, rng) => {
   }
   for (let i = 0; i < 10; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, [255, 230, 170]);
 });
+tile('scorched_bricks', (ctx, rng) => {
+  const mortar = [36, 28, 28], brick = [82, 36, 32];
+  rect(ctx, 0, 0, TILE, TILE, mortar);
+  for (let row = 0; row < 4; row++) {
+    const y = row * 4, off = row % 2 === 0 ? 0 : 4;
+    for (let bx = -1; bx < 3; bx++) {
+      const x = bx * 8 + off;
+      const c = rng() < 0.35 ? shade(brick, 0.75) : rng() < 0.2 ? shade(brick, 1.2) : brick;
+      rect(ctx, x + 1, y + 1, 7, 3, c);
+      rect(ctx, x + 1, y + 1, 7, 1, shade(c, 1.12));
+    }
+  }
+  for (let i = 0; i < 5; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, [20, 16, 16]);   // soot and cracks
+});
 tile('charred_stone', (ctx, rng) => {
   fillNoise(ctx, rng, [[[34, 30, 34], 8], [[24, 22, 26], 4], [[48, 42, 46], 3]]);
   // thin veins of ember
