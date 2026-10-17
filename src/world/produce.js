@@ -3,6 +3,7 @@
 //   Nest   {kind:'nest', eggs, duck}       hens and ducks lay in one nearby; use it to collect (a collector empties it too)
 //   Churn  {kind:'churn', milk, work}      pour in milk, then churn (use it empty-handed): butter
 //   Press  {kind:'press', batches:[t...]}  put in milk; it's cheese once the world's clock reaches t
+//   Hive   {kind:'hive', bees, honey, work, at}   bees move in by flowers and make honey; take it with a bowl
 //
 // The press keeps deadlines on the world's clock, so cheese goes on ripening
 // while you're away or asleep (and its chunk is unloaded).
@@ -213,8 +214,68 @@ function usePress(it, t, held) {
   return true;
 }
 
-// right-click on a nest, churn or press; false lets the click do what it otherwise would
+// ---- the beehive ----
+
+const HIVE_BEES = 3, HIVE_HONEY = 5;
+const HONEY_WORK = 240;   // bee-seconds of the world's clock (with flowers about) to a bowl of honey
+const FLOWERS = new Set([B.DANDELION, B.POPPY]);
+
+function flowersNear(w, x, y, z) {
+  let n = 0;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -5; dx <= 5; dx++) for (let dz = -5; dz <= 5; dz++) if (FLOWERS.has(w.getBlockW(x + dx, y + dy, z + dz))) n++;
+  return n;
+}
+
+// Every few seconds a hive is loaded: bees move in (by flowers, by day),
+// honey is made for the time that's passed (while it was unloaded too, up
+// to a limit), and its bees fly about while you're near.
+export function tickHive(game, st, x, y, z, makeBee) {
+  const w = game.world, now = worldClock.now;
+  st.bees = count(st.bees, HIVE_BEES); st.honey = count(st.honey, HIVE_HONEY);
+  const away = Number.isFinite(st.at) ? Math.min(2400, Math.max(0, now - st.at)) : 0;
+  st.at = Math.round(now);
+  if (w.dimension === 'scorch') return;   // (no bees in that heat)
+  const flowers = flowersNear(w, x, y, z), day = !game.isNight?.();
+  if (st.bees && flowers) {
+    st.work = (Number.isFinite(st.work) ? st.work : 0) + away * st.bees;
+    while (st.work >= HONEY_WORK && st.honey < HIVE_HONEY) { st.work -= HONEY_WORK; st.honey++; }
+    if (st.honey >= HIVE_HONEY) st.work = 0;
+  }
+  if (flowers >= 2 && st.bees < HIVE_BEES && day && Math.random() < 0.06) st.bees++;
+  w.markModified(x, z);
+  // out and about by day while you're near
+  const p = game.player;
+  if (!st.bees || !day || Math.hypot(p.x - x, p.z - z) > 24) return;
+  const out = game.entities.mobs.filter((m) => m.kind === 'bee' && m.hive?.x === x && m.hive.y === y && m.hive.z === z).length;
+  if (out < st.bees) makeBee(x, y, z);
+}
+
+function useHive(it, t, held) {
+  const w = it.world, st = state(w, t.x, t.y, t.z, 'hive', () => ({ kind: 'hive', bees: 0, honey: 0 }));
+  st.bees = count(st.bees, HIVE_BEES); st.honey = count(st.honey, HIVE_HONEY);
+  if (held?.id === I.BOWL) {
+    if (!st.honey) { it.cb.notify?.(st.bees ? 'No honey yet: the bees are still at work' : 'No bees, no honey: set the hive by flowers'); return true; }
+    st.honey--;
+    w.setBlockEntity(t.x, t.y, t.z, st);
+    const p = it.player;
+    if (p.mode !== GAMEMODE_CREATIVE) {
+      p.consumeHeld(1);
+      if (!p.inventory[p.selected]) p.inventory[p.selected] = { id: I.HONEY_BOWL, count: 1 };
+      else give(it, I.HONEY_BOWL, 1);
+      p.events.dispatchEvent(new CustomEvent('inventory'));
+    }
+    it.cb.playSound('pickup', {});
+    return true;
+  }
+  if (held && isBlockItem(held.id)) return false;
+  if (!st.bees) it.cb.notify?.('An empty hive: bees move in when there are flowers close by (two or more)');
+  else it.cb.notify?.(`Beehive: ${st.bees} bee${st.bees > 1 ? 's' : ''}, honey ${st.honey}/${HIVE_HONEY}${st.honey ? ' — take it with a bowl' : ''}`);
+  return true;
+}
+
+// right-click on a nest, churn, press or hive; false lets the click do what it otherwise would
 export function useProduce(it, t, held) {
+  if (t.id === B.BEEHIVE) return useHive(it, t, held);
   if (t.id === B.NEST) return useNest(it, t, held);
   if (t.id === B.CHURN) return useChurn(it, t, held);
   if (t.id === B.CHEESE_PRESS) return usePress(it, t, held);

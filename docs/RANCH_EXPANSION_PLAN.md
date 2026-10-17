@@ -134,6 +134,10 @@ Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chick
 
 Horse armour (five materials, cutting 12–44% of damage; dragon scale makes the horse fireproof) shows as barding. Saddlebags (18 slots, a chest on a horse or camel) open in the chest window via `containers.openBags`. Both are saved in `saveExtra` and dropped on death. Led animals and the ridden mount are marked `travel` like pets, moved by `swapDimension`, and placed in front of the arrival portal by `Game.landAnimals`. Still to do: a stable block (pens already give horses a home).
 
+### Step 7 (done)
+
+Beehives (`hive {bees, honey, work, at}` in `world/produce.js`) gain bees by day when there are two or more flowers within 5 blocks. Honey comes from bee-seconds of world clock, so it catches up after being unloaded. Bees are cosmetic fliers (`entities/bees.js`), not saved. Crops within 4 blocks of a hive with bees grow 1.3 times as fast. New crops: beetroot (seeds from tall grass), pumpkin stems (a fruiting family that sets pumpkins beside them, which harvesters pick), and Scorch peppers (from charred leaves, plantable only in the Scorchlands, where ash can be hoed). New food: beetroot soup, spicy stew (`wards`: half fire damage), honey and honey bread. Still to do: berries and rice (they need a gated generator), melons, honeycomb and candles.
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

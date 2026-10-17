@@ -166,4 +166,12 @@ export const I = {
   GOLD_HORSE_ARMOR: 408,
   DIAMOND_HORSE_ARMOR: 409,
   DRAGON_HORSE_ARMOR: 410,   // (fire and lava can't touch a horse in it)
+  BEETROOT: 411,
+  BEETROOT_SEEDS: 412,
+  PUMPKIN_SEEDS: 413,
+  SCORCH_PEPPER: 414,    // grows only in the Scorchlands
+  BEETROOT_SOUP: 415,
+  SPICY_STEW: 416,       // wards off fire for a while
+  HONEY_BOWL: 417,
+  HONEY_BREAD: 418,
 };

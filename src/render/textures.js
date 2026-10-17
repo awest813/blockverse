@@ -1751,6 +1751,64 @@ for (let stage = 0; stage < 4; stage++) {
   tile(`carrots_stage_${stage}`, (ctx, rng) => rootCrop(ctx, rng, stage, [70, 150, 50], [236, 128, 32]));
   tile(`potatoes_stage_${stage}`, (ctx, rng) => rootCrop(ctx, rng, stage, [60, 132, 56], [196, 160, 96]));
 }
+// beetroot (the red root showing when ripe), Scorch peppers (red pods
+// hanging from a dark stalk) and pumpkin stems (a vine that thickens)
+for (let stage = 0; stage < 4; stage++) {
+  tile(`beetroots_stage_${stage}`, (ctx, rng) => rootCrop(ctx, rng, stage, [70, 140, 60], [150, 30, 50]));
+  tile(`peppers_stage_${stage}`, (ctx, rng) => {
+    const stalk = [70, 96, 40], leaf = [96, 128, 50];
+    const h = 4 + stage * 3;
+    for (const x of [4, 10]) {
+      for (let y = TILE - h; y < TILE; y++) px(ctx, x, y, stalk);
+      for (let y = TILE - h + 1; y < TILE - 1; y += 3) { px(ctx, x - 1, y, leaf); px(ctx, x + 1, y + 1, leaf); }
+      if (stage >= 2) for (const dy of [3, 6]) { const y = TILE - h + dy; if (y < TILE - 1) { rect(ctx, x + 1, y, 2, 3, stage === 3 ? [214, 40, 24] : [120, 150, 50]); px(ctx, x + 1, y, stage === 3 ? [250, 110, 60] : [150, 180, 70]); } }
+    }
+  });
+  tile(`pumpkin_stem_stage_${stage}`, (ctx, rng) => {
+    const vine = [96, 140, 48], dark = [70, 104, 34];
+    const h = 4 + stage * 3;
+    for (let y = TILE - h; y < TILE; y++) { px(ctx, 7 + ((y >> 2) & 1), y, vine); if (stage === 3) px(ctx, 8 - ((y >> 2) & 1), y, dark); }
+    for (let y = TILE - h + 2; y < TILE - 1; y += 4) { rect(ctx, 3, y, 4, 2, rng() < 0.5 ? vine : dark); rect(ctx, 9, y + 1, 4, 2, rng() < 0.5 ? vine : dark); }
+  });
+}
+tile('beehive_side', (ctx, rng) => {
+  planks(ctx, rng, [196, 156, 92]);
+  for (const y of [4, 11]) rect(ctx, 0, y, TILE, 1, [150, 110, 56]);
+});
+tile('beehive_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[206, 166, 98], 5], [[186, 146, 82], 3], [[220, 184, 116], 2]]);
+  rect(ctx, 0, 0, TILE, 1, [150, 110, 56]); rect(ctx, 0, TILE - 1, TILE, 1, [150, 110, 56]);
+});
+tile('beehive_front', (ctx, rng) => {
+  planks(ctx, rng, [196, 156, 92]);
+  for (const y of [4, 11]) rect(ctx, 0, y, TILE, 1, [150, 110, 56]);
+  rect(ctx, 5, 7, 6, 3, [40, 28, 18]);   // the door
+  rect(ctx, 6, 10, 4, 1, [232, 176, 40]);   // a dribble of honey
+});
+tile('beetroot', (ctx) => {
+  const r = [150, 30, 50], d = [110, 20, 36], l = [196, 70, 90];
+  rect(ctx, 4, 6, 8, 7, r); rect(ctx, 5, 5, 6, 9, r); rect(ctx, 11, 7, 1, 5, d); px(ctx, 6, 7, l); px(ctx, 7, 14, d);
+  rect(ctx, 6, 2, 2, 3, [70, 140, 60]); rect(ctx, 9, 1, 2, 4, [90, 160, 70]);
+});
+tile('beetroot_seeds', (ctx, rng) => {
+  for (let i = 0; i < 8; i++) { const x = 4 + ((rng() * 8) | 0), y = 5 + ((rng() * 7) | 0); px(ctx, x, y, [150, 110, 70]); px(ctx, x + 1, y, [120, 84, 50]); }
+});
+tile('pumpkin_seeds', (ctx, rng) => {
+  for (let i = 0; i < 6; i++) { const x = 4 + ((rng() * 7) | 0), y = 5 + ((rng() * 7) | 0); rect(ctx, x, y, 2, 1, [236, 226, 180]); px(ctx, x, y + 1, [206, 192, 140]); }
+});
+tile('scorch_pepper', (ctx) => {
+  const r = [214, 40, 24], d = [160, 24, 14], l = [250, 110, 60];
+  for (let i = 0; i < 8; i++) { rect(ctx, 4 + i, 5 + i, 3, 2, r); px(ctx, 4 + i, 6 + i, d); }
+  px(ctx, 5, 5, l); px(ctx, 7, 7, l);
+  rect(ctx, 3, 3, 2, 2, [70, 120, 40]); px(ctx, 2, 2, [70, 120, 40]);
+});
+tile('beetroot_soup', (ctx) => mealIcon(ctx, [150, 30, 50], [[5, [196, 70, 90]], [9, [110, 20, 36]]]));
+tile('spicy_stew', (ctx) => mealIcon(ctx, [176, 60, 30], [[4, [214, 40, 24]], [7, [96, 52, 30]], [10, [250, 110, 60]]]));
+tile('honey_bowl', (ctx) => { bowlShape(ctx, [232, 170, 30]); px(ctx, 6, 6, [252, 214, 100]); px(ctx, 9, 6, [252, 214, 100]); });
+tile('honey_bread', (ctx) => {
+  rect(ctx, 2, 6, 12, 6, [176, 112, 48]); rect(ctx, 3, 5, 10, 1, [196, 134, 64]); rect(ctx, 2, 11, 12, 1, [138, 84, 34]);
+  rect(ctx, 3, 5, 9, 2, [232, 170, 30]); px(ctx, 5, 7, [232, 170, 30]); px(ctx, 10, 7, [232, 170, 30]);   // honey running down
+});
 tile('carrot', (ctx) => {
   const o = [236, 128, 32], oD = [196, 92, 20], oL = [250, 170, 80];
   for (let i = 0; i < 9; i++) { rect(ctx, 3 + i, 12 - i, 3 - (i > 6 ? 1 : 0), 2, o); px(ctx, 3 + i, 13 - i, oD); }

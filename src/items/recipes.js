@@ -13,7 +13,7 @@ const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG,
 export const RECIPES = [];
 
 // ingredients that leave their container behind in the grid when used up
-export const CRAFT_REMAINDER = new Map([[I.WATER_BUCKET, I.BUCKET], [I.LAVA_BUCKET, I.BUCKET], [I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET]]);
+export const CRAFT_REMAINDER = new Map([[I.WATER_BUCKET, I.BUCKET], [I.LAVA_BUCKET, I.BUCKET], [I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET], [I.HONEY_BOWL, I.BOWL]]);
 const MILK = Object.assign([I.MILK_BUCKET, I.GOAT_MILK_BUCKET], { label: 'Milk' });
 const EGG = Object.assign([I.EGG, I.DUCK_EGG], { label: 'Egg' });
 
@@ -165,6 +165,11 @@ shapeless(I.CHEESE_SANDWICH, 1, [[I.BREAD], [I.CHEESE]]);
 shapeless(I.BUTTERED_POTATO, 1, [[I.BAKED_POTATO], [I.BUTTER]]);
 shapeless(I.PANCAKES, 2, [EGG, [I.WHEAT], MILK, [I.BUTTER]]);   // (the bucket comes back)
 shaped(I.WHISTLE, 1, ['I.', '.S'], { I: [I.IRON_INGOT], S: [I.STICK] });
+// bees, beetroot and pumpkins
+shaped(B.BEEHIVE, 1, ['PPP', 'WWW', 'PPP'], { P: ANY_PLANKS, W: [I.WHEAT] });
+shapeless(I.PUMPKIN_SEEDS, 4, [[B.PUMPKIN]]);
+shapeless(I.RED_DYE, 1, [[I.BEETROOT]]);
+shapeless(I.HONEY_BREAD, 2, [[I.BREAD], [I.HONEY_BOWL]]);   // (the bowl comes back)
 // horse armour: a padded blanket under each
 for (const [mat, armour] of [[I.LEATHER, I.LEATHER_HORSE_ARMOR], [I.IRON_INGOT, I.IRON_HORSE_ARMOR], [I.GOLD_INGOT, I.GOLD_HORSE_ARMOR], [I.DIAMOND, I.DIAMOND_HORSE_ARMOR], [I.DRAGON_SCALE, I.DRAGON_HORSE_ARMOR]]) {
   shaped(armour, 1, ['X.X', 'XWX', 'XXX'], { X: [mat], W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }) });

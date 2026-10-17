@@ -23,12 +23,14 @@ const OTHER_MEAT = [I.PORKCHOP_RAW, I.PORKCHOP_COOKED, I.MUTTON_RAW, I.MUTTON_CO
 const POTATO = [I.POTATO, I.BAKED_POTATO];
 const MEAT = new Set([...BEEF, ...BIRD, ...FISH, ...OTHER_MEAT]);
 const INGREDIENTS = new Set([...MEAT, ...POTATO, I.CARROT, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.PUMPKIN,
-  B.KELP, I.DRIED_KELP, I.COCONUT, I.APPLE, I.EGG, I.DUCK_EGG, I.WHEAT, I.CHEESE, I.BUTTER]);
+  B.KELP, I.DRIED_KELP, I.COCONUT, I.APPLE, I.EGG, I.DUCK_EGG, I.WHEAT, I.CHEESE, I.BUTTER, I.BEETROOT, I.SCORCH_PEPPER]);
 export const potIngredient = (id) => INGREDIENTS.has(id);
 
 // Meals, most particular first: each needs one of every listed group (extras
 // are fine unless it says otherwise). Colour: the meta its surface shows.
 const MEALS = [
+  { id: I.SPICY_STEW, needs: [[I.SCORCH_PEPPER], [...MEAT, ...POTATO]], colour: 2 },
+  { id: I.BEETROOT_SOUP, needs: [[I.BEETROOT], [I.BEETROOT]], colour: 3, meatless: true },
   { id: I.COCONUT_CURRY, needs: [[I.COCONUT], [...FISH, ...BIRD], [I.CARROT, ...POTATO]], colour: 3 },
   { id: I.BEEF_STEW, needs: [BEEF, [I.CARROT], POTATO], colour: 2 },
   { id: I.FISH_CHOWDER, needs: [FISH, POTATO], colour: 4 },

@@ -18,7 +18,7 @@ import { mulberry32 } from '../core/rng.js';
 // Blocks that open a UI instead of being a normal placement target.
 const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.BED]);
 const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.PALM_SAPLING]);
-const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
+const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS, B.ASH, B.ASHEN_GRASS]);   // (a hoe makes farmland of the Scorchlands' ash too)
 const SAND_SOIL = new Set([B.SAND, B.GRASS, B.DIRT]);   // a palm takes root on sand (or ordinary ground)
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
@@ -331,7 +331,7 @@ export class Interaction {
     if (held?.id === I.WHISTLE) { this.cb.whistle?.(p.sneaking); this.useCooldown = 1.5; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // the nest, the churn and the cheese press
-    if (t && (t.id === B.NEST || t.id === B.CHURN || t.id === B.CHEESE_PRESS) && !p.sneaking && useProduce(this, t, held)) { this.useCooldown = 0.25; return; }
+    if (t && (t.id === B.NEST || t.id === B.CHURN || t.id === B.CHEESE_PRESS || t.id === B.BEEHIVE) && !p.sneaking && useProduce(this, t, held)) { this.useCooldown = 0.25; return; }
     // a cake: a slice at a time
     if (t && t.id === B.CAKE && !p.sneaking && this.eatCake(t)) { this.useCooldown = 0.45; return; }
     // the cooking pot: water, food, then bowls
@@ -509,7 +509,7 @@ export class Interaction {
     // farm machines keep a little state of their own
     const machine = { [B.SPRINKLER]: { kind: 'sprinkler' }, [B.HARVESTER]: { kind: 'harvester', t: 2 }, [B.COLLECTOR]: { kind: 'collector' },
       [B.TROUGH]: { kind: 'trough', slots: [null, null, null] }, [B.COMPOSTER]: { kind: 'composter', level: 0 },
-      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
+      [B.NEST]: { kind: 'nest', eggs: 0, duck: 0 }, [B.BEEHIVE]: { kind: 'hive', bees: 0, honey: 0 }, [B.CHURN]: { kind: 'churn', milk: 0, work: 0 }, [B.CHEESE_PRESS]: { kind: 'press', batches: [] } }[info.id];
     if (machine) this.world.setBlockEntity(px, py, pz, machine);
     // a new sprinkler hurries along crops already growing nearby, not just their next stage
     if (info.id === B.SPRINKLER) {
@@ -551,6 +551,11 @@ export class Interaction {
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
     if (held.id === I.MILK_BUCKET || held.id === I.GOAT_MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
     if (info.cures) p.poisonTime = 0;
+    // a spicy stew wards off fire
+    if (info.wards) {
+      if (!(p.fireWard > 0)) this.cb.notify?.('A fire in your belly: flames and lava hurt you half as much for a while');
+      p.fireWard = Math.max(p.fireWard ?? 0, info.wards);
+    }
     // a hot meal warms you through and keeps the cold out for a while
     if (info.warms) {
       if (p.freeze > 0.15) this.cb.notify?.('That warms you right through');
@@ -766,6 +771,8 @@ export class Interaction {
     // seeds: plant on top of farmland
     if (info?.places) {
       if (t.id !== B.FARMLAND || t.ny !== 1 || above !== B.AIR) return true;
+      // Scorch peppers want the Scorchlands' heat
+      if (info.places === B.PEPPERS_0 && this.world.dimension !== 'scorch') { this.cb.notify?.('Scorch peppers only grow in the Scorchlands\u2019 heat'); return true; }
       this.world.setBlock(t.x, t.y + 1, t.z, info.places);
       this.world.setBlockEntity(t.x, t.y + 1, t.z, { kind: 'crop', grow: cropTime(this.world, t.x, t.y + 1, t.z, this.dropRng) });
       this.cb.playSound('place', { block: 'leaf' });

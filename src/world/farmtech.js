@@ -13,7 +13,8 @@ import { I } from '../items/itemIds.js';
 import { CHUNK_Y, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { maxStack, itemInfo } from '../items/items.js';
 import { cropFamily, isRipe, cropTime } from './saplings.js';
-import { emptyNests } from './produce.js';
+import { emptyNests, tickHive } from './produce.js';
+import { Bee } from '../entities/bees.js';
 
 const REACH = 4;
 const NEIGHBOURS = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
@@ -262,6 +263,14 @@ function tickHarvester(game, st, x, y, z) {
       for (let dz = -REACH; dz <= REACH && reaped < 6; dz++) {
         const cx = x + dx, cy = y + dy, cz = z + dz;
         const id = w.getBlockW(cx, cy, cz);
+        // a pumpkin a stem has set: picked, and the stem left to set another
+        if (id === B.PUMPKIN && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([sx, sz]) => w.getBlockW(cx + sx, cy, cz + sz) === B.PUMPKIN_STEM_3)) {
+          w.setBlock(cx, cy, cz, B.AIR);
+          const left = chest ? store(w, chest, { id: B.PUMPKIN, count: 1 }) : 1;
+          if (left > 0) game.entities.spawnDrops(cx + 0.5, cy + 0.3, cz + 0.5, [{ id: B.PUMPKIN, count: left }]);
+          reaped++;
+          continue;
+        }
         if (!isRipe(id)) continue;
         const fam = cropFamily(id);
         const drops = blockInfo(id).drop?.(Math.random) ?? [];
@@ -306,7 +315,7 @@ function tickCollector(game, x, y, z) {
 
 // ---- the tick ----
 
-const PERIOD = { harvester: 3, collector: 0.5, trough: 5, sprinkler: 1.2 };
+const PERIOD = { harvester: 3, collector: 0.5, trough: 5, sprinkler: 1.2, hive: 4 };
 
 export function tickFarmTech(game, dt) {
   const { world, player } = game;
@@ -324,7 +333,13 @@ export function tickFarmTech(game, dt) {
       const x = chunk.cx * 16 + lx, z = chunk.cz * 16 + lz;
       if (st.kind === 'harvester') { if (world.getBlockW(x, y, z) === B.HARVESTER) tickHarvester(game, st, x, y, z); }
       else if (st.kind === 'collector') { if (world.getBlockW(x, y, z) === B.COLLECTOR) tickCollector(game, x, y, z); }
-      else if (st.kind === 'trough') { if (world.getBlockW(x, y, z) === B.TROUGH && !(world.getMetaW(x, y, z) & 1)) tickTrough(game, st, x, y, z); }
+      else if (st.kind === 'hive') {
+        if (world.getBlockW(x, y, z) === B.BEEHIVE) tickHive(game, st, x, y, z, (hx, hy, hz) => {
+          const bee = new Bee(game.scene, world, hx + 0.5, hy + 1.1, hz + 0.5);
+          bee.hive = { x: hx, y: hy, z: hz };
+          game.entities.addMob(bee);
+        });
+      } else if (st.kind === 'trough') { if (world.getBlockW(x, y, z) === B.TROUGH && !(world.getMetaW(x, y, z) & 1)) tickTrough(game, st, x, y, z); }
       else if (st.kind === 'sprinkler' && Math.hypot(x - player.x, z - player.z) < 24 && world.getBlockW(x, y, z) === B.SPRINKLER) {
         game.sparks?.(x + 0.5, y + 0.7, z + 0.5, 0x7ab8f0, 5);   // a little spray
       }

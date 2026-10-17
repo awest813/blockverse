@@ -51,6 +51,7 @@ export class Player {
     this.fireTime = 0;     // seconds left burning
     this.poisonTime = 0;   // seconds of a scorpion's venom left
     this.warmTime = 0;     // seconds a hot meal keeps the cold out
+    this.fireWard = 0;     // seconds a spicy stew halves the harm from fire and lava
     this.exhaustion = 0;
 
     // inventory: 36 slots (0-8 hotbar), stacks are {id, count, dur?} | null
@@ -375,6 +376,7 @@ export class Player {
   // through, you stiffen up; frozen, it starts to hurt.
   updateCold(dt) {
     if (this.warmTime > 0) this.warmTime = Math.max(0, this.warmTime - dt);
+    if (this.fireWard > 0) this.fireWard = Math.max(0, this.fireWard - dt);
     this.coldTimer = (this.coldTimer ?? 0) - dt;
     if (this.coldTimer <= 0) {
       this.coldTimer = 0.5;
@@ -439,6 +441,7 @@ export class Player {
     if (FIERY.has(cause)) {
       const scales = this.armor.filter((s) => s && DRAGON_SCALE.has(s.id)).length;
       if (scales) amount = Math.max(0, Math.round(amount * (1 - 0.2 * scales) * 2) / 2);
+      if (this.fireWard > 0) amount = Math.round(amount) / 2;   // a spicy stew inside you
       if (amount <= 0) return;
     }
     this.health -= amount;
@@ -490,6 +493,7 @@ export class Player {
     this.freeze = 0;
     this.poisonTime = 0;
     this.warmTime = 0;
+    this.fireWard = 0;
   }
 
   // ---- inventory helpers ----
@@ -601,7 +605,7 @@ export class Player {
       worldSpawn: this.worldSpawn,
       bedPos: this.bedPos,
       // what's still on you: flames, venom, a chill, a hot meal's warmth
-      fireTime: this.fireTime, poisonTime: this.poisonTime, freeze: this.freeze, warmTime: this.warmTime,
+      fireTime: this.fireTime, poisonTime: this.poisonTime, freeze: this.freeze, warmTime: this.warmTime, fireWard: this.fireWard,
     };
   }
 
@@ -626,7 +630,7 @@ export class Player {
     this.bedPos = d.bedPos ?? null;
     const secs = (v, max) => (Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : 0);
     this.fireTime = secs(d.fireTime, 30); this.poisonTime = secs(d.poisonTime, 30);
-    this.freeze = secs(d.freeze, 1); this.warmTime = secs(d.warmTime, 600);
+    this.freeze = secs(d.freeze, 1); this.warmTime = secs(d.warmTime, 600); this.fireWard = secs(d.fireWard, 600);
     this.dead = this.health <= 0;
   }
 }

@@ -37,6 +37,7 @@ function item(id, name, display, opts = {}) {
     eatTime: opts.eatTime ?? 1.6,  // seconds of holding use to eat/drink
     drink: opts.drink ?? false,    // milk: drinkable without being food
     warms: opts.warms ?? 0,        // seconds a hot meal keeps the cold out
+    wards: opts.wards ?? 0,        // seconds it halves the harm from fire and lava (spicy stew)
     cures: opts.cures ?? false,    // settles a scorpion's venom
   });
 }
@@ -128,6 +129,12 @@ item(I.IRON_HORSE_ARMOR, 'iron_horse_armor', 'Iron Horse Armour', { stack: 1 });
 item(I.GOLD_HORSE_ARMOR, 'gold_horse_armor', 'Gold Horse Armour', { stack: 1 });
 item(I.DIAMOND_HORSE_ARMOR, 'diamond_horse_armor', 'Diamond Horse Armour', { stack: 1 });
 item(I.DRAGON_HORSE_ARMOR, 'dragon_horse_armor', 'Dragon Scale Horse Armour', { stack: 1 });
+item(I.BEETROOT, 'beetroot', 'Beetroot', { food: 1, sat: 1.2 });
+item(I.BEETROOT_SEEDS, 'beetroot_seeds', 'Beetroot Seeds', { places: B.BEETROOTS_0 });
+item(I.PUMPKIN_SEEDS, 'pumpkin_seeds', 'Pumpkin Seeds', { places: B.PUMPKIN_STEM_0 });
+item(I.SCORCH_PEPPER, 'scorch_pepper', 'Scorch Pepper', { food: 1, sat: 0.6, places: B.PEPPERS_0, warms: 30 });
+item(I.HONEY_BOWL, 'honey_bowl', 'Bowl of Honey', { food: 6, sat: 2.4, stack: 1, returns: I.BOWL, cures: true });
+item(I.HONEY_BREAD, 'honey_bread', 'Honey Bread', { food: 7, sat: 8 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -171,6 +178,8 @@ meal(I.FISH_CHOWDER, 'fish_chowder', 'Fish Chowder', 9, 11);
 meal(I.VEGETABLE_SOUP, 'vegetable_soup', 'Vegetable Soup', 7, 8.4);
 meal(I.PUMPKIN_SOUP, 'pumpkin_soup', 'Pumpkin Soup', 7, 8.4);
 meal(I.COCONUT_CURRY, 'coconut_curry', 'Coconut Curry', 10, 12, { warms: 180 });
+meal(I.BEETROOT_SOUP, 'beetroot_soup', 'Beetroot Soup', 6, 7.2);
+meal(I.SPICY_STEW, 'spicy_stew', 'Spicy Stew', 8, 9.6, { warms: 300, wards: 180 });
 meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 6, 6);
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
@@ -274,6 +283,12 @@ const USES = new Map([
   [I.GOLD_HORSE_ARMOR, 'Use it on your horse: it turns over a quarter of the harm (sneak with an empty hand to take it off)'],
   [I.DIAMOND_HORSE_ARMOR, 'Use it on your horse: it turns nearly half the harm (sneak with an empty hand to take it off)'],
   [I.DRAGON_HORSE_ARMOR, 'Use it on your horse: it turns nearly half the harm, and fire and lava can\u2019t touch it'],
+  [B.BEEHIVE, 'Set it by flowers and bees move in: they make honey (take it with a bowl) and help crops nearby grow'],
+  [I.BEETROOT_SEEDS, 'Plant on farmland: beetroot, for soup and red dye'],
+  [I.PUMPKIN_SEEDS, 'Plant on farmland: a grown stem sets pumpkins on the ground beside it'],
+  [I.SCORCH_PEPPER, 'Grows only in the Scorchlands\u2019 heat (plant it on farmland there). In a pot with meat or potatoes: spicy stew'],
+  [I.SPICY_STEW, 'Warms you through and halves the harm from fire and lava for three minutes'],
+  [I.HONEY_BOWL, 'Sweet, and settles venom'],
   [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

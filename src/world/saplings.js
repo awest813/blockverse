@@ -63,14 +63,28 @@ export function catchUpChunk(world, chunk, savedAt, now) {
 }
 
 // Crops: four stages each, planted from seeds or the vegetable itself.
-// [first stage, ripe stage, what replanting it costs]
+// [first stage, ripe stage, what replanting it costs, (the fruit a grown stem sets beside it)]
 export const CROP_FAMILIES = [
   [B.WHEAT_0, B.WHEAT_3, I.WHEAT_SEEDS],
   [B.CARROTS_0, B.CARROTS_3, I.CARROT],
   [B.POTATOES_0, B.POTATOES_3, I.POTATO],
+  [B.BEETROOTS_0, B.BEETROOTS_3, I.BEETROOT_SEEDS],
+  [B.PEPPERS_0, B.PEPPERS_3, I.SCORCH_PEPPER],
+  [B.PUMPKIN_STEM_0, B.PUMPKIN_STEM_3, I.PUMPKIN_SEEDS, B.PUMPKIN],
 ];
 export const cropFamily = (id) => CROP_FAMILIES.find(([a, b]) => id >= a && id <= b) ?? null;
-export const isRipe = (id) => CROP_FAMILIES.some(([, ripe]) => id === ripe);
+// (a grown stem isn't ripe: its pumpkins are what's picked)
+export const isRipe = (id) => CROP_FAMILIES.some(([, ripe, , fruit]) => id === ripe && !fruit);
+
+// A grown stem sets a pumpkin on open ground beside it (one at a time).
+const FRUIT_GROUND = new Set([B.DIRT, B.GRASS, B.FARMLAND, B.SNOWY_GRASS, B.ASH, B.ASHEN_GRASS]);
+function setFruit(world, x, y, z, fruit, rng) {
+  const sides = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  if (sides.some(([dx, dz]) => world.getBlockW(x + dx, y, z + dz) === fruit)) return;
+  const [dx, dz] = sides[(rng() * 4) | 0];
+  if (world.getBlockW(x + dx, y, z + dz) !== B.AIR || !FRUIT_GROUND.has(world.getBlockW(x + dx, y - 1, z + dz))) return;
+  world.setBlock(x + dx, y, z + dz, fruit);
+}
 
 // is there water within 4 blocks of the farmland under this crop?
 export function hydrated(world, x, y, z) {
@@ -92,10 +106,23 @@ export function nearSprinkler(world, x, y, z) {
   return false;
 }
 
+// bees at work: a hive with bees within 4 blocks
+export function nearBees(world, x, y, z) {
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      for (let dz = -4; dz <= 4; dz++) {
+        if (world.getBlockW(x + dx, y + dy, z + dz) === B.BEEHIVE && world.blockEntityAt(x + dx, y + dy, z + dz)?.bees > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
 // seconds until the next growth stage: halved by water nearby, and a
-// sprinkler (which counts as water) speeds it up further
+// sprinkler (which counts as water) speeds it up further; bees nearby,
+// a little more
 export function cropTime(world, x, y, z, rng) {
-  const base = 40 + rng() * 40;
+  const base = (40 + rng() * 40) / (nearBees(world, x, y, z) ? 1.3 : 1);
   if (nearSprinkler(world, x, y, z)) return base / 3.5;
   return hydrated(world, x, y, z) ? base / 2 : base;
 }
@@ -105,9 +132,15 @@ export function growCrop(world, x, y, z, steps, rng) {
   const id = world.getBlockW(x, y, z);
   const fam = cropFamily(id);
   if (!fam) { world.setBlockEntity(x, y, z, null); return; }
+  // a grown stem: sets a pumpkin, and goes on growing them
+  if (id === fam[1] && fam[3]) {
+    setFruit(world, x, y, z, fam[3], rng);
+    world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) * 2 });
+    return;
+  }
   const next = Math.min(fam[1], id + steps);
   world.setBlock(x, y, z, next);   // clears the block entity
-  if (next < fam[1]) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
+  if (next < fam[1] || fam[3]) world.setBlockEntity(x, y, z, { kind: 'crop', grow: cropTime(world, x, y, z, rng) });
 }
 
 // is there air above a sapling for at least its smallest tree? (bone meal

@@ -145,6 +145,10 @@ export const B = {
   NEST: 138,             // hens and ducks lay in it; meta: eggs showing (0-3)
   CHURN: 139,            // milk in, butter out; meta: the dasher down
   CHEESE_PRESS: 140,     // milk in, cheese out (in time); meta: a cheese in it
+  BEETROOTS_0: 141, BEETROOTS_1: 142, BEETROOTS_2: 143, BEETROOTS_3: 144,
+  PUMPKIN_STEM_0: 145, PUMPKIN_STEM_1: 146, PUMPKIN_STEM_2: 147, PUMPKIN_STEM_3: 148,   // a grown stem sets pumpkins beside it
+  PEPPERS_0: 149, PEPPERS_1: 150, PEPPERS_2: 151, PEPPERS_3: 152,   // Scorch peppers: the Scorchlands only
+  BEEHIVE: 153,          // bees move in by flowers; honey for a bowl
 };
 
 // Tool classes
@@ -289,7 +293,7 @@ reg(def(B.CACTUS, 'cactus', 'Cactus', {
 reg(def(B.TALL_GRASS, 'tall_grass', 'Tall Grass', {
   solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, replaceable: true, sound: 'leaf',
   // seeds, and now and then a wild carrot or potato: how farming starts
-  drop: (rng) => { const r = rng(); return r < 0.125 ? [{ id: I.WHEAT_SEEDS, count: 1 }] : r < 0.135 ? [{ id: I.CARROT, count: 1 }] : r < 0.145 ? [{ id: I.POTATO, count: 1 }] : []; },
+  drop: (rng) => { const r = rng(); return r < 0.125 ? [{ id: I.WHEAT_SEEDS, count: 1 }] : r < 0.135 ? [{ id: I.CARROT, count: 1 }] : r < 0.145 ? [{ id: I.POTATO, count: 1 }] : r < 0.17 ? [{ id: I.BEETROOT_SEEDS, count: 1 }] : []; },
 }));
 reg(def(B.DANDELION, 'dandelion', 'Dandelion', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.POPPY, 'poppy', 'Poppy', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
@@ -383,6 +387,23 @@ for (const [first, name, display, item] of [[B.CARROTS_0, 'carrots', 'Carrots', 
     }));
   }
 }
+// beetroot (from seeds), Scorch peppers (planted from the pepper) and pumpkin stems
+for (let stage = 0; stage < 4; stage++) {
+  reg(def(B.BEETROOTS_0 + stage, `beetroots_${stage}`, 'Beetroots', {
+    ...plant, hardness: 0, textures: `beetroots_stage_${stage}`,
+    drop: stage < 3 ? () => [{ id: I.BEETROOT_SEEDS, count: 1 }] : (rng) => [{ id: I.BEETROOT, count: 1 }, { id: I.BEETROOT_SEEDS, count: 1 + ((rng() * 3) | 0) }],
+  }));
+  reg(def(B.PEPPERS_0 + stage, `peppers_${stage}`, 'Scorch Peppers', {
+    ...plant, hardness: 0, textures: `peppers_stage_${stage}`,
+    drop: stage < 3 ? () => [{ id: I.SCORCH_PEPPER, count: 1 }] : (rng) => [{ id: I.SCORCH_PEPPER, count: 2 + ((rng() * 2) | 0) }],
+  }));
+  reg(def(B.PUMPKIN_STEM_0 + stage, `pumpkin_stem_${stage}`, 'Pumpkin Stem', {
+    ...plant, hardness: 0, textures: `pumpkin_stem_stage_${stage}`, drop: () => [{ id: I.PUMPKIN_SEEDS, count: 1 }],
+  }));
+}
+reg(def(B.BEEHIVE, 'beehive', 'Beehive', {
+  hardness: 0.6, tool: TOOL_AXE, sound: 'wood', textures: { top: 'beehive_top', bottom: 'beehive_top', side: 'beehive_side', front: 'beehive_front' },
+}));
 reg(def(B.TNT, 'tnt', 'TNT', {
   hardness: 0, sound: 'leaf',
   textures: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' },
@@ -483,7 +504,7 @@ reg(def(B.CHARRED_PLANKS, 'charred_planks', 'Charred Planks', { hardness: 2, too
 // a few black, shrivelled leaves still clinging on (sticks, now and then)
 reg(def(B.CHARRED_LEAVES, 'charred_leaves', 'Charred Leaves', {
   render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf',
-  drop: (rng) => (rng() < 0.12 ? [{ id: I.STICK, count: 1 }] : []),
+  drop: (rng) => { const r = rng(); return r < 0.12 ? [{ id: I.STICK, count: 1 }] : r < 0.17 ? [{ id: I.SCORCH_PEPPER, count: 1 }] : []; },   // (a wild pepper, now and then)
 }));
 // a burnt-out stump still glowing at its heart: charcoal when broken
 reg(def(B.SMOULDERING_STUMP, 'smouldering_stump', 'Smouldering Stump', {
@@ -555,7 +576,7 @@ export function isSolid(id) {
 // growing wheat, a door's top half, fire)
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
-    (id >= B.CARROTS_0 && id <= B.POTATOES_3) ||
+    (id >= B.CARROTS_0 && id <= B.POTATOES_3) || (id >= B.BEETROOTS_0 && id <= B.PEPPERS_3) ||
     id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT || id === B.EMBER_PORTAL;
 }
 
