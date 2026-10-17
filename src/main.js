@@ -187,14 +187,17 @@ async function openWorld(id, { heldLock = null, loadingText = null } = {}) {
   let cancelled = false;
   await new Promise((resolve) => {
     const t0 = performance.now();
+    const g = game;
     const poll = setInterval(() => {
-      const pcx = Math.floor(game.player.x / 16);
-      const pcz = Math.floor(game.player.z / 16);
+      // (gone already: quit, or off through a portal)
+      if (game !== g) { cancelled = true; clearInterval(poll); resolve(); return; }
+      const pcx = Math.floor(g.player.x / 16);
+      const pcz = Math.floor(g.player.z / 16);
       let meshed = 0;
       const R = 2, total = (2 * R + 1) ** 2;
       for (let dx = -R; dx <= R; dx++) {
         for (let dz = -R; dz <= R; dz++) {
-          const c = game.world.getChunk(pcx + dx, pcz + dz);
+          const c = g.world.getChunk(pcx + dx, pcz + dz);
           if (c?.mesh) meshed++;
         }
       }
@@ -210,7 +213,7 @@ async function openWorld(id, { heldLock = null, loadingText = null } = {}) {
 
   screens.onCancelLoading = null;
   clearTimeout(screens._loadingSlow);
-  if (cancelled) { quitToTitle({ save: false }); return; }   // nothing was played: leave the save untouched
+  if (cancelled) { if (game) quitToTitle({ save: false }); return; }   // nothing was played: leave the save untouched
   screens.clear();
   game.loading = false;
   game.setUiOpen(false);
@@ -256,7 +259,7 @@ function resumeGame() {
 function respawn() {
   if (!game) return;
   screens.clear();
-  game.respawnPlayer();
+  game.respawnPlayer();   // (from the Scorchlands, this sends you home: the Game closes after this frame)
   game.hud.renderStats();
   game.hud.renderHotbar();
   game.setUiOpen(false);

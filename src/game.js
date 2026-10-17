@@ -190,7 +190,7 @@ export class Game {
       // its cage's chunk may be unloaded (you led it far away): the world
       // remembers, and the cage learns when it next loads
       else if (boss.home?.cage) (this.worldMeta.defeatedCages ??= []).push(boss.home.key ?? boss.home.cage);
-      if (boss.kind === 'dragon') this.dragonSlain = true;   // (until you next come to the Scorchlands)
+      if (boss.kind === 'dragon') this.worldMeta.dragonSlain = true;   // (until you next come to the Scorchlands)
       this.hud.showLabel(`${boss.boss.name} defeated!`);
       this.sfx?.play('victory');
       this.sparks(boss.x, boss.y + boss.h * 0.6, boss.z, 0xffd84a, 30);
@@ -364,19 +364,27 @@ export class Game {
       p.deserialize(saved);
       if (arrive) {
         this.justArrived = true;
+        if (this.dimension === SCORCH) delete this.worldMeta.dragonSlain;   // (come back to the Scorchlands: so has the dragon)
         if (p.dead) p.respawn();
-        const spot = arrive.exact ? arrive : this.arrivalSpot(arrive.x, arrive.z);
+        // home after a death there: by the bed if there is one (finishArrival checks it)
+        const spot = arrive.home ? (p.bedPos ? { x: p.bedPos.x + 0.5, y: p.bedPos.y + 1.05, z: p.bedPos.z + 0.5 } : p.spawnPoint)
+          : arrive.exact ? arrive
+            : this.arrivalSpot(arrive.x, arrive.z, arrive.portal && this.dimension === SCORCH ? 14 : 40);
         p.x = spot.x; p.y = spot.y; p.z = spot.z;
         this.arrived = { ...arrive, spot };   // (a portal to find or build there: finishArrival)
         p.vx = p.vy = p.vz = 0; p.fallStart = null; p.flying = false;
         return;
       }
-      // saved on the death screen: wake up at the spawn point
-      if (p.dead) p.respawn();
+      // saved on the death screen: wake up at the spawn point (from the
+      // Scorchlands, at home: finishArrival sends you)
+      if (p.dead) {
+        p.respawn();
+        if (this.dimension === SCORCH) { this.sendHome = true; p.x = saved.x; p.y = saved.y; p.z = saved.z; }
+      }
       const ok = (q) => q && [q.x, q.y, q.z].every(Number.isFinite);
       if (ok(p) && p.y > -8) return;
       // a damaged position: back to the spawn point (or find one afresh)
-      if (ok(p.spawnPoint)) { p.x = p.spawnPoint.x; p.y = p.spawnPoint.y; p.z = p.spawnPoint.z; p.vx = p.vy = p.vz = 0; return; }
+      if (ok(p.spawnPoint) && this.dimension !== SCORCH) { p.x = p.spawnPoint.x; p.y = p.spawnPoint.y; p.z = p.spawnPoint.z; p.vx = p.vy = p.vz = 0; return; }
     }
     if (this.dimension === SCORCH) {   // (a save that somehow opened here first)
       const s = this.arrivalSpot(8.5, 8.5);
@@ -401,14 +409,15 @@ export class Game {
 
   // somewhere to stand near (x, z) on arrival: dry ground (not a lava lake,
   // not the sea), the nearest within 40 blocks, on top of the terrain
-  arrivalSpot(x, z) {
+  arrivalSpot(x, z, range = 40) {
     const gen = this.world.gen;
     const dry = (wx, wz) => {
       const col = gen.columnAt(wx, wz);
       const h = Math.floor(col.h);
-      return !col.lava && h > (this.dimension === SCORCH ? LAVA_LEVEL : SEA_LEVEL) && gen.groundOk(wx, h, wz) ? h : null;
+      // (not in a castle or on the dragon's roost: the land's height there isn't the generator's)
+      return !col.lava && h > (this.dimension === SCORCH ? LAVA_LEVEL : SEA_LEVEL) && gen.groundOk(wx, h, wz) && !gen.nearStructure?.(wx, wz) ? h : null;
     };
-    for (let r = 0; r <= 40; r += 2) {
+    for (let r = 0; r <= range; r += 2) {
       for (let k = 0; k < Math.max(1, r * 3); k++) {
         const a = (k / Math.max(1, r * 3)) * Math.PI * 2;
         const wx = Math.floor(x + Math.cos(a) * r), wz = Math.floor(z + Math.sin(a) * r);
@@ -447,7 +456,9 @@ export class Game {
     for (const m of this.entities.mobs) {
       if (m.tamed && !m.sitting && !m.dead && m.dying === undefined && Math.hypot(m.x - p.x, m.z - p.z) < 8) m.travelling = true;
     }
-    this.uiHooks?.travel?.(to, arrive);
+    // (after this frame: the Game is closed down on the way, and the rest of
+    // the frame mustn't run on a disposed world)
+    setTimeout(() => this.uiHooks?.travel?.(to, arrive), 0);
   }
 
   // ---------- the Scorch Dragon ----------
@@ -456,7 +467,7 @@ export class Game {
   // visit (it's back the next time you come to the Scorchlands).
   updateDragon(dt) {
     this._dragonT = (this._dragonT ?? 0) - dt;
-    if (this._dragonT > 0 || this.dragonSlain || this.mobSpawner.difficulty === 0) return;
+    if (this._dragonT > 0 || this.worldMeta.dragonSlain || this.mobSpawner.difficulty === 0) return;
     this._dragonT = 1;
     const roost = this.world.gen.roost?.(), p = this.player;
     if (!roost || p.dead || Math.hypot(p.x - roost.x, p.z - roost.z) > 40 || !this.world.isLoaded(roost.x, roost.z)) return;
@@ -553,16 +564,29 @@ export class Game {
   // Once the land around you has loaded: if you came by portal, stand in the
   // one you came out of (building it if it isn't there).
   finishArrival() {
+    // reloaded on the death screen in the Scorchlands: home you go
+    if (this.sendHome) { this.sendHome = false; this.travel(OVERWORLD, { home: true }); return; }
     const a = this.arrived;
     this.arrived = null;
     const pets = this.arrivingPets ?? [];
     this.arrivingPets = null;
-    if (!a?.portal) return;
     const p = this.player, w = this.world;
+    // woken at home after dying over there: the bed if it's still there
+    if (a?.home) { this.respawnPlayer(); return; }
+    // the land as it is (a build, a hill the generator didn't know): stand on top of it
+    const up = (x, y, z) => {
+      let n = 0;
+      while (n++ < 24 && (isSolid(w.getBlockW(Math.floor(x), Math.floor(y), Math.floor(z))) || isSolid(w.getBlockW(Math.floor(x), Math.floor(y) + 1, Math.floor(z))))) y = Math.floor(y) + 1;
+      return y;
+    };
+    if (!a?.portal) {
+      if (a && !a.exact) { p.y = up(p.x, p.y, p.z); p.vy = 0; p.fallStart = null; }
+      return;
+    }
     let f = a.portal.build ? null : portalAt(w, a.portal.x, a.portal.y, a.portal.z);
     if (!f) {
       if (!a.portal.build) forgetPortal(this.worldMeta, this.dimension, a.portal);   // gone since: a new one
-      f = buildPortal(w, Math.floor(a.spot.x), Math.floor(a.spot.y), Math.floor(a.spot.z), a.portal.axis ?? 0, this.dimension);
+      f = buildPortal(w, Math.floor(a.spot.x), up(a.spot.x, a.spot.y, a.spot.z), Math.floor(a.spot.z), a.portal.axis ?? 0, this.dimension);
       rememberPortal(this.worldMeta, this.dimension, f);
     }
     const s = standSpot(f);
@@ -1238,7 +1262,7 @@ export class Game {
     // died in the Scorchlands: you wake at home (bed or world spawn)
     if (this.dimension === SCORCH) {
       p.respawn();
-      this.travel(OVERWORLD, { ...p.spawnPoint, exact: true });
+      this.travel(OVERWORLD, { home: true });
       return;
     }
     const bed = p.bedPos;

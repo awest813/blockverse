@@ -205,6 +205,14 @@ export class SaveStore {
         }
       }
     }
+    // where the player turns up on opening (a hand-edited one could be anything)
+    if (meta.arrive !== undefined) {
+      const a = meta.arrive, num = (v) => Number.isFinite(v);
+      const okPortal = a?.portal === undefined || (typeof a.portal === 'object' && a.portal !== null
+        && (a.portal.build === true || [a.portal.x, a.portal.y, a.portal.z].every(Number.isInteger)) && (a.portal.axis === 0 || a.portal.axis === 1 || a.portal.axis === undefined));
+      const okPlace = a?.home === true || (num(a?.x) && num(a?.z) && (!a.exact || num(a.y)));
+      if (typeof a !== 'object' || a === null || !okPlace || !okPortal) delete meta.arrive;
+    }
     if (meta.portals !== undefined) {
       meta.portals = Array.isArray(meta.portals)
         ? meta.portals.filter((q) => placed(q) && [q.x, q.y, q.z].every(Number.isInteger) && typeof q.dim === 'string' && (q.axis === 0 || q.axis === 1))

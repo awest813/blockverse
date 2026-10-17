@@ -427,7 +427,7 @@ export class ScorchDragon extends Flier {
     const toward = ((dx / len) * fx + (dz / len) * fz) / (Math.hypot(dx / len, dz / len) || 1);
     if (len < 9 && toward > 0.7 && this.canSee(player, 1.3)) {
       player.damage(2, 'dragonfire');
-      player.fireTime = Math.max(player.fireTime ?? 0, 3);
+      player.fireTime = Math.max(player.fireTime ?? 0, 2);
     }
   }
 

@@ -16,7 +16,7 @@ const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', '
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze', 'poison']);
 const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
 const DRAGON_SCALE = new Set([I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS]);
-const FIERY = new Set(['fire', 'lava', 'fireball', 'dragonfire']);
+const FIERY = new Set(['fire', 'lava', 'fireball', 'drake', 'dragonfire']);
 
 export class Player {
   constructor(world) {

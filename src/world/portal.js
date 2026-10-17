@@ -119,7 +119,7 @@ export function buildPortal(world, x, y, z, axis, dimension) {
   const [ax, az] = along(axis);
   const [nx, nz] = [az, ax];   // the way it faces
   const floor = dimension === SCORCH ? B.SCORCHED_STONE : B.COBBLESTONE;
-  const keep = (id) => id === B.BEDROCK;
+  const keep = (id, x, y, z) => id === B.BEDROCK || !!world.blockEntityAt(x, y, z);   // (never a chest's contents)
   for (let u = -2; u <= PORTAL_W + 1; u++) {
     for (let s = -2; s <= 2; s++) {
       if (s === 0 && u >= -1 && u <= PORTAL_W) continue;   // (the frame itself)
@@ -127,12 +127,12 @@ export function buildPortal(world, x, y, z, axis, dimension) {
       // ground round the frame: a platform where there's none (over lava,
       // water or a drop)
       const under = world.getBlockW(bx, y - 1, bz);
-      if (!isSolid(under) && !keep(under)) world.setBlock(bx, y - 1, bz, floor);
+      if (!isSolid(under) && !keep(under, bx, y - 1, bz)) world.setBlock(bx, y - 1, bz, floor);
       // room to step in and out
-      if (Math.abs(s) === 1 && u >= -1 && u <= PORTAL_W) for (let v = 0; v < PORTAL_H; v++) if (!keep(world.getBlockW(bx, y + v, bz))) world.setBlock(bx, y + v, bz, B.AIR);
+      if (Math.abs(s) === 1 && u >= -1 && u <= PORTAL_W) for (let v = 0; v < PORTAL_H; v++) if (!keep(world.getBlockW(bx, y + v, bz), bx, y + v, bz)) world.setBlock(bx, y + v, bz, B.AIR);
     }
   }
-  for (const [bx, by, bz] of frameCells(f)) if (!keep(world.getBlockW(bx, by, bz))) world.setBlock(bx, by, bz, B.CHARRED_STONE);
+  for (const [bx, by, bz] of frameCells(f)) if (!keep(world.getBlockW(bx, by, bz), bx, by, bz)) world.setBlock(bx, by, bz, B.CHARRED_STONE);
   lightPortal(world, f);
   return f;
 }
