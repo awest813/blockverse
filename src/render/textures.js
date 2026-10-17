@@ -1481,6 +1481,31 @@ tile('bow', (ctx) => {
   for (const [x, y] of arc) { px(ctx, x + 2, y + 2, wood); px(ctx, x + 3, y + 2, woodD); }
   for (let i = 0; i < 11; i++) px(ctx, 13 - i, 3 + i, str);   // string
 });
+// the bow being drawn (the held view): the limbs bend, the string comes
+// back in a V to the nock at the lower right, and an arrow lies on it
+// pointing up and left past the grip
+for (let stage = 0; stage < 3; stage++) {
+  tile(`bow_pull_${stage}`, (ctx) => {
+    const wood = [122, 86, 50], woodD = [86, 58, 32], str = [228, 228, 228];
+    const shaft = [196, 160, 104], head = [168, 168, 176], fletch = [240, 240, 240];
+    const A = [13, 2], B = [2, 13], bulge = 1.6 + stage * 0.9;
+    // the limbs: along A..B, bowed out toward the upper left
+    for (let i = 0; i <= 24; i++) {
+      const t = i / 24, off = bulge * Math.sin(Math.PI * t) / Math.SQRT2;
+      const x = Math.round(A[0] + (B[0] - A[0]) * t - off), y = Math.round(A[1] + (B[1] - A[1]) * t - off);
+      px(ctx, x, y, wood); px(ctx, x + 1, y, woodD);
+    }
+    const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); for (let i = 0; i <= n; i++) px(ctx, Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), c); };
+    // the string, drawn back to the nock
+    const n = Math.round(8 + stage * 1.6);
+    line(A[0], A[1], n, n, str); line(B[0], B[1], n, n, str);
+    // the arrow: shaft from the nock up past the grip, a grey head, white fletching
+    const tip = Math.max(1, n - 11);
+    line(n - 1, n - 1, tip + 1, tip + 1, shaft);
+    px(ctx, tip, tip, head); px(ctx, tip + 1, tip, head); px(ctx, tip, tip + 1, head); px(ctx, tip - 1, tip - 1, head);
+    px(ctx, n, n - 1, fletch); px(ctx, n - 1, n, fletch);
+  });
+}
 tile('arrow', (ctx) => {
   for (let i = 0; i < 9; i++) px(ctx, 3 + i, 12 - i, [122, 94, 56]);
   rect(ctx, 11, 2, 3, 2, [150, 150, 156]); px(ctx, 12, 4, [150, 150, 156]); px(ctx, 13, 1, [190, 190, 196]);  // head

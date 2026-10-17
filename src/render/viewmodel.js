@@ -10,6 +10,9 @@ import { R_CROSS, R_TORCH } from '../blocks/blocks.js';
 const SWING_TIME = 0.25;
 const EQUIP_TIME = 0.18;
 const BITE_TIME = 0.27;      // matches the chewing sound (interaction.js)
+// the held bow's turn at rest and drawn (the arrow along the sprite's diagonal, aimed into the view)
+const BOW_REST = [0, -0.95, 0.3];
+const BOW_AIM = [0.15, -1.25, 0.6];
 
 // face shading for boxes, in BoxGeometry order (+x, -x, +y, -y, +z, -z),
 // close to the terrain's so the hand and held blocks sit in the same light
@@ -127,7 +130,17 @@ export class ViewModel {
     const info = itemInfo(id);
     let mesh;
     const b = info?.block;
-    if (b && b.render !== R_CROSS && b.render !== R_TORCH && !b.icon) {
+    if (info?.bow) {
+      // a bow: held upright, and drawn in four frames (at rest, then the
+      // string coming back with an arrow on it)
+      mesh = new THREE.Group();
+      const frames = ['bow', 'bow_pull_0', 'bow_pull_1', 'bow_pull_2'].map((t) => extrudedSprite(t, 0.36));
+      for (const f of frames) { f.visible = false; f.renderOrder = 1000; mesh.add(f); }
+      frames[0].visible = true;
+      mesh.userData.frames = frames;
+      mesh.rotation.set(0, -0.95, 0.3);
+      mesh.position.set(0.03, 0.08, -0.02);
+    } else if (b && b.render !== R_CROSS && b.render !== R_TORCH && !b.icon) {
       const t = b.textures;
       const face = (sel) => (typeof t === 'string' ? t : t[sel] ?? t.side);
       // BoxGeometry face order: +x, -x, +y, -y, +z, -z
@@ -215,8 +228,25 @@ export class ViewModel {
     const equipDrop = (1 - this.equipT / EQUIP_TIME) * 0.35;
 
     this.root.position.set(0.36, -0.3, -0.6);
-    // a drawn bow comes in toward the centre of the view and trembles at full draw
+    // a drawn bow: the frame for how far the string's back, turned upright
+    // with the arrow aimed in past the crosshair, and trembling at full draw
+    const frames = this.current.userData.frames;
+    if (frames) {
+      const f = draw <= 0 ? 0 : draw < 0.4 ? 1 : draw < 0.9 ? 2 : 3;
+      frames.forEach((m, i) => { m.visible = i === f; });
+      // it swings up into place as the draw starts, and eases back down
+      // after a shot with a little kick forward as the arrow leaves
+      if (this.lastDraw > 0.2 && draw <= 0) this.kick = 1;
+      this.lastDraw = draw;
+      this.kick = Math.max(0, (this.kick ?? 0) - dt * 6);
+      const want = Math.min(1, draw * 4);
+      this.bowPose = (this.bowPose ?? 0) + (want - (this.bowPose ?? 0)) * Math.min(1, dt * (want > (this.bowPose ?? 0) ? 18 : 7));
+      const k = this.bowPose;
+      this.current.rotation.set(BOW_REST[0] + (BOW_AIM[0] - BOW_REST[0]) * k, BOW_REST[1] + (BOW_AIM[1] - BOW_REST[1]) * k, BOW_REST[2] + (BOW_AIM[2] - BOW_REST[2]) * k);
+      this.current.position.set(0.03 - 0.12 * k, 0.08 + 0.03 * k, -0.02 + 0.04 * k - this.kick * 0.08);
+    }
     const shake = draw >= 1 ? Math.sin(performance.now() / 30) * 0.004 : 0;
+    if (frames) draw = 0;   // (the bow's own pose does it: no extra sway of the arm)
     // eating: the food sits just under your chin, turned to face you, and
     // bobs once a bite in step with the chewing; drinking tips it up instead
     const e = this.eatBlend;

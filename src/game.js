@@ -290,7 +290,8 @@ export class Game {
 
     // attack mobs on left click (takes priority over starting to mine)
     this.input.onMouseDown = (button) => {
-      if ((button === 0 || button === 2) && !this.uiOpen && !this.player.dead) this.viewModel.swing();
+      // (drawing a bow isn't a swing)
+      if ((button === 0 || (button === 2 && !itemInfo(this.player.heldStack()?.id)?.bow)) && !this.uiOpen && !this.player.dead) this.viewModel.swing();
       if (button === 1 && !this.uiOpen && !this.player.dead) { this.pickBlock(); return; }
       // right-click an animal: tame / sit / follow
       if (button === 2 && !this.uiOpen && !this.player.dead) {
