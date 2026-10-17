@@ -35,6 +35,11 @@ import { TouchControls } from './ui/touch.js';
 import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
 import { BIOME_NAMES } from './world/worldgen.js';
+import { dimensionOf, genVersionOf, OVERWORLD, SCORCH } from './world/dimensions.js';
+import { LAVA_LEVEL } from './world/scorchgen.js';
+
+// how light the Scorchlands' endless night is (the overworld's darkest is 0.03)
+const SCORCH_DAYLIGHT = 0.13;
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
 import { B, isWater, isSolid, R_CROSS } from './blocks/blocks.js';
 import { raycastBlocks } from './world/raycast.js';
@@ -126,9 +131,12 @@ export class Game {
     this.scene.add(this.camera);   // so the held-item view model (a camera child) renders
     this.viewModel = new ViewModel(this.camera);
 
+    // which side of the portal: the overworld or the Scorchlands (one at a time)
+    this.dimension = dimensionOf(worldMeta);
     this.world = new World({
       seed: worldMeta.seed,
-      genVersion: worldMeta.genVersion ?? 1,   // worlds from before versioning keep their terrain
+      genVersion: genVersionOf(worldMeta),   // worlds from before versioning keep their terrain
+      dimension: this.dimension,
       atlas,
       renderDistance: worldMeta.renderDistance ?? 8,
       // a chunk that left memory before its save landed is read back from here
@@ -138,7 +146,7 @@ export class Game {
           this.unsaved.delete(`${cx},${cz}`);
           return { blocks: c.blocks, meta: c.meta, blockEntities: [...c.blockEntities.entries()], dirty: true };
         }
-        return store.loadChunk(worldMeta.id, cx, cz);
+        return store.loadChunk(worldMeta.id, cx, cz, this.dimension);
       } : null,
       onChunkEvicted: store ? (c) => {
         if (!needsSaving(c)) return;
@@ -219,10 +227,12 @@ export class Game {
 
     this.hud = new Hud(atlas, this.player);
     this.sky = new Sky(this.scene, this.world.materials.uniforms);
+    this.sky.setScorch(this.dimension === SCORCH);
     this.containers = new Containers(this);
     this.signEditor = new SignEditor(this);
     this._furnaceUiTimer = 0;
     this.mobSpawner = new MobSpawner(this.scene, this.world, this.entities);
+    this.mobSpawner.dimension = this.dimension;
     this.chat = new Chat(this);
     this.touch = new TouchControls(this);
     // sneaking off a horse: let go of a toggled sneak (touch button, gamepad stick),
@@ -335,15 +345,31 @@ export class Game {
 
   setupSpawn() {
     const saved = this.worldMeta.playerData;
+    // just come through from the other side: stand where we arrive
+    const arrive = this.worldMeta.arrive;
+    delete this.worldMeta.arrive;
     if (saved) {
       const p = this.player;
       p.deserialize(saved);
+      if (arrive) {
+        this.justArrived = true;
+        if (p.dead) p.respawn();
+        const spot = arrive.exact ? arrive : this.arrivalSpot(arrive.x, arrive.z);
+        p.x = spot.x; p.y = spot.y; p.z = spot.z;
+        p.vx = p.vy = p.vz = 0; p.fallStart = null; p.flying = false;
+        return;
+      }
       // saved on the death screen: wake up at the spawn point
       if (p.dead) p.respawn();
       const ok = (q) => q && [q.x, q.y, q.z].every(Number.isFinite);
       if (ok(p) && p.y > -8) return;
       // a damaged position: back to the spawn point (or find one afresh)
       if (ok(p.spawnPoint)) { p.x = p.spawnPoint.x; p.y = p.spawnPoint.y; p.z = p.spawnPoint.z; p.vx = p.vy = p.vz = 0; return; }
+    }
+    if (this.dimension === SCORCH) {   // (a save that somehow opened here first)
+      const s = this.arrivalSpot(8.5, 8.5);
+      this.player.x = s.x; this.player.y = s.y; this.player.z = s.z;
+      return;
     }
     // find a dry spawn column near origin
     const gen = this.world.gen;
@@ -359,6 +385,50 @@ export class Game {
     this.player.x = sx + 0.5; this.player.y = sy; this.player.z = sz + 0.5;
     this.player.spawnPoint = { x: sx + 0.5, y: sy + 1, z: sz + 0.5 };
     this.player.worldSpawn = { ...this.player.spawnPoint };
+  }
+
+  // somewhere to stand near (x, z) on arrival: dry ground (not a lava lake,
+  // not the sea), the nearest within 40 blocks, on top of the terrain
+  arrivalSpot(x, z) {
+    const gen = this.world.gen;
+    const dry = (wx, wz) => {
+      const col = gen.columnAt(wx, wz);
+      const h = Math.floor(col.h);
+      return !col.lava && h > (this.dimension === SCORCH ? LAVA_LEVEL : SEA_LEVEL) && gen.groundOk(wx, h, wz) ? h : null;
+    };
+    for (let r = 0; r <= 40; r += 2) {
+      for (let k = 0; k < Math.max(1, r * 3); k++) {
+        const a = (k / Math.max(1, r * 3)) * Math.PI * 2;
+        const wx = Math.floor(x + Math.cos(a) * r), wz = Math.floor(z + Math.sin(a) * r);
+        const h = dry(wx, wz);
+        if (h !== null) return { x: wx + 0.5, y: h + 1, z: wz + 0.5 };
+      }
+    }
+    // nowhere dry: on top of the water (the sea) rather than its floor
+    const ground = Math.floor(gen.heightAt(Math.floor(x), Math.floor(z)));
+    return { x, y: Math.max(ground, this.dimension === SCORCH ? LAVA_LEVEL : SEA_LEVEL) + 1, z };
+  }
+
+  // a word on arriving (the first time, a little more)
+  arrivalNote() {
+    if (this.dimension === SCORCH) {
+      const first = !this.worldMeta.seenScorch;
+      this.worldMeta.seenScorch = true;
+      this.hud.showLabel(first ? 'The Scorchlands. The night never ends here.' : 'The Scorchlands', true);
+    } else this.hud.showLabel('Home again', false);
+  }
+
+  // Go through to the other dimension (main.js saves this one and opens
+  // that one). arrive: {x, z} to land on the ground there, or {x, y, z, exact}.
+  travel(to, arrive) {
+    if (this.travelling || to === this.dimension) return;
+    this.travelling = true;
+    // pets following close by come too
+    const p = this.player;
+    for (const m of this.entities.mobs) {
+      if (m.tamed && !m.sitting && !m.dead && m.dying === undefined && Math.hypot(m.x - p.x, m.z - p.z) < 8) m.travelling = true;
+    }
+    this.uiHooks?.travel?.(to, arrive);
   }
 
   bindKeys() {
@@ -685,7 +755,10 @@ export class Game {
     for (const p of pets) {
       const Cls = PET_CLASSES[p.kind];
       if (!Cls) continue;
-      const pet = new Cls(this.scene, this.world, p.x, p.y, p.z);
+      // a pet that came through the portal with you appears at your side
+      const k = pets.indexOf(p) % 4;
+      const at = p.arriving ? { x: this.player.x + [1, -1, 0, 0][k], y: this.player.y, z: this.player.z + [0, 0, 1, -1][k] } : p;
+      const pet = new Cls(this.scene, this.world, at.x, at.y, at.z);
       pet.tamed = true;
       pet.onTamed();
       pet.sitting = !!p.sitting;
@@ -997,6 +1070,12 @@ export class Game {
   // Respawn at the bed if it's still there, otherwise at the world spawn.
   respawnPlayer() {
     const p = this.player;
+    // died in the Scorchlands: you wake at home (bed or world spawn)
+    if (this.dimension === SCORCH) {
+      p.respawn();
+      this.travel(OVERWORLD, { ...p.spawnPoint, exact: true });
+      return;
+    }
     const bed = p.bedPos;
     let note = null;
     // a bed in an unloaded chunk can't be checked: trust it rather than forget it
@@ -1058,6 +1137,7 @@ export class Game {
 
   // Day factor: 1 at noon, 0 at night, smooth transitions at dawn/dusk.
   dayFactor() {
+    if (this.dimension === SCORCH) return SCORCH_DAYLIGHT;   // the night never ends there
     const t = this.time % 1;
     // sun elevation: sin over the day half
     const el = Math.sin(t * Math.PI * 2);
@@ -1117,7 +1197,7 @@ export class Game {
 
     // fog follows render distance
     const R = this.world.renderDistance * 16;
-    this.world.materials.uniforms.uFogNear.value = R * 0.6;
+    this.world.materials.uniforms.uFogNear.value = R * (this.dimension === SCORCH ? 0.3 : 0.6);   // (smoke hangs over the Scorchlands)
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
 
     if (gamePaused || document.hidden) {
@@ -1463,6 +1543,7 @@ export class Game {
       // tamed pets travel with the save
       pets: this.entities.mobs.filter((m) => m.tamed && !m.dead && m.dying === undefined).map((m) => ({
         kind: m.kind, x: m.x, y: m.y, z: m.z, sitting: m.sitting, health: m.health,
+        ...(m.travelling ? { travel: true } : {}),   // coming through the portal with you
       })),
       animals: this.entities.keptAnimals(),
       timeOfDay: this.time,
@@ -1473,7 +1554,7 @@ export class Game {
       drops: this.entities.savedDrops(),
       lastPlayed: Date.now(),
     });
-    const done = this.store.saveWorld(this.worldMeta, [...loaded, ...evicted]).then(() => {
+    const done = this.store.saveWorld(this.worldMeta, [...loaded, ...evicted], this.dimension).then(() => {
       for (const c of evicted) if (this.unsaved.get(`${c.cx},${c.cz}`) === c) this.unsaved.delete(`${c.cx},${c.cz}`);
       this._saveWarned = false;
       return true;

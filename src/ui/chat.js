@@ -7,6 +7,7 @@ import { saveSettings } from '../save/store.js';
 import * as MOBS from '../entities/mobs.js';
 import * as ANIMALS from '../entities/animals.js';
 import * as BOSSES from '../entities/bosses.js';
+import { arrivalPoint } from '../world/dimensions.js';
 
 // /summon names -> classes (every exported mob class with a lower-case name)
 const SUMMONABLE = {};
@@ -19,11 +20,12 @@ for (const mod of [MOBS, ANIMALS, BOSSES]) {
 const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother']);
 
 // what Tab can complete, per command argument
-const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];
+const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd', 'dimension'];
 const ARGS = {
   time: [['set'], ['day', 'noon', 'sunset', 'night', 'midnight']],
   gamemode: [['survival', 'creative']],
   difficulty: [['peaceful', 'easy', 'normal', 'hard']],
+  dimension: [['overworld', 'scorchlands']],
 };
 
 // name -> id lookup across blocks and items
@@ -151,6 +153,7 @@ export class Chat {
         this.message('/gamemode <survival|creative>');
         this.message('/summon <mob> — e.g. /summon dolphin');
         this.message('/seed  /spawn  /kill  /clear  /rd <2-16>  /heal');
+        this.message('/dimension <overworld|scorchlands>');
         this.message('Tab completes commands, items and mobs', '#aaa');
         this.message('/difficulty <peaceful|easy|normal|hard>');
         break;
@@ -238,6 +241,16 @@ export class Chat {
         // and keep it: the settings slider shows it, and it outlasts the next settings change
         if (g.settings) { g.settings.renderDistance = n; saveSettings(g.settings); }
         this.message(`Render distance: ${n}`, '#9fdcff');
+        break;
+      }
+      // jump between the overworld and the Scorchlands (a cheat, like /tp:
+      // the portal is the honest way), landing at the matching spot
+      case 'dimension': {
+        const to = { overworld: 'overworld', scorch: 'scorch', scorchlands: 'scorch' }[(args[0] ?? '').toLowerCase()];
+        if (!to) throw new Error('usage: /dimension <overworld|scorchlands>');
+        if (to === g.dimension) throw new Error(`you're already there`);
+        this.message(`Travelling to ${to === 'scorch' ? 'the Scorchlands' : 'the Overworld'}\u2026`, '#9fdcff');
+        g.travel(to, arrivalPoint(g.dimension, to, p.x, p.z));
         break;
       }
       case 'summon': {

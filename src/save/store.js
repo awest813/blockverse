@@ -4,7 +4,8 @@ import { LATEST_GEN } from '../world/worldgen.js';
 import { CHUNK_VOLUME, GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { isLowEndDevice } from '../ui/display.js';
 
-const CHUNK_SUFFIX = /^-?\d+,-?\d+$/;
+// a chunk's key after the world id: "cx,cz", or "s:cx,cz" in the Scorchlands
+const CHUNK_SUFFIX = /^(s:)?-?\d+,-?\d+$/;
 
 // block entities as [cell index, {kind, ...}] pairs; anything else is dropped
 const validEntities = (list) => (Array.isArray(list) ? list : []).filter((e) => Array.isArray(e) && e.length === 2
@@ -110,7 +111,7 @@ export class SaveStore {
     });
   }
 
-  // every saved chunk of a world, as [key suffix "cx,cz", value]
+  // every saved chunk of a world (both dimensions), as [key suffix "cx,cz" | "s:cx,cz", value]
   async worldChunks(id) {
     const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
     const store = this.tx('chunks');
@@ -133,13 +134,13 @@ export class SaveStore {
 
   // Save a running world: the changed chunks and the world entry together.
   // The chunk arrays are copied when put() is called, so later edits are safe.
-  saveWorld(meta, chunks) {
+  saveWorld(meta, chunks, dimension = 'overworld') {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
       const store = tx.objectStore('chunks');
       for (const c of chunks) {
         store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()] },
-          this.chunkKey(meta.id, c.cx, c.cz));
+          this.chunkKey(meta.id, c.cx, c.cz, dimension));
       }
       tx.objectStore('worlds').put(meta);
       tx.oncomplete = () => resolve();
@@ -216,14 +217,15 @@ export class SaveStore {
     return meta;
   }
 
-  chunkKey(worldId, cx, cz) {
-    return `${worldId}:${cx},${cz}`;
+  // (the overworld's keys are as they always were: old saves load unchanged)
+  chunkKey(worldId, cx, cz, dimension = 'overworld') {
+    return dimension === 'scorch' ? `${worldId}:s:${cx},${cz}` : `${worldId}:${cx},${cz}`;
   }
 
-  async loadChunk(worldId, cx, cz) {
+  async loadChunk(worldId, cx, cz, dimension = 'overworld') {
     let v;
     try {
-      v = await req(this.tx('chunks').get(this.chunkKey(worldId, cx, cz)));
+      v = await req(this.tx('chunks').get(this.chunkKey(worldId, cx, cz, dimension)));
     } catch (err) {
       console.warn(`chunk ${cx},${cz}: couldn't read the save`, err);
       return null;

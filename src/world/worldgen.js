@@ -10,11 +10,14 @@ import { placeDungeon, structurePlan, nearStructure, buildStructure, placeFossil
 export const BIOME = {
   OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, BIRCH_FOREST: 4,
   DESERT: 5, SNOWY: 6, SNOWY_FOREST: 7, SWAMP: 8, MOUNTAINS: 9, RIVER: 10,
+  // the Scorchlands (scorchgen.js)
+  SCORCHED_FOREST: 11, ASH_WASTES: 12,
 };
 
 export const BIOME_NAMES = [
   'Ocean', 'Beach', 'Plains', 'Forest', 'Birch Forest',
   'Desert', 'Snowy Tundra', 'Snowy Forest', 'Swamp', 'Mountains', 'River',
+  'Scorched Forest', 'Ash Wastes',
 ];
 
 export const FROZEN = 0.28; // below this temperature water freezes and snow falls

@@ -8,6 +8,7 @@ import { Screens } from './ui/screens.js';
 import { Sfx } from './audio/sfx.js';
 import { applyGuiScale } from './ui/display.js';
 import { GamepadController } from './core/gamepad.js';
+import { swapDimension, DIMENSION_NAMES } from './world/dimensions.js';
 
 const canvas = document.getElementById('game-canvas');
 const uiRoot = document.getElementById('ui-root');
@@ -105,8 +106,9 @@ async function startWorld(id) {
   try { await openWorld(id); } finally { starting = false; }
 }
 
-async function openWorld(id) {
-  const release = await acquireWorldLock(id);
+// (travelling between dimensions reopens the world it already holds the lock for)
+async function openWorld(id, { heldLock = null, loadingText = null } = {}) {
+  const release = heldLock ?? await acquireWorldLock(id);
   if (!release) {
     screens.showConfirm('That world is already open', 'It\u2019s being played in another tab or window. Close it there first \u2014 two copies would save over each other.', 'OK', () => screens.showMain(id), () => screens.showMain(id));
     return;
@@ -122,7 +124,7 @@ async function openWorld(id) {
   // ask the browser to keep our saves even when space runs low
   navigator.storage?.persist?.().catch(() => {});
   screens.onCancelLoading = () => { screens._cancelEarly = true; };
-  screens.showLoading(`Loading "${meta.name}"…`);
+  screens.showLoading(loadingText ?? `Loading "${meta.name}"…`);
 
   const settings = screens.settings;
   try {
@@ -158,6 +160,8 @@ async function openWorld(id) {
       const level = ['Peaceful', 'Easy', 'Normal', 'Hard'][game.difficulty];
       screens.showPause(game.input.altInput, `Day ${game.day} · ${game.clockTime()} · ${level}`);
     },
+    // through a portal (or home after dying in the Scorchlands)
+    travel: (to, arrive) => { travelTo(to, arrive); },
     showDeath: (cause, dropped) => {
       game.setUiOpen(true);
       screens.showDeath(cause, dropped);
@@ -206,12 +210,40 @@ async function openWorld(id) {
 
   screens.onCancelLoading = null;
   clearTimeout(screens._loadingSlow);
-  if (cancelled) { quitToTitle({ save: false }); return; }
-  game.loading = false;   // nothing was played: leave the save untouched
+  if (cancelled) { quitToTitle({ save: false }); return; }   // nothing was played: leave the save untouched
   screens.clear();
+  game.loading = false;
   game.setUiOpen(false);
   game.updateDebug();
   if (!meta.playerData) game.showWelcomeTips();
+  if (game.justArrived) game.arrivalNote();
+}
+
+// Leave this dimension for the other: save and close it, move the world
+// entry over (what's kept per side, where you land), and open it there.
+let travelling = false;
+async function travelTo(to, arrive) {
+  const g = game;
+  if (!g || travelling) return;
+  travelling = true;
+  game = null;
+  hudEl.classList.add('hidden');
+  screens.showLoading(`Entering ${DIMENSION_NAMES[to]}\u2026`);
+  try {
+    const ok = await (g.stop({ save: true }) ?? true);
+    if (!ok) throw g.lastSaveError ?? new Error('the save failed');
+    const meta = g.worldMeta;   // brought up to date by that save
+    swapDimension(meta, to, arrive);
+    await store.saveWorld(meta, []);
+    travelling = false;
+    await openWorld(meta.id, { heldLock: releaseWorld, loadingText: `Entering ${DIMENSION_NAMES[to]}\u2026` });
+  } catch (err) {
+    travelling = false;
+    console.error(err);
+    const id = g.worldMeta.id;
+    releaseWorld?.(); releaseWorld = null;
+    screens.showConfirm('Couldn\u2019t travel', `${err?.message ?? err} \u2014 the world was saved as it was before.`, 'OK', () => screens.showMain(id), () => screens.showMain(id));
+  }
 }
 
 function resumeGame() {

@@ -3,8 +3,8 @@
 import { B } from '../blocks/blocks.js';
 import { I } from './itemIds.js';
 
-const ANY_PLANKS = Object.assign([B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS], { label: 'Any Planks' });
-const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG], { label: 'Any Log' });
+const ANY_PLANKS = Object.assign([B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS, B.CHARRED_PLANKS], { label: 'Any Planks' });
+const ANY_LOG = Object.assign([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG, B.CHARRED_LOG], { label: 'Any Log' });
 
 // Shaped: pattern rows with keys; '.' = empty. Matched anywhere in the grid,
 // plus horizontally mirrored variants.
@@ -26,7 +26,8 @@ function shapeless(result, count, ingredients) {
 shapeless(B.OAK_PLANKS, 4, [[B.OAK_LOG]]);
 shapeless(B.BIRCH_PLANKS, 4, [[B.BIRCH_LOG]]);
 shapeless(B.SPRUCE_PLANKS, 4, [[B.SPRUCE_LOG]]);
-shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);   // pale palm wood planks up like birch
+shapeless(B.BIRCH_PLANKS, 4, [[B.PALM_LOG]]);
+shapeless(B.CHARRED_PLANKS, 4, [[B.CHARRED_LOG]]);   // pale palm wood planks up like birch
 shaped(I.STICK, 4, ['X', 'X'], { X: ANY_PLANKS });
 shaped(B.CRAFTING_TABLE, 1, ['XX', 'XX'], { X: ANY_PLANKS });
 shaped(B.FURNACE, 1, ['XXX', 'X.X', 'XXX'], { X: [B.COBBLESTONE] });
@@ -292,6 +293,7 @@ export const SMELTING = new Map([
   [B.BIRCH_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.SPRUCE_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.PALM_LOG, { id: I.CHARCOAL, count: 1 }],
+  [B.CHARRED_LOG, { id: I.CHARCOAL, count: 1 }],
 ]);
 
 export const SMELT_TIME = 10; // seconds per item

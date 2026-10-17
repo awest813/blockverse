@@ -1,9 +1,9 @@
 // Pool of terrain-generation workers with a job queue.
 
-import { WorldGen } from './worldgen.js';
+import { makeGen } from './dimensions.js';
 
 export class GenPool {
-  constructor(seed, version, size = Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) - 2))) {
+  constructor(seed, version, dimension, size = Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) - 2))) {
     this.workers = [];
     this.queue = [];          // [{cx, cz, resolve}]
     this.pending = new Map(); // jobId -> {job, worker}
@@ -11,11 +11,12 @@ export class GenPool {
     this.idle = [];
     this.seed = seed;
     this.version = version;
+    this.dimension = dimension;
     this.local = null;        // main-thread generator, once no worker is left
 
     for (let i = 0; i < size; i++) {
       const w = new Worker(new URL('../workers/genWorker.js', import.meta.url), { type: 'module' });
-      w.postMessage({ type: 'init', seed, version });
+      w.postMessage({ type: 'init', seed, version, dimension });
       w.onmessage = (e) => this.onResult(w, e.data);
       // a worker that can't load (e.g. a tab left open across a redeploy,
       // whose old worker file is gone) or that crashed: drop it
@@ -94,7 +95,7 @@ export class GenPool {
   // null if it fails here too (the world asks for missing chunks again later)
   generateLocal(cx, cz) {
     try {
-      this.local ??= new WorldGen(this.seed, this.version);
+      this.local ??= makeGen(this.seed, this.version, this.dimension);
       return this.local.generateChunk(cx, cz);
     } catch (err) {
       console.error('[genPool] chunk failed:', err);

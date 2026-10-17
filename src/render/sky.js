@@ -10,6 +10,12 @@ const DAY_HORIZON = new THREE.Color(0x9cc4f0);
 const NIGHT = new THREE.Color(0x070b18);
 const DUSK = new THREE.Color(0xe08a4e);
 const DUSK_GLOW = new THREE.Color(0xff9a50);
+// the Scorchlands: a smoky red-brown night under a low ember moon
+const SCORCH_ZENITH = new THREE.Color(0x140808);
+const SCORCH_HAZE = new THREE.Color(0x3a1810);
+const SCORCH_GLOW = new THREE.Color(0xd04a1c);
+const SCORCH_TINT = new THREE.Vector3(1.0, 0.66, 0.5);   // embers light the land, not the moon
+const SCORCH_CLOUD = new THREE.Color(0x24140f);
 
 function makeCloudTexture() {
   const size = 256;
@@ -160,7 +166,15 @@ export class Sky {
   }
 
   // time: 0..1 (0 = sunrise), day: brightness factor, p: player
+  // the Scorchlands' sky: no sun, no stars, a fixed red moon in the smoke
+  setScorch(on) {
+    this.scorch = on;
+    if (on) this.moon.material.color.setRGB(1.0, 0.42, 0.28);
+    this.moon.scale.setScalar(on ? 1.8 : 1);
+  }
+
   update(time, day, p, underwater) {
+    if (this.scorch) { this.updateScorch(p, underwater); return; }
     const angle = time * Math.PI * 2; // 0 = sunrise east horizon
     const R = 420;
 
@@ -217,6 +231,34 @@ export class Sky {
       du.uSunDir.value.set(Math.cos(angle), Math.sin(angle), 0).normalize();
       du.uGlowAmt.value = Math.max(0, 1 - Math.abs(el) * 4) * 0.85;
     }
+  }
+
+  updateScorch(p, underwater) {
+    this.group.position.set(p.x, p.y, p.z);
+    this.group.visible = this.clouds.visible = !underwater;
+    this.sun.visible = false;
+    this.starMat.opacity = 0;
+    // the moon hangs low in the south-west and never moves
+    const dir = new THREE.Vector3(-0.55, 0.42, 0.72).normalize();
+    this.moon.position.copy(dir).multiplyScalar(420);
+    this.moon.lookAt(p.x, p.y, p.z);
+    this.uniforms.uSkyTint.value.copy(SCORCH_TINT);
+    // low ash clouds, drifting
+    this.clouds.position.set(p.x, 96, p.z);
+    this.cloudTex.offset.set((p.x / 466 + performance.now() * 0.000008) % 1, (p.z / 466) % 1);
+    this.clouds.material.opacity = 0.75;
+    this.clouds.material.color.copy(SCORCH_CLOUD);
+    if (underwater) return;
+    this._bg.copy(SCORCH_ZENITH);
+    this._fog.copy(SCORCH_HAZE);
+    this.scene.background = this._bg;
+    this.uniforms.uFogColor.value.copy(this._fog);
+    const du = this.domeUniforms;
+    this._bg.getRGB(du.uZenith.value, THREE.SRGBColorSpace);
+    this._fog.getRGB(du.uHorizon.value, THREE.SRGBColorSpace);
+    SCORCH_GLOW.getRGB(du.uGlow.value, THREE.SRGBColorSpace);
+    du.uSunDir.value.copy(dir);
+    du.uGlowAmt.value = 0.7;   // the moon's red halo
   }
 
   dispose() {

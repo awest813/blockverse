@@ -353,6 +353,61 @@ function leaves(ctx, rng, base, dark, light) {
 }
 
 tile('oak_leaves', (ctx, rng) => leaves(ctx, rng, P.leafOak, P.leafOakD, P.leafOakL));
+
+// ---- the Scorchlands ----
+tile('scorched_stone', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[74, 62, 60], 8], [[58, 48, 46], 4], [[92, 78, 72], 2], [[110, 60, 40], 1]]);
+});
+tile('ash', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[112, 108, 104], 8], [[94, 90, 88], 4], [[134, 130, 126], 3]]);
+  speckle(ctx, rng, [60, 56, 54], 6);
+});
+tile('ashen_grass_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[70, 66, 60], 7], [[52, 50, 46], 4], [[92, 86, 76], 3]]);
+  for (let i = 0; i < 7; i++) px(ctx, (rng() * TILE) | 0, (rng() * TILE) | 0, rng() < 0.5 ? [230, 120, 40] : [250, 180, 70]);   // embers
+});
+tile('ashen_grass_side', (ctx, rng) => {
+  generators['ash'](ctx, rng);
+  for (let x = 0; x < TILE; x++) {
+    const d = 2 + ((rng() * 3) | 0);
+    for (let y = 0; y < d; y++) px(ctx, x, y, rng() < 0.4 ? [92, 86, 76] : [70, 66, 60]);
+    px(ctx, x, d, [44, 42, 40]);
+  }
+  px(ctx, (rng() * TILE) | 0, 1, [240, 140, 50]);
+});
+tile('charred_log', (ctx, rng) => {
+  barkSide(ctx, rng, [34, 30, 30], [20, 18, 18], [52, 46, 44]);
+  // cracks still glowing deep inside
+  for (let i = 0; i < 4; i++) {
+    const x = (rng() * TILE) | 0, y = (rng() * 12) | 0, n = 2 + ((rng() * 3) | 0);
+    for (let k = 0; k < n; k++) px(ctx, x, y + k, k === 1 ? [250, 170, 60] : [200, 80, 30]);
+  }
+});
+tile('charred_log_top', (ctx, rng) => logTop(ctx, rng, [30, 26, 26], [62, 52, 48], [44, 36, 34]));
+tile('charred_planks', (ctx, rng) => planks(ctx, rng, [58, 48, 44]));
+tile('charred_leaves', (ctx, rng) => {
+  // sparse and shrivelled: far more sky than leaf
+  for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+    const r = rng();
+    if (r < 0.62) continue;
+    px(ctx, x, y, r > 0.95 ? [140, 60, 30] : r > 0.8 ? [62, 50, 44] : [36, 30, 28]);
+  }
+});
+tile('smouldering_stump', (ctx, rng) => {
+  generators['charred_log'](ctx, rng);
+  rect(ctx, 5, 5, 6, 7, [120, 40, 20]);
+  for (let i = 0; i < 14; i++) px(ctx, 5 + ((rng() * 6) | 0), 5 + ((rng() * 7) | 0), rng() < 0.5 ? [250, 150, 50] : [255, 210, 110]);
+});
+tile('smouldering_stump_top', (ctx, rng) => {
+  logTop(ctx, rng, [30, 26, 26], [160, 60, 26], [110, 36, 18]);
+  for (let i = 0; i < 12; i++) px(ctx, 3 + ((rng() * 10) | 0), 3 + ((rng() * 10) | 0), rng() < 0.5 ? [255, 180, 70] : [255, 230, 140]);
+});
+tile('charred_stone', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[34, 30, 34], 8], [[24, 22, 26], 4], [[48, 42, 46], 3]]);
+  // thin veins of ember
+  let x = (rng() * TILE) | 0;
+  for (let y = 0; y < TILE; y++) { x = Math.max(0, Math.min(TILE - 1, x + ((rng() * 3) | 0) - 1)); if (rng() < 0.75) px(ctx, x, y, rng() < 0.3 ? [255, 170, 70] : [200, 70, 30]); }
+});
 // palm fronds: long leaflets fanning along a midrib, lots of sky between
 tile('palm_leaves', (ctx, rng) => {
   const g = [70, 150, 52], gD = [52, 120, 40], gL = [104, 178, 70];

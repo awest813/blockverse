@@ -114,6 +114,15 @@ export const B = {
   COCONUT: 108,          // hanging under a palm's fronds (drops the coconut item)
   COOKING_POT: 109,
   CAKE: 110,             // meta: slices eaten (0-6)
+  // the Scorchlands
+  SCORCHED_STONE: 111,
+  ASH: 112,
+  ASHEN_GRASS: 113,
+  CHARRED_LOG: 114,
+  CHARRED_PLANKS: 115,
+  CHARRED_LEAVES: 116,
+  SMOULDERING_STUMP: 117,
+  CHARRED_STONE: 118,    // the portal frame block
 };
 
 // Tool classes
@@ -421,6 +430,31 @@ reg(def(B.COOKING_POT, 'cooking_pot', 'Cooking Pot', {
   render: R_SHAPE, shape: 'pot', opacity: 0, hardness: 1, tool: TOOL_PICKAXE, sound: 'stone',
   textures: { top: 'pot_rim', bottom: 'pot_side', side: 'pot_side' }, icon: 'cooking_pot',
 }));
+// ---- the Scorchlands: a burnt forest under a night that never ends ----
+reg(def(B.SCORCHED_STONE, 'scorched_stone', 'Scorched Stone', { hardness: 1.5, tool: TOOL_PICKAXE, minTier: 1 }));
+reg(def(B.ASH, 'ash', 'Ash', { hardness: 0.5, tool: TOOL_SHOVEL, sound: 'sand' }));
+reg(def(B.ASHEN_GRASS, 'ashen_grass', 'Ashen Grass', {
+  hardness: 0.6, tool: TOOL_SHOVEL, sound: 'dirt', drop: B.ASH,
+  textures: { top: 'ashen_grass_top', bottom: 'ash', side: 'ashen_grass_side' },
+}));
+reg(def(B.CHARRED_LOG, 'charred_log', 'Charred Log', {
+  hardness: 2, tool: TOOL_AXE, sound: 'wood',
+  textures: { top: 'charred_log_top', bottom: 'charred_log_top', side: 'charred_log' },
+}));
+reg(def(B.CHARRED_PLANKS, 'charred_planks', 'Charred Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
+// a few black, shrivelled leaves still clinging on (sticks, now and then)
+reg(def(B.CHARRED_LEAVES, 'charred_leaves', 'Charred Leaves', {
+  render: R_CUTOUT, opacity: 1, hardness: 0.2, tool: TOOL_HOE, sound: 'leaf',
+  drop: (rng) => (rng() < 0.12 ? [{ id: I.STICK, count: 1 }] : []),
+}));
+// a burnt-out stump still glowing at its heart: charcoal when broken
+reg(def(B.SMOULDERING_STUMP, 'smouldering_stump', 'Smouldering Stump', {
+  hardness: 1.5, tool: TOOL_AXE, sound: 'wood', lightEmit: 9,
+  textures: { top: 'smouldering_stump_top', bottom: 'charred_log_top', side: 'smouldering_stump' },
+  drop: (rng) => [{ id: I.CHARCOAL, count: 1 + ((rng() * 2) | 0) }],
+}));
+// hard black rock with embers in its veins: a portal's frame is built from it
+reg(def(B.CHARRED_STONE, 'charred_stone', 'Charred Stone', { hardness: 4, tool: TOOL_PICKAXE, minTier: 2 }));
 // a cake to share: set it down and eat it a slice at a time (seven slices).
 // Broken, it's gone, crumbs and all.
 reg(def(B.CAKE, 'cake', 'Cake', {
@@ -495,7 +529,7 @@ export function faceVisible(id, neighborId) {
   // Same transparent block type: hide inner faces (water-water, glass-glass, leaves keep faces for depth)
   if (id === neighborId) {
     const b = BLOCKS[id];
-    return b.render === R_CUTOUT && (id === B.OAK_LEAVES || id === B.BIRCH_LEAVES || id === B.SPRUCE_LEAVES || id === B.PALM_LEAVES);
+    return b.render === R_CUTOUT && (id === B.OAK_LEAVES || id === B.BIRCH_LEAVES || id === B.SPRUCE_LEAVES || id === B.PALM_LEAVES || id === B.CHARRED_LEAVES);
   }
   return true;
 }

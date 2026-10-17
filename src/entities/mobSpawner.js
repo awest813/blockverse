@@ -5,10 +5,12 @@ import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat,
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
-function pickHostile() {
-  let r = Math.random() * HOSTILE_TABLE.reduce((n, [, w]) => n + w, 0);
-  for (const [cls, w] of HOSTILE_TABLE) if ((r -= w) < 0) return cls;
-  return Zombie;
+// the Scorchlands' monsters (no animals live there)
+const SCORCH_HOSTILES = [[Skeleton, 50], [Spider, 30], [Zombie, 20]];
+function pickHostile(table = HOSTILE_TABLE) {
+  let r = Math.random() * table.reduce((n, [, w]) => n + w, 0);
+  for (const [cls, w] of table) if ((r -= w) < 0) return cls;
+  return table[0][0];
 }
 import { B, isSolid, isWater } from '../blocks/blocks.js';
 import { nudgeFree } from '../core/physics.js';
@@ -88,8 +90,13 @@ export class MobSpawner {
       if (this.difficulty === 0 || (m.boss ? d > 64 : d > 48 && Math.random() < 0.15)) m.kill();
     }
 
-    if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
     const cap = this.difficulty === 3 ? HOSTILE_CAP + 4 : this.difficulty === 1 ? HOSTILE_CAP - 3 : HOSTILE_CAP;
+    // the Scorchlands: monsters only, and it's always night there
+    if (this.dimension === 'scorch') {
+      if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
+      return;
+    }
+    if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
     // the surface spawns monsters at night; caves are dark at any hour
     if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
     const gulls = count(mobs, Seagull);
@@ -216,7 +223,7 @@ export class MobSpawner {
         if (!this.world.isLoaded(wx, wz)) continue;
         const y = this.caveSpot(wx, wz, player);
         if (y === null) continue;
-        this.spawnHostile(pickHostile(), wx + 0.5, y, wz + 0.5);
+        this.spawnHostile(pickHostile(this.hostileTable()), wx + 0.5, y, wz + 0.5);
         return;
       }
       if (dayFactor >= 0.4) return;
@@ -233,7 +240,7 @@ export class MobSpawner {
       const ground = this.world.getBlockW(wx, y - 1, wz);
       if (!isSolid(ground) || ground === B.WATER) continue;
       // not on tree canopies
-      if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES || ground === B.PALM_LEAVES) continue;
+      if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES || ground === B.PALM_LEAVES || ground === B.CHARRED_LEAVES) continue;
       // need 2 blocks of room (a snow layer or tall grass doesn't count against
       // it: they used to rule out most of the snowy lands)
       const open = (id) => id === B.AIR || (!isSolid(id) && !isWater(id) && id !== B.LAVA);
@@ -246,7 +253,7 @@ export class MobSpawner {
         const light = Math.max((sky / 15) * dayFactor * 15, bl);
         if (light > 7) continue;
         // deserts breed husks instead of zombies
-        let Cls = pickHostile();
+        let Cls = pickHostile(this.hostileTable());
         if (Cls === Zombie && this.world.biomeAt(wx, wz) === BIOME.DESERT && Math.random() < 0.8) Cls = Husk;
         this.spawnHostile(Cls, wx + 0.5, y, wz + 0.5);
         return;
@@ -277,6 +284,8 @@ export class MobSpawner {
       return;
     }
   }
+
+  hostileTable() { return this.dimension === 'scorch' ? SCORCH_HOSTILES : HOSTILE_TABLE; }
 
   // zombies of any kind are sometimes babies
   spawnHostile(Cls, x, y, z) {

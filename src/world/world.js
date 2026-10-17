@@ -6,22 +6,23 @@ import { CHUNK_X, CHUNK_Y, CHUNK_Z, blockIndex } from '../core/constants.js';
 import { B, BLOCKS } from '../blocks/blocks.js';
 import { Chunk, chunkKey } from './chunk.js';
 import { GenPool } from './genPool.js';
-import { WorldGen } from './worldgen.js';
+import { makeGen, OVERWORLD } from './dimensions.js';
 import { initChunkLight, lightBlockChange } from './light.js';
 import { buildChunkGeometry } from '../render/mesher.js';
 import { createChunkMaterials } from '../render/chunkMaterial.js';
 
 export class World {
   // genVersion: terrain generator version the world was created with (see worldgen.js)
-  constructor({ seed, genVersion = 1, atlas, renderDistance = 8, loadChunk = null, onChunkEvicted = null }) {
+  constructor({ seed, genVersion = 1, dimension = OVERWORLD, atlas, renderDistance = 8, loadChunk = null, onChunkEvicted = null }) {
     this.seed = seed;
     this.atlas = atlas;
     this.renderDistance = renderDistance;
     this.loadChunk = loadChunk;           // async (cx, cz) => {blocks, meta, blockEntities}|null
     this.onChunkEvicted = onChunkEvicted; // (chunk) => void  (save hook)
 
-    this.gen = new WorldGen(seed, genVersion);   // main-thread copy for queries (spawn, biome)
-    this.pool = new GenPool(seed, genVersion);
+    this.dimension = dimension;
+    this.gen = makeGen(seed, genVersion, dimension);   // main-thread copy for queries (spawn, biome)
+    this.pool = new GenPool(seed, genVersion, dimension);
     this.chunks = new Map();
     this.pendingGen = new Set();
     this.lightQueue = [];                 // chunks with blocks, awaiting light

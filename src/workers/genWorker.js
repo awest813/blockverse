@@ -1,13 +1,13 @@
 // Terrain generation worker: receives chunk coordinates, returns block data.
 
-import { WorldGen } from '../world/worldgen.js';
+import { makeGen } from '../world/dimensions.js';
 
 let gen = null;
 
 self.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === 'init') {
-    gen = new WorldGen(msg.seed, msg.version);
+    gen = makeGen(msg.seed, msg.version, msg.dimension);   // the overworld's or the Scorchlands' terrain
     return;
   }
   if (msg.type === 'gen') {

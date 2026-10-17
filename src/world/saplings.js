@@ -7,7 +7,7 @@ import { I } from '../items/itemIds.js';
 import { CHUNK_Y } from '../core/constants.js';
 import { mulberry32 } from '../core/rng.js';
 
-const LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES]);
+const LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHARRED_LEAVES]);
 const KIND = { [B.OAK_SAPLING]: 'oak', [B.BIRCH_SAPLING]: 'birch', [B.SPRUCE_SAPLING]: 'spruce', [B.PALM_SAPLING]: 'palm' };
 
 export function tickSaplings(world, dt) {
