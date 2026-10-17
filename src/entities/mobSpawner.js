@@ -96,12 +96,12 @@ export class MobSpawner {
     if (dayFactor > 0.5 && gulls < GULL_CAP && Math.random() < 0.5) this.trySpawnBird(player, true);
     // a beach is a thin strip and a desert's scorpions come out at any hour:
     // these get a pass of their own rather than waiting on the biome tables
-    const pelicans = count(mobs, Pelican);
+    const pelicans = mobs.filter((m) => m instanceof Pelican && !m.persistent).length;
     if (pelicans < PELICAN_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Pelican, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
         && this.world.gen.columnAt(wx, wz).t >= 0.45, Math.min(PELICAN_CAP - pelicans, 1 + ((Math.random() * 3) | 0)));   // pelicans like it warm
     }
-    const crabs = count(mobs, Crab);
+    const crabs = mobs.filter((m) => m instanceof Crab && !m.persistent).length;   // (kept ones don't stop wild ones)
     if (crabs < CRAB_CAP && Math.random() < 0.3) {
       this.trySpawnLocal(player, Crab, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
         && this.world.gen.columnAt(wx, wz).t >= 0.3, Math.min(CRAB_CAP - crabs, 1 + ((Math.random() * 3) | 0)));   // any beach that isn't frozen

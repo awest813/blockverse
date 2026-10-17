@@ -854,7 +854,7 @@ export class Game {
     }
     for (const m of this.entities.mobs) {
       const mh = hurt(m.x, m.y + m.h / 2, m.z, mobExposure.get(m) ?? 0);
-      if (mh && mh.dmg > 0) { m.hurtCooldown = 0; m.damage(mh.dmg, { x, z }); }
+      if (mh && mh.dmg > 0) { m.hurtCooldown = 0; m.damage(mh.dmg, { x, z, kind: 'explosion' }); }   // (a blast isn't a player: no grudges)
     }
     this.addBlast(x, y, z, power);
   }

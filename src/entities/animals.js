@@ -1687,15 +1687,20 @@ export class Crab extends Animal {
 
   damage(amount, source) {
     const hit = super.damage(amount, source);
-    // hit by a player (mobs have a kind): it pinches back rather than running away
-    if (hit && source && !source.kind && this.health > 0) { this.angry = 8; this.state = 'idle'; this.stateTime = 0.3; }
+    // hit by a player (mobs and blasts have a kind): a grown crab pinches back
+    // rather than running away; a little one just runs
+    if (hit && source && !source.kind && this.health > 0 && !this.baby) { this.angry = 8; this.state = 'idle'; this.stateTime = 0.3; }
     return hit;
   }
 
   think(dt, player, playerDist) {
     this.angry = Math.max(0, this.angry - dt);
     this.pinchCooldown = Math.max(0, this.pinchCooldown - dt);
-    if (this.angry > 0 && !player.dead && playerDist < 10) {
+    // nobody to pinch in creative or peaceful; on a lead it goes where it's led
+    const fair = !player.dead && player.mode !== GAMEMODE_CREATIVE && (player.mobDamageScale ?? 1) > 0;
+    if (!fair || this.leash) this.angry = 0;
+    if (this.angry > 0 && playerDist < 10) {
+      this.leashSpeed = 0; this.hurry = false;
       this.state = 'chase';
       this.moving = playerDist > 1;
       this.steer(player, 1);
