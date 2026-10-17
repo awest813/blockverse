@@ -9,9 +9,10 @@ const CATEGORY = {
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
+  camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
+const RANGE = { seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
@@ -307,6 +308,9 @@ export class Sfx {
         } else if (opts.cause === 'fire' || opts.cause === 'lava') {   // a sizzle
           this.noise({ freq: 3000 * detune, q: 0.6, dur: 0.3, gain: 0.18, type: 'highpass' });
           this.tone({ freq: 240 * detune, endFreq: 140, dur: 0.18, gain: 0.18, type: 'sawtooth' });
+        } else if (opts.cause === 'poison') {  // a queasy wobble, softer than a blow
+          this.tone({ freq: 220 * detune, endFreq: 180, dur: 0.2, gain: 0.16, type: 'triangle' });
+          this.later(() => this.tone({ freq: 200 * detune, endFreq: 150, dur: 0.18, gain: 0.1, type: 'triangle' }), 90);
         } else if (opts.cause === 'drown') {    // a gurgle
           for (let i = 0; i < 3; i++) this.later(() => this.tone({ freq: (300 + i * 40) * detune, endFreq: 200, dur: 0.07, gain: 0.14, type: 'sine' }), i * 70);
         } else {
@@ -437,6 +441,23 @@ export class Sfx {
       case 'polarbear': // a deep growl, louder when it means it
         this.noise({ freq: 260 * detune, q: 0.8, dur: 0.7, gain: 0.12, type: 'lowpass' });
         this.tone({ freq: 85 * detune, endFreq: 70, dur: 0.7, gain: 0.06, type: 'sawtooth', hold: 0.4 });
+        break;
+      case 'camel':    // a low, gargling grumble
+        this.noise({ freq: 320 * detune, q: 1.2, dur: 0.6, gain: 0.08, type: 'lowpass' });
+        for (let i = 0; i < 5; i++) this.later(() => this.tone({ freq: (120 + (i % 2) * 18) * detune, dur: 0.1, gain: 0.05, type: 'sawtooth' }), i * 90);
+        break;
+      case 'seagull':  // a ringing "kee-ow", once or a few times over
+        for (let i = 0; i < 1 + (Math.random() * 3 | 0); i++) this.later(() => {
+          this.tone({ freq: 1500 * detune, endFreq: 1050, dur: 0.22, gain: 0.05, type: 'sawtooth' });
+          this.tone({ freq: 3000 * detune, endFreq: 2100, dur: 0.18, gain: 0.015, type: 'triangle' });
+        }, i * 240);
+        break;
+      case 'pelican':  // mostly quiet: a clatter of the bill and a low grunt
+        for (let i = 0; i < 4; i++) this.later(() => this.noise({ freq: 1800 * detune, q: 3, dur: 0.025, gain: 0.07 }), i * 55);
+        this.later(() => this.tone({ freq: 140 * detune, endFreq: 110, dur: 0.16, gain: 0.05, type: 'square' }), 260);
+        break;
+      case 'scorpion': // a dry rattle of claws and legs
+        for (let i = 0; i < 5; i++) this.later(() => this.noise({ freq: (4200 + Math.random() * 1500) * detune, q: 2, dur: 0.02, gain: 0.06, type: 'bandpass' }), i * 40 + Math.random() * 20);
         break;
       case 'horn':     // a long, rough call that bends down at the end
         this.tone({ freq: 196, endFreq: 174, dur: 1.5, gain: 0.09, type: 'sawtooth', hold: 0.6 });

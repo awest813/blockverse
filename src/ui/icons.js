@@ -51,6 +51,7 @@ const BUBBLE = [
 
 const FULL = {
   heart: { X: '#2b0b0b', R: '#e0302c', W: '#ffb3ad' },
+  poison: { X: '#10200a', R: '#6a9a24', W: '#c8e890' },
   food: { X: '#2e1a0a', M: '#c8702e', H: '#f0a060', D: '#8a4418', W: '#f2ead8' },
   bubble: { X: '#1d4f86', B: '#7fc4ff', W: '#ffffff' },
   armor: { X: '#2a2a2e', A: '#c9cbd2', L: '#f2f3f6' },
@@ -84,6 +85,8 @@ export const HUD_ICONS = {
   heartFull: draw(HEART, FULL.heart),
   heartHalf: draw(HEART, FULL.heart, leftHalf),
   heartEmpty: draw(HEART, EMPTY.heart),
+  poisonFull: draw(HEART, FULL.poison),
+  poisonHalf: draw(HEART, FULL.poison, leftHalf),
   foodFull: draw(FOOD, FULL.food),
   foodHalf: draw(FOOD, FULL.food, rightHalf),
   foodEmpty: draw(FOOD, EMPTY.food),

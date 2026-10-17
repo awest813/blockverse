@@ -1,5 +1,5 @@
 // Concrete mob types: pig, sheep (passive); zombie, skeleton, spider,
-// creeper (hostile); plus primed TNT, which reuses mob physics.
+// scorpion, creeper (hostile); plus primed TNT, which reuses mob physics.
 // Original box-model designs built from shaded colored parts.
 
 import * as THREE from 'three';
@@ -494,6 +494,123 @@ export class Spider extends Mob {
 
   onDeath() {
     this.dropFn?.([{ id: I.STRING, count: (Math.random() * 3) | 0 }]);
+  }
+}
+
+// Scorpions: sand-coloured desert stingers, about by day and by night. They
+// keep to themselves until you come close (or hit one), then scuttle in to
+// pinch and sting. The venom takes a heart every second and a half and stops
+// you healing (it never kills: it leaves you half a heart) until it wears off
+// or you drink milk. After a sting they skitter back, then come again.
+export class Scorpion extends Mob {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.w = 0.9;
+    this.h = 0.5;
+    this.health = 12;
+    this.hostile = true;
+    this.speed = 1.1;
+    this.fleeSpeed = 3.4;
+    this.attackCooldown = 0;
+    this.angry = 0;          // seconds of aggression after being hit
+    this.backoff = 0;        // seconds of skittering back after a sting
+    this.strike = 0;         // the tail strike: 1 -> 0
+    this.kind = 'scorpion';
+    this.ambientSound = 'scorpion';
+  }
+
+  buildModel() {
+    const shell = 0xc89a58, dark = 0x8e6532, tip = 0x2e2014;
+    this.part(0.5, 0.18, 0.66, shell, 0, 0.2, 0.05);            // body
+    this.part(0.36, 0.15, 0.24, dark, 0, 0.2, -0.36);           // head
+    for (const x of [-0.08, 0.08]) this.part(0.04, 0.04, 0.02, 0x111111, x, 0.28, -0.49);
+    // pincers, on arms that open and snap shut
+    this.claws = [];
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Group();
+      arm.position.set(side * 0.16, 0.2, -0.44);
+      arm.rotation.y = side * -0.35;
+      this.group.add(arm);
+      const add = (m) => { this.group.remove(m); arm.add(m); return m; };
+      add(this.part(0.08, 0.08, 0.28, shell, 0, 0, -0.12));
+      add(this.part(0.16, 0.12, 0.16, dark, 0, 0.01, -0.32));     // the claw
+      const pinch = add(this.part(0.05, 0.08, 0.14, dark, side * -0.07, 0.01, -0.45));
+      this.claws.push({ arm, pinch, side });
+    }
+    // eight legs, splayed out
+    this.legs = [];
+    for (let i = 0; i < 4; i++) {
+      for (const side of [-1, 1]) {
+        const leg = this.part(0.42, 0.06, 0.06, dark, side * 0.36, 0.12, -0.16 + i * 0.15);
+        leg.rotation.z = side * -0.5;
+        this.legs.push(leg);
+      }
+    }
+    // the tail curls up and forward over the back, the stinger at its tip
+    this.tail = new THREE.Group();
+    this.tail.position.set(0, 0.24, 0.36);
+    this.group.add(this.tail);
+    let py = 0, pz = 0;
+    [0.3, 0.9, 1.5, 2.1, 2.7].forEach((a, i) => {
+      py += Math.sin(a) * 0.14; pz += Math.cos(a) * 0.14;
+      const seg = this.part(0.13 - i * 0.012, 0.12 - i * 0.01, 0.15, i < 4 ? shell : dark, 0, py, pz);
+      seg.rotation.x = -a;
+      this.group.remove(seg); this.tail.add(seg);
+    });
+    const sting = this.part(0.05, 0.12, 0.05, tip, 0, py - 0.08, pz - 0.07);
+    sting.rotation.x = -0.5;
+    this.group.remove(sting); this.tail.add(sting);
+  }
+
+  animate(dt) {
+    const swing = Math.sin(this.walkPhase * 1.8) * (this.moving ? 0.35 : 0);
+    this.legs.forEach((leg, i) => { leg.rotation.y = (i % 2 ? swing : -swing) * (i % 4 < 2 ? 1 : -1); });
+    // the tail sways, then whips forward to sting
+    this.strike = Math.max(0, this.strike - dt * 3);
+    const s = Math.sin(this.strike * Math.PI);
+    this.tail.rotation.x = -s * 0.7 + Math.sin(this.age * 2.2) * 0.05;
+    const open = this.state === 'chase' ? 0.35 + Math.sin(this.age * 9) * 0.2 : 0.1;
+    for (const c of this.claws) c.pinch.rotation.y = c.side * open;
+  }
+
+  damage(amount, source) {
+    if (source) this.angry = 12;
+    return super.damage(amount, source);
+  }
+
+  think(dt, player, playerDist) {
+    this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.angry = Math.max(0, this.angry - dt);
+    this.backoff = Math.max(0, this.backoff - dt);
+    // close by (or after you hit it) it turns on you; otherwise it minds its own business
+    const near = this.dist3(player) < (this.angry > 0 ? 16 : 4);
+    if (!(near && this.senses(player, 16, dt))) {
+      this.loseTarget();
+      super.think(dt, player, playerDist);
+      return;
+    }
+    this.state = 'chase';
+    this.moving = true;
+    if (this.backoff > 0) { this.steer(player, -1); return; }
+    this.steer(player, 1);
+    if (this.dist3(player) < 1.6 && this.attackCooldown <= 0) {
+      const before = player.health;
+      if (this.meleeHit(player, this.meleeDamage ?? 2, this.kind)) {
+        this.attackCooldown = 1.4;
+        this.strike = 1;
+        this.backoff = 0.7;
+        // the venom only gets in if the sting did (not through creative, not on peaceful)
+        if (player.health < before && !player.dead) {
+          const secs = [0, 4, 7, 10][player.difficulty ?? 2] ?? 7;
+          player.poisonTime = Math.max(player.poisonTime ?? 0, secs);
+          player.poisonTimer = Math.max(player.poisonTimer ?? 0, 1.5);   // the sting itself was this tick's damage
+        }
+      }
+    }
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.STRING, count: Math.random() < 0.5 ? 1 : 0 }]);
   }
 }
 

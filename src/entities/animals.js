@@ -372,6 +372,12 @@ export class Horse extends Animal {
     this.owned = false;    // tamed
     this.saddled = false;
     this.rider = null;
+    // what differs for a camel: standing height, riding pace, its name and food
+    this.standH = 1.6;
+    this.rideSpeed = 4.2;
+    this.tamingFood = TAMING_FOOD;
+    this.label = 'horse';
+    this.rideable = true;
   }
 
   buildModel() {
@@ -448,7 +454,7 @@ export class Horse extends Animal {
     // golden food breeds a tamed pair, like any farm animal
     if (this.owned && this.likes(held?.id)) return super.interact(player, held);
     // food calms a wild horse (and heals or grows any horse)
-    const calm = held && TAMING_FOOD.get(held.id);
+    const calm = held && this.tamingFood.get(held.id);
     if (calm) {
       const hungry = this.baby || !this.owned || this.health < this.maxHealth;
       if (!hungry) return false;
@@ -477,16 +483,16 @@ export class Horse extends Animal {
   mountBy(player) {
     if (player.mount) return;
     // the rider's head needs room
-    this.h = 2.6;
+    this.h = this.standH + 1;
     const cramped = entityCollides(this.world, this);
-    this.h = 1.6;
+    this.h = this.standH;
     if (cramped) { this.fx?.notify?.('Not enough headroom to climb on here'); return; }
     // climbing on a horse on a lead: the lead comes back to you
     if (this.leash) { this.unleash(); if (player.mode !== GAMEMODE_CREATIVE && player.give(I.LEAD, 1) > 0) this.dropFn?.([{ id: I.LEAD, count: 1 }]); }
     this.rider = player;
     player.mount = this;
     player._sneakHeld = !!player.sneaking;
-    this.h = 2.6;   // the rider's head: no squeezing under a low roof
+    this.h = this.standH + 1;   // the rider's head: no squeezing under a low roof
     player.flying = false;
     player.vx = player.vy = player.vz = 0;
     this.persistent = true;
@@ -495,7 +501,7 @@ export class Horse extends Animal {
       this.buck = 1.5 + Math.random() * 2;
       this.fx?.notify?.('Hold on…');
     }
-    this.fx?.sound('horse', { pos: this });
+    this.fx?.sound(this.ambientSound, { pos: this });
   }
 
   // the rider gets off beside the horse
@@ -503,7 +509,7 @@ export class Horse extends Animal {
     const p = this.rider;
     this.rider = null;
     this.buck = 0;
-    this.h = 1.6;
+    this.h = this.standH;
     this.speed = this.walkSpeed ?? this.speed;   // back to an amble
     if (!p) return;
     p.mount = null;
@@ -542,7 +548,7 @@ export class Horse extends Animal {
     const r = this.rider;
     this.detour = null;
     this.state = 'ridden';
-    if (r.dead || r.mount !== this) { this.rider = null; this.h = 1.6; this.speed = this.walkSpeed ?? this.speed; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
+    if (r.dead || r.mount !== this) { this.rider = null; this.h = this.standH; this.speed = this.walkSpeed ?? this.speed; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
     // a wild horse bucks: it won't go where you want, and then it decides
     if (this.buck > 0) {
       this.buck -= dt;
@@ -553,10 +559,10 @@ export class Horse extends Animal {
         if (Math.random() * 100 < this.temper + 15) {
           this.owned = true;
           this.fx?.hearts?.(this.x, this.y + this.h, this.z, 8);
-          this.fx?.notify?.('The horse trusts you! Put a saddle on it to ride (3 leather + an iron ingot)');
+          this.fx?.notify?.(`The ${this.label} trusts you! Put a saddle on it to ride (3 leather + an iron ingot)`);
         } else {
           this.temper = Math.min(100, this.temper + 8);
-          this.fx?.sound('horse', { pos: this, vol: 1.2 });
+          this.fx?.sound(this.ambientSound, { pos: this, vol: 1.2 });
           this.fx?.notify?.('Thrown off! Feed it and try again');
           this.dismount();
           r.vy = 5; r.vx += -Math.sin(this.yaw) * 3; r.vz += -Math.cos(this.yaw) * 3;
@@ -571,7 +577,7 @@ export class Horse extends Animal {
     this.yaw = this.targetYaw = r.yaw;
     this.moving = inp.fwd > 0.1;
     this.walkSpeed ??= this.speed;   // its own pace, for when you get off
-    this.speed = this.inWater ? 2.2 : inp.sprint ? this.gallop : 4.2;
+    this.speed = this.inWater ? 2.2 : inp.sprint ? this.gallop : this.rideSpeed;
     if (inp.jump && this.onGround && !this.inWater) this.vy = this.jumpV;
     // hooves
     if (this.moving && this.onGround) {
@@ -702,8 +708,10 @@ export class Bird extends Animal {
       this.state = 'wander';
       this.stateTime = rand(1.5, 4);
       this.targetYaw = this.yaw + rand(-1.5, 1.5);
-      // hover a few blocks above the ground, drifting up and down
-      const ground = this.world.surfaceHeight(Math.floor(this.x), Math.floor(this.z));
+      // hover a few blocks above the ground (or the water), drifting up and down
+      const bx = Math.floor(this.x), bz = Math.floor(this.z);
+      let ground = this.world.surfaceHeight(bx, bz);
+      while (ground < 200 && isWater(this.world.getBlockW(bx, ground + 1, bz))) ground++;
       const want = ground + rand(4, 10);
       this.targetVy = Math.max(-2, Math.min(2, (want - this.y) * 0.6));
     }
@@ -1291,7 +1299,7 @@ export class Sloth extends Animal {
     const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.3));
     const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.3));
     const ahead = this.world.getBlockW(ax, Math.floor(this.y + 0.3), az);
-    this.climber = ahead === B.OAK_LOG || ahead === B.BIRCH_LOG || ahead === B.SPRUCE_LOG;
+    this.climber = ahead === B.OAK_LOG || ahead === B.BIRCH_LOG || ahead === B.SPRUCE_LOG || ahead === B.PALM_LOG;
     if (this.climber) this.legs[0].rotation.x = this.legs[1].rotation.x = -2.4;   // reaching up the trunk
   }
 
@@ -1447,5 +1455,167 @@ export class PolarBear extends Animal {
 
   onDeath() {
     this.dropFn?.([{ id: I.FISH_RAW, count: (Math.random() * 3) | 0 }]);
+  }
+}
+
+// ---------- deserts and beaches ----------
+
+// Camels: tall, slow and sure-footed desert travellers. Feed one cactus (or
+// wheat) and climb on until it trusts you; saddled, you ride high up with a
+// long view over the dunes. Slower than a horse, but steadier.
+const CAMEL_FOOD = new Map([[B.CACTUS, 5], [I.WHEAT, 3], [B.HAY_BALE, 10], [B.DEAD_BUSH, 2], [I.GOLDEN_CARROT, 20], [I.GOLDEN_APPLE, 20]]);
+
+export class Camel extends Horse {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'camel'; this.label = 'camel';
+    this.hurtSound = this.ambientSound = 'camel';
+    this.w = 1.3; this.h = this.standH = 2.1;
+    this.health = this.maxHealth = 30 + ((Math.random() * 6) | 0);
+    this.speed = 1.1; this.fleeSpeed = 3.2;
+    this.gallop = 6.2 + Math.random() * 1.2;   // a steady lope
+    this.jumpV = 8.6;                          // over a block, not a fence
+    this.rideSpeed = 3.4;
+    this.temper = 55;                          // calmer than a wild horse
+    this.tamingFood = CAMEL_FOOD;
+    this.diet = [...CAMEL_FOOD.keys()];
+    this.breedAlso = [B.CACTUS];
+  }
+
+  buildModel() {
+    const fur = 0xc89a5e, dark = 0x9c7240, muzzle = 0x7a5530, hoof = 0x4a3a2a;
+    this.coat = 0; this.coatParts = []; this.maneParts = [];
+    this.part(0.7, 0.62, 1.4, fur, 0, 1.42, 0.05);              // body, up on long legs
+    this.part(0.5, 0.36, 0.42, fur, 0, 1.86, -0.22);            // front hump
+    this.part(0.46, 0.32, 0.4, fur, 0, 1.84, 0.4);              // back hump
+    this.part(0.28, 0.7, 0.3, fur, 0, 1.62, -0.82).rotation.x = 0.55;   // long neck, reaching forward
+    this.part(0.3, 0.3, 0.52, fur, 0, 1.98, -1.12);             // head
+    this.part(0.24, 0.2, 0.16, muzzle, 0, 1.92, -1.4);          // droopy lips
+    this.part(0.06, 0.06, 0.02, 0x111111, -0.15, 2.04, -1.24);  // eyes
+    this.part(0.06, 0.06, 0.02, 0x111111, 0.15, 2.04, -1.24);
+    this.part(0.08, 0.1, 0.06, dark, -0.12, 2.18, -1.0);        // ears
+    this.part(0.08, 0.1, 0.06, dark, 0.12, 2.18, -1.0);
+    this.part(0.1, 0.42, 0.1, dark, 0, 1.28, 0.78).rotation.x = 0.4;   // tail
+    this.quadLegs(fur, 0.2, 1.12, 0.22, 0.52, 1.12);
+    for (const l of this.legs) { const h = this.part(0.26, 0.1, 0.28, hoof, 0, -1.08, 0); this.group.remove(h); l.add(h); }
+    // the saddle sits between the humps
+    this.saddleParts = [
+      this.part(0.74, 0.12, 0.42, 0xa0442c, 0, 1.8, 0.1),
+      this.part(0.78, 0.06, 0.46, 0xe0b040, 0, 1.75, 0.1),
+      this.part(0.04, 0.5, 0.04, 0x4a2a14, -0.38, 1.5, 0.1), this.part(0.04, 0.5, 0.04, 0x4a2a14, 0.38, 1.5, 0.1),
+    ];
+    for (const m of this.saddleParts) m.visible = false;
+  }
+
+  setCoat() {}   // one sandy coat
+  get seat() { return 1.8; }
+
+  saveExtra() { const e = super.saveExtra(); delete e.coat; return e; }
+}
+
+// Seagulls: noisy white gulls wheeling over beaches and the sea in groups,
+// settling on the sand.
+export class Seagull extends Bird {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'seagull';
+    this.w = 0.4; this.h = 0.35;
+    this.ambientSound = this.hurtSound = 'seagull';
+    this.phase = Math.random() * 10;
+  }
+
+  // long glides on held-out wings between a few slow beats
+  animate() {
+    const grounded = this.state === 'roost' && this.onGround;
+    const beating = this.state === 'flee' || this.targetVy > 0.5 || Math.sin(this.age * 0.9 + this.phase) > 0.3;
+    const f = grounded ? 0 : beating ? Math.sin(this.age * 13) * 0.55 : -0.1 + Math.sin(this.age * 2) * 0.04;
+    this.wings[0].rotation.z = f;
+    this.wings[1].rotation.z = -f;
+  }
+
+  buildModel() {
+    const white = 0xf2f2ee, grey = 0x9ea4aa, tip = 0x2a2a2c, beak = 0xf0c230;
+    this.part(0.22, 0.18, 0.4, white, 0, 0.14, 0);              // body
+    this.part(0.18, 0.17, 0.18, white, 0, 0.24, -0.24);         // head
+    this.part(0.05, 0.05, 0.12, beak, 0, 0.22, -0.39);          // yellow beak
+    this.part(0.03, 0.03, 0.02, 0x111111, -0.07, 0.27, -0.33);  // eyes
+    this.part(0.03, 0.03, 0.02, 0x111111, 0.07, 0.27, -0.33);
+    this.part(0.16, 0.04, 0.16, grey, 0, 0.19, 0.24);           // tail
+    // long grey wings with black tips
+    this.wings = [];
+    for (const side of [-1, 1]) {
+      const w = this.part(0.46, 0.03, 0.2, grey, side * 0.32, 0.18, 0);
+      const t = this.part(0.12, 0.031, 0.2, tip, side * 0.17, 0, 0);
+      this.group.remove(t); w.add(t);
+      this.wings.push(w);
+    }
+  }
+
+  onDeath() { this.dropFn?.([{ id: I.FEATHER, count: (Math.random() * 3) | 0 }]); }
+}
+
+// Pelicans: big beach birds with a pouched bill. They stand about on the
+// sand, float on the water and now and then plunge their bill in for a
+// fish. Raw fish wins them over.
+export class Pelican extends Duck {
+  constructor(scene, world, x, y, z) {
+    super(scene, world, x, y, z);
+    this.kind = 'pelican';
+    this.w = 0.7; this.h = 1.0; this.health = 8; this.speed = 0.9; this.fleeSpeed = 2.6;
+    this.ambientSound = this.hurtSound = 'pelican';
+    this.breedItem = I.FISH_RAW;
+    this.fishing = 0;
+  }
+
+  buildModel() {
+    const white = 0xf0eee8, grey = 0xb8b6b0, bill = 0xe8a040, pouch = 0xe8c070, legC = 0x5a5a5e;
+    this.plumage = { body: [], wing: [], head: [] };
+    this.part(0.5, 0.46, 0.8, white, 0, 0.56, 0.05);            // body
+    this.part(0.42, 0.12, 0.36, grey, 0, 0.66, 0.5);            // tail
+    this.neck = new THREE.Group();
+    this.neck.position.set(0, 0.74, -0.28);
+    this.group.add(this.neck);
+    const np = (w, h, d, c, x, y, z) => { const m = this.part(w, h, d, c, x, y, z); this.group.remove(m); this.neck.add(m); return m; };
+    np(0.16, 0.4, 0.16, white, 0, 0.2, 0);                      // neck
+    np(0.24, 0.22, 0.26, white, 0, 0.46, -0.04);                // head
+    np(0.04, 0.04, 0.02, 0x111111, -0.1, 0.5, -0.17);
+    np(0.04, 0.04, 0.02, 0x111111, 0.1, 0.5, -0.17);
+    np(0.1, 0.06, 0.5, bill, 0, 0.44, -0.4);                    // the long bill
+    np(0.1, 0.14, 0.4, pouch, 0, 0.35, -0.36);                  // and its pouch
+    this.collar = this.part(0.01, 0.01, 0.01, white, 0, 0.5, 0); this.collar.visible = false;
+    this.wings = [this.part(0.06, 0.32, 0.62, grey, -0.27, 0.6, 0.06), this.part(0.06, 0.32, 0.62, grey, 0.27, 0.6, 0.06)];
+    const leg = (x) => {
+      const l = this.part(0.07, 0.34, 0.07, legC, x, 0.34, 0.06);
+      l.geometry = l.geometry.clone(); l.geometry.translate(0, -0.17, 0); l.position.y = 0.34;
+      const foot = this.part(0.16, 0.03, 0.18, 0xd89848, 0, -0.33, -0.05); this.group.remove(foot); l.add(foot);
+      return l;
+    };
+    this.legs = [leg(-0.12), leg(0.12)];
+  }
+
+  setDrake() {}   // one plumage
+  saveExtra() { return null; }
+  loadExtra() {}
+
+  think(dt, player, playerDist) {
+    // floating: now and then dip the bill in for a fish
+    if (this.fishing > 0) { this.fishing -= dt; this.moving = false; return; }
+    if (this.inWater && this.state !== 'flee' && Math.random() < dt / 12) {
+      this.fishing = 1.2;
+      this.fx?.sound('splash', { pos: this, vol: 0.35 });
+      return;
+    }
+    super.think(dt, player, playerDist);
+  }
+
+  animate(dt) {
+    super.animate?.(dt);
+    // the neck dips into the water while fishing
+    const dip = this.fishing > 0 ? Math.sin((1 - this.fishing / 1.2) * Math.PI) : 0;
+    this.neck.rotation.x = -dip * 1.4;
+  }
+
+  onDeath() {
+    this.dropFn?.([{ id: I.FEATHER, count: 1 + ((Math.random() * 2) | 0) }, { id: I.FISH_RAW, count: Math.random() < 0.3 ? 1 : 0 }]);
   }
 }

@@ -99,6 +99,7 @@ export function shapeBoxes(id, meta, nb, collision = false) {
     // an open wooden box
     case 'trough': return [[0, 0, 0, 1, 3 * P, 1], [0, 3 * P, 0, 1, 10 * P, 2 * P], [0, 3 * P, 14 * P, 1, 10 * P, 1],
       [0, 3 * P, 2 * P, 2 * P, 10 * P, 14 * P], [14 * P, 3 * P, 2 * P, 1, 10 * P, 14 * P]];
+    case 'coconut': return [[5 * P, 7 * P, 5 * P, 11 * P, 14 * P, 11 * P], [7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P]];   // a nut on a short stalk
     case 'lantern': {
       // body and cap (a hanging one dangles on a chain from the block above)
       const boxes = [[5 * P, 0, 5 * P, 11 * P, 7 * P, 11 * P], [6 * P, 7 * P, 6 * P, 10 * P, 9 * P, 10 * P]];

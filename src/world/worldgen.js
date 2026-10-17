@@ -413,11 +413,12 @@ export class WorldGen {
       const qx = cx * CHUNK_X + (q & 1) * 8, qz = cz * CHUNK_Z + (q >> 1) * 8;
       const biome = this.biomeAt(qx + 4, qz + 4);
       // a column in this quadrant with ground of the right biome, or null
-      const spot = (ok) => {
+      // (above the sea, or for beach palms level with it)
+      const spot = (ok, minH = SEA_LEVEL + 1) => {
         const wx = qx + ((rng() * 8) | 0), wz = qz + ((rng() * 8) | 0);
         const col = this.columnAt(wx, wz);
         const h = Math.floor(col.h);
-        if (h <= SEA_LEVEL || !ok(this.biomeOf(col)) || !this.groundOk(wx, h, wz)) return null;
+        if (h < minH || !ok(this.biomeOf(col)) || !this.groundOk(wx, h, wz)) return null;
         // v9: no trees rooted in bare mountain rock (it's grass or snow they need)
         if (this.version >= 9 && this.biomeOf(col) === BIOME.MOUNTAINS && h > 68 && h <= 84 && !(col.t < FROZEN) && h <= 78) return null;
         return { wx, wz, h };
@@ -433,6 +434,13 @@ export class WorldGen {
         case BIOME.MOUNTAINS: trees = count(1.2); treeKind = 'spruce'; break;
         case BIOME.SNOWY: trees = count(0.35); treeKind = 'spruce'; break;
         case BIOME.RIVER: case BIOME.BEACH: trees = count(0.6); break;   // the odd tree on the bank
+      }
+      // v9: coconut palms along warm beaches
+      if (this.version >= 9 && biome === BIOME.BEACH && this.climateAt(qx + 4, qz + 4).t > 0.5) {
+        for (let i = count(4); i > 0; i--) {
+          const s = spot((b) => b === BIOME.BEACH, SEA_LEVEL);   // beach sand lies level with the sea
+          if (s) features.push({ type: 'tree', kind: 'palm', wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.seed, s.wx, s.wz, 556) });
+        }
       }
       for (let i = 0; i < trees; i++) {
         const s = spot((b) => LUSH.has(b));
@@ -613,6 +621,38 @@ export class WorldGen {
   buildTree(put, f) {
     const { kind, wx, wy, wz } = f;
     const rng = f.rng ?? coordRng(this.seed, wx, wz, 555);
+    if (kind === 'palm') {
+      // a ringed trunk leaning gently one way, a star of drooping fronds,
+      // and a few coconuts tucked under them
+      const h = f.size + 2;
+      const lean = [[1, 0], [-1, 0], [0, 1], [0, -1]][(rng() * 4) | 0];
+      let x = wx, z = wz;
+      for (let i = 0; i < h; i++) {
+        if (i >= 3 && i % 3 === 0 && rng() < 0.7) { x += lean[0]; z += lean[1]; }
+        put(x, wy + i, z, B.PALM_LOG, false);
+      }
+      const top = wy + h;
+      put(x, top, z, B.PALM_LEAVES);
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        // long fronds: out along the top, then down at the tip
+        put(x + dx, top, z + dz, B.PALM_LEAVES);
+        put(x + dx * 2, top, z + dz * 2, B.PALM_LEAVES);
+        put(x + dx * 3, top - 1, z + dz * 3, B.PALM_LEAVES);
+        if (rng() < 0.6) put(x + dx * 4, top - 2, z + dz * 4, B.PALM_LEAVES);
+      }
+      for (const [dx, dz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        put(x + dx, top, z + dz, B.PALM_LEAVES);
+        put(x + dx * 2, top - 1, z + dz * 2, B.PALM_LEAVES);
+      }
+      // coconuts hang beside the trunk, under the crown
+      const spots = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const n = 1 + ((rng() * 3) | 0);
+      for (let i = 0; i < n; i++) {
+        const [dx, dz] = spots.splice((rng() * spots.length) | 0, 1)[0];
+        put(x + dx, top - 1, z + dz, B.COCONUT);
+      }
+      return;
+    }
     if (kind === 'spruce') {
       const h = f.size + 3;
       for (let i = 0; i < h; i++) put(wx, wy + i, wz, B.SPRUCE_LOG, false);

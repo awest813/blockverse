@@ -13,8 +13,9 @@ import { mulberry32 } from '../core/rng.js';
 
 // Blocks that open a UI instead of being a normal placement target.
 const USABLE = new Set([B.CRAFTING_TABLE, B.FURNACE, B.FURNACE_LIT, B.CHEST, B.BED]);
-const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING]);
+const SAPLINGS = new Set([B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.PALM_SAPLING]);
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);
+const SAND_SOIL = new Set([B.SAND, B.GRASS, B.DIRT]);   // a palm takes root on sand (or ordinary ground)
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
@@ -74,7 +75,7 @@ const toolKey = (stack) => {
   return t ? `${t.class}:${t.tier}:${t.speed}` : '';
 };
 
-const SHEARABLE = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.TALL_GRASS, B.DEAD_BUSH]);
+const SHEARABLE = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.TALL_GRASS, B.DEAD_BUSH]);
 
 export class Interaction {
   constructor(world, player, callbacks) {
@@ -425,7 +426,7 @@ export class Interaction {
     if (NEEDS_GROUND.has(info.id)) {
       const below = this.world.getBlockW(px, py - 1, pz);
       if (!this.supportsTop(px, py - 1, pz) && !(info.id === B.KELP && below === B.KELP)) return;
-      if (SAPLINGS.has(info.id) && !SOIL.has(below)) return;
+      if (SAPLINGS.has(info.id) && !(info.id === B.PALM_SAPLING ? SAND_SOIL : SOIL).has(below)) return;
     }
 
     // don't place a solid block inside the player
@@ -510,7 +511,7 @@ export class Interaction {
     // some food doesn't sit well: you get hungry again fast
     if (info.sickly && this.dropRng() < info.sickly) { p.addExhaustion(10); this.cb.notify?.('That didn\'t agree with you…'); }
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
-    if (held.id === I.MILK_BUCKET) p.fireTime = 0;   // cools you right down
+    if (held.id === I.MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
     p.consumeHeld(1);
     // stew and milk leave their container behind
     if (info.returns) {

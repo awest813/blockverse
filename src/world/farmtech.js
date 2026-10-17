@@ -22,7 +22,7 @@ const NEIGHBOURS = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0,
 // chance that one item raises the level (crunchier scraps compost slower)
 const COMPOST = new Map([
   [I.WHEAT_SEEDS, 0.3], [B.OAK_LEAVES, 0.3], [B.BIRCH_LEAVES, 0.3], [B.SPRUCE_LEAVES, 0.3], [B.TALL_GRASS, 0.3],
-  [B.OAK_SAPLING, 0.3], [B.BIRCH_SAPLING, 0.3], [B.SPRUCE_SAPLING, 0.3], [B.KELP, 0.3], [B.SEAGRASS, 0.3], [B.DEAD_BUSH, 0.3],
+  [B.OAK_SAPLING, 0.3], [B.BIRCH_SAPLING, 0.3], [B.SPRUCE_SAPLING, 0.3], [B.PALM_SAPLING, 0.3], [B.PALM_LEAVES, 0.3], [I.COCONUT, 0.65], [B.KELP, 0.3], [B.SEAGRASS, 0.3], [B.DEAD_BUSH, 0.3],
   [B.SUGAR_CANE, 0.5], [B.CACTUS, 0.5], [I.DRIED_KELP, 0.5],
   [I.WHEAT, 0.65], [I.CARROT, 0.65], [I.POTATO, 0.65], [I.APPLE, 0.65], [B.PUMPKIN, 0.65], [B.LILY_PAD, 0.65],
   [B.DANDELION, 0.65], [B.POPPY, 0.65], [B.MUSHROOM_BROWN, 0.65], [B.MUSHROOM_RED, 0.65],

@@ -22,6 +22,7 @@ const DEATH_MESSAGES = {
   dog: 'You were mauled by a Dog',
   goat: 'You were butted off your feet by a Goat',
   polarbear: 'You were mauled by a Polar Bear',
+  scorpion: 'You were stung by a Scorpion',
   freeze: 'You froze to death',
   fire: 'You went up in flames',
   lava: 'You tried to swim in lava',

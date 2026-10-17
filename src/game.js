@@ -275,6 +275,11 @@ export class Game {
 
     this.player.events.addEventListener('hurt', (e) => {
       this.sfx?.play('hurt', { cause: e.detail?.cause });
+      // the venom's first bite: say what's happening and what helps
+      if (e.detail?.cause === 'poison' && !this._poisonTold) {
+        this._poisonTold = true;
+        this.hud.showLabel('Poisoned! It wears off after a while — milk cures it at once', true);
+      }
       this.hud.renderStats();
       this.flashDamage();
     });
@@ -451,7 +456,7 @@ export class Game {
   useLead(m, held) {
     const p = this.player;
     if (m.leash) {
-      const horseToRide = m.kind === 'horse' && !held && !p.sneaking;
+      const horseToRide = m.rideable && !held && !p.sneaking;   // (horses and camels)
       if (horseToRide || (held && held.id !== I.LEAD && !p.sneaking)) return false;   // ride it, feed it...
       m.unleash();
       if (p.mode !== GAMEMODE_CREATIVE && p.give(I.LEAD, 1) > 0) this.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.LEAD, count: 1 }], true);
@@ -487,14 +492,15 @@ export class Game {
   blowHorn() {
     const p = this.player;
     this.sfx?.play('horn');
-    let n = 0;
+    const called = [];
     for (const m of this.entities.mobs) {
-      if (m.kind !== 'horse' || !m.owned || m.rider || m.dead || m.dying !== undefined) continue;
+      if (!m.rideable || !m.owned || m.rider || m.dead || m.dying !== undefined) continue;   // your horses and camels come
       if (Math.hypot(m.x - p.x, m.z - p.z) > 64) continue;
       m.called = 25;
-      n++;
+      called.push(m);
     }
-    this.hud.showLabel(n ? (n === 1 ? 'Your horse is coming' : `${n} horses are coming`) : 'The call echoes… no horse of yours is in earshot');
+    const n = called.length, one = called.every((m) => m.label === called[0]?.label) ? called[0]?.label : 'animal';
+    this.hud.showLabel(n ? (n === 1 ? `Your ${one} is coming` : `${n} ${one}s are coming`) : 'The call echoes… no horse or camel of yours is in earshot');
   }
 
   mobUnderCrosshair(extraReach = 0) {
@@ -1234,6 +1240,7 @@ export class Game {
       onGround: p.onGround && !p.flying,
       light,
       visible: !p.dead && !this.hud.root.classList.contains('bare'),
+      chest: (p.armor[1] && itemInfo(p.armor[1].id)?.armor?.material) ?? null,
     });
   }
 

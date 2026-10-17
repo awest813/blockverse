@@ -7,11 +7,11 @@ import { I } from '../items/itemIds.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 
 const SEEN_KEY = 'blockverse-hints';
-const LOGS = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG];
+const LOGS = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG];
 const PLANKS = [B.OAK_PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS];
 const cap = (t) => t[0].toUpperCase() + t.slice(1);
 const RAW_FOOD = [I.PORKCHOP_RAW, I.MUTTON_RAW, I.BEEF_RAW, I.CHICKEN_RAW, I.FISH_RAW];
-const SAPLINGS = () => [B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING];
+const SAPLINGS = () => [B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.PALM_SAPLING];
 
 function loadSeen() {
   try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]')); } catch { return new Set(); }

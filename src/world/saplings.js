@@ -7,8 +7,8 @@ import { I } from '../items/itemIds.js';
 import { CHUNK_Y } from '../core/constants.js';
 import { mulberry32 } from '../core/rng.js';
 
-const LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES]);
-const KIND = { [B.OAK_SAPLING]: 'oak', [B.BIRCH_SAPLING]: 'birch', [B.SPRUCE_SAPLING]: 'spruce' };
+const LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES]);
+const KIND = { [B.OAK_SAPLING]: 'oak', [B.BIRCH_SAPLING]: 'birch', [B.SPRUCE_SAPLING]: 'spruce', [B.PALM_SAPLING]: 'palm' };
 
 export function tickSaplings(world, dt) {
   const ready = [];
@@ -84,7 +84,7 @@ function growTree(world, x, y, z, st) {
   if (!kind) { world.setBlockEntity(x, y, z, null); return; }
   const rng = mulberry32((x * 73856093) ^ (z * 19349663) ^ (Date.now() & 0xffff));
   const size = 4 + ((rng() * 3) | 0);
-  const height = size + (kind === 'birch' ? 2 : kind === 'spruce' ? 4 : 0) + 1;
+  const height = size + (kind === 'birch' ? 2 : kind === 'spruce' ? 4 : kind === 'palm' ? 3 : 0) + 1;
   // the whole canopy must be in loaded chunks (no half-tree at a border)
   for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) {
     if (!world.isLoaded(x + dx, z + dz)) { st.grow = 30; return; }

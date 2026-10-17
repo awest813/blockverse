@@ -1,7 +1,7 @@
 // Runtime mob spawning and despawning around the player.
 
-import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper } from './mobs.js';
-import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear } from './animals.js';
+import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
+import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican } from './animals.js';
 
 // night spawn mix: [class, weight]
 const HOSTILE_TABLE = [[Zombie, 40], [Skeleton, 25], [Spider, 20], [Creeper, 15]];
@@ -21,6 +21,13 @@ const WHALE_CAP = 1;
 const DROWNED_CAP = 3;
 const DOLPHIN_CAP = 4;
 const MANATEE_CAP = 2;
+const SCORPION_CAP = 3;
+const GULL_CAP = 5;
+const PELICAN_CAP = 4;
+// a desert has the one kind of animal: don't let camels fill the cap
+const KIND_CAP = new Map([[Camel, 4]]);
+// these live on sand rather than grass
+const SAND_DWELLERS = new Set([Camel]);
 
 // land animals per biome: [class, weight]
 const LAND_TABLE = {
@@ -32,16 +39,23 @@ const LAND_TABLE = {
   [BIOME.MOUNTAINS]: [[Goat, 4], [Sheep, 3], [Cow, 1], [Dog, 1]],
   [BIOME.SNOWY]: [[Sheep, 2], [Goat, 2], [Fox, 2], [Dog, 2], [PolarBear, 1]],
   [BIOME.SNOWY_FOREST]: [[Sheep, 1], [Fox, 3], [Dog, 2], [PolarBear, 1]],
+  [BIOME.DESERT]: [[Camel, 1]],
 };
 const GROUP = new Map([[Horse, () => 2 + ((Math.random() * 2) | 0)], [Goat, () => 2], [Duck, () => 2 + ((Math.random() * 3) | 0)],
   [Capybara, () => 2 + ((Math.random() * 3) | 0)], [Panda, () => 1 + ((Math.random() * 2) | 0)],
-  [PolarBear, () => (Math.random() < 0.5 ? 2 : 1)]]);
+  [PolarBear, () => (Math.random() < 0.5 ? 2 : 1)], [Camel, () => 1 + ((Math.random() * 2) | 0)]]);
 // the rest of these groups are young: a polar bear's cub (keep your distance)
 const YOUNG_IN_GROUP = new Set([PolarBear]);
 function weighted(table) {
   let r = Math.random() * table.reduce((n, [, w]) => n + w, 0);
   for (const [cls, w] of table) if ((r -= w) < 0) return cls;
   return table[0][0];
+}
+// the top of the ground, or of the water over it
+function waterline(world, wx, wz) {
+  let y = world.surfaceHeight(wx, wz);
+  while (y < 200 && isWater(world.getBlockW(wx, y + 1, wz))) y++;
+  return y;
 }
 const count = (mobs, ...classes) => mobs.filter((m) => classes.some((c) => m instanceof c)).length;
 
@@ -76,7 +90,18 @@ export class MobSpawner {
     const cap = this.difficulty === 3 ? HOSTILE_CAP + 4 : this.difficulty === 1 ? HOSTILE_CAP - 3 : HOSTILE_CAP;
     // the surface spawns monsters at night; caves are dark at any hour
     if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
-    if (dayFactor > 0.5 && count(mobs, Bird) < BIRD_CAP) this.trySpawnBird(player);
+    const gulls = count(mobs, Seagull);
+    if (dayFactor > 0.5 && count(mobs, Bird) - gulls < BIRD_CAP) this.trySpawnBird(player, false);
+    if (dayFactor > 0.5 && gulls < GULL_CAP && Math.random() < 0.5) this.trySpawnBird(player, true);
+    // a beach is a thin strip and a desert's scorpions come out at any hour:
+    // these get a pass of their own rather than waiting on the biome tables
+    if (count(mobs, Pelican) < PELICAN_CAP && Math.random() < 0.3) {
+      this.trySpawnLocal(player, Pelican, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.BEACH
+        && this.world.gen.columnAt(wx, wz).t >= 0.45, 1 + ((Math.random() * 3) | 0));   // pelicans like it warm
+    }
+    if (this.difficulty > 0 && count(mobs, Scorpion) < SCORPION_CAP && Math.random() < 0.3) {
+      this.trySpawnLocal(player, Scorpion, (wx, wz, ground) => ground === B.SAND && this.world.biomeAt(wx, wz) === BIOME.DESERT);
+    }
     if (count(mobs, Fish) < FISH_CAP) this.trySpawnWater(player, Fish, 1);
     if (count(mobs, Whale) < WHALE_CAP && Math.random() < 0.15) this.trySpawnWater(player, Whale, 7);
     if (count(mobs, Dolphin) < DOLPHIN_CAP && Math.random() < 0.2) this.trySpawnWater(player, Dolphin, 4);
@@ -94,16 +119,39 @@ export class MobSpawner {
     return this.world.isLoaded(wx, wz) ? [wx, wz] : null;
   }
 
-  trySpawnBird(player) {
+  // songbirds inland; gulls over the sea, beaches and rivers (not frozen ones)
+  trySpawnBird(player, gulls) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const col = this.randomColumn(player);
       if (!col) continue;
       const [wx, wz] = col;
       const biome = this.world.biomeAt(wx, wz);
-      if (biome === BIOME.OCEAN || biome === BIOME.DESERT) continue;
-      const y = this.world.surfaceHeight(wx, wz) + 6 + Math.random() * 5;
+      if (biome === BIOME.DESERT) continue;
+      const coast = biome === BIOME.OCEAN || biome === BIOME.BEACH || biome === BIOME.RIVER;
+      if (coast !== gulls || (gulls && this.world.gen.columnAt(wx, wz).t < 0.3)) continue;
+      const y = waterline(this.world, wx, wz) + 6 + Math.random() * 5;
       if (this.world.getBlockW(wx, Math.floor(y), wz) !== B.AIR) continue;
-      this.spawnMob(Bird, wx + 0.5, y, wz + 0.5);
+      // gulls come in a small, noisy flock
+      const n = gulls ? Math.min(GULL_CAP - count(this.entities.mobs, Seagull), 2 + ((Math.random() * 2) | 0)) : 1;
+      for (let k = 0; k < n; k++) this.spawnMob(gulls ? Seagull : Bird, wx + 0.5 + (k ? (Math.random() - 0.5) * 4 : 0), y + (k ? Math.random() : 0), wz + 0.5 + (k ? (Math.random() - 0.5) * 4 : 0));
+      return;
+    }
+  }
+
+  // n of a kind on a column that passes ok(wx, wz, ground), in the open
+  trySpawnLocal(player, Cls, ok, n = 1) {
+    const clear = (x, y, z) => this.world.getBlockW(x, y, z) === B.AIR && this.world.getBlockW(x, y + 1, z) === B.AIR;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const col = this.randomColumn(player);
+      if (!col) continue;
+      const [wx, wz] = col;
+      const y = this.world.surfaceHeight(wx, wz) + 1;
+      if (!ok(wx, wz, this.world.getBlockW(wx, y - 1, wz)) || !clear(wx, y, wz)) continue;
+      for (let k = 0; k < n; k++) {
+        const ox = k ? Math.round((Math.random() - 0.5) * 4) : 0, oz = k ? Math.round((Math.random() - 0.5) * 4) : 0;
+        if (k && (this.world.surfaceHeight(wx + ox, wz + oz) + 1 !== y || !clear(wx + ox, y, wz + oz))) continue;
+        this.spawnMob(Cls, wx + ox + 0.5, y, wz + oz + 0.5);
+      }
       return;
     }
   }
@@ -177,7 +225,7 @@ export class MobSpawner {
       const ground = this.world.getBlockW(wx, y - 1, wz);
       if (!isSolid(ground) || ground === B.WATER) continue;
       // not on tree canopies
-      if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES) continue;
+      if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES || ground === B.PALM_LEAVES) continue;
       // need 2 blocks of room (a snow layer or tall grass doesn't count against
       // it: they used to rule out most of the snowy lands)
       const open = (id) => id === B.AIR || (!isSolid(id) && !isWater(id) && id !== B.LAVA);
@@ -204,8 +252,10 @@ export class MobSpawner {
       const table = LAND_TABLE[landBiome];
       if (!table) continue;
       const Cls = weighted(table);
-      // bare rock is for goats only
-      if (ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(Cls === Goat && ground === B.STONE)) continue;
+      if (KIND_CAP.has(Cls) && count(this.entities.mobs, Cls) >= KIND_CAP.get(Cls)) continue;
+      // bare rock is for goats only, sand for camels
+      if (SAND_DWELLERS.has(Cls) ? ground !== B.SAND && ground !== B.GRASS
+        : ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(Cls === Goat && ground === B.STONE)) continue;
       if (Cls === Goat && ground !== B.STONE && ground !== B.SNOW_BLOCK && ground !== B.SNOWY_GRASS && y < 80 && Math.random() < 0.6) continue;   // goats like it high and rocky
       // herds and flocks: horses, goats and ducks come in twos and threes
       const n = GROUP.get(Cls)?.() ?? 1;

@@ -108,6 +108,10 @@ export const B = {
   HARVESTER: 102,
   COLLECTOR: 103,
   TROUGH: 104,
+  PALM_LOG: 105,
+  PALM_LEAVES: 106,
+  PALM_SAPLING: 107,
+  COCONUT: 108,          // hanging under a palm's fronds (drops the coconut item)
 };
 
 // Tool classes
@@ -224,6 +228,24 @@ reg(def(B.SPRUCE_LOG, 'spruce_log', 'Spruce Log', {
 }));
 reg(def(B.SPRUCE_LEAVES, 'spruce_leaves', 'Spruce Leaves', { render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf', drop: leafDrops(B.SPRUCE_SAPLING) }));
 reg(def(B.SPRUCE_PLANKS, 'spruce_planks', 'Spruce Planks', { hardness: 2, tool: TOOL_AXE, sound: 'wood' }));
+// coconut palms on warm beaches: a ringed trunk, drooping fronds, coconuts
+reg(def(B.PALM_LOG, 'palm_log', 'Palm Log', {
+  hardness: 2, tool: TOOL_AXE, sound: 'wood',
+  textures: { top: 'palm_log_top', bottom: 'palm_log_top', side: 'palm_log' },
+}));
+reg(def(B.PALM_LEAVES, 'palm_leaves', 'Palm Fronds', {
+  render: R_CUTOUT, opacity: 1, hardness: 0.2, sound: 'leaf',
+  drop: (rng) => {
+    const drops = [];
+    if (rng() < 0.1) drops.push({ id: I.STICK, count: 1 });
+    if (rng() < 0.08) drops.push({ id: B.PALM_SAPLING, count: 1 });
+    return drops;
+  },
+}));
+reg(def(B.COCONUT, 'coconut_hanging', 'Coconut', {
+  solid: false, render: R_SHAPE, shape: 'coconut', opacity: 0, hardness: 0.3, sound: 'wood',
+  textures: 'coconut_husk', icon: 'coconut', drop: () => [{ id: I.COCONUT, count: 1 }],
+}));
 reg(def(B.CACTUS, 'cactus', 'Cactus', {
   hardness: 0.4, sound: 'cloth',
   textures: { top: 'cactus_top', bottom: 'cactus_top', side: 'cactus' },
@@ -283,6 +305,7 @@ const plant = { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound
 reg(def(B.OAK_SAPLING, 'oak_sapling', 'Oak Sapling', plant));
 reg(def(B.BIRCH_SAPLING, 'birch_sapling', 'Birch Sapling', plant));
 reg(def(B.SPRUCE_SAPLING, 'spruce_sapling', 'Spruce Sapling', plant));
+reg(def(B.PALM_SAPLING, 'palm_sapling', 'Palm Sapling', plant));
 reg(def(B.CHEST, 'chest', 'Chest', {
   hardness: 2.5, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' },
@@ -438,7 +461,7 @@ export function isSolid(id) {
 export function isTechnicalBlock(id) {
   return id === B.FURNACE_LIT || id === B.WATER || id === B.LAVA || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ||
     (id >= B.CARROTS_0 && id <= B.POTATOES_3) ||
-    id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE;
+    id === B.CAMPFIRE_OFF || id === B.OAK_DOOR_TOP || id === B.FIRE || id === B.COCONUT;
 }
 
 export function isWater(id) {
@@ -455,7 +478,7 @@ export function faceVisible(id, neighborId) {
   // Same transparent block type: hide inner faces (water-water, glass-glass, leaves keep faces for depth)
   if (id === neighborId) {
     const b = BLOCKS[id];
-    return b.render === R_CUTOUT && (id === B.OAK_LEAVES || id === B.BIRCH_LEAVES || id === B.SPRUCE_LEAVES);
+    return b.render === R_CUTOUT && (id === B.OAK_LEAVES || id === B.BIRCH_LEAVES || id === B.SPRUCE_LEAVES || id === B.PALM_LEAVES);
   }
   return true;
 }

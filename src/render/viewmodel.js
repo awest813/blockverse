@@ -17,6 +17,11 @@ const FACE_SHADE = [0.78, 0.62, 1, 0.5, 0.88, 0.7];
 
 const SKIN = new THREE.Color(0xd9a37c);
 const SLEEVE = new THREE.Color(0x3d8a9e);
+// a chestplate shows on the arm: its plate colour and a darker cuff
+const ARMOUR = {
+  leather: [0x8a5a34, 0x5e3a1e], iron: [0xc9ccd1, 0x8a9098],
+  gold: [0xf0c648, 0xb88a22], diamond: [0x62d8e2, 0x2a96a4],
+};
 
 function tileTexture(name) {
   const tex = new THREE.CanvasTexture(generateTile(name));
@@ -91,7 +96,17 @@ export class ViewModel {
     const skin = shadedBox(0.16, 0.16, 0.6, SKIN);
     const sleeve = shadedBox(0.175, 0.175, 0.2, SLEEVE);
     sleeve.position.z = 0.22;
-    this.arm.add(skin, sleeve);
+    // a chestplate's sleeve: a longer, thicker plate over the shirt, with a cuff
+    this.plate = new THREE.Group();
+    this.plateBox = shadedBox(0.19, 0.19, 0.3, new THREE.Color());
+    this.plateBox.position.z = 0.17;
+    this.cuff = shadedBox(0.2, 0.2, 0.05, new THREE.Color());
+    this.cuff.position.z = 0.03;
+    this.plate.add(this.plateBox, this.cuff);
+    this.plate.visible = false;
+    this.sleeve = sleeve;
+    this.arm.add(skin, sleeve, this.plate);
+    this.chest = null;
     this.arm.position.set(0.05, -0.02, 0.12);
     this.arm.rotation.set(0.15, 0.25, 0);
     this.arm.traverse((o) => { o.renderOrder = 1000; });
@@ -141,11 +156,25 @@ export class ViewModel {
     if (this.swingT >= SWING_TIME * 0.6) this.swingT = 0;
   }
 
+  // the chestplate's material ('iron' ...) or null: dress the arm to match
+  setChest(material) {
+    this.chest = material;
+    const c = ARMOUR[material];
+    this.plate.visible = !!c;
+    this.sleeve.visible = !c;
+    if (!c) return;
+    for (const [mesh, hex] of [[this.plateBox, c[0]], [this.cuff, c[1]]]) {
+      for (const m of mesh.material) m.userData.base.setHex(hex);
+    }
+  }
+
   // held: item id or 0; light: 0..1 brightness at the player's eyes;
-  // eatTime: seconds into eating (0 = not eating); drinking: a drink, not food
-  update(dt, { held, draw = 0, eatTime = 0, drinking = false, mining, speed, onGround, light, visible }) {
+  // eatTime: seconds into eating (0 = not eating); drinking: a drink, not food;
+  // chest: the worn chestplate's material, or null
+  update(dt, { held, draw = 0, eatTime = 0, drinking = false, mining, speed, onGround, light, visible, chest = null }) {
     this.root.visible = visible;
     if (!visible) return;
+    if (chest !== this.chest) this.setChest(chest);
 
     if (held !== this.heldId) {
       this.heldId = held;

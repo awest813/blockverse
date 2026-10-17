@@ -116,4 +116,5 @@ export const I = {
   DUCK_COOKED: 360,
   LEAD: 361,
   GOAT_HORN: 362,
+  COCONUT: 363,
 };

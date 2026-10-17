@@ -16,7 +16,7 @@ for (const mod of [MOBS, ANIMALS, BOSSES]) {
   }
 }
 
-const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'zombiebrute', 'bonearcher', 'broodmother']);
+const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother']);
 
 // what Tab can complete, per command argument
 const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd'];

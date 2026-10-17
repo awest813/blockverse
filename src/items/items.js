@@ -72,6 +72,7 @@ item(I.REDSTONE_DUST, 'redstone_dust', 'Redstone Dust');
 item(I.PORKCHOP_RAW, 'porkchop_raw', 'Raw Porkchop', { food: 3, sat: 1.8 });
 item(I.PORKCHOP_COOKED, 'porkchop_cooked', 'Cooked Porkchop', { food: 8, sat: 12.8 });
 item(I.APPLE, 'apple', 'Apple', { food: 4, sat: 2.4 });
+item(I.COCONUT, 'coconut', 'Coconut', { food: 5, sat: 3.6, eatTime: 1.4 });
 item(I.ROTTEN_FLESH, 'rotten_flesh', 'Rotten Flesh', { food: 2, sat: 0.4, sickly: 0.8 });
 item(I.MUTTON_RAW, 'mutton_raw', 'Raw Mutton', { food: 2, sat: 1.2 });
 item(I.MUTTON_COOKED, 'mutton_cooked', 'Cooked Mutton', { food: 6, sat: 9.6 });
@@ -143,7 +144,7 @@ for (const [mat, mult, points, ids] of [
     const display = `${mat[0].toUpperCase()}${mat.slice(1)} ${piece[0].toUpperCase()}${piece.slice(1)}`;
     item(ids[slot], `${mat}_${piece}`, display, {
       stack: 1,
-      armor: { slot, points: points[slot], durability: ARMOR_BASE_DURABILITY[slot] * mult },
+      armor: { slot, points: points[slot], durability: ARMOR_BASE_DURABILITY[slot] * mult, material: mat },
     });
   });
 }
@@ -189,7 +190,7 @@ const BLOCK_BURN = new Map([
   [B.OAK_LOG, 15], [B.BIRCH_LOG, 15], [B.SPRUCE_LOG, 15],
   [B.CRAFTING_TABLE, 15], [B.COAL_ORE, 0], [B.DEAD_BUSH, 5],
   [B.COAL_BLOCK, 800], [B.BOOKSHELF, 15], [B.CHEST, 15],
-  [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5],
+  [B.OAK_SAPLING, 5], [B.BIRCH_SAPLING, 5], [B.SPRUCE_SAPLING, 5], [B.PALM_SAPLING, 5], [B.PALM_LOG, 15],
   [B.HAY_BALE, 20], [B.COMPOSTER, 15], [B.TROUGH, 15],
   [B.OAK_SLAB, 7.5], [B.OAK_STAIRS, 15], [B.OAK_FENCE, 15], [B.OAK_FENCE_GATE, 15],
   [B.OAK_DOOR, 10], [B.LADDER, 15], [B.OAK_SIGN, 10], [B.BED, 15],

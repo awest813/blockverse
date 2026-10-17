@@ -158,7 +158,8 @@ export class Hud {
     const creative = p.mode === GAMEMODE_CREATIVE;
     // called several times a second; only touch the DOM when something changed
     const armor = p.armorPoints();
-    const key = creative ? 'c' : `${p.health}|${p.hunger}|${p.air}|${armor}`;
+    const poisoned = p.poisonTime > 0;
+    const key = creative ? 'c' : `${p.health}|${p.hunger}|${p.air}|${armor}|${poisoned}`;
     if (key === this._statsKey) return;
     this._statsKey = key;
 
@@ -180,7 +181,8 @@ export class Hud {
 
     for (let i = 0; i < 10; i++) {
       const v = p.health - i * 2;
-      this.healthEl.appendChild(icon(v >= 2 ? I.heartFull : v >= 1 ? I.heartHalf : I.heartEmpty));
+      // poisoned hearts go green until it wears off (or milk cures it)
+      this.healthEl.appendChild(icon(v >= 2 ? (poisoned ? I.poisonFull : I.heartFull) : v >= 1 ? (poisoned ? I.poisonHalf : I.heartHalf) : I.heartEmpty));
     }
     this.healthEl.classList.toggle('low', p.health <= 4);
     this.setLowHealth(p.health <= 4);

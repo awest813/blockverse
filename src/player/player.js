@@ -12,8 +12,8 @@ import { B } from '../blocks/blocks.js';
 import { itemInfo, makeStack, mergeStack, maxStack } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
-const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear']);   // (explosions hurt at any difficulty)
-const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze']);
+const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion']);   // (explosions hurt at any difficulty)
+const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze', 'poison']);
 const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
 
 export class Player {
@@ -46,6 +46,7 @@ export class Player {
     this.starveTimer = 0;
     this.airTimer = 0;
     this.fireTime = 0;     // seconds left burning
+    this.poisonTime = 0;   // seconds of a scorpion's venom left
     this.exhaustion = 0;
 
     // inventory: 36 slots (0-8 hotbar), stacks are {id, count, dur?} | null
@@ -238,7 +239,7 @@ export class Player {
     if (this.y < -12) this.damage(4, 'void');
 
     if (!creative) this.updateSurvival(dt);
-    else { this.fireTime = 0; this.freeze = 0; }   // creative players don't burn or freeze (and the overlays go)
+    else { this.fireTime = 0; this.freeze = 0; this.poisonTime = 0; }   // creative players don't burn or freeze (and the overlays go)
 
     // sprint exhaustion
     if (this.sprinting && !this.inWater) this.addExhaustion(0.1 * dt * 7);   // swimming has its own cost
@@ -301,6 +302,12 @@ export class Player {
       this.burnTimer = (this.burnTimer ?? 0) - dt;
       if (this.burnTimer <= 0) { this.burnTimer = 1; this.damage(1, 'fire'); }
     }
+    // poison: a heart every 1.5 s or so, but it never kills (milk cures it)
+    if (this.poisonTime > 0) {
+      this.poisonTime = Math.max(0, this.poisonTime - dt);
+      this.poisonTimer = (this.poisonTimer ?? 0) - dt;
+      if (this.poisonTimer <= 0) { this.poisonTimer = 1.5; if (this.health > 1) this.damage(1, 'poison'); }
+    }
 
     // exhaustion -> saturation -> hunger
     while (this.exhaustion >= 4) {
@@ -315,7 +322,8 @@ export class Player {
       this.hunger = Math.min(20, this.hunger + dt * 0.5);
       if (this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + dt * 0.5);
     }
-    if (this.hunger >= 18 && this.health < this.maxHealth) {
+    // (venom stops you healing while it lasts)
+    if (this.hunger >= 18 && this.health < this.maxHealth && !(this.poisonTime > 0)) {
       this.regenTimer += dt;
       // well fed (a full bar with saturation to spare) heals fast
       if (this.regenTimer >= (this.hunger >= 20 && this.saturation > 0 ? 0.6 : 2.5)) {
@@ -462,6 +470,7 @@ export class Player {
     this.graceTime = 0;
     this.fireTime = 0;
     this.freeze = 0;
+    this.poisonTime = 0;
   }
 
   // ---- inventory helpers ----

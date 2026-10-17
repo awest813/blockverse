@@ -353,6 +353,47 @@ function leaves(ctx, rng, base, dark, light) {
 }
 
 tile('oak_leaves', (ctx, rng) => leaves(ctx, rng, P.leafOak, P.leafOakD, P.leafOakL));
+// palm fronds: long leaflets fanning along a midrib, lots of sky between
+tile('palm_leaves', (ctx, rng) => {
+  const g = [70, 150, 52], gD = [52, 120, 40], gL = [104, 178, 70];
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const diag = (x + y * 2) % 6;
+      if (diag > 2 || rng() < 0.12) continue;
+      px(ctx, x, y, diag === 0 ? gL : rng() < 0.4 ? gD : g);
+    }
+  }
+  for (let i = 0; i < TILE; i++) px(ctx, i, i, [96, 120, 50]);   // the midrib
+});
+tile('palm_log', (ctx, rng) => {
+  // grey-tan bark in stacked rings
+  for (let y = 0; y < TILE; y++) {
+    const ring = y % 4 === 0;
+    for (let x = 0; x < TILE; x++) {
+      let c = ring ? [126, 104, 76] : [168, 144, 108];
+      if (!ring && rng() < 0.18) c = [150, 126, 92];
+      if (!ring && rng() < 0.06) c = [188, 166, 128];
+      px(ctx, x, y, c);
+    }
+  }
+});
+tile('palm_log_top', (ctx, rng) => logTop(ctx, rng, [150, 126, 92], [212, 190, 150], [188, 164, 124]));
+tile('palm_sapling', (ctx, rng) => {
+  for (let y = 8; y < TILE; y++) px(ctx, 7, y, [150, 126, 92]);
+  for (const [dx, dy] of [[-1, 0], [1, 0], [-1, -1], [1, -1]]) {
+    for (let i = 1; i < 6; i++) px(ctx, 7 + dx * i, 8 + dy * Math.floor(i / 2) + (i > 3 ? 1 : 0), i % 2 ? [70, 150, 52] : [52, 120, 40]);
+  }
+  px(ctx, 7, 7, [104, 178, 70]); px(ctx, 7, 6, [70, 150, 52]);
+});
+tile('coconut_husk', (ctx, rng) => fillNoise(ctx, rng, [[[112, 78, 44], 6], [[92, 62, 34], 4], [[136, 98, 58], 3]]));
+tile('coconut', (ctx, rng) => {
+  // a hairy brown nut, cracked to show the white flesh
+  const b = [116, 80, 44], bD = [88, 60, 32], bL = [146, 106, 64];
+  rect(ctx, 4, 4, 8, 8, b); rect(ctx, 3, 5, 10, 6, b); rect(ctx, 5, 3, 6, 10, b);
+  for (let i = 0; i < 14; i++) px(ctx, 3 + ((rng() * 10) | 0), 3 + ((rng() * 10) | 0), rng() < 0.5 ? bD : bL);
+  rect(ctx, 6, 6, 4, 3, [240, 236, 224]); px(ctx, 6, 6, [214, 208, 192]);
+  px(ctx, 6, 10, bD); px(ctx, 8, 10, bD); px(ctx, 7, 11, bD);   // the three "eyes"
+});
 tile('birch_leaves', (ctx, rng) => leaves(ctx, rng, P.leafBirch, P.leafBirchD, P.leafBirchL));
 tile('spruce_leaves', (ctx, rng) => leaves(ctx, rng, P.leafSpruce, P.leafSpruceD, P.leafSpruceL));
 
