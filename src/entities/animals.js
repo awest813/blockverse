@@ -395,6 +395,13 @@ const COATS = [
   [0x7a4e2c, 0x2e1c10, 'bay'], [0x9a5a28, 0x6a3a18, 'chestnut'], [0x2c2622, 0x141210, 'black'],
   [0xd8d2c8, 0xb8b0a4, 'white'], [0x8c8680, 0x3c3834, 'grey'], [0xc49a5c, 0xece2cc, 'palomino'],
 ];
+// horse armour: how much of each hurt it turns, and its colour (dragon scale shrugs off fire and lava too)
+export const HORSE_ARMOUR = new Map([
+  [I.LEATHER_HORSE_ARMOR, { cut: 0.12, colour: 0x8a5a32 }], [I.IRON_HORSE_ARMOR, { cut: 0.2, colour: 0xc8c8cc }],
+  [I.GOLD_HORSE_ARMOR, { cut: 0.28, colour: 0xe8c040 }], [I.DIAMOND_HORSE_ARMOR, { cut: 0.44, colour: 0x5ae0d8 }],
+  [I.DRAGON_HORSE_ARMOR, { cut: 0.44, colour: 0x7a1c14, fireproof: true }],
+]);
+const BAG_SLOTS = 18;
 const TAMING_FOOD = new Map([[I.WHEAT, 3], [I.APPLE, 5], [I.CARROT, 4], [B.HAY_BALE, 10], [I.GOLDEN_CARROT, 20], [I.GOLDEN_APPLE, 20]]);
 
 export class Horse extends Animal {
@@ -420,6 +427,8 @@ export class Horse extends Animal {
     this.tamingFood = TAMING_FOOD;
     this.label = 'horse';
     this.rideable = true;
+    this.armour = null;   // a horse armour item id
+    this.bags = null;     // saddlebags: slots, once a chest's strapped on
   }
 
   buildModel() {
@@ -429,6 +438,7 @@ export class Horse extends Animal {
     const coat = (m) => (this.coatParts.push(this.materials.at(-1)), m);
     const mane = (m) => (this.maneParts.push(this.materials.at(-1)), m);
     coat(this.part(0.62, 0.62, 1.4, c[0], 0, 1.2, 0.05));            // body
+    this.body = { y: 1.2, w: 0.62 };
     coat(this.part(0.34, 0.66, 0.4, c[0], 0, 1.62, -0.66)).rotation.x = -0.45;   // neck
     coat(this.part(0.3, 0.3, 0.6, c[0], 0, 1.86, -0.98));            // head
     this.part(0.24, 0.22, 0.14, muzzle, 0, 1.78, -1.28);
@@ -460,7 +470,8 @@ export class Horse extends Animal {
   }
 
   saveExtra() {
-    return { coat: this.coat, gallop: this.gallop, jumpV: this.jumpV, maxHealth: this.maxHealth, temper: this.temper, owned: this.owned, saddled: this.saddled };
+    return { coat: this.coat, gallop: this.gallop, jumpV: this.jumpV, maxHealth: this.maxHealth, temper: this.temper, owned: this.owned, saddled: this.saddled,
+      ...(this.armour ? { armour: this.armour } : {}), ...(this.bags ? { bags: this.bags.map((s) => (s ? { ...s } : null)) } : {}) };
   }
 
   // a foal takes after its parents: one's coat, their gifts between theirs
@@ -483,6 +494,11 @@ export class Horse extends Animal {
     else this.jumpV = Math.min(this.jumpV, 8.6);                         // camels never could (whatever an old save says)
     this.owned = !!e.owned;
     this.setSaddled(!!e.saddled);
+    if (HORSE_ARMOUR.has(e.armour) && this.kind === 'horse') this.setArmour(e.armour);
+    if (Array.isArray(e.bags)) {
+      const ok = (s) => s && Number.isInteger(s.id) && Number.isInteger(s.count) && s.count > 0;
+      this.setBags(Array.from({ length: BAG_SLOTS }, (_, i) => (ok(e.bags[i]) ? { id: e.bags[i].id, count: e.bags[i].count, ...(Number.isFinite(e.bags[i].dur) ? { dur: e.bags[i].dur } : {}) } : null)));
+    }
   }
 
   setSaddled(on) {
@@ -490,11 +506,72 @@ export class Horse extends Animal {
     for (const m of this.saddleParts) m.visible = on;
   }
 
+  // armour and saddlebags, drawn when first worn
+  gear() {
+    if (this.gearParts) return this.gearParts;
+    const { y, w } = this.body ?? { y: 1.2, w: 0.62 };
+    const armour = [this.part(w + 0.08, 0.5, 1.2, 0xffffff, 0, y + 0.08, 0.05), this.part(0.34, 0.24, 0.5, 0xffffff, 0, (this.seat ?? 1.6) + 0.35, -0.98)];
+    const bags = [this.part(0.16, 0.4, 0.5, 0x8a5a2c, -(w / 2 + 0.1), y - 0.02, 0.3), this.part(0.16, 0.4, 0.5, 0x8a5a2c, w / 2 + 0.1, y - 0.02, 0.3)];
+    for (const m of [...armour, ...bags]) m.visible = false;
+    this.gearParts = { armour, bags, armourMats: this.materials.slice(-4, -2) };
+    return this.gearParts;
+  }
+
+  setArmour(id) {
+    const a = HORSE_ARMOUR.get(id) ?? null;
+    this.armour = a ? id : null;
+    this.fireproof = !!a?.fireproof;
+    const g = this.gear();
+    for (const m of g.armour) m.visible = !!a;
+    if (a) for (const m of g.armourMats) m.base.setHex(a.colour);
+  }
+
+  setBags(slots) {
+    this.bags = slots;
+    for (const m of this.gear().bags) m.visible = !!slots;
+  }
+
+  // what a sneaking, empty-handed rancher does to it: open the saddlebags,
+  // or take off the armour, or the saddle
+  ungear(player) {
+    if (this.bags) { this.fx?.openBags?.(this); return; }
+    const give = (id) => { if (player.give(id, 1) > 0) this.dropFn?.([{ id, count: 1 }]); };
+    if (this.armour) { give(this.armour); this.setArmour(null); this.fx?.sound('equip', { pos: this }); return; }
+    if (this.saddled) { this.setSaddled(false); give(I.SADDLE); }
+  }
+
   get seat() { return 1.3; }
 
   interact(player, held) {
     if (this.rider) return false;
     const say = (t) => this.fx?.notify?.(t);
+    // armour on your horse (and the old set back to you)
+    if (HORSE_ARMOUR.has(held?.id)) {
+      if (this.kind !== 'horse') { say(`Horse armour doesn\u2019t fit a ${this.label}`); return true; }
+      if (this.baby || !this.owned) { say(this.baby ? 'It\u2019s too young for armour' : 'It won\u2019t wear armour until it trusts you'); return true; }
+      const old = this.armour;
+      this.setArmour(held.id);
+      if (player.mode !== GAMEMODE_CREATIVE) { player.consumeHeld(1); if (old && player.give(old, 1) > 0) this.dropFn?.([{ id: old, count: 1 }]); }
+      this.fx?.sound('equip', { pos: this });
+      return true;
+    }
+    // a chest strapped on: saddlebags (sneak with an empty hand to open them)
+    if (held?.id === B.CHEST && !player.sneaking) {
+      if (this.baby || !this.owned) { say(this.baby ? 'It\u2019s too young to carry saddlebags' : 'It won\u2019t carry saddlebags until it trusts you'); return true; }
+      if (this.bags) { say('It already has saddlebags: sneak and use it with an empty hand to open them'); return true; }
+      this.setBags(new Array(BAG_SLOTS).fill(null));
+      if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1);
+      this.fx?.sound('equip', { pos: this });
+      say('Saddlebags: sneak and use it with an empty hand to open them (shears cut them off)');
+      return true;
+    }
+    // shears cut the saddlebags off: what's in them spills
+    if (held?.id === I.SHEARS && this.bags) {
+      this.dropFn?.([...this.bags.filter(Boolean), { id: B.CHEST, count: 1 }]);
+      this.setBags(null);
+      this.fx?.sound('shear', { pos: this });
+      return true;
+    }
     // a saddle on a horse that trusts you
     if (held?.id === I.SADDLE) {
       if (this.baby) return true;
@@ -529,13 +606,13 @@ export class Horse extends Animal {
     }
     if (held && !(this.owned && this.saddled) || (held && itemInfo(held.id)?.food)) return false;
     if (this.baby) return true;
-    // climb on (a wild one needs an empty hand; your saddled horse, anything but food)
-    if (this.owned && !this.saddled) { say('It needs a saddle before you can ride it'); return true; }
     if (player.sneaking) {
-      // sneak-use takes the saddle back off
-      if (this.saddled && this.owned) { this.setSaddled(false); if (player.give(I.SADDLE, 1) > 0) this.dropFn?.([{ id: I.SADDLE, count: 1 }]); }
+      // sneak-use opens the saddlebags, or takes off the armour, then the saddle
+      if (this.owned) this.ungear(player);
       return true;
     }
+    // climb on (a wild one needs an empty hand; your saddled horse, anything but food)
+    if (this.owned && !this.saddled) { say('It needs a saddle before you can ride it'); return true; }
     this.mountBy(player);
     return true;
   }
@@ -591,7 +668,7 @@ export class Horse extends Animal {
       this.called -= dt;
       if (playerDist < 3 || player.dead) { this.called = 0; this.waiting = 20; this.moving = false; return; }
       this.state = 'called';
-      this.steer(player, 1);
+      this.goTo(dt, player.x, player.y, player.z, 3);   // (round a fence, through a gate)
       this.moving = true;
       this.hurry = true;   // at a canter, slowing only for the last few steps
       this.fleeSpeed = playerDist > 6 ? Math.max(4, this.gallop * 0.7) : 3;
@@ -655,13 +732,16 @@ export class Horse extends Animal {
 
   damage(amount, source) {
     if (source && source === this.rider) return false;   // no swatting your own horse from the saddle
-    return super.damage(amount, source);
+    const a = HORSE_ARMOUR.get(this.armour);
+    return super.damage(a ? amount * (1 - a.cut) : amount, source);
   }
 
   onDeath() {
     if (this.rider) this.dismount();
     const drops = [{ id: I.LEATHER, count: (Math.random() * 3) | 0 }];
     if (this.saddled) drops.push({ id: I.SADDLE, count: 1 });
+    if (this.armour) drops.push({ id: this.armour, count: 1 });
+    if (this.bags) drops.push(...this.bags.filter(Boolean), { id: B.CHEST, count: 1 });
     this.dropFn?.(drops);
   }
 }
@@ -1164,6 +1244,7 @@ export class Dog extends Pet {
         this.onBite?.(target);
       }
     };
+    if (this.tamed && this.herding > 0 && !this.sitting && this.herd(dt, player)) return;
     if (this.tamed) {
       // defend the owner from monsters that come close
       // (only ones it can reach: not a zombie idling in a cave far below)
@@ -1178,6 +1259,36 @@ export class Dog extends Pet {
     super.think(dt, player, playerDist);
   }
 }
+
+// A sheepdog at work (after the whistle): it runs out to the stragglers,
+// the farthest first, and they hurry in ahead of it.
+Dog.prototype.herd = function (dt, player) {
+  this.herding -= dt;
+  this.herdT = (this.herdT ?? 0) - dt;
+  if (!this.herdTarget || this.herdTarget.dead || !this.herdTarget.whistled || this.herdT <= 0) {
+    this.herdT = 6;
+    let far = null, fd = 4;
+    for (const m of this.fx?.mobs() ?? []) {
+      if (m.whistled?.mode !== 'come' || m.dead || (this.herded ??= new Set()).has(m)) continue;
+      const d = Math.hypot(m.x - player.x, m.z - player.z);
+      if (d > fd) { far = m; fd = d; }
+    }
+    this.herdTarget = far;
+    if (!far) { this.herding = 0; this.herded = null; return false; }
+  }
+  const t = this.herdTarget;
+  this.state = 'chase';
+  this.hurry = true;
+  // round behind it (the side away from you), then on to the next
+  const dx = t.x - player.x, dz = t.z - player.z, d = Math.hypot(dx, dz) || 1;
+  if (this.goTo(dt, t.x + (dx / d) * 2, t.y, t.z + (dz / d) * 2, 1.5)) {
+    this.herded.add(t);
+    t.whistled.t = Math.max(t.whistled.t, 15);
+    this.fx?.sound('dog', { pos: this, vol: 0.7 });
+    this.herdTarget = null;
+  }
+  return true;
+};
 
 const CAT_COATS = [0xe8a050, 0x3a3a3a, 0x9a9a9a, 0xf0e8dc];
 
@@ -1561,6 +1672,7 @@ export class Camel extends Horse {
     const fur = 0xc89a5e, dark = 0x9c7240, muzzle = 0x7a5530, hoof = 0x4a3a2a;
     this.coat = 0; this.coatParts = []; this.maneParts = [];
     this.part(0.7, 0.62, 1.4, fur, 0, 1.42, 0.05);              // body, up on long legs
+    this.body = { y: 1.42, w: 0.7 };
     this.part(0.5, 0.36, 0.42, fur, 0, 1.86, -0.22);            // front hump
     this.part(0.46, 0.32, 0.4, fur, 0, 1.84, 0.4);              // back hump
     this.part(0.28, 0.7, 0.3, fur, 0, 1.62, -0.82).rotation.x = 0.55;   // long neck, reaching forward

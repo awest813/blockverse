@@ -11,6 +11,7 @@ import { SMELTING } from '../items/recipes.js';
 import { worldClock } from '../core/clock.js';
 import { HAPPY, NO_BREEDING } from '../world/ranch.js';
 import { inheritTraits, trait } from './traits.js';
+import { findPath } from '../world/pathing.js';
 
 // raw meat -> cooked, for animals that die burning
 // an animal that dies burning drops its food as the furnace would cook it
@@ -221,13 +222,88 @@ export class Mob {
 
   // a clear walk to another mob: no solid block or fence between (at knee height)
   clearTo(m) {
-    const ox = this.x, oz = this.z, dx = m.x - ox, dz = m.z - oz;
+    return this.clearToXZ(m.x, m.z);
+  }
+
+  clearToXZ(x, z) {
+    const ox = this.x, oz = this.z, dx = x - ox, dz = z - oz;
     const steps = Math.ceil(Math.hypot(dx, dz) / 0.25), y = Math.floor(this.y + 0.3);
     for (let i = 1; i < steps; i++) {
       const id = this.world.getBlockW(Math.floor(ox + (dx * i) / steps), y, Math.floor(oz + (dz * i) / steps));
       if (isSolid(id) || FENCES.has(id)) return false;
     }
     return true;
+  }
+
+  // Head for (x, y, z): straight there when nothing's in the way, else the
+  // way round (through an open gate, say) by a path found a few at a time.
+  // True once it's within `stop`.
+  goTo(dt, x, y, z, stop = 1.5) {
+    if (Math.hypot(x - this.x, z - this.z) < stop) { this.path = null; this.moving = false; return true; }
+    this.moving = true;
+    if (!this.path && this.clearToXZ(x, z)) { this.targetYaw = Math.atan2(-(x - this.x), -(z - this.z)); return false; }
+    let P = this.path;
+    if (P) P.t -= dt;
+    if (!P || P.t <= 0 || P.i >= P.pts.length || Math.hypot(P.gx - x, P.gz - z) > 2) {
+      const pts = findPath(this.world, this, { x, y, z }, Math.max(1, Math.floor(stop)));
+      if (pts) P = this.path = pts.length ? { pts, i: 0, t: 3, gx: x, gz: z } : null;   // (null from findPath: none left this frame)
+    }
+    const wp = P?.pts[P.i];
+    if (!wp) { this.targetYaw = Math.atan2(-(x - this.x), -(z - this.z)); return false; }
+    const dx = wp.x + 0.5 - this.x, dz = wp.z + 0.5 - this.z;
+    if (Math.hypot(dx, dz) < 0.4) { P.i++; return false; }
+    this.targetYaw = Math.atan2(-dx, -dz);
+    // a sharp turn (into a gateway): on the spot, not in a wide arc into the fence
+    if (Math.abs(((this.targetYaw - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > 1) this.yaw = this.targetYaw;
+    return false;
+  }
+
+  // Answering the whistle: come to you, or go home to its pen.
+  whistleTick(dt, player) {
+    const W = this.whistled;
+    W.t -= dt;
+    const home = W.mode === 'home' && this.home;
+    const there = W.t <= 0 || player.dead || (home ? this.goTo(dt, this.home.x + 0.5, this.home.y, this.home.z + 0.5, 1.2) : this.goTo(dt, player.x, player.y, player.z, 3));
+    if (there) { this.whistled = null; this.path = null; this.state = 'idle'; this.stateTime = 2; this.moving = false; return false; }
+    this.state = 'called';
+    const d = home ? Math.hypot(this.home.x - this.x, this.home.z - this.z) : Math.hypot(player.x - this.x, player.z - this.z);
+    this.hurry = d > 6;   // a trot when far off
+    return true;
+  }
+
+  // A herd follows the one on your lead.
+  followLeader(dt) {
+    this.leaderTimer = (this.leaderTimer ?? Math.random() * 2) - dt;
+    if (this.leaderTimer <= 0) {
+      this.leaderTimer = 2;
+      this.leader = null;
+      if (this.persistent && !this.baby) {
+        for (const m of this.fx?.mobs() ?? []) {
+          if (m !== this && m.kind === this.kind && m.leash?.player && !m.dead && m.dying === undefined && Math.hypot(m.x - this.x, m.z - this.z) < 14) { this.leader = m; break; }
+        }
+      }
+    }
+    const L = this.leader;
+    if (!L || !L.leash || L.dead) return false;
+    if (Math.hypot(L.x - this.x, L.z - this.z) < 3) { if (this.state === 'follow') { this.state = 'idle'; this.stateTime = 1; this.moving = false; } return false; }
+    this.state = 'follow';
+    this.goTo(dt, L.x, L.y, L.z, 2.5);
+    this.hurry = Math.hypot(L.x - this.x, L.z - this.z) > 7;
+    return true;
+  }
+
+  // the middle of its herd (others of its kind within 16 blocks), looked up now and then
+  herdCentre() {
+    this.herdTimer = (this.herdTimer ?? 0) - 1;
+    if (this.herdTimer > 0) return this.herdAt;
+    this.herdTimer = 4;
+    let x = 0, z = 0, n = 0;
+    for (const m of this.fx?.mobs() ?? []) {
+      if (m === this || m.kind !== this.kind || m.dead || Math.abs(m.x - this.x) > 16 || Math.abs(m.z - this.z) > 16) continue;
+      x += m.x; z += m.z; n++;
+    }
+    this.herdAt = n ? { x: x / n, z: z / n } : null;
+    return this.herdAt;
   }
 
   // babies are half size, can't breed and drop nothing; they grow up in 5 minutes
@@ -607,8 +683,12 @@ export class Mob {
     this.hurry = false;
     this.leashSpeed = 0;
     if (this.leash && this.leashPull()) return;
+    // the whistle: come here, or go home
+    if (this.whistled && !this.leash && this.state !== 'flee' && this.whistleTick(dt, player)) return;
     // hold out a food it likes and it follows you (how you bring a herd home)
-    if (this.breedItem && !this.tamed && this.state !== 'flee' && this.tempted(player, playerDist)) return;
+    if (this.breedItem && !this.tamed && this.state !== 'flee' && this.tempted(player, playerDist, dt)) return;
+    // the herd follows the one you're leading
+    if (this.breedItem && !this.tamed && !this.leash && this.state !== 'flee' && this.followLeader(dt)) return;
     // a farm baby trots after a grown-up of its kind (ducklings in a line)
     if (this.baby && this.breedItem && this.state !== 'flee' && this.followParent(dt)) return;
     if (this.state === 'flee') {
@@ -620,6 +700,9 @@ export class Mob {
         this.stateTime = 1.5 + Math.random() * 3;
         this.targetYaw = Math.random() * Math.PI * 2;
         this.moving = true;
+        // a farm animal strays back toward its herd rather than off alone
+        const herd = this.breedItem && !this.tamed && !this.pen ? this.herdCentre() : null;
+        if (herd && Math.hypot(herd.x - this.x, herd.z - this.z) > 7) this.targetYaw = Math.atan2(-(herd.x - this.x), -(herd.z - this.z)) + (Math.random() - 0.5) * 0.8;
       } else {
         this.state = 'idle';
         this.stateTime = 1 + Math.random() * 4;
@@ -681,16 +764,18 @@ export class Mob {
     this.rope.material.color.copy(ROPE_MAT.color).multiplyScalar(this.world.lightAt(this.rope.position.x, this.rope.position.y, this.rope.position.z));
   }
 
-  tempted(player, playerDist) {
-    const held = player.dead || playerDist > 10 ? null : player.heldStack();
+  tempted(player, playerDist, dt = 0) {
+    // (one already following keeps on a little further: the way round a fence can lead away from you first)
+    const held = player.dead || playerDist > (this.state === 'tempt' ? 16 : 10) ? null : player.heldStack();
     if (!held || !this.likes(held.id) || Math.abs(player.y - this.y) > 4) {
       if (this.state === 'tempt') { this.state = 'idle'; this.stateTime = 1; this.moving = false; }
       return false;
     }
     if (this.state !== 'tempt') this.temptSince = this.age;
     this.state = 'tempt';
-    this.steer(player, 1);
-    this.moving = playerDist > 2.4;   // close enough to be fed: wait, looking up at you
+    // round the fence to you (close enough to be fed: wait, looking up at you)
+    if (playerDist > 2.4) this.goTo(dt, player.x, player.y, player.z, 2.4);
+    else { this.steer(player, 1); this.moving = false; this.path = null; }
     // following you for a while: you're bringing it home, so it stays (saved)
     if (this.age - this.temptSince > 5) this.persistent = true;
     return true;

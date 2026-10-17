@@ -220,7 +220,7 @@ export class EntityManager {
 export function serializeAnimal(m) {
   const a = { kind: m.kind, x: m.x, y: m.y, z: m.z, health: m.health, baby: !!m.baby, grow: m.grow ?? 0, breedCooldown: m.breedCooldown ?? 0, sheared: !!m.sheared,
     at: Math.round(worldClock.now), id: m.ensureId(), ...(Number.isFinite(m.milkAt) ? { milkAt: m.milkAt } : {}),
-    ...(m.name ? { name: m.name } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(traitsOf(m) ? { traits: { ...m.traits } } : {}), ...(m.parentNames ? { parentNames: m.parentNames } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
+    ...(m.name ? { name: m.name } : {}), ...(m.travelling ? { travel: true } : {}), ...(m.home ? { home: { ...m.home } } : {}), ...(Number.isFinite(m.mood) ? { mood: Math.round(m.mood) } : {}), ...(traitsOf(m) ? { traits: { ...m.traits } } : {}), ...(m.parentNames ? { parentNames: m.parentNames } : {}), ...(Number.isFinite(m.born) ? { born: m.born } : {}), ...(m.parents ? { parents: m.parents } : {}) };
   const extra = m.saveExtra?.();   // a horse's coat, gifts and saddle; a duck's plumage
   if (extra) a.extra = extra;
   if (m.leash) a.leash = m.leash.knot ? { knot: { ...m.leash.knot } } : 'player';
@@ -256,6 +256,8 @@ export function restoreAnimal(scene, world, a) {
   else if (a.leash === 'player') mob.pendingLeash = true;   // picked up again once the player's about
   return mob;
 }
+
+export const KEPT_KINDS = new Set(Object.keys(KEPT));
 
 // every kept animal, live or stashed, for the save file
 EntityManager.prototype.keptAnimals = function keptAnimals() {

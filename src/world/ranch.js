@@ -15,6 +15,7 @@
 import { B, BLOCKS, R_SHAPE, isSolid, isWater } from '../blocks/blocks.js';
 import { worldBoxes } from '../blocks/shapes.js';
 import { worldClock } from '../core/clock.js';
+import { newFrame } from './pathing.js';
 
 const SPAN_MAX = 32;       // how far across a pen may run
 const MAX_CELLS = 1089;    // (33 × 33)
@@ -42,7 +43,7 @@ function top(world, x, y, z) {
 
 // From a cell at feet level y, the feet level of the neighbouring column
 // (x, z), or null if an animal can't get there.
-function stepTo(world, x, y, z) {
+export function stepTo(world, x, y, z) {
   const id = world.getBlockW(x, y, z);
   if (id === B.TROUGH || id === B.LAVA || world.getBlockW(x, y - 1, z) === B.LAVA) return null;
   if (top(world, x, y - 1, z) > 1) return null;          // a fence standing a level down still reaches up here
@@ -198,6 +199,7 @@ function judge(m, p, game) {
 // A few animals a frame: find their pens, set their homes, nudge their moods.
 const EVERY = 3;   // seconds between looks at one animal
 export function tickRanch(game, dt) {
+  newFrame();   // (the path searches this frame may make)
   const mobs = game.entities?.mobs;
   if (!mobs?.length) return;
   const now = worldClock.now;

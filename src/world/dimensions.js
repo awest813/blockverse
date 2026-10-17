@@ -48,6 +48,9 @@ export function swapDimension(meta, to, arrive) {
   for (const k of PER_DIMENSION) here[k] = meta[k] ?? [];
   const travellers = here.pets.filter((p) => p.travel).map(({ travel, ...p }) => p);
   here.pets = here.pets.filter((p) => !p.travel);
+  // animals on your lead, and the one you rode through
+  const herd = here.animals.filter((a) => a.travel).map(({ travel, ...a }) => ({ ...a, arriving: true }));
+  here.animals = here.animals.filter((a) => !a.travel);
   const pd = meta.playerData;
   if (pd) here.pos = { x: pd.x, y: pd.y, z: pd.z, yaw: pd.yaw, pitch: pd.pitch };
   meta.dims[from] = here;
@@ -55,6 +58,7 @@ export function swapDimension(meta, to, arrive) {
   for (const k of PER_DIMENSION) meta[k] = there[k] ?? [];
   // the pets that came with you stand beside you when you arrive
   meta.pets = [...meta.pets, ...travellers.map((p) => ({ ...p, sitting: false, arriving: true }))];   // (set down beside you: Game.restorePets)
+  meta.animals = [...meta.animals, ...herd];   // (set down beside you: Game.landAnimals)
   delete meta.dims[to];
   meta.dimension = to;
   if (to === SCORCH) meta.scorchVersion ??= SCORCH_LATEST;

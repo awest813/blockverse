@@ -164,6 +164,11 @@ shaped(B.CHEESE_PRESS, 1, ['PPP', 'SIS', 'PPP'], { P: ANY_PLANKS, S: [I.STICK], 
 shapeless(I.CHEESE_SANDWICH, 1, [[I.BREAD], [I.CHEESE]]);
 shapeless(I.BUTTERED_POTATO, 1, [[I.BAKED_POTATO], [I.BUTTER]]);
 shapeless(I.PANCAKES, 2, [EGG, [I.WHEAT], MILK, [I.BUTTER]]);   // (the bucket comes back)
+shaped(I.WHISTLE, 1, ['I.', '.S'], { I: [I.IRON_INGOT], S: [I.STICK] });
+// horse armour: a padded blanket under each
+for (const [mat, armour] of [[I.LEATHER, I.LEATHER_HORSE_ARMOR], [I.IRON_INGOT, I.IRON_HORSE_ARMOR], [I.GOLD_INGOT, I.GOLD_HORSE_ARMOR], [I.DIAMOND, I.DIAMOND_HORSE_ARMOR], [I.DRAGON_SCALE, I.DRAGON_HORSE_ARMOR]]) {
+  shaped(armour, 1, ['X.X', 'XWX', 'XXX'], { X: [mat], W: Object.assign([...ALL_WOOL], { label: 'Any Wool' }) });
+}
 shapeless(I.SUSHI, 2, [[I.FISH_RAW], [I.DRIED_KELP]]);
 shapeless(I.COCONUT_MILK, 1, [[I.COCONUT], [I.BOWL]]);
 shaped(B.COOKING_POT, 1, ['B.B', 'B.B', 'BBB'], { B: [I.BRICK_ITEM] });

@@ -160,4 +160,10 @@ export const I = {
   CHEESE_SANDWICH: 402,
   BUTTERED_POTATO: 403,
   PANCAKES: 404,
+  WHISTLE: 405,          // calls your animals to you (sneak: sends them home)
+  LEATHER_HORSE_ARMOR: 406,
+  IRON_HORSE_ARMOR: 407,
+  GOLD_HORSE_ARMOR: 408,
+  DIAMOND_HORSE_ARMOR: 409,
+  DRAGON_HORSE_ARMOR: 410,   // (fire and lava can't touch a horse in it)
 };

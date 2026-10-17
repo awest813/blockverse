@@ -126,6 +126,14 @@ Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chick
   - Led animals and a ridden horse come through a portal with you (`swapDimension` already moves pets).
   - Owned animals never get stranded in the wrong dimension: the stash is per dimension.
 
+### Step 5 (done)
+
+`world/pathing.js`: A* over the pen walker's step rules, within 16 blocks and 200 nodes, three searches a frame. `Mob.goTo` walks straight while the way is clear, otherwise follows a path, re-planned every 3 s or when the goal moves. It's used by tempting, the horn, the whistle (come, or sneak for home), herd leaders (owned animals follow a led one of their kind) and the sheepdog (a tamed dog runs out behind the farthest stragglers). Wandering herds drift back toward their centre.
+
+### Step 6 (done)
+
+Horse armour (five materials, cutting 12–44% of damage; dragon scale makes the horse fireproof) shows as barding. Saddlebags (18 slots, a chest on a horse or camel) open in the chest window via `containers.openBags`. Both are saved in `saveExtra` and dropped on death. Led animals and the ridden mount are marked `travel` like pets, moved by `swapDimension`, and placed in front of the arrival portal by `Game.landAnimals`. Still to do: a stable block (pens already give horses a home).
+
 ## Phase 6: economy
 
 - **A market**: a trader cart that visits the spawn village or your ranch sign weekly and buys products at prices that drift with supply. A village with villagers can replace it later.

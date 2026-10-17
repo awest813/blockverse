@@ -531,6 +531,10 @@ export class Sfx {
         this.tone({ freq: 392, endFreq: 349, dur: 1.4, gain: 0.03, type: 'square', hold: 0.6 });
         this.noise({ freq: 500, q: 0.8, dur: 0.25, gain: 0.04, type: 'lowpass' });
         break;
+      case 'whistle':  // a shepherd's two notes: a rising call, then a long falling one
+        this.tone({ freq: 1500, endFreq: 2100, dur: 0.22, gain: 0.06, type: 'sine' });
+        this.later(() => this.tone({ freq: 2200, endFreq: 1400, dur: 0.5, gain: 0.06, type: 'sine', hold: 0.15 }), 260);
+        break;
       case 'hoof':     // clip-clop
         this.noise({ freq: 1600 * detune, q: 4, dur: 0.04, gain: 0.09 });
         this.later(() => this.noise({ freq: 1250 * detune, q: 4, dur: 0.04, gain: 0.07 }), 95);

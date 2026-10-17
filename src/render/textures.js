@@ -1345,6 +1345,17 @@ const ARMOR_MAPS = {
     '....MMm..mMM....',
     '....mmm..mmm....',
   ],
+  // a horse's barding, side on
+  horse_armor: [
+    '...........mMm..',
+    '..........mMLMm.',
+    '...mMMMMMMMMLMm.',
+    '..mMLLLLLLLLMMm.',
+    '..MMMMMMMMMMMm..',
+    '..MMMMMMMMMMm...',
+    '..mMMMMMMMMm....',
+    '...mm....mm.....',
+  ],
   boots: [
     '................',
     '...mMm....mMm...',
@@ -1477,6 +1488,13 @@ tile('lead', (ctx) => {
   for (let a = 0; a < 26; a++) { const t = a / 26 * Math.PI * 2; px(ctx, Math.round(8 + Math.cos(t) * 4), Math.round(6 + Math.sin(t) * 3), a % 3 ? R : D); }   // the loop
   for (let i = 0; i < 6; i++) px(ctx, 10 + (i >> 1), 9 + i, i % 2 ? D : R);                                                // the tail
   rect(ctx, 11, 8, 2, 2, [190, 190, 196]);                                                                                    // the clip
+});
+tile('whistle', (ctx) => {
+  const m = [176, 180, 188], d = [120, 124, 132], l = [222, 226, 232];
+  rect(ctx, 3, 7, 9, 4, m); rect(ctx, 3, 7, 9, 1, l); rect(ctx, 3, 10, 9, 1, d);
+  rect(ctx, 8, 5, 5, 3, m); rect(ctx, 8, 5, 5, 1, l);   // the mouthpiece
+  rect(ctx, 5, 8, 2, 1, [40, 40, 44]);                  // the slot
+  for (let i = 0; i < 4; i++) px(ctx, 2 - (i >> 1), 11 + i, [150, 110, 60]);   // a cord
 });
 tile('goat_horn', (ctx) => {
   const H = [200, 188, 160], D = [150, 136, 110], L = [228, 220, 198];

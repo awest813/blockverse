@@ -260,7 +260,16 @@ export class Containers {
     this.show();
   }
 
+  // a horse's or camel's saddlebags: a chest that walks
+  openBags(mob) {
+    this.bagsOf = mob;
+    this.chestPos = null;
+    this.open = 'chest';
+    this.show();
+  }
+
   chestState() {
+    if (this.bagsOf) return { kind: 'chest', slots: this.bagsOf.bags ?? [] };
     const { x, y, z } = this.chestPos;
     let st = this.game.world.blockEntityAt(x, y, z);
     if (!st || st.kind !== 'chest') {
@@ -287,10 +296,11 @@ export class Containers {
       this.cursor = null;
     }
     // chest contents changed: make sure the chunk is saved (if the chest still exists)
-    if (this.open === 'chest') {
+    if (this.open === 'chest' && this.chestPos) {
       const { x, y, z } = this.chestPos;
       if (this.game.world.getBlockW(x, y, z) === B.CHEST) this.game.world.setBlockEntity(x, y, z, this.chestState());
     }
+    this.bagsOf = null;
     this.open = null;
     this.furnacePos = null;
     this.chestPos = null;
@@ -585,12 +595,12 @@ export class Containers {
   renderChest(win) {
     const st = this.chestState();
     const h3 = document.createElement('h3');
-    h3.textContent = 'Chest';
+    h3.textContent = this.bagsOf ? (this.bagsOf.name ? `${this.bagsOf.name}\u2019s saddlebags` : 'Saddlebags') : 'Chest';
     win.appendChild(h3);
     const grid = document.createElement('div');
     grid.className = 'inv-grid cols-9';
     grid.style.marginBottom = '12px';
-    for (let i = 0; i < 27; i++) {
+    for (let i = 0; i < st.slots.length; i++) {
       grid.appendChild(this.slotEl({
         get: () => st.slots[i],
         set: (v) => { st.slots[i] = v; },

@@ -122,6 +122,12 @@ item(I.DUCK_EGG, 'duck_egg', 'Duck Egg', { stack: 16 });
 item(I.CHEESE_SANDWICH, 'cheese_sandwich', 'Cheese Sandwich', { food: 9, sat: 11 });
 item(I.BUTTERED_POTATO, 'buttered_potato', 'Buttered Potato', { food: 7, sat: 8 });
 item(I.PANCAKES, 'pancakes', 'Pancakes', { food: 6, sat: 7 });
+item(I.WHISTLE, 'whistle', 'Shepherd\u2019s Whistle', { stack: 1 });
+item(I.LEATHER_HORSE_ARMOR, 'leather_horse_armor', 'Leather Horse Armour', { stack: 1 });
+item(I.IRON_HORSE_ARMOR, 'iron_horse_armor', 'Iron Horse Armour', { stack: 1 });
+item(I.GOLD_HORSE_ARMOR, 'gold_horse_armor', 'Gold Horse Armour', { stack: 1 });
+item(I.DIAMOND_HORSE_ARMOR, 'diamond_horse_armor', 'Diamond Horse Armour', { stack: 1 });
+item(I.DRAGON_HORSE_ARMOR, 'dragon_horse_armor', 'Dragon Scale Horse Armour', { stack: 1 });
 item(I.RED_DYE, 'red_dye', 'Red Dye');
 item(I.YELLOW_DYE, 'yellow_dye', 'Yellow Dye');
 item(I.ORANGE_DYE, 'orange_dye', 'Orange Dye');
@@ -263,6 +269,12 @@ const USES = new Map([
   [I.BUTTER, 'Churned from milk: for buttered potatoes and pancakes'],
   [I.GOAT_MILK_BUCKET, 'Puts out flames, settles venom and heals two hearts; churns and presses like milk'],
   [I.DUCK_EGG, 'Cooks and bakes like a hen\u2019s egg'],
+  [I.LEATHER_HORSE_ARMOR, 'Use it on your horse: it turns an eighth of the harm (sneak with an empty hand to take it off)'],
+  [I.IRON_HORSE_ARMOR, 'Use it on your horse: it turns a fifth of the harm (sneak with an empty hand to take it off)'],
+  [I.GOLD_HORSE_ARMOR, 'Use it on your horse: it turns over a quarter of the harm (sneak with an empty hand to take it off)'],
+  [I.DIAMOND_HORSE_ARMOR, 'Use it on your horse: it turns nearly half the harm (sneak with an empty hand to take it off)'],
+  [I.DRAGON_HORSE_ARMOR, 'Use it on your horse: it turns nearly half the harm, and fire and lava can\u2019t touch it'],
+  [I.WHISTLE, 'Blow it and your animals come to you (a dog of yours rounds them up); sneak and blow it to send them home to their pens'],
   [I.RED_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.YELLOW_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],
   [I.ORANGE_DYE, 'Use it on a sheep to dye its fleece, or craft it with wool'],

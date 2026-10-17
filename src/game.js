@@ -11,7 +11,7 @@ import { Thrown, Bobber } from './entities/projectile.js';
 import { Input } from './core/input.js';
 import { BlockHighlight } from './render/highlight.js';
 import { ViewModel } from './render/viewmodel.js';
-import { EntityManager } from './entities/entityManager.js';
+import { EntityManager, KEPT_KINDS } from './entities/entityManager.js';
 import { Hud } from './ui/hud.js';
 import { Sky } from './render/sky.js';
 import { Containers } from './ui/containers.js';
@@ -193,6 +193,7 @@ export class Game {
     this.entities.fx.dust = (x, y, z) => this.sparks(x, y, z, 0x8a7a64, 18);
     this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
+    this.entities.fx.openBags = (mob) => this.containers.openBags(mob);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
     this.entities.fx.drop = (x, y, z, stacks) => this.entities.spawnDrops(x, y, z, stacks);
     // a dungeon boss beaten: its cage remembers, so it stays beaten
@@ -234,6 +235,7 @@ export class Game {
       mobInBlock: (x, y, z) => this.entities.mobs.some((m) => !m.dead && m.dying === undefined
         && m.x + m.w / 2 > x && m.x - m.w / 2 < x + 1 && m.z + m.w / 2 > z && m.z - m.w / 2 < z + 1 && m.y + m.h > y && m.y < y + 1),
       blowHorn: () => this.blowHorn(),
+      whistle: (home) => this.whistle(home),
       sparkle: (x, y, z) => this.sparks(x, y, z, 0x9fe870, 8),   // bone meal, compost
       crumbs: (id) => this.crumbs(id),
       steam: (x, y, z) => this.sparks(x, y, z, 0xe8e8ec, 12),
@@ -509,6 +511,8 @@ export class Game {
     const p = this.player;
     for (const m of this.entities.mobs) {
       if (m.tamed && !m.sitting && !m.dead && m.dying === undefined && Math.hypot(m.x - p.x, m.z - p.z) < 8) m.travelling = true;
+      // and so do the animals on your lead, and the horse you're riding
+      if ((m.leash?.player === p || p.mount === m) && !m.dead && m.dying === undefined && KEPT_KINDS.has(m.kind)) { m.travelling = true; m.persistent = true; }
     }
     // (after this frame: the Game is closed down on the way, and the rest of
     // the frame mustn't run on a disposed world)
@@ -656,8 +660,31 @@ export class Game {
   }
 
   // Once the land around you has loaded: if you came by portal, stand in the
-  // one you came out of (building it if it isn't there).
+  // one you came out of (building it if it isn't there); then the animals
+  // that came with you join you.
   finishArrival() {
+    this.arriveAt();
+    this.landAnimals();
+  }
+
+  // the kept animals that came through with you (on a lead, or ridden):
+  // beside you, on the step in front of the portal if you came by one
+  landAnimals() {
+    const p = this.player, front = this.arrivalFront;
+    this.arrivalFront = null;
+    let i = 0;
+    for (const a of this.entities.stash) {
+      if (!a.arriving) continue;
+      delete a.arriving;
+      const k = i++;
+      if (front) { a.x = front.x + front.side[0] * ((k % 3) - 1) * 1.4; a.z = front.z + front.side[1] * ((k % 3) - 1) * 1.4; }
+      else { a.x = p.x + Math.cos(k * 1.3) * 2; a.z = p.z + Math.sin(k * 1.3) * 2; }
+      a.y = p.y + 0.1;
+    }
+    if (i) this.entities.stashTimer = 0;   // (in at once)
+  }
+
+  arriveAt() {
     // a brand-new world: the spawn column came from the terrain's height,
     // which knows nothing of trees and structures; if that put you in a
     // trunk, a canopy or a shrine's wall, step out onto open ground nearby
@@ -691,8 +718,9 @@ export class Game {
     p.x = s.x; p.y = s.y; p.z = s.z;
     p.vx = p.vy = p.vz = 0; p.fallStart = null;
     this.portalArmed = false;   // step out before it takes you back
-    // pets that came along wait on the step in front
+    // pets that came along wait on the step in front (animals a step further)
     const [nx, nz] = f.axis ? [1, 0] : [0, 1];
+    this.arrivalFront = { x: s.x + nx * 2.5, z: s.z + nz * 2.5, side: f.axis ? [0, 1] : [1, 0] };
     pets.forEach((m, i) => {
       m.x = s.x + nx * 1.5 + (f.axis ? 0 : (i % 2) - 0.5);
       m.z = s.z + nz * 1.5 + (f.axis ? (i % 2) - 0.5 : 0);
@@ -804,6 +832,9 @@ export class Game {
     if (this._inspectT > 0) return;
     this._inspectT = 0.2;
     const p = this.player;
+    // saddlebags close when their horse is gone or has wandered off
+    const bags = this.containers.bagsOf;
+    if (bags && (bags.dead || bags.dying !== undefined || Math.hypot(bags.x - p.x, bags.z - p.z) > 6)) this.containers.close();
     const m = p.sneaking && !p.dead ? this.mobUnderCrosshair(3) : null;
     this.hud.setInspect(m && !m.hostile && m.kind !== 'falling' && m.kind !== 'tnt' ? describeAnimal(m) : null);
   }
@@ -873,6 +904,28 @@ export class Game {
     }
     const n = called.length, one = called.every((m) => m.label === called[0]?.label) ? called[0]?.label : 'animal';
     this.hud.showLabel(n ? (n === 1 ? `Your ${one} is coming` : `${n} ${one}s are coming`) : 'The call echoes… no horse or camel of yours is in earshot');
+  }
+
+  // the shepherd's whistle: your farm animals in earshot come to you, or
+  // (sneaking) go home to their pens; a dog of yours nearby rounds them up
+  whistle(home) {
+    const p = this.player, mobs = this.entities.mobs;
+    this.sfx?.play('whistle');
+    const dog = home ? null : mobs.find((m) => m.kind === 'dog' && m.tamed && !m.sitting && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 20);
+    const reach = dog ? 48 : 32;
+    let n = 0, homeless = 0;
+    for (const m of mobs) {
+      if (!m.breedItem || m.tamed || !m.persistent || m.leash || m.rider || m.dead || m.dying !== undefined) continue;
+      if (Math.hypot(m.x - p.x, m.z - p.z) > reach) continue;
+      if (home && !m.home) { homeless++; continue; }
+      m.whistled = { mode: home ? 'home' : 'come', t: home ? 40 : 30 };
+      m.path = null;
+      n++;
+    }
+    if (dog && n) { dog.herding = 25; dog.herded = null; dog.herdTarget = null; }
+    const one = n === 1 ? 'animal' : 'animals';
+    if (home) this.hud.showLabel(n ? `${n} ${one} head home (leave the gate open)` : homeless ? 'None of them has a pen to go home to' : 'No animal of yours is in earshot');
+    else this.hud.showLabel(n ? `${n} ${one} coming${dog ? ' — your dog rounds them up' : ''}` : 'No animal of yours is in earshot');
   }
 
   mobUnderCrosshair(extraReach = 0) {

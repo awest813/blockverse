@@ -327,6 +327,8 @@ export class Interaction {
     if (t && t.id === B.OAK_FENCE && !p.sneaking && this.cb.tieLeashes?.(t)) { this.useCooldown = 0.3; return; }
     // a goat horn calls your horses and camels
     if (held?.id === I.GOAT_HORN) { this.cb.blowHorn?.(); this.useCooldown = 3; return; }
+    // the shepherd's whistle: come here (sneak: go home)
+    if (held?.id === I.WHISTLE) { this.cb.whistle?.(p.sneaking); this.useCooldown = 1.5; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // the nest, the churn and the cheese press
     if (t && (t.id === B.NEST || t.id === B.CHURN || t.id === B.CHEESE_PRESS) && !p.sneaking && useProduce(this, t, held)) { this.useCooldown = 0.25; return; }
