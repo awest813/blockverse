@@ -323,7 +323,7 @@ export class Game {
     this.ticker.onmessage = () => { if (document.hidden && this.running) this.loop(); };
     this._onVisibility = () => {
       if (!this.running) return;
-      if (document.hidden) this.save();   // phones often close a hidden tab without warning
+      if (document.hidden && !this.loading) this.save();   // phones often close a hidden tab without warning
       else this.queueFrame();
     };
     document.addEventListener('visibilitychange', this._onVisibility);
@@ -1109,7 +1109,9 @@ export class Game {
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
 
     if (gamePaused || document.hidden) {
-      if (document.hidden) this.tickBlockEntities(dt, true);
+      // furnaces, crops and pots carry on in a background tab, and while an
+      // inventory or furnace window is open (you watch the furnace work)
+      if (document.hidden || (this.uiOpen && !this.paused && !this.sleeping)) this.tickBlockEntities(dt, true);
     } else {
       const wasInWater = this.player.inWater;
       const px0 = this.player.x, pz0 = this.player.z;
@@ -1220,7 +1222,7 @@ export class Game {
     if (this.store) {
       // real time, not game time: a slow device runs the game slowly, but the
       // edits you made are just as worth keeping every 10 seconds
-      if (now - this.lastSaveAt > this.saveEvery) {   // only changed chunks are written, so this is cheap
+      if (now - this.lastSaveAt > this.saveEvery && !this.loading) {   // (not while it's still loading: Cancel leaves the save as it was)   // only changed chunks are written, so this is cheap
         const saving = this.save();
         if (saving) this.hud.showSaving(saving);
       }

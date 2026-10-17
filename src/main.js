@@ -21,9 +21,9 @@ let game = null;
 // fullscreen: save at once and let the browser ask "Leave site?"
 // a closing tab, a phone app switch: save while the page is still alive
 // (the write may not finish after unload, so the 10 s autosave matters too)
-window.addEventListener('pagehide', () => { if (game?.running) game.save(); });
+window.addEventListener('pagehide', () => { if (game?.running && !game.loading) game.save(); });
 window.addEventListener('beforeunload', (e) => {
-  if (!game?.running) return;
+  if (!game?.running || game.loading) return;
   game.save();
   e.preventDefault();
   e.returnValue = '';
@@ -176,6 +176,7 @@ async function openWorld(id) {
   };
 
   game.setUiOpen(true); // block input until loaded
+  game.loading = true;  // and hold off saving: Cancel must leave the save untouched
   game.start();
 
   // wait for the area around the player to be meshed (or for Cancel)
@@ -205,7 +206,8 @@ async function openWorld(id) {
 
   screens.onCancelLoading = null;
   clearTimeout(screens._loadingSlow);
-  if (cancelled) { quitToTitle({ save: false }); return; }   // nothing was played: leave the save untouched
+  if (cancelled) { quitToTitle({ save: false }); return; }
+  game.loading = false;   // nothing was played: leave the save untouched
   screens.clear();
   game.setUiOpen(false);
   game.updateDebug();

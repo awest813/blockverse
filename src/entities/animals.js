@@ -515,12 +515,13 @@ export class Horse extends Animal {
     this.speed = this.walkSpeed ?? this.speed;   // back to an amble
     if (!p) return;
     p.mount = null;
-    // to the left, the right, or (boxed in) on top of the horse
-    const free = (x, y, z) => !isSolidId(this.world.getBlockW(Math.floor(x), Math.floor(y), Math.floor(z)));
+    // to the left, the right, or (boxed in) on top of the horse: wherever the
+    // rider's whole body fits (a centre-only check stood them on walls)
+    const free = (x, y, z) => !entityCollides(this.world, { x, y, z, w: p.w ?? 0.6, h: p.h ?? 1.8 });
     for (const k of [-1, 1, 0]) {
       const x = this.x + Math.cos(this.yaw) * 1.3 * k, z = this.z - Math.sin(this.yaw) * 1.3 * k;
-      const y = k ? this.y : this.y + this.h;
-      if (free(x, y + 0.1, z) && free(x, y + 1.1, z)) { p.x = x; p.y = y + 0.05; p.z = z; break; }
+      const y = (k ? this.y : this.y + this.h) + 0.05;
+      if (free(x, y, z)) { p.x = x; p.y = y; p.z = z; break; }
     }
     p.vx = p.vy = p.vz = 0;
     p.fallStart = null;

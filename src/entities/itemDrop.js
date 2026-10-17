@@ -73,7 +73,9 @@ export class ItemDrop {
     }
     this.vx *= (1 - Math.min(1, 6 * dt));
     this.vz *= (1 - Math.min(1, 6 * dt));
-    moveEntity(this.world, this, dt);
+    // (in steps when falling fast, so a drop can't skip through a thin floor)
+    const steps = Math.max(1, Math.ceil((Math.abs(this.vy) * dt) / 0.4));
+    for (let i = 0; i < steps; i++) moveEntity(this.world, this, dt / steps);
 
     // magnet + pickup
     if (this.pickupDelay <= 0 && !player.dead) {

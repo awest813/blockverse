@@ -183,6 +183,7 @@ export class World {
       (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)) - (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)));
     while (this.lightQueue.length && performance.now() - frameStart < lightBudget && guard++ < 4 * budgetScale) {
       const c = this.lightQueue.pop();
+      if (this.chunks.get(chunkKey(c.cx, c.cz)) !== c) continue;   // evicted while it waited
       if (!c.hasBlocks || c.hasLight) continue;
       initChunkLight(this, c, this.dirtyMeshes);
     }

@@ -11,6 +11,7 @@ function pickHostile() {
   return Zombie;
 }
 import { B, isSolid, isWater } from '../blocks/blocks.js';
+import { nudgeFree } from '../core/physics.js';
 import { BIOME } from '../world/worldgen.js';
 
 const PASSIVE_CAP = 12;
@@ -286,6 +287,9 @@ export class MobSpawner {
 
   spawnMob(Cls, x, y, z) {
     const mob = new Cls(this.scene, this.world, x, y, z);
+    // the spawn checks look at one column: a wide mob (a horse, a spider) can
+    // overlap the wall beside it, so ease it out into the open
+    nudgeFree(this.world, mob, 1);
     this.entities.addMob(mob);
     return mob;
   }

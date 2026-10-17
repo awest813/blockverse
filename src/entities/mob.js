@@ -226,6 +226,7 @@ export class Mob {
       this.z = player.z + (Math.random() - 0.5) * 2;
       this.vx = this.vy = this.vz = 0;
       this.fallStart = undefined;
+      nudgeFree(this.world, this, 1);   // not inside a corridor wall
     }
     // freeze in unloaded chunks
     if (!this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) return;
@@ -270,7 +271,13 @@ export class Mob {
     this.inWater = inWater;
 
     const before = this.y;
-    const r = moveEntity(this.world, this, dt);
+    // a fast fall on a slow frame is cut into steps, so it can't skip a thin floor
+    const steps = Math.max(1, Math.ceil((Math.abs(this.vy) * dt) / 0.4));
+    const r = { onGround: false, hitWall: false };
+    for (let i = 0; i < steps; i++) {
+      const s = moveEntity(this.world, this, dt / steps);
+      r.onGround = s.onGround; r.hitWall ||= s.hitWall;
+    }
     this.onGround = r.onGround;
     // a long frame can carry a fall through the water onto the bottom
     const wetNow = inWater || entityInWater(this.world, this);
@@ -308,9 +315,11 @@ export class Mob {
     } else if ((this.onGround || wetNow) && this.fallStart !== undefined) {
       const d = this.fallStart - this.y;
       const safe = this.safeFall ?? 4;   // goats shrug off long drops
+      // whoever's riding comes down with it (first: a fall that kills the
+      // horse throws its rider off, and they'd have walked away unhurt)
+      const rider = this.rider;
+      if (!wetNow && rider && d > 5 && rider.mode !== GAMEMODE_CREATIVE) rider.damage(Math.floor(d - 4), 'fall');
       if (!wetNow && d > safe) this.damage(Math.floor(d - safe + 1), null);
-      // whoever's riding comes down with it
-      if (!wetNow && this.rider && d > 5 && this.rider.mode !== GAMEMODE_CREATIVE) this.rider.damage(Math.floor(d - 4), 'fall');
       this.fallStart = undefined;
     }
 

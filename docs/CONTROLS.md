@@ -115,6 +115,12 @@ Touch controls appear automatically on the first touch.
 - 1–9 while hovering a slot: swap it with that hotbar slot
 - Q while hovering a slot: drop one item (Ctrl+Q: the whole stack)
 
+### Inventory from the keyboard alone
+
+- Tab / Shift+Tab: move between slots (each is named for screen readers)
+- Enter or Space: click the focused slot (Shift+Enter: quick-move)
+- X: right-click it (split a stack, or place one item)
+
 ## Mining rules
 
 - Each block has a hardness and an optional preferred tool class.

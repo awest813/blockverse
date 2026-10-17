@@ -211,9 +211,14 @@ html, body {
 .effect-warm { color: #ffd59a; }
 .effect-poison { color: #b8e08a; }
 .effect.ending { animation: pulse 1s ease-in-out infinite; }
-@media (max-width: 760px) { #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 48px; flex-direction: row; } }
-[data-narrow] #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 48px; flex-direction: row; }
-#hud.touch #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 112px; flex-direction: row; }
+/* narrow screens: top centre, clear of the tips down the right (and below a
+   boss's bar when there is one) */
+@media (max-width: 760px) { #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 8px; flex-direction: row; } }
+[data-narrow] #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 8px; flex-direction: row; }
+#hud.touch #effects { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: 72px; flex-direction: row; }
+@media (max-width: 760px) { #hud:has(#boss-bar:not(.hidden)) #effects { top: 52px; } }
+[data-narrow] #hud:has(#boss-bar:not(.hidden)) #effects { top: 52px; }
+#hud.touch:has(#boss-bar:not(.hidden)) #effects { top: 114px; }
 
 #sleep-fade {
   position: absolute; inset: 0; z-index: 3;
@@ -240,6 +245,8 @@ html, body {
 .toast-text { font-size: 12px; font-weight: 400; color: #e6e6e6; line-height: 1.35; }
 @keyframes toast-in { from { opacity: 0; transform: translateX(40px); } }
 #hud.touch #toasts { top: 70px; }
+/* a boss fight on a phone: tips go under its bar, not over it */
+#hud.touch:has(#boss-bar:not(.hidden)) #toasts { top: 112px; }
 
 /* "E  Inventory & crafting" chip next to the hotbar */
 #inventory-hint {
@@ -254,9 +261,10 @@ html, body {
   background: #eee; color: #222; border-radius: 3px; text-align: center;
   font: 700 12px/18px Consolas, monospace; text-shadow: none;
 }
-@media (max-width: 760px) { #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 112px; } }
+/* (above the held item's name, which also sits over the hotbar there) */
+@media (max-width: 760px) { #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 138px; } }
 /* (the same when a big GUI scale leaves no room beside the hotbar) */
-[data-narrow] #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 112px; }
+[data-narrow] #inventory-hint { left: 50%; transform: translateX(-50%); bottom: 138px; }
 #hud.touch #inventory-hint { display: none; }
 #hud.touch.inv-hint-on .tc-inv { animation: pulse 1s ease-in-out infinite; border-color: var(--focus); }
 

@@ -65,6 +65,20 @@ function topOf(world, x, y, z, w, h) {
   forEachHit(world, x, y, z, w, h, (y0, y1) => { top = Math.max(top, y1); });
   return top;
 }
+// highest box top overlapping the AABB that's no higher than cap (the floor
+// under an entity, not the top of a wall beside it)
+function topBelow(world, x, y, z, w, h, cap) {
+  let top = -Infinity;
+  forEachHit(world, x, y, z, w, h, (y0, y1) => { if (y1 <= cap) top = Math.max(top, y1); });
+  return top;
+}
+// lowest box bottom overlapping the AABB that's no lower than floor (a
+// ceiling over its head, not a wall beside it)
+function bottomAbove(world, x, y, z, w, h, floor) {
+  let bottom = Infinity;
+  forEachHit(world, x, y, z, w, h, (y0) => { if (y0 >= floor) bottom = Math.min(bottom, y0); });
+  return bottom;
+}
 function bottomOf(world, x, y, z, w, h) {
   let bottom = Infinity;
   forEachHit(world, x, y, z, w, h, (y0) => { bottom = Math.min(bottom, y0); });
@@ -81,6 +95,21 @@ export function moveEntity(world, e, dt, sneakGuard = false) {
   if (dy !== 0) {
     const ny = e.y + dy;
     if (collides(world, e.x, ny, e.z, e.w, e.h)) {
+      if (collides(world, e.x, e.y, e.z, e.w, e.h)) {
+        // already overlapping something beside it (spawned or set down too
+        // close to a wall): only a real floor or ceiling stops it, and it
+        // slides out sideways. It never climbs the wall (the landing lift below
+        // used to carry such a mob up through solid rock) or drops through it.
+        if (dy < 0) {
+          const floor = topBelow(world, e.x, ny, e.z, e.w, e.h, e.y + EPS);
+          if (floor > ny) { e.y = floor; res.onGround = true; e.vy = 0; } else e.y = ny;
+        } else {
+          const ceiling = bottomAbove(world, e.x, ny, e.z, e.w, e.h, e.y + e.h - EPS);
+          if (ceiling < ny + e.h) { e.y = ceiling - e.h - EPS * 2; res.hitCeiling = true; e.vy = 0; } else e.y = ny;
+        }
+        nudgeFree(world, e);
+        return finishMove(world, e, dt, sneakGuard, res);
+      }
       if (dy < 0) {
         // land: snap onto the highest thing underneath (a block or slab top)
         const top = topOf(world, e.x, ny, e.z, e.w, e.h);
@@ -98,6 +127,12 @@ export function moveEntity(world, e, dt, sneakGuard = false) {
       e.y = ny;
     }
   }
+  return finishMove(world, e, dt, sneakGuard, res);
+}
+
+// the rest of a move once the vertical part is settled: the resting check,
+// then the horizontal axes
+function finishMove(world, e, dt, sneakGuard, res) {
   // resting check (vy may already be 0)
   if (!res.onGround && collides(world, e.x, e.y - 0.02, e.z, e.w, e.h)) res.onGround = true;
 

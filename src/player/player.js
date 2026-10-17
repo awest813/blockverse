@@ -585,6 +585,8 @@ export class Player {
       spawnPoint: this.spawnPoint,
       worldSpawn: this.worldSpawn,
       bedPos: this.bedPos,
+      // what's still on you: flames, venom, a chill, a hot meal's warmth
+      fireTime: this.fireTime, poisonTime: this.poisonTime, freeze: this.freeze, warmTime: this.warmTime,
     };
   }
 
@@ -607,6 +609,9 @@ export class Player {
     // saves from before beds: the spawn point was always the world spawn
     this.worldSpawn = { ...(d.worldSpawn ?? this.spawnPoint) };
     this.bedPos = d.bedPos ?? null;
+    const secs = (v, max) => (Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : 0);
+    this.fireTime = secs(d.fireTime, 30); this.poisonTime = secs(d.poisonTime, 30);
+    this.freeze = secs(d.freeze, 1); this.warmTime = secs(d.warmTime, 600);
     this.dead = this.health <= 0;
   }
 }

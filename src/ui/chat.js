@@ -207,12 +207,14 @@ export class Chat {
         this.message(`Seed: ${g.worldMeta.seed}`, '#9fdcff');
         break;
       case 'spawn':
+        p.mount?.dismount();   // (or the saddle pulls you straight back)
         p.x = p.spawnPoint.x; p.y = p.spawnPoint.y; p.z = p.spawnPoint.z;
         p.vx = p.vy = p.vz = 0;
         p.fallStart = null;
         this.message('Returned to spawn', '#9fdcff');
         break;
       case 'kill':
+        if (p.mode === GAMEMODE_CREATIVE) throw new Error('nothing can hurt you in creative \u2014 /gamemode survival first');
         p.hurtCooldown = 0;
         p.damage(1000, 'command');
         break;

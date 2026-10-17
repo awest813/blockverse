@@ -117,7 +117,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - A world can only be open in one tab at a time (two copies would save over each other); damaged chunks are regenerated rather than crashing the world, and the browser is asked to keep the saves even when space runs low
 - Pause menu with a controls cheat sheet, settings (render distance, FOV, resolution (Auto lowers it while frames are slow and restores it when there's headroom), frame rate limit, brightness, master + per-category volume, view bobbing, crosshair style, GUI scale, FPS counter, fullscreen, mouse sensitivity, invert Y, rebindable keys — applied live), death screen, loading screen
 - World list with search, sorting, duplicate, export/import (a .json file you can back up or share) and copy-seed; chat with Tab completion and `/summon`
-- **Gamepad** and **touch** controls, both covering gameplay, menus and inventories
+- **Gamepad** and **touch** controls, both covering gameplay, menus and inventories; inventories also work from the keyboard alone, with named slots for screen readers
 - HUD: hotbar with icons & durability bars, pixel-art hearts / hunger / air bubbles, crosshair, block-break cracks and selection outline, damage and low-health vignette
 - First-person held item (or a bare, sleeved arm) with walk bob, swing and equip animations, lit by the surrounding light; flat items have a pixel of depth, food comes up to your mouth with a bite in step with each chew (and crumbs), and drinks tip up
 - **F3 debug overlay**: FPS, position, chunk, biome, light levels, draw calls, triangle count

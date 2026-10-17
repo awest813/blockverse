@@ -70,6 +70,9 @@ function groupLabel(group) {
 
 // Slot abstraction: {get: () => stack|null, set: (stack) => void, filter?: (id)=>bool, output?: bool}
 
+// what a furnace's slots hold, to tell a real change from a tick of its bars
+const furnaceSig = (st) => [st.input, st.fuel, st.output].map((s) => (s ? `${s.id}x${s.count}` : '-')).join('|');
+
 export class Containers {
   constructor(game) {
     this.game = game;
@@ -307,6 +310,8 @@ export class Containers {
   }
 
   render() {
+    // keyboard focus on a slot comes back to the same slot after the redraw
+    const refocus = document.activeElement?.dataset?.slotKey;
     // the hovered slot is about to be replaced; its mouseleave will never fire
     this.hideTooltip();
     // this.hovered survives: the pointer is still over the same slot position
@@ -379,12 +384,36 @@ export class Containers {
     // last in the DOM so keyboard/gamepad focus starts on the slots, not here
     win.appendChild(closeBtn);
     this.renderCursor();
+    if (refocus) [...this.root.querySelectorAll('[data-slot-key]')].find((e) => e.dataset.slotKey === refocus)?.focus();
   }
 
   slotEl(ref) {
     const el = document.createElement('div');
     el.className = 'slot';
     fillSlot(el, ref.get(), this.atlas);
+    // reachable and usable from the keyboard: Enter/Space clicks (Shift+Enter
+    // moves the stack across), X splits; named for screen readers
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.dataset.slotKey = ref.key ?? `out:${ref.output ?? ''}`;
+    const s = ref.get();
+    const name = s ? `${itemInfo(s.id)?.display ?? 'Item'}${s.count > 1 ? `, ${s.count}` : ''}`
+      : ref.armorSlot !== undefined ? `${['Helmet', 'Chestplate', 'Leggings', 'Boots'][ref.armorSlot]} slot, empty` : 'Empty slot';
+    el.setAttribute('aria-label', ref.output ? `Result: ${s ? name : 'nothing'}` : name);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') this.clickSlot(ref, 0, e.shiftKey);
+      else if (e.key === 'x' || e.key === 'X') this.clickSlot(ref, 2, false);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    // tabbing onto a slot brings the tooltip and the carried stack with it
+    // (as the gamepad's highlight does)
+    el.addEventListener('focus', () => {
+      if (!el.matches(':focus-visible')) return;
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+    });
     if (ref.output && ref.get()) el.classList.add('ready');
     if (ref.armorSlot !== undefined && !ref.get()) {
       // faint outline of the piece that goes here
@@ -908,6 +937,8 @@ export class Containers {
     const burnFill = document.createElement('div');
     burnFill.style.width = st.burnTotal > 0 ? `${Math.round((st.burnLeft / st.burnTotal) * 100)}%` : '0%';
     burnTrack.appendChild(burnFill);
+    // the live parts, so a refresh can move the bars without redrawing the slots
+    this._furnaceUi = { flame, burnFill, sig: furnaceSig(st) };
     col.appendChild(flame);
     col.appendChild(burnTrack);
     col.appendChild(this.slotEl(this.beRef(st, 'fuel')));
@@ -925,6 +956,7 @@ export class Containers {
     const cookFill = document.createElement('div');
     cookFill.style.width = `${Math.round((st.cook / SMELT_TIME) * 100)}%`;
     cookTrack.appendChild(cookFill);
+    this._furnaceUi.cookFill = cookFill;
     mid.appendChild(arrow);
     mid.appendChild(cookTrack);
     row.appendChild(mid);
@@ -976,13 +1008,18 @@ export class Containers {
     trash.className = 'slot trash';
     trash.title = 'Destroy item';
     trash.textContent = '✕';
-    trash.addEventListener('mousedown', (e) => {
+    trash.tabIndex = 0;
+    trash.setAttribute('role', 'button');
+    trash.setAttribute('aria-label', 'Destroy the carried item');
+    const destroy = (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (!this.cursor) return;
       this.cursor = null;
       this.afterChange();
-    });
+    };
+    trash.addEventListener('mousedown', destroy);
+    trash.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') destroy(e); });
     head.appendChild(trash);
     win.appendChild(head);
 
@@ -1421,7 +1458,15 @@ export class Containers {
   }
 
   // called by game each frame while a furnace is open, to refresh progress bars
+  // (a full redraw only when what's in the slots changed: redrawing four times
+  // a second dropped tooltips and keyboard focus)
   refreshIfFurnace() {
-    if (this.open === 'furnace') this.render();
+    if (this.open !== 'furnace') return;
+    const st = furnaceState(this.game.world, this.furnacePos.x, this.furnacePos.y, this.furnacePos.z);
+    const ui = this._furnaceUi;
+    if (!ui || !ui.cookFill?.isConnected || ui.sig !== furnaceSig(st)) { this.render(); return; }
+    ui.flame.classList.toggle('off', !(st.burnLeft > 0));
+    ui.burnFill.style.width = st.burnTotal > 0 ? `${Math.round((st.burnLeft / st.burnTotal) * 100)}%` : '0%';
+    ui.cookFill.style.width = `${Math.round((st.cook / SMELT_TIME) * 100)}%`;
   }
 }
