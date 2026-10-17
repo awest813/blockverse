@@ -651,7 +651,7 @@ html, body {
   width: min(440px, 100%);
 }
 /* #ui-root is zoomed by --gui, so divide the viewport by it to get the real room left */
-.settings-panel { max-height: max(160px, min(520px, calc(100vh / (var(--gui) * var(--mz, 1)) - 190px))); overflow-y: auto; }
+.settings-panel { max-height: max(160px, min(680px, calc(100vh / (var(--gui) * var(--mz, 1)) - 190px))); overflow-y: auto; }   /* (tall phones show more at once) */
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
 .setting-row label, .setting-row .setting-label { flex: 1; font-size: 14px; }
 .setting-group {
