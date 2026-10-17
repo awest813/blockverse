@@ -1,8 +1,10 @@
 // Slow natural growth around the player: sugar cane and cactus grow up to
-// three blocks tall, and grass creeps back over bare dirt beside it. Each tick samples a few random columns per nearby chunk
+// three blocks tall, grass creeps back over bare dirt beside it, and bare
+// farmland left dry turns back to dirt. Each tick samples a few random columns per nearby chunk
 // (only columns are sampled, so it costs the same however much is planted).
 
 import { B, BLOCKS } from '../blocks/blocks.js';
+import { hydrated } from './saplings.js';
 import { CHUNK_X, CHUNK_Z, CHUNK_Y } from '../core/constants.js';
 
 const RADIUS = 3;          // chunks around the player
@@ -34,6 +36,11 @@ function spreadGrass(world, wx, y, wz) {
   return false;
 }
 
+function sprinklerNear(world, x, y, z) {
+  for (let dy = -1; dy <= 2; dy++) for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (world.getBlockW(x + dx, y + dy, z + dz) === B.SPRINKLER) return true;
+  return false;
+}
+
 let timer = 0;
 
 export function tickRandomGrowth(world, player, dt) {
@@ -56,6 +63,9 @@ export function tickRandomGrowth(world, player, dt) {
         const was = chunk.modified;   // (natural growth alone isn't worth a save)
         spreadGrass(world, wx, top, wz);
         chunk.modified = was;
+        // bare farmland with no water (or sprinkler) near dries back to dirt
+        if (!world.raining && world.getBlockW(wx, top, wz) === B.FARMLAND && world.getBlockW(wx, top + 1, wz) === B.AIR
+          && !hydrated(world, wx, top + 1, wz) && !sprinklerNear(world, wx, top, wz) && Math.random() < 0.25) world.setBlock(wx, top, wz, B.DIRT);
         // find a cane/cactus stack just above the terrain
         for (let y = ground + 1; y < Math.min(CHUNK_Y - 1, ground + 4); y++) {
           const id = world.getBlockW(wx, y, wz);

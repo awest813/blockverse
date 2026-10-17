@@ -5,6 +5,9 @@ import * as THREE from 'three';
 import { generateTile } from './textures.js';
 import { mulberry32 } from '../core/rng.js';
 
+const GREY = new THREE.Color(0x868b92);
+const RAIN_CLOUD = new THREE.Color(0x6e737a);
+const OVERCAST = new THREE.Color();
 const DAY_ZENITH = new THREE.Color(0x6f9fe8);
 const DAY_HORIZON = new THREE.Color(0x9cc4f0);
 const NIGHT = new THREE.Color(0x070b18);
@@ -173,8 +176,12 @@ export class Sky {
     this.moon.scale.setScalar(on ? 1.8 : 1);
   }
 
+  // rain or snow: 0..1 of a grey, overcast sky
+  setOvercast(v) { this.overcast = v; }
+
   update(time, day, p, underwater) {
     if (this.scorch) { this.updateScorch(p, underwater); return; }
+    const oc = this.overcast ?? 0;
     const angle = time * Math.PI * 2; // 0 = sunrise east horizon
     const R = 420;
 
@@ -212,6 +219,13 @@ export class Sky {
     const el = Math.sin(angle);
     this.clouds.material.color.copy(CLOUD_NIGHT).lerp(WHITE, Math.min(1, day * 1.15))
       .lerp(CLOUD_DUSK, Math.max(0, 1 - Math.abs(el) * 5) * 0.45);
+    // bad weather: thick, grey cloud, and the sun and stars lost behind it
+    if (oc > 0) {
+      this.clouds.material.color.lerp(OVERCAST.copy(RAIN_CLOUD).multiplyScalar(0.3 + 0.7 * Math.min(1, day * 1.2)), oc * 0.8);
+      this.clouds.material.opacity += (0.95 - this.clouds.material.opacity) * oc;
+      this.starMat.opacity *= 1 - oc;
+    }
+    this.sun.visible = this.moon.visible = oc < 0.85;
 
     if (!underwater) {
       // sky color: day <-> night with a warm band at dawn/dusk
@@ -221,6 +235,11 @@ export class Sky {
       this._bg.lerp(DUSK, duskAmount * 0.4);   // the dome's glow does the rest
       this._fog.copy(DAY_HORIZON).lerp(NIGHT, 1 - Math.max(0.05, Math.min(1, 0.5 + el * 2.2)));
       this._fog.lerp(DUSK, duskAmount);
+      if (oc > 0) {
+        OVERCAST.copy(GREY).multiplyScalar(0.25 + 0.75 * Math.min(1, day * 1.2));
+        this._bg.lerp(OVERCAST, oc * 0.9);
+        this._fog.lerp(OVERCAST, oc * 0.85);
+      }
       this.scene.background = this._bg;
       this.uniforms.uFogColor.value.copy(this._fog);
       const du = this.domeUniforms;

@@ -218,3 +218,31 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] The footer sits under the buttons instead of pinned to the window's foot (it covered the list on 1024x600 and touched the buttons on a phone)
 - [x] A rotating splash line under the title ("Now with horses!", "Mind the goat!"…), with a gentle pulse that respects reduced motion
 - Checked: no worlds / one / eight with search and no-match; laptop, Chromebook, 1024x600, landscape and portrait phone; keyboard focus lands on Create (no worlds) or the selected world
+
+## The Scorchlands: 100 scripted playthroughs
+A bot played new worlds from the first tree to the dragon and home (95 runs: 91 complete, the rest stopped by the bot's own aim or the batch's time limit; no game errors)
+- [x] Castle gates stood over 2-5 block drops (5 of 15 castles): a causeway now runs from the gate to the land, and rubble stays off the way to the keep
+- [x] The roost's stair ended in mid-air: it now goes down the side where the land meets it
+- [x] Burning was the second-biggest source of damage (no water to put it out there): fireballs burn for a second; knights, the Knight Captain and the dragon hit a little softer
+- [x] Dying in the Scorchlands, or reloading on its death screen, wakes you at home by your bed; arrivals never land inside a castle, the roost or a build
+
+## Compared with other open-source voxel games (Luanti/Minetest Game, VoxeLibre, ClassiCube…)
+- [x] Weather: showers come and go (rain, snow where it's cold, none over deserts); grey skies, closer fog, the sound of rain; rain puts out fires and burning players, stops the undead burning and keeps farmland wet; `/weather`
+- [x] Sand and gravel fall when nothing holds them up (and stack when they land)
+- [x] Leaves cut off from their trunk wither and drop saplings and apples (placed leaves stay)
+- [x] Chips fly off blocks as you dig them, and a burst when one breaks
+- [x] Farmland: jumping on it tramples it (and the crop); bare farmland with no water or sprinkler near dries back to dirt
+- [x] Hay bales, wool and beds break a fall (80% less damage)
+- [x] Sprinting widens the view a touch (off with view bobbing)
+- [x] Dropped items blink for their last ten seconds before vanishing
+- [ ] Flowing water and lava (sources and flowing levels; waterfalls, irrigation, lava traps)
+- [ ] Experience and enchanting-like progression past diamond and dragon gear
+- [ ] Villages, villagers and trading
+- [ ] Boats; minecarts and rails
+- [ ] Redstone-lite: levers, buttons, pressure plates, wire, lamps, powered doors (and switching farm machines)
+- [ ] Fire spreading to flammable blocks (with a switch)
+- [ ] Dyes and coloured wool / glass; flowers used in recipes
+- [ ] Building set: stairs, slabs, doors and fences in every wood; walls; trapdoors; sideways logs; wall torches
+- [ ] Maps, compass and clock; item frames, armour stands, paintings; third-person view
+- [ ] Growth while away (crops, saplings, furnaces catch up when a chunk loads, and while you sleep)
+- [ ] Papercuts: chest sort / quick-stack, sleep blocked by named monsters, crops needing light, a corner coordinate readout, /setblock and /fill

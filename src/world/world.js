@@ -34,6 +34,7 @@ export class World {
     this.centerCz = Infinity;
     this.stats = { chunks: 0, meshed: 0, genQueue: 0 };
     this.portalChecks = [];               // cells where a portal's frame or sheet changed (Game checks them)
+    this.blockChanges = [];               // every change: x, y, z, old, new (falling sand, leaf decay: blockUpdates.js)
   }
 
   getChunk(cx, cz) {
@@ -104,6 +105,7 @@ export class World {
     c.modified = true;
     c.blockEntities.delete(idx);
     if (old === B.EMBER_PORTAL || old === B.CHARRED_STONE) this.portalChecks.push(wx, wy, wz);
+    if (this.blockChanges.length < 60000) this.blockChanges.push(wx, wy, wz, old, id);
 
     if (c.hasLight) {
       lightBlockChange(this, wx, wy, wz, old, id, this.dirtyMeshes);

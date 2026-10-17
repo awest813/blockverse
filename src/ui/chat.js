@@ -21,12 +21,13 @@ for (const mod of [MOBS, ANIMALS, BOSSES, SCORCH_MOBS]) {
 const HOSTILE_NAMES = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'creeper', 'scorpion', 'zombiebrute', 'bonearcher', 'broodmother', 'skeletonknight', 'knightcaptain', 'ashdrake', 'scorchdragon']);
 
 // what Tab can complete, per command argument
-const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd', 'dimension'];
+const COMMANDS = ['help', 'tp', 'time', 'give', 'summon', 'gamemode', 'difficulty', 'seed', 'spawn', 'kill', 'heal', 'clear', 'rd', 'dimension', 'weather'];
 const ARGS = {
   time: [['set'], ['day', 'noon', 'sunset', 'night', 'midnight']],
   gamemode: [['survival', 'creative']],
   difficulty: [['peaceful', 'easy', 'normal', 'hard']],
   dimension: [['overworld', 'scorchlands']],
+  weather: [['clear', 'rain']],
 };
 
 // name -> id lookup across blocks and items
@@ -155,6 +156,7 @@ export class Chat {
         this.message('/summon <mob> — e.g. /summon dolphin');
         this.message('/seed  /spawn  /kill  /clear  /rd <2-16>  /heal');
         this.message('/dimension <overworld|scorchlands>');
+        this.message('/weather <clear|rain> [seconds]');
         this.message('Tab completes commands, items and mobs', '#aaa');
         this.message('/difficulty <peaceful|easy|normal|hard>');
         break;
@@ -246,6 +248,16 @@ export class Chat {
       }
       // jump between the overworld and the Scorchlands (a cheat, like /tp:
       // the portal is the honest way), landing at the matching spot
+      case 'weather': {
+        const kind = (args[0] ?? '').toLowerCase();
+        if (kind !== 'clear' && kind !== 'rain') throw new Error('usage: /weather <clear|rain> [seconds]');
+        if (g.dimension === 'scorch') throw new Error('no weather in the Scorchlands');
+        const secs = args[1] !== undefined ? Number(args[1]) : undefined;
+        if (secs !== undefined && !(secs > 0)) throw new Error('seconds must be a positive number');
+        g.setWeather(kind, secs);
+        this.message(kind === 'rain' ? 'It starts to rain' : 'The sky clears');
+        break;
+      }
       case 'dimension': {
         const to = { overworld: 'overworld', scorch: 'scorch', scorchlands: 'scorch' }[(args[0] ?? '').toLowerCase()];
         if (!to) throw new Error('usage: /dimension <overworld|scorchlands>');

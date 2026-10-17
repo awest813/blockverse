@@ -8,7 +8,7 @@ import { blockInfo, R_CROSS, R_TORCH } from '../blocks/blocks.js';
 import { generateTile } from '../render/textures.js';
 
 const texCache = new Map();
-function itemTexture(id) {
+export function itemTexture(id) {
   if (texCache.has(id)) return texCache.get(id);
   let tileName;
   if (isBlockItem(id)) {
@@ -106,6 +106,8 @@ export class ItemDrop {
     this.spin += dt * 1.8;
     const bob = Math.sin(this.age * 2.2) * 0.045;
     this.mesh.position.set(this.x, this.y + 0.18 + bob, this.z);
+    // about to vanish: it blinks for its last ten seconds
+    this.mesh.visible = this.age < 290 || Math.floor(this.age * 5) % 2 === 0;
     this.mesh.rotation.y = this.spin;
     // take the light of where it lies (a few times a second is plenty)
     if ((this._lt = (this._lt ?? Math.random() * 0.2) - dt) <= 0) {

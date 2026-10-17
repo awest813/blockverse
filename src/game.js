@@ -24,6 +24,7 @@ import { tickRandomGrowth } from './world/randomTicks.js';
 import { tickFires } from './world/fire.js';
 import { CampfireFx } from './render/campfireFx.js';
 import { ScorchFx } from './render/scorchFx.js';
+import { WeatherFx } from './render/weatherFx.js';
 import { SignFx } from './render/signFx.js';
 import { SignEditor } from './ui/signEditor.js';
 import { MobSpawner } from './entities/mobSpawner.js';
@@ -35,9 +36,10 @@ import { Chat } from './ui/chat.js';
 import { TouchControls } from './ui/touch.js';
 import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
-import { BIOME_NAMES } from './world/worldgen.js';
+import { BIOME_NAMES, BIOME } from './world/worldgen.js';
 import { dimensionOf, genVersionOf, arrivalPoint, OVERWORLD, SCORCH } from './world/dimensions.js';
 import { ScorchDragon } from './entities/scorchMobs.js';
+import { BlockUpdates } from './world/blockUpdates.js';
 import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
 import { DAY_LENGTH_SECONDS, GAMEMODE_CREATIVE, GAMEMODE_SURVIVAL, SEA_LEVEL } from './core/constants.js';
@@ -182,6 +184,7 @@ export class Game {
     this.entities.fx.puff = (x, y, z) => this.sparks(x, y, z, 0xf2f2f2, 5);   // a panda's sneeze
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
+    this.entities.fx.drop = (x, y, z, stacks) => this.entities.spawnDrops(x, y, z, stacks);
     // a dungeon boss beaten: its cage remembers, so it stays beaten
     this.entities.fx.bossDown = (boss) => {
       const c = boss.home?.cage?.split(',').map(Number);
@@ -226,6 +229,7 @@ export class Game {
       steam: (x, y, z) => this.sparks(x, y, z, 0xe8e8ec, 12),
       portalLit: (f) => this.portalLit(f),
       hatch: (kind, x, y, z) => this.hatchPet(kind, x, y, z),
+      blockBits: (x, y, z, id, n) => this.blockBits(x, y, z, id, n),
       playSound: (name, opts) => {
         if (name === 'place' || name === 'eat') this.viewModel.swing();
         // block sounds come from the block you're working on (a little to the
@@ -240,6 +244,11 @@ export class Game {
     this.sky = new Sky(this.scene, this.world.materials.uniforms);
     this.sky.setScorch(this.dimension === SCORCH);
     this.scorchFx = this.dimension === SCORCH ? new ScorchFx(this.scene) : null;
+    // weather (the overworld's): clear spells and showers, each for a while
+    const wm = worldMeta.weather;
+    this.weather = { kind: wm?.kind === 'rain' ? 'rain' : 'clear', t: Number.isFinite(wm?.t) ? wm.t : 600 + Math.random() * 900 };
+    this.rainAmt = this.weather.kind === 'rain' ? 1 : 0;
+    this.weatherFx = this.dimension === SCORCH ? null : new WeatherFx(this.scene);
     this.containers = new Containers(this);
     this.signEditor = new SignEditor(this);
     this._furnaceUiTimer = 0;
@@ -318,6 +327,18 @@ export class Game {
     this.player.events.addEventListener('toolbreak', (e) => {
       this.sfx?.play('toolbreak');
       this.hud.showLabel(`${itemInfo(e.detail.id)?.display ?? 'Tool'} broke!`, true);
+    });
+    // jumping on farmland tramples it (and whatever was growing there)
+    this.player.events.addEventListener('trample', (e) => {
+      const { x, y, z } = e.detail, w = this.world;
+      const above = w.getBlockW(x, y + 1, z);
+      if (cropFamily(above)) {
+        w.setBlock(x, y + 1, z, B.AIR);
+        this.interaction.spawnBlockDrops(x, y + 1, z, blockInfo(above), true);
+      }
+      w.setBlock(x, y, z, B.DIRT);
+      this.sfx?.play('break', { block: 'dirt', pos: { x: x + 0.5, y: y + 1, z: z + 0.5 } });
+      this.blockBits(x, y, z, B.FARMLAND, 8);
     });
     this.player.events.addEventListener('death', (e) => {
       // close any open window first: a stack on the cursor or in the crafting
@@ -865,8 +886,8 @@ export class Game {
     this.sparkList.push({ sprite, t: 0, g: -2, life: 0.7, vx, vy, vz });
   }
 
-  // a bite of food: a few crumbs in its own colours fall from in front of your face
-  crumbs(id) {
+  // the colours of a block's or item's own tile (for crumbs and chips)
+  tileColors(id) {
     let colors = this._crumbColors?.get(id);
     if (!colors) {
       colors = [];
@@ -880,6 +901,28 @@ export class Game {
       if (!colors.length) colors.push(0xc8a060);
       (this._crumbColors ??= new Map()).set(id, colors);
     }
+    return colors;
+  }
+
+  // chips of a block flying off as you dig it (n: a few per strike, a burst when it breaks)
+  blockBits(x, y, z, id, n = 12) {
+    if (!id || this.sparkList.length > 240) return;
+    const colors = this.tileColors(id);
+    const light = this.world.lightAt(x + 0.5, y + 0.5, z + 0.5);
+    for (let i = 0; i < n; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: colors[(Math.random() * colors.length) | 0], transparent: true, depthWrite: false, fog: false }));
+      sprite.material.color.multiplyScalar(light);
+      sprite.scale.setScalar(0.07 + Math.random() * 0.06);
+      sprite.position.set(x + 0.15 + Math.random() * 0.7, y + 0.15 + Math.random() * 0.7, z + 0.15 + Math.random() * 0.7);
+      this.scene.add(sprite);
+      const a = Math.random() * Math.PI * 2, s = 0.8 + Math.random() * 1.6;
+      this.sparkList.push({ sprite, t: 0, life: 0.55 + Math.random() * 0.3, vx: Math.cos(a) * s, vy: 1.5 + Math.random() * 2.5, vz: Math.sin(a) * s });
+    }
+  }
+
+  // a bite of food: a few crumbs in its own colours fall from in front of your face
+  crumbs(id) {
+    const colors = this.tileColors(id);
     const p = this.player, dir = p.lookDir();
     const x = p.x + dir.x * 0.45, y = p.eyeY - 0.22 + dir.y * 0.3, z = p.z + dir.z * 0.45;
     for (let i = 0; i < 5; i++) {
@@ -1345,7 +1388,34 @@ export class Game {
     const t = this.time % 1;
     // sun elevation: sin over the day half
     const el = Math.sin(t * Math.PI * 2);
-    return Math.max(0.03, Math.min(1, 0.5 + el * 2.2));
+    return Math.max(0.03, Math.min(1, 0.5 + el * 2.2)) * (1 - 0.3 * (this.rainAmt ?? 0));   // (a grey day under rain)
+  }
+
+  // Showers come and go (minutes of rain, then a long clear spell). Rain
+  // falls as snow where it's cold and not at all over a desert; it puts out
+  // fires (and you) under the open sky, keeps the undead from burning and
+  // the farmland wet.
+  updateWeather(dt) {
+    if (this.dimension === SCORCH) return;
+    const w = this.weather;
+    w.t -= dt;
+    if (w.t <= 0) this.setWeather(w.kind === 'rain' ? 'clear' : 'rain');
+    const target = w.kind === 'rain' ? 1 : 0;
+    this.rainAmt += Math.sign(target - this.rainAmt) * Math.min(Math.abs(target - this.rainAmt), dt / 20);   // (twenty seconds to come on or clear)
+    this.world.raining = this.rainAmt > 0.5;
+    this.sky.setOvercast(this.rainAmt);
+    const p = this.player, x = Math.floor(p.x), z = Math.floor(p.z);
+    const exposed = this.world.getSkyW(x, Math.floor(p.eyeY), z) >= 15;
+    this._cover = (this._cover ?? 0) + ((exposed ? 0 : 1) - (this._cover ?? 0)) * Math.min(1, dt * 3);
+    const biome = this.world.biomeAt(x, z);
+    const kind = biome === BIOME.DESERT ? null : this.world.gen.climateAt(x, z).t < 0.28 || p.y > 96 ? 'snow' : 'rain';
+    this.weatherKindHere = kind;
+    this.weatherFx?.update(dt, p, this.rainAmt, p.headInWater ? null : kind, this._cover);
+    if (kind === 'rain' && this.world.raining && exposed && p.fireTime > 0) { p.fireTime = 0; p.events.dispatchEvent(new CustomEvent('extinguish')); }
+  }
+
+  setWeather(kind, secs) {
+    this.weather = { kind, t: secs ?? (kind === 'rain' ? 180 + Math.random() * 300 : 600 + Math.random() * 1200) };
   }
 
   start() {
@@ -1401,7 +1471,7 @@ export class Game {
 
     // fog follows render distance
     const R = this.world.renderDistance * 16;
-    this.world.materials.uniforms.uFogNear.value = R * (this.dimension === SCORCH ? 0.3 : 0.6);   // (smoke hangs over the Scorchlands)
+    this.world.materials.uniforms.uFogNear.value = R * (this.dimension === SCORCH ? 0.3 : 0.6 - 0.3 * (this.rainAmt ?? 0));   // (smoke hangs over the Scorchlands; rain closes in)
     this.world.materials.uniforms.uFogFar.value = R * 0.95;
 
     if (gamePaused || document.hidden) {
@@ -1418,6 +1488,8 @@ export class Game {
       this.mobSpawner.update(dt, this.player, day);
       this.tickBlockEntities(dt);
       this.updatePortals(dt);
+      this.updateWeather(dt);
+      (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash
@@ -1480,13 +1552,13 @@ export class Game {
     this.camera.rotateX(this.player.pitch);
     this.updateViewModel(dt, gamePaused);
     // drawing a bow zooms in a little and fills a meter under the crosshair
+    // (and sprinting widens it a touch)
     const charge = this.interaction.bowCharge;
-    if (charge !== this._lastCharge) {
-      this._lastCharge = charge;
-      this.camera.fov = (this.baseFov ?? 75) * (1 - 0.12 * charge);
-      this.camera.updateProjectionMatrix();
-      this.hud.setBowCharge(charge);
-    }
+    if (charge !== this._lastCharge) { this._lastCharge = charge; this.hud.setBowCharge(charge); }
+    const sprint = this.player.sprinting && !this.player.mount && Math.hypot(this.player.vx, this.player.vz) > 4 && this.viewModel?.bobbing !== false ? 1 : 0;
+    this._sprintFov = (this._sprintFov ?? 0) + (sprint - (this._sprintFov ?? 0)) * Math.min(1, dt * 8);
+    const fov = (this.baseFov ?? 75) * (1 - 0.12 * charge) * (1 + 0.07 * this._sprintFov);
+    if (Math.abs(fov - this.camera.fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
 
     // sky, then the underwater tint over it: after the player has moved, so
     // the frame you dive or surface doesn't flash the other one's look
@@ -1583,6 +1655,11 @@ export class Game {
     sfx.setCave(cave);
     const bossNear = this.entities.mobs.some((m) => m.boss && !m.dead && m.dying === undefined && m.state === 'chase');
     const scorch = this.dimension === SCORCH;
+    // rain on the roof (or all round you, out in it)
+    if (this.rainAmt > 0.05 && this.weatherKindHere === 'rain' && cave < 1) {
+      this._rainT = (this._rainT ?? 0) - dt;
+      if (this._rainT <= 0) { this._rainT = 2; sfx.play('rain', { vol: this.rainAmt * (this._cover > 0.5 ? 0.4 : 1) }); }
+    }
     this.music?.update(dt, p.dead || bossNear ? null : cave >= 1 ? 'cave' : scorch ? 'scorch' : this.dayFactor() < 0.35 ? 'night' : 'day');
     if (p.dead) return;
     const survival = p.mode !== GAMEMODE_CREATIVE;
@@ -1764,6 +1841,7 @@ export class Game {
       })),
       animals: this.entities.keptAnimals(),
       timeOfDay: this.time,
+      ...(this.dimension === SCORCH ? {} : { weather: { kind: this.weather.kind, t: Math.round(this.weather.t) } }),
       day: this.day,
       difficulty: this.difficulty,
       mode: this.player.mode,   // the world list shows it (after /gamemode too)
@@ -1817,6 +1895,7 @@ export class Game {
       () => this.viewModel?.dispose(),
       () => this.campfireFx?.dispose(),
       () => this.scorchFx?.dispose(),
+      () => this.weatherFx?.dispose(),
       () => this.signFx?.dispose(),
       () => this.sky?.dispose(),
       () => this.hud?.hide(),

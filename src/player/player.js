@@ -15,6 +15,7 @@ import { itemInfo, makeStack, maxStack } from '../items/items.js';
 const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain', 'cinderhound', 'drake', 'fireball', 'dragon', 'dragonfire']);   // (explosions hurt at any difficulty)
 const UNARMORED_DAMAGE = new Set(['fall', 'starve', 'drown', 'void', 'command', 'fire', 'freeze', 'poison']);
 const LEATHER = new Set([I.LEATHER_HELMET, I.LEATHER_CHESTPLATE, I.LEATHER_LEGGINGS, I.LEATHER_BOOTS]);
+const SOFT_LANDING = new Set([B.HAY_BALE, B.WOOL, B.BED]);
 const DRAGON_SCALE = new Set([I.DRAGON_HELMET, I.DRAGON_CHESTPLATE, I.DRAGON_LEGGINGS, I.DRAGON_BOOTS]);
 const FIERY = new Set(['fire', 'lava', 'fireball', 'drake', 'dragonfire']);
 
@@ -229,10 +230,16 @@ export class Player {
       }
       if ((this.onGround || this.inWater) && this.fallStart !== null) {
         const fallDist = this.fallStart - this.y;
+        // what you land on: hay, wool or a bed breaks a fall; a jump onto
+        // farmland tramples it
+        const bx = Math.floor(this.x), by = Math.floor(this.y - 0.05), bz = Math.floor(this.z);
+        const under = this.world.getBlockW(bx, by, bz);
+        const soft = SOFT_LANDING.has(under) ? 0.2 : 1;
         // (a drop of 3.2-4 blocks is a jolt, not a hurt: no flash, no
         // hurt cooldown to swallow the next real hit)
-        const fallDmg = this.inWater ? 0 : Math.floor(fallDist - 3);
+        const fallDmg = this.inWater ? 0 : Math.floor((fallDist - 3) * soft);
         if (fallDmg > 0) this.damage(fallDmg, 'fall');
+        if (under === B.FARMLAND && fallDist > 1.4 && !this.inWater) this.events.dispatchEvent(new CustomEvent('trample', { detail: { x: bx, y: by, z: bz } }));
         this.fallStart = null;
       }
     } else {

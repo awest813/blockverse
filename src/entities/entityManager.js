@@ -154,7 +154,7 @@ export class EntityManager {
   // merging into one blob. Pushes are small displacements run through the
   // physics step, so walls still win.
   separate(dt, player) {
-    const live = this.mobs.filter((m) => m.dying === undefined && !m.dead &&
+    const live = this.mobs.filter((m) => m.dying === undefined && !m.dead && m.kind !== 'falling' &&
       Math.abs(m.x - player.x) < 32 && Math.abs(m.z - player.z) < 32);
     const shove = new Map();   // mob -> [dx, dz]
     const add = (m, dx, dz) => { const v = shove.get(m) ?? [0, 0]; v[0] += dx; v[1] += dz; shove.set(m, v); };

@@ -42,7 +42,7 @@ export const cropFamily = (id) => CROP_FAMILIES.find(([a, b]) => id >= a && id <
 export const isRipe = (id) => CROP_FAMILIES.some(([, ripe]) => id === ripe);
 
 // is there water within 4 blocks of the farmland under this crop?
-function hydrated(world, x, y, z) {
+export function hydrated(world, x, y, z) {
   for (let dx = -4; dx <= 4; dx++) {
     for (let dz = -4; dz <= 4; dz++) {
       if (world.getBlockW(x + dx, y - 1, z + dz) === B.WATER) return true;

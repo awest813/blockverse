@@ -454,7 +454,7 @@ export class Mob {
     const sky = this.world.getSkyW(Math.floor(this.x), Math.floor(this.y + this.h - 0.3), Math.floor(this.z));
     // only full, open sky (15) burns: light spilling under an overhang or a
     // tree's edge reads 14
-    if (day <= 0.8 || sky < 15 || this.inWater || this.fireproofSun) return false;
+    if (day <= 0.8 || sky < 15 || this.inWater || this.fireproofSun || this.world.raining) return false;   // (not in the rain)
     this.fireTime = Math.max(this.fireTime ?? 0, 2);   // the burning tick does the damage
     return this.dead;
   }

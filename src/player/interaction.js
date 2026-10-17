@@ -78,6 +78,7 @@ const toolKey = (stack) => {
   return t ? `${t.class}:${t.tier}:${t.speed}` : '';
 };
 
+const PLACED_LEAVES = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHARRED_LEAVES]);
 const SHEARABLE = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.TALL_GRASS, B.DEAD_BUSH]);
 
 export class Interaction {
@@ -143,6 +144,7 @@ export class Interaction {
           if (this.breakProgress >= 1) this.finishBreak(false);
           else if (Math.random() < dt * 6) {
             this.cb.playSound('hit', { block: info.sound });
+            this.cb.blockBits?.(this.breakTarget.x, this.breakTarget.y, this.breakTarget.z, this.breakTarget.id, 3);
           }
         }
       }
@@ -239,6 +241,7 @@ export class Interaction {
     const melts = t.id === B.ICE && !lifted && (isWater(below) || isSolid(below));
     this.world.setBlock(t.x, t.y, t.z, info.waterlogged || melts ? B.WATER : B.AIR);
     this.cb.playSound('break', { block: info.sound });
+    this.cb.blockBits?.(t.x, t.y, t.z, t.id, 14);
     // a door's other half goes with it
     if (t.id === B.OAK_DOOR && this.world.getBlockW(t.x, t.y + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
     if (t.id === B.OAK_DOOR_TOP && this.world.getBlockW(t.x, t.y - 1, t.z) === B.OAK_DOOR) {
@@ -455,6 +458,7 @@ export class Interaction {
 
     if (info.id === B.LADDER) meta = wallMeta(t.nx, t.nz);
     if (info.id === B.LANTERN) meta = hang ? 1 : 0;
+    if (PLACED_LEAVES.has(info.id)) meta = 1;   // (a player's leaves never wither: blockUpdates.js)
     const yawQuad = Math.round((((p.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) % 4;
     if (STAIRS.has(info.id)) {
       // climb away from the player; upside down against a ceiling or a block's upper half

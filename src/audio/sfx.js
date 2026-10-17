@@ -6,14 +6,16 @@ const CATEGORY = {
   hit: 'blocks', break: 'blocks', place: 'blocks', step: 'blocks', splash: 'blocks', explode: 'blocks', fuse: 'blocks',
   door: 'blocks', chest: 'blocks', sizzle: 'blocks', crackle: 'blocks', lavapop: 'blocks', drone: 'blocks', cricket: 'blocks',
   arrowhit: 'blocks', gloop: 'blocks', ignite: 'blocks', shear: 'blocks', crit: 'blocks', weak: 'blocks', sweep: 'blocks',
-  simmer: 'blocks', ladle: 'blocks', wind: 'blocks', creak: 'blocks',
+  simmer: 'blocks', ladle: 'blocks', wind: 'blocks', creak: 'blocks', rain: 'blocks', fizz: 'blocks',
+  portalhum: 'blocks', portallight: 'blocks', portalout: 'blocks', portalgo: 'blocks',
   zombie: 'mobs', skeleton: 'mobs', spider: 'mobs', mobhurt: 'mobs', mobdeath: 'mobs', shoot: 'mobs', spawner: 'mobs',
   roar: 'mobs', pig: 'mobs', cow: 'mobs', sheep: 'mobs', chicken: 'mobs', dog: 'mobs', cat: 'mobs', dolphin: 'mobs', whale: 'mobs',
   goat: 'mobs', duck: 'mobs', horse: 'mobs', hoof: 'mobs', panda: 'mobs', sloth: 'mobs', capybara: 'mobs', polarbear: 'mobs',
   camel: 'mobs', seagull: 'mobs', pelican: 'mobs', scorpion: 'mobs', crab: 'mobs',
+  clang: 'mobs', shieldbreak: 'mobs', fireball: 'mobs', drake: 'mobs', dragon: 'mobs', wingbeat: 'mobs', breath: 'mobs',
 };
 // how far away a positioned sound can still be heard (blocks)
-const RANGE = { creak: 24, simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
+const RANGE = { dragon: 96, wingbeat: 48, breath: 32, portalhum: 12, creak: 24, simmer: 8, seagull: 32, roar: 40, explode: 64, fuse: 20, crackle: 10, lavapop: 12, cricket: 20, arrowhit: 16 };
 const RANGE_BY_CATEGORY = { mobs: 20, blocks: 24, ui: 24 };
 // at most N copies of a sound per window (seconds): a pile of pickups or a
 // sweep through a crowd shouldn't become one deafening burst
@@ -352,6 +354,11 @@ export class Sfx {
       case 'drone':      // the deep hum of a cave
         this.tone({ freq: 55 * detune, endFreq: 52, dur: 3.5, gain: 0.07, type: 'sine' });
         this.tone({ freq: 82 * detune, endFreq: 78, dur: 3.2, gain: 0.04, type: 'sine' });
+        break;
+      case 'rain':       // a steady hiss of rain, and the patter of drops
+        this.noise({ freq: 5200 * detune, q: 0.4, dur: 2.6, gain: 0.05, type: 'highpass' });
+        this.noise({ freq: 900, q: 0.5, dur: 2.6, gain: 0.03, type: 'bandpass' });
+        for (let i = 0; i < 4; i++) this.later(() => this.noise({ freq: 2500 + Math.random() * 3000, q: 4, dur: 0.012, gain: 0.04 }), Math.random() * 2400);
         break;
       case 'wind':       // a hot gust through the dead trees, dying away
         this.noise({ freq: 380 * detune, q: 0.6, dur: 3.2, gain: 0.07, type: 'lowpass' });
