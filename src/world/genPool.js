@@ -106,12 +106,16 @@ export class GenPool {
   // Drop queued jobs that are no longer wanted (e.g. player moved away).
   // Dropped jobs resolve to null so their callers can forget the chunk and
   // request it again later.
-  prune(keepFn) {
+  // drop queued jobs no longer wanted, and put the rest nearest-first round
+  // (cx, cz) (the player moved: the chunks now nearest them go first, not
+  // behind everything queued for where they were)
+  prune(keepFn, cx, cz) {
     const keep = [];
     for (const j of this.queue) {
       if (keepFn(j.cx, j.cz)) keep.push(j);
       else j.resolve(null);
     }
+    if (Number.isFinite(cx)) keep.sort((a, b) => ((a.cx - cx) ** 2 + (a.cz - cz) ** 2) - ((b.cx - cx) ** 2 + (b.cz - cz) ** 2));
     this.queue = keep;
   }
 

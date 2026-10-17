@@ -36,7 +36,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - Shipwrecks full of cargo and crumbling ocean ruins on the sea floor, wells in the desert, and fossils buried deep beneath deserts and swamps
 - Kelp forests and seagrass under the sea, lily pads on shallow swamp pools, snow blankets on the tundra, and lava pooling in the deepest caves
 - Decoration follows the biome under every tree and flower: river banks are wooded and grassy, sugar cane lines any water's edge, and mossy boulders dot mountains and tundra
-- Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams
+- Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams. Generator 10 (new worlds) samples every noise channel off its lattice (rivers no longer meet in a grid, and spawns differ from world to world), drops the last single-column biome specks, runs ore veins across chunk borders, adds flower meadows and bushes, keeps desert temples and wells from being crowded out, and clears the ground in front of every temple and shrine door; a new world never starts you inside a tree or on a speck of an island
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
 - Trees (oak, birch, spruce, and leaning **coconut palms** on warm beaches), cacti, sugar cane, flowers, tall grass, pumpkins, mushrooms — features generate seamlessly across chunk borders
 - Chunks (16×128×16) stream in and out around the player; terrain generation runs in a **Web Worker pool** so the main thread never stutters
@@ -121,6 +121,8 @@ A second dimension, under a night that never ends: a burnt forest of charred tre
 - `/dimension scorchlands` (and `overworld`) to go straight there
 
 ### 🌗 Living environment
+- **Weather**: showers come and go: rain (snow where it's cold, nothing over the desert) greys the sky, closes in the fog and drums on the roof; it puts out fires and anyone burning out in the open, keeps the undead from burning and the farmland wet. `/weather clear|rain`
+- Sand and gravel fall when nothing holds them up; leaves cut off from their trunk wither (dropping saplings and apples); chips fly off blocks as you dig; hay, wool and beds break a fall
 - Full **day/night cycle** (20 min): a gradient sky dome that glows on the sun's side at sunrise and sunset, a sun and a moon, drifting blocky clouds that take the colour of the hour, and a starfield that wheels overhead at night
 - Torchlight is warm and moonlight cool; mobs, dropped items, arrows, sign lettering and your hand are all lit by the voxel light where they stand, so nothing glows in a dark cave
 - Distance fog that follows your render-distance setting and blends terrain, mobs and items into the horizon; underwater the sky disappears, the view tints blue, darkens with depth and at night, and bubbles rise from you

@@ -228,6 +228,14 @@ export function structurePlan(gen, cx, cz) {
   if (cache.has(key)) return cache.get(key);
   if (cache.size > 4096) cache.clear();
   let plan = rawPlan(gen, cx, cz);
+  // generator 10: a plan stands unless a *standing* one of higher priority
+  // is within two chunks (the old rule let a plan that had itself lost knock
+  // out its neighbours, and the desert's temples and wells all but vanished)
+  if (gen.version >= 10) {
+    plan = plan && stands(gen, cx, cz) ? plan : null;
+    cache.set(key, plan);
+    return plan;
+  }
   // keep structures apart: within two chunks only the highest-priority one stands
   for (let dx = -2; dx <= 2 && plan; dx++) {
     for (let dz = -2; dz <= 2; dz++) {
@@ -239,6 +247,29 @@ export function structurePlan(gen, cx, cz) {
   cache.set(key, plan);
   return plan;
 }
+
+// (generator 10) does this chunk's raw plan survive? Only a higher-priority
+// plan that itself survives can push it out. Priorities strictly rise along
+// any chain, so this always ends.
+function stands(gen, cx, cz) {
+  const key = `${cx},${cz}`;
+  const memo = gen.standsCache ?? (gen.standsCache = new Map());
+  if (memo.has(key)) return memo.get(key);
+  if (memo.size > 8192) memo.clear();
+  const plan = rawPlan(gen, cx, cz);
+  let ok = !!plan;
+  for (let dx = -2; dx <= 2 && ok; dx++) {
+    for (let dz = -2; dz <= 2 && ok; dz++) {
+      if (!dx && !dz) continue;
+      const other = rawPlan(gen, cx + dx, cz + dz);
+      if (other && other.priority > plan.priority && stands(gen, cx + dx, cz + dz)) ok = false;
+    }
+  }
+  memo.set(key, ok);
+  return ok;
+}
+// (generator 10) the rarer, bigger structures win a tie for space
+const TYPE_RANK = { desert_temple: 4, forest_temple: 3, shipwreck: 2, well: 2, ocean_ruin: 1, shrine: 0 };
 
 function rawPlan(gen, cx, cz) {
   const key = `${cx},${cz}`;
@@ -285,7 +316,8 @@ function makePlan(gen, cx, cz) {
     return null;
   }
   if (y + 16 >= CHUNK_Y) return null;
-  return { type, x0, z0, size, y, rot: (rng() * 4) | 0, biome, priority: rng() };
+  const rot = (rng() * 4) | 0;
+  return { type, x0, z0, size, y, rot, biome, priority: rng() + (gen.version >= 10 ? TYPE_RANK[type] : 0) };
 }
 
 // Is this world column within `margin` blocks of a planned structure?
@@ -348,6 +380,18 @@ export function buildStructure(gen, blocks, cx, cz) {
             this.set(dx, yy, dz, id);
           }
           for (let yy = y + 1; yy <= y + clearTo; yy++) this.set(dx, yy, dz, B.AIR);
+        }
+      }
+      // generator 10: a way in: the ground just outside the entrance side
+      // brought to the floor's level (no wall of earth against the door)
+      if (gen.version >= 10) {
+        const mid = S >> 1;
+        for (let dx = mid - 1; dx <= mid + 1; dx++) {
+          for (let yy = y + 1; yy <= y + 3; yy++) this.set(dx, yy, -1, B.AIR);
+          for (let yy = y; yy > y - 6 && yy > 1; yy--) {
+            if (yy < y && GROUND.has(this.get(dx, yy, -1))) break;
+            this.set(dx, yy, -1, yy === y ? (GROUND.has(this.get(dx, yy, -1)) ? this.get(dx, yy, -1) : id) : id);
+          }
         }
       }
     },

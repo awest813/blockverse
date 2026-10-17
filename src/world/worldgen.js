@@ -3,7 +3,7 @@
 
 import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/constants.js';
 import { Noise } from '../core/noise.js';
-import { coordRng } from '../core/rng.js';
+import { coordRng, mulberry32 } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
 import { placeDungeon, structurePlan, nearStructure, buildStructure, placeFossil } from './structures.js';
 
@@ -41,7 +41,13 @@ function smoothstep(a, b, x) {
 //     wavy biome borders instead of speckled ones, swamps that blend in at
 //     the edges, wider birch woods, no trees on bare mountain rock, no clay
 //     specks on dry land or grass under water and ice.
-export const LATEST_GEN = 9;
+//  10 - every noise channel sampled off its lattice (gradient noise is zero
+//     on whole-number coordinates: rivers met in a grid, and every world's
+//     spawn had the same climate), no single-column biome specks, ore veins
+//     that cross chunk borders, flower meadows and bushes, structures kept
+//     apart without losing desert temples and wells, and a clear way in to
+//     every temple and shrine.
+export const LATEST_GEN = 10;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -72,21 +78,31 @@ export class WorldGen {
     this.climateScale = big ? 2 : 1;
     this.rangeScale = big ? 1.5 : 1;
     this.continentScale = big ? 1.4 : 1;
+    // generator 10: each channel's own offset, so no lattice point (where the
+    // noise is pinned to zero) lines up with anything; older generators add 0
+    const v10 = version >= 10;
+    const orng = mulberry32((this.seed ^ 0x9e3779b9) >>> 0);
+    const off = () => (v10 ? 0.25 + orng() * 0.5 : 0);
+    this.off = {};
+    for (const k of ['c', 'e', 'm', 'p', 'd', 't', 'w', 'r', 'k1', 'k2', 'kc']) this.off[k] = [off(), off()];
   }
 
   // Everything about a column that depends only on (x, z), computed once:
   // {h (terrain height before caves), t, m, mMask, river (0..1 channel depth)}.
   columnAt(wx, wz) {
     const cs0 = 700 * this.continentScale, ms = 520 * this.rangeScale;
-    const c = this.continent.fbm2(wx / cs0, wz / cs0, 4);
-    const e = (this.erosion.fbm2(wx / 400, wz / 400, 3) + 1) / 2;
-    const mMask = smoothstep(0.15, 0.55, this.mountainMask.noise2(wx / ms, wz / ms));
-    const ridge = this.peaks.ridge2(wx / 230, wz / 230, 4);
+    const O = this.off;
+    const c = this.continent.fbm2(wx / cs0 + O.c[0], wz / cs0 + O.c[1], 4);
+    const e = (this.erosion.fbm2(wx / 400 + O.e[0], wz / 400 + O.e[1], 3) + 1) / 2;
+    const mMask = smoothstep(0.15, 0.55, this.mountainMask.noise2(wx / ms + O.m[0], wz / ms + O.m[1]));
+    const ridge = this.peaks.ridge2(wx / 230 + O.p[0], wz / 230 + O.p[1], 4);
     const v2 = this.version >= 2;
     const v9 = this.version >= 9;
+    const [dox, doz] = O.d;
     // borders: v2-8 dither each column (a speckled band that v9's broader
-    // climate would double); v9 wiggles them with smooth noise instead
-    const jitter = v9 ? this.detail.noise2(wx / 22, wz / 22) * 0.035 + (colHash(wx, wz) - 0.5) * 0.008
+    // climate would double); v9 wiggles them with smooth noise instead (and
+    // v10 without the last speck of dither)
+    const jitter = v9 ? this.detail.noise2(wx / 22 + dox, wz / 22 + doz) * 0.035 + (this.version >= 10 ? 0 : (colHash(wx, wz) - 0.5) * 0.008)
       : v2 ? (colHash(wx, wz) - 0.5) * 0.05 : 0;
     const t = v2 ? stretch(this.tempAt(wx, wz)) + jitter : this.tempAt(wx, wz);
     const m = v2 ? stretch(this.moistAt(wx, wz)) - jitter : this.moistAt(wx, wz);
@@ -95,8 +111,8 @@ export class WorldGen {
     if (v2) {
       // continents with real lowlands and uplands, rolling hills where erosion is low
       const cs = Math.max(-1, Math.min(1, c * 2.4));
-      const hills = this.detail.fbm2(wx / 150, wz / 150, 2) * 9 * (1 - e);
-      h = 44 + cs * 18 + hills + this.detail.fbm2(wx / 60, wz / 60, 3) * (5 - e * 3);
+      const hills = this.detail.fbm2(wx / 150 + dox, wz / 150 + doz, 2) * 9 * (1 - e);
+      h = 44 + cs * 18 + hills + this.detail.fbm2(wx / 60 + dox, wz / 60 + doz, 3) * (5 - e * 3);
     } else {
       h = 42 + c * 16 + this.detail.fbm2(wx / 60, wz / 60, 3) * (4 - e * 2.5);
     }
@@ -113,7 +129,7 @@ export class WorldGen {
         * (1 - smoothstep(0.25, 0.3, mMask)) * (1 - smoothstep(SEA_LEVEL + 5, SEA_LEVEL + 8, h)) * (h > SEA_LEVEL - 1 ? 1 : 0);
       if (w > 0) {
         h += (SEA_LEVEL + 1 + (h - SEA_LEVEL - 1) * 0.25 - h) * w;
-        const p = this.detail.fbm2(wx / 19, wz / 19, 2);
+        const p = this.detail.fbm2(wx / 19 + dox, wz / 19 + doz, 2);
         if (p > 0.12 && w > 0.6) { h = Math.max(SEA_LEVEL - 1.9, SEA_LEVEL - 0.4 - (p - 0.12) * 6); pool = true; }
       }
     } else if (m > 0.72 && t > 0.35 && t < 0.7 && mMask < 0.3 && h > SEA_LEVEL - 1 && h < SEA_LEVEL + 8) {
@@ -127,7 +143,7 @@ export class WorldGen {
     // Rivers: a thin band of noise carves a channel below sea level, with
     // banks easing down to it. They fade out in mountains and at sea.
     let river = 0;
-    const r = Math.abs(this.river.fbm2(wx / 380, wz / 380, 2));
+    const r = Math.abs(this.river.fbm2(wx / 380 + O.r[0], wz / 380 + O.r[1], 2));
     if (v2 && r < BANK_WIDTH && h > SEA_LEVEL - 2 && mMask < 0.5) {
       const fade = 1 - smoothstep(0.25, 0.5, mMask);
       if (r < RIVER_WIDTH) {
@@ -152,12 +168,12 @@ export class WorldGen {
 
   tempAt(wx, wz) {
     const k = 900 * this.climateScale;
-    return (this.temp.fbm2(wx / k, wz / k, 3) + 1) / 2;
+    return (this.temp.fbm2(wx / k + this.off.t[0], wz / k + this.off.t[1], 3) + 1) / 2;
   }
 
   moistAt(wx, wz) {
     const k = 640 * this.climateScale;
-    return (this.moist.fbm2(wx / k, wz / k, 3) + 1) / 2;
+    return (this.moist.fbm2(wx / k + this.off.w[0], wz / k + this.off.w[1], 3) + 1) / 2;
   }
 
   biomeAt(wx, wz) {
@@ -190,14 +206,15 @@ export class WorldGen {
     // never breach a seabed, river bed or shoreline: water can't flow into the hole
     if (this.version >= 2 && surface < SEA_LEVEL + 2 && wy > surface - 4) return false;
     // Spaghetti tunnels: intersection of two noise bands.
-    const n1 = this.cave1.fbm3(wx / 26, wy / 20, wz / 26, 2);
-    const n2 = this.cave2.fbm3(wx / 26, wy / 20, wz / 26, 2);
+    // (the second band is only worth sampling where the first is near zero)
+    const O = this.off;
+    const n1 = this.cave1.fbm3(wx / 26 + O.k1[0], wy / 20, wz / 26 + O.k1[1], 2);
     // v2: tunnels pinch in near the surface so hillsides aren't riddled with holes
     const w = this.version >= 2 && wy > surface - 6 ? 0.055 : 0.09;
-    if (Math.abs(n1) < w && Math.abs(n2) < w) return true;
+    if (Math.abs(n1) < w && Math.abs(this.cave2.fbm3(wx / 26 + O.k2[0], wy / 20, wz / 26 + O.k2[1], 2)) < w) return true;
     // Cheese caverns deep down.
     if (wy < 34) {
-      const c = this.cavern.fbm3(wx / 46, wy / 30, wz / 46, 2);
+      const c = this.cavern.fbm3(wx / 46 + O.kc[0], wy / 30, wz / 46 + O.kc[1], 2);
       if (c > 0.44 + (wy / 34) * 0.18) return true;
     }
     return false;
@@ -359,6 +376,7 @@ export class WorldGen {
       [B.GRAVEL, 6, 14, 8, 60],
       [B.DIRT, 8, 14, 8, 70],
     ];
+    if (this.version >= 10) { this.placeOresV10(blocks, cx, cz, ORES); return; }
     for (let o = 0; o < ORES.length; o++) {
       const [id, attempts, size, minY, maxY] = ORES[o];
       const rng = coordRng(this.seed, cx, cz, 100 + o);
@@ -385,6 +403,38 @@ export class WorldGen {
           if (dir === 0) x++; else if (dir === 1) x--;
           else if (dir === 2) y++; else if (dir === 3) y--;
           else if (dir === 4) z++; else z--;
+        }
+      }
+    }
+  }
+
+  // Generator 10: the same veins, but each one is drawn whole by every chunk
+  // it reaches (from its own chunk's seed, its start height from the ground
+  // there), so a vein running over a border carries on instead of stopping
+  // in a straight line.
+  placeOresV10(blocks, cx, cz, ORES) {
+    for (let o = 0; o < ORES.length; o++) {
+      const [id, attempts, size, minY, maxY] = ORES[o];
+      for (let ncx = cx - 1; ncx <= cx + 1; ncx++) {
+        for (let ncz = cz - 1; ncz <= cz + 1; ncz++) {
+          const rng = coordRng(this.seed, ncx, ncz, 100 + o);
+          for (let a = 0; a < attempts; a++) {
+            let x = ((rng() * CHUNK_X) | 0) + (ncx - cx) * CHUNK_X;
+            let z = ((rng() * CHUNK_Z) | 0) + (ncz - cz) * CHUNK_Z;
+            const top = Math.min(maxY, Math.floor(this.columnAt(cx * CHUNK_X + x, cz * CHUNK_Z + z).h) - 3);
+            if (top <= minY) { rng(); continue; }
+            let y = minY + ((rng() * (top - minY)) | 0);
+            for (let s = 0; s < size; s++) {
+              if (x >= 0 && x < CHUNK_X && y > 1 && y < CHUNK_Y && z >= 0 && z < CHUNK_Z) {
+                const idx = blockIndex(x, y, z);
+                if (blocks[idx] === B.STONE) blocks[idx] = id;
+              }
+              const dir = (rng() * 6) | 0;
+              if (dir === 0) x++; else if (dir === 1) x--;
+              else if (dir === 2) y++; else if (dir === 3) y--;
+              else if (dir === 4) z++; else z--;
+            }
+          }
         }
       }
     }
@@ -499,6 +549,23 @@ export class WorldGen {
         const wet = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => this.columnAt(wx + dx, wz + dz).h < SEA_LEVEL);
         if (wet) features.push({ type: 'cane', wx, wy: h + 1, wz, size: 2 + ((rng() * 2) | 0) });
       }
+      if (this.version >= 10) {
+        // flower meadows: patches of the plains (and the odd glade) thick with flowers
+        const meadow = this.detail.noise2((qx + 4) / 48 + this.off.d[0], (qz + 4) / 48 + this.off.d[1]);
+        if ((biome === BIOME.PLAINS || biome === BIOME.BIRCH_FOREST) && meadow > 0.25) {
+          const pick = rng() < 0.5 ? B.DANDELION : B.POPPY;
+          for (let i = count(28 * Math.min(1, (meadow - 0.25) * 4)); i > 0; i--) {
+            const s = spot((b) => b === BIOME.PLAINS || b === BIOME.BIRCH_FOREST);
+            if (s) features.push({ type: 'plant', block: rng() < 0.7 ? pick : B.TALL_GRASS, wx: s.wx, wy: s.h + 1, wz: s.wz });
+          }
+        }
+        // bushes: a stub of trunk in a ball of leaves, under the trees and out on the plains
+        const bushes = { [BIOME.FOREST]: 3, [BIOME.BIRCH_FOREST]: 2, [BIOME.PLAINS]: 0.8, [BIOME.SWAMP]: 1.5 }[biome] ?? 0;
+        for (let i = count(bushes); i > 0; i--) {
+          const s = spot((b) => LUSH.has(b));
+          if (s) features.push({ type: 'bush', wx: s.wx, wy: s.h + 1, wz: s.wz, rng: coordRng(this.seed, s.wx, s.wz, 557) });
+        }
+      }
     }
     return features;
   }
@@ -591,7 +658,7 @@ export class WorldGen {
   }
 
   applyFeature(blocks, cx, cz, f) {
-    if (nearStructure(this, f.wx, f.wz, f.type === 'tree' || f.type === 'boulder' ? 3 : 0)) return;
+    if (nearStructure(this, f.wx, f.wz, f.type === 'tree' || f.type === 'boulder' || f.type === 'bush' ? 3 : 0)) return;
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X;
       const z = wz - cz * CHUNK_Z;
@@ -612,6 +679,15 @@ export class WorldGen {
       case 'plant':
         put(f.wx, f.wy, f.wz, f.block);
         break;
+      case 'bush': {
+        // (generator 10) a log stub with a rounded clump of leaves over it
+        put(f.wx, f.wy, f.wz, B.OAK_LOG);
+        for (let dx = -1; dx <= 1; dx++) for (let dy = 0; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+          if (Math.abs(dx) + Math.abs(dz) + dy > 2 || (dx && dz && f.rng() < 0.6)) continue;
+          put(f.wx + dx, f.wy + dy, f.wz + dz, B.OAK_LEAVES);
+        }
+        break;
+      }
       case 'boulder': {
         // a lumpy ball of (mossy) cobblestone half sunk into the ground
         const r = f.size;

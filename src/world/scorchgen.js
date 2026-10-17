@@ -63,6 +63,9 @@ export class ScorchGen {
     this.basin = new Noise(s + 4);
     this.cave1 = new Noise(s + 5);
     this.cave2 = new Noise(s + 6);
+    // sampled off the noise lattice (where it's pinned to zero)
+    const orng = coordRng(s, 3, 7, 77);
+    this.o = [0.25 + orng() * 0.5, 0.25 + orng() * 0.5];
     this.overworld = null;   // for a sapling someone plants here
     this.castles = new Map();
   }
@@ -76,7 +79,7 @@ export class ScorchGen {
     if (this.castles.size > 512) this.castles.clear();
     let plan = null;
     const rng = coordRng(this.seed, gx, gz, 1717);
-    if (rng() < 0.45) {
+    if (rng() < 0.6) {
       const ccx = gx * CELL + 1 + ((rng() * (CELL - 2)) | 0), ccz = gz * CELL + 1 + ((rng() * (CELL - 2)) | 0);
       const ox = ccx * CHUNK_X + 8, oz = ccz * CHUNK_Z + 8;
       // somewhere fairly level and dry
@@ -139,12 +142,13 @@ export class ScorchGen {
 
   // {h, t, m, wastes (0..1), lava} for a column
   columnAt(wx, wz) {
-    const wastes = smoothstep(0.1, 0.35, this.wastes.fbm2(wx / 260, wz / 260, 2));
-    let h = 50 + this.hills.fbm2(wx / 120, wz / 120, 3) * 12 * (1 - wastes * 0.5)
-      + this.detail.fbm2(wx / 30, wz / 30, 2) * 3;
-    // lava lakes sink into the wastes (and the odd forest hollow)
-    const b = this.basin.fbm2(wx / 70, wz / 70, 2);
-    const lake = smoothstep(0.18, 0.34, b) * (0.35 + wastes * 0.65);
+    const [ox, oz] = this.o;
+    const wastes = smoothstep(0.1, 0.35, this.wastes.fbm2(wx / 260 + ox, wz / 260 + oz, 2));
+    let h = 51 + this.hills.fbm2(wx / 120 + ox, wz / 120 + oz, 3) * 22 * (1 - wastes * 0.5)
+      + this.detail.fbm2(wx / 30 + ox, wz / 30 + oz, 2) * 3.5;
+    // lava lakes sink into the wastes (and forest hollows)
+    const b = this.basin.fbm2(wx / 70 + ox, wz / 70 + oz, 2);
+    const lake = smoothstep(0.0, 0.2, b) * (0.7 + wastes * 0.3);
     if (lake > 0) h += (LAVA_LEVEL - 3 - h) * lake;
     return { h: Math.max(6, Math.min(CHUNK_Y - 20, h)), t: 0.95, m: 0.05, wastes, lava: h < LAVA_LEVEL, mMask: 0, river: 0, pool: false };
   }
@@ -157,9 +161,9 @@ export class ScorchGen {
 
   isCave(wx, wy, wz, surface) {
     if (wy < 6 || wy > surface - 3) return false;
-    const n1 = this.cave1.fbm3(wx / 30, wy / 22, wz / 30, 2);
-    const n2 = this.cave2.fbm3(wx / 30, wy / 22, wz / 30, 2);
-    return Math.abs(n1) < 0.08 && Math.abs(n2) < 0.08;
+    const [ox, oz] = this.o;
+    return Math.abs(this.cave1.fbm3(wx / 30 + ox, wy / 22, wz / 30 + oz, 2)) < 0.08
+      && Math.abs(this.cave2.fbm3(wx / 30 + oz, wy / 22, wz / 30 + ox, 2)) < 0.08;
   }
   groundOk(wx, h, wz) { return !this.isCave(wx, h, wz, h) && !this.isCave(wx, h - 1, wz, h); }
 
@@ -258,11 +262,26 @@ export class ScorchGen {
     for (let dx = -CASTLE_R; dx <= CASTLE_R; dx++) {
       for (let dz = -CASTLE_R; dz <= CASTLE_R; dz++) {
         for (let yy = y; yy < y + 16; yy++) set(dx, yy, dz, B.AIR);
-        for (let yy = y - 6; yy < y - 1; yy++) {
+        // (all the way down to the land: no floor overhanging a drop)
+        for (let yy = y - 2; yy > 1; yy--) {
           const cur = get(ox + dx, yy, oz + dz);
-          if (cur === B.AIR || cur === B.LAVA) set(dx, yy, dz, B.SCORCHED_STONE);
+          if (cur !== B.AIR && cur !== B.LAVA) break;
+          set(dx, yy, dz, B.SCORCHED_STONE);
         }
         set(dx, y - 1, dz, rng() < 0.3 ? B.ASH : B.SCORCHED_STONE);
+      }
+    }
+    // the land round about eased toward the castle's level over a few blocks
+    // (not a castle sunk in a pit behind walls of earth, nor perched on a cliff)
+    for (let dx = -CASTLE_R - 5; dx <= CASTLE_R + 5; dx++) {
+      for (let dz = -CASTLE_R - 5; dz <= CASTLE_R + 5; dz++) {
+        const r = Math.max(Math.abs(dx), Math.abs(dz)) - CASTLE_R;
+        if (r <= 0) continue;
+        const wx = ox + dx, wz = oz + dz;
+        if (get(wx, y, wz) === -1) continue;   // (not in this chunk)
+        const hi = y - 1 + Math.round(r * 1.2), lo = y - 1 - Math.round(r * 1.2);
+        for (let yy = hi + 1; yy < hi + 14; yy++) { const cur = get(wx, yy, wz); if (cur === B.SCORCHED_STONE || cur === B.ASH || cur === B.ASHEN_GRASS) set(dx, yy, dz, B.AIR); }
+        for (let yy = lo; yy > lo - 10 && yy > 1; yy--) { const cur = get(wx, yy, wz); if (cur !== B.AIR && cur !== B.LAVA) break; set(dx, yy, dz, B.SCORCHED_STONE); }
       }
     }
     // the curtain wall: six high with merlons, broken down in two or three places
@@ -413,7 +432,8 @@ export class ScorchGen {
       const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
       if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 1 || wy >= CHUNK_Y) return -1;
       const i = blockIndex(x, wy, z);
-      if (onlyAir && blocks[i] !== B.AIR) return -1;
+      // ('leaves': over air or another tree's dead leaves)
+      if (onlyAir === 'leaves' ? blocks[i] !== B.AIR && blocks[i] !== B.CHARRED_LEAVES : onlyAir && blocks[i] !== B.AIR) return -1;
       blocks[i] = id;
       return i;
     };
@@ -435,11 +455,13 @@ export class ScorchGen {
         const [dx, dz] = dirs[(rng() * 4) | 0];
         const by = f.wy + h - 1 - ((rng() * 3) | 0);
         const len = 1 + ((rng() * 2) | 0);
-        for (let k = 1; k <= len; k++) put(f.wx + dx * k, by + (k > 1 ? 1 : 0), f.wz + dz * k, B.CHARRED_LOG);
-        // a few leaves clinging to the branch end
+        // out one, and (a longer one) up and out again: every log touches the last by a face
+        put(f.wx + dx, by, f.wz + dz, B.CHARRED_LOG, 'leaves');
+        if (len > 1) { put(f.wx + dx, by + 1, f.wz + dz, B.CHARRED_LOG, 'leaves'); put(f.wx + dx * 2, by + 1, f.wz + dz * 2, B.CHARRED_LOG, 'leaves'); }
+        // a few leaves clinging round the branch end (touching it)
         if (rng() < 0.7) {
-          const ex = f.wx + dx * len, ey = by + (len > 1 ? 1 : 0) + 1, ez = f.wz + dz * len;
-          for (const [ox, oy, oz] of [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) if (rng() < 0.65) put(ex + ox, ey + oy, ez + oz, B.CHARRED_LEAVES);
+          const ex = f.wx + dx * len, ey = by + (len > 1 ? 1 : 0), ez = f.wz + dz * len;
+          for (const [ox, oy, oz] of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 2, 0]]) if (rng() < 0.65) put(ex + ox, ey + oy, ez + oz, B.CHARRED_LEAVES);
         }
       }
       if (rng() < 0.5) put(f.wx, f.wy + h, f.wz, B.CHARRED_LEAVES);

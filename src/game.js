@@ -54,6 +54,9 @@ import { tickFarmTech } from './world/farmtech.js';
 const SCORCH_DAYLIGHT = 0.13;
 // seconds standing in an ember portal before it takes you through
 const PORTAL_TIME = 2.5;
+// a tree's parts (a spawn mustn't start in one)
+const LEAFY = new Set([B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHARRED_LEAVES]);
+const LOGGY = new Set([B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG, B.CHARRED_LOG]);
 
 const WATER_SHALLOW = new THREE.Color(0x1a4faa);
 const WATER_DEEP = new THREE.Color(0x061633);
@@ -415,14 +418,30 @@ export class Game {
     }
     // find a dry spawn column near origin
     const gen = this.world.gen;
-    let sx = 8, sz = 8;
-    for (let r = 0; r < 40; r++) {
+    let sx = 8, sz = 8, found = false;
+    // dry land that isn't a cave mouth, with land round it (not a speck of an island)
+    const land = (x, z) => gen.heightAt(x, z) > SEA_LEVEL + 1;
+    const dry = (x, z) => {
+      const h = Math.floor(gen.heightAt(x, z));
+      if (h <= SEA_LEVEL + 1 || !gen.groundOk(x, h, z)) return false;
+      let n = 0;
+      for (let k = 0; k < 8; k++) if (land(x + Math.round(Math.cos(k * Math.PI / 4) * 24), z + Math.round(Math.sin(k * Math.PI / 4) * 24))) n++;
+      return n >= 6;
+    };
+    for (let r = 0; r < 40 && !found; r++) {
       const x = 8 + ((r * 13) % 160) - 80;
       const z = 8 + ((r * 29) % 160) - 80;
-      const h = Math.floor(gen.heightAt(x, z));
-      // dry land that isn't a cave mouth
-      if (h > SEA_LEVEL + 1 && gen.groundOk(x, h, z)) { sx = x; sz = z; break; }
+      if (dry(x, z)) { sx = x; sz = z; found = true; }
     }
+    // all sea round the middle: look further out, ring by ring, for a shore
+    for (let r = 96; r <= 1536 && !found; r += 32) {
+      for (let k = 0, n = Math.ceil(r / 4); k < n && !found; k++) {
+        const a = (k / n) * Math.PI * 2;
+        const x = Math.round(8 + Math.cos(a) * r), z = Math.round(8 + Math.sin(a) * r);
+        if (dry(x, z)) { sx = x; sz = z; found = true; }
+      }
+    }
+    this.freshSpawn = true;   // (checked against the real blocks once they load: finishArrival)
     const sy = Math.floor(gen.heightAt(sx, sz)) + 2;
     this.player.x = sx + 0.5; this.player.y = sy; this.player.z = sz + 0.5;
     this.player.spawnPoint = { x: sx + 0.5, y: sy + 1, z: sz + 0.5 };
@@ -495,6 +514,32 @@ export class Game {
     this.sparks(x, y + 0.4, z, 0xff8a2a, 18);
     this.sfx?.play('drake', { pos: { x, y, z }, pitch: 1.6 });
     this.hud.showLabel(`An ${pet.petName ?? kind} hatches! It follows you; right-click it to have it perch.`);
+  }
+
+  clearSpawn() {
+    const p = this.player, w = this.world;
+    const PLANT = (id) => LEAFY.has(id) || LOGGY.has(id);
+    const okAt = (x, y, z) => {
+      const below = w.getBlockW(x, y - 1, z);
+      return isSolid(below) && !PLANT(below) && !isSolid(w.getBlockW(x, y, z)) && !isSolid(w.getBlockW(x, y + 1, z))
+        && !PLANT(w.getBlockW(x, y, z)) && !isWater(w.getBlockW(x, y, z));
+    };
+    const fx = Math.floor(p.x), fz = Math.floor(p.z);
+    if (okAt(fx, Math.floor(p.y), fz)) return;
+    for (let r = 0; r <= 12; r++) {
+      for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const x = fx + dx, z = fz + dz;
+        // the ground there as it is: the highest solid block that isn't a tree
+        let y = Math.floor(p.y) + 12;
+        while (y > 1 && (!isSolid(w.getBlockW(x, y - 1, z)) || PLANT(w.getBlockW(x, y - 1, z)))) y--;
+        if (!okAt(x, y, z)) continue;
+        p.x = x + 0.5; p.y = y; p.z = z + 0.5; p.vx = p.vy = p.vz = 0; p.fallStart = null;
+        p.spawnPoint = { x: p.x, y: y + 1, z: p.z };
+        p.worldSpawn = { ...p.spawnPoint };
+        return;
+      }
+    }
   }
 
   // ---------- the Scorch Dragon ----------
@@ -600,6 +645,10 @@ export class Game {
   // Once the land around you has loaded: if you came by portal, stand in the
   // one you came out of (building it if it isn't there).
   finishArrival() {
+    // a brand-new world: the spawn column came from the terrain's height,
+    // which knows nothing of trees and structures; if that put you in a
+    // trunk, a canopy or a shrine's wall, step out onto open ground nearby
+    if (this.freshSpawn) { this.freshSpawn = false; this.clearSpawn(); }
     // reloaded on the death screen in the Scorchlands: home you go
     if (this.sendHome) { this.sendHome = false; this.travel(OVERWORLD, { home: true }); return; }
     const a = this.arrived;

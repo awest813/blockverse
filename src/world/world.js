@@ -172,7 +172,7 @@ export class World {
       this.centerCz = pcz;
       this.requestMissing(pcx, pcz, R + 1);
       this.evictFar(pcx, pcz, R + 3);
-      this.pool.prune((cx, cz) => Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= R + 1);
+      this.pool.prune((cx, cz) => Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= R + 1, pcx, pcz);
       this.lastRequestAt = frameStart;
     } else if (frameStart - (this.lastRequestAt ?? 0) > 1000) {
       // now and then, fill any gap left by a chunk that failed to generate
