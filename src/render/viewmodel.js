@@ -49,11 +49,52 @@ function shadedBox(w, h, d, color) {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), FACE_SHADE.map((s) => overlayMaterial({}, s, color)));
 }
 
+// the opaque part of a tile: its pixel bounds
+function tileBounds(img) {
+  let x0 = TILE, y0 = TILE, x1 = -1, y1 = -1;
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      if (img[(y * TILE + x) * 4 + 3] < 128) continue;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+  }
+  return x1 < 0 ? { x0: 0, y0: 0, x1: TILE - 1, y1: TILE - 1 } : { x0, y0, x1, y1 };
+}
+
+// Held sprites are sized by what's drawn on the tile, not the tile itself:
+// a shovel (9 pixels across) and a pickaxe (14) come out about as long as
+// each other, and a lump of coal doesn't fill your hand like a loaf does.
+// Long tools are measured and held at the grip (the tile's bottom-left);
+// everything else at its middle, where the tile's middle used to be.
+const GRIP_TOOLS = new Set(['pickaxe', 'axe', 'shovel', 'hoe', 'sword', 'spear', 'rod']);
+const SPRITE_SIZE = 0.36;      // the old size for every sprite: positions are tuned to it
+// [how long the drawn part comes out, and the sprite size's floor and ceiling]
+const SPRITE_FIT = {
+  tool: [0.3, 0.3, 0.5],       // pickaxes, swords, shovels, rods ...
+  gadget: [0.26, 0.26, 0.4],   // shears, flint and steel, the watering can
+  plant: [0.24, 0.24, 0.36],   // flowers, saplings, torches and the like
+  item: [0.2, 0.24, 0.4],      // food, ingots, dyes, buckets ...
+};
+function heldSprite(tile, kind) {
+  const img = generateTile(tile).getContext('2d').getImageData(0, 0, TILE, TILE).data;
+  const bb = tileBounds(img);
+  const ext = Math.max(bb.x1 - bb.x0 + 1, bb.y1 - bb.y0 + 1) / TILE;   // 0..1 of the tile
+  const [want, lo, hi] = SPRITE_FIT[kind];
+  const size = Math.min(hi, Math.max(lo, want / ext));
+  const mesh = extrudedSprite(tile, size, img);
+  // the anchor pixel (grip or middle), in tile units from the tile's centre
+  const ax = kind === 'tool' ? (bb.x0 + 0.5) / TILE - 0.5 : (bb.x0 + bb.x1 + 1) / 2 / TILE - 0.5;
+  const ay = kind === 'tool' ? 0.5 - (bb.y1 + 0.5) / TILE : 0.5 - (bb.y0 + bb.y1 + 1) / 2 / TILE;
+  // a tool's grip stays where it was; anything else is centred where the tile was
+  const keep = kind === 'tool' ? SPRITE_SIZE : 0;
+  mesh.geometry.translate(ax * (keep - size), ay * (keep - size), 0);
+  return mesh;
+}
+
 // A flat item sprite with a pixel of thickness: front and back carry the
 // texture, and every opaque pixel on a transparent edge gets a darker side
 // face in its own colour, so swords and food look solid rather than paper.
-function extrudedSprite(tile, size) {
-  const img = generateTile(tile).getContext('2d').getImageData(0, 0, TILE, TILE).data;
+function extrudedSprite(tile, size, img = generateTile(tile).getContext('2d').getImageData(0, 0, TILE, TILE).data) {
   const opaque = (x, y) => x >= 0 && y >= 0 && x < TILE && y < TILE && img[(y * TILE + x) * 4 + 3] >= 128;
   const px = size / TILE, half = size / 2, t = px / 2;
   const pos = [], uv = [], col = [];
@@ -134,7 +175,7 @@ export class ViewModel {
       // a bow: held upright, and drawn in four frames (at rest, then the
       // string coming back with an arrow on it)
       mesh = new THREE.Group();
-      const frames = ['bow', 'bow_pull_0', 'bow_pull_1', 'bow_pull_2'].map((t) => extrudedSprite(t, 0.36));
+      const frames = ['bow', 'bow_pull_0', 'bow_pull_1', 'bow_pull_2'].map((t) => extrudedSprite(t, SPRITE_SIZE));
       for (const f of frames) { f.visible = false; f.renderOrder = 1000; mesh.add(f); }
       frames[0].visible = true;
       mesh.userData.frames = frames;
@@ -146,13 +187,14 @@ export class ViewModel {
       // BoxGeometry face order: +x, -x, +y, -y, +z, -z
       const mats = ['side', 'side', 'top', 'bottom', 'side', 'side'].map((sel, i) =>
         overlayMaterial({ map: tileTexture(face(sel) ?? face('top')) }, FACE_SHADE[i]));
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mats);
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.17), mats);
       mesh.rotation.set(0.1, 0.75, 0);
       mesh.position.set(0, 0.03, 0);
     } else {
       // items and plants: a sprite with a little thickness, held like a tool
       const tile = b ? (b.icon ?? (typeof b.textures === 'string' ? b.textures : b.textures.side)) : info?.texture;
-      mesh = extrudedSprite(tile, 0.36);
+      const cls = info?.tool?.class;
+      mesh = heldSprite(tile, b ? 'plant' : GRIP_TOOLS.has(cls) ? 'tool' : cls ? 'gadget' : 'item');
       mesh.rotation.set(0, -0.95, 0.3);
       mesh.position.set(0.03, 0.08, -0.02);
     }
