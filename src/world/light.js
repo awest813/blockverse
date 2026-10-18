@@ -28,12 +28,31 @@ class Access {
     this._cx = Infinity;
     this._cz = Infinity;
     this._chunk = null;
+    // the chunks a flood fill wanders between, by a number (not the world's
+    // string key, which a fill crossing a border would build every step)
+    // (a 5x5 patch round the first chunk asked for, in an array; anything
+    // further in a map)
+    this.ox = null; this.oz = 0;
+    this.patch = new Array(25).fill(undefined);
+    this.far = new Map();
+    this.touched = new Map();   // chunk -> which meshes its writes dirty (see flush)
   }
 
   chunkAt(wx, wz) {
     const cx = wx >> 4, cz = wz >> 4;
     if (cx !== this._cx || cz !== this._cz) {
-      this._chunk = this.world.getChunk(cx, cz);
+      if (this.ox === null) { this.ox = cx - 2; this.oz = cz - 2; }
+      const px = cx - this.ox, pz = cz - this.oz;
+      let c;
+      if (px >= 0 && px < 5 && pz >= 0 && pz < 5) {
+        c = this.patch[px * 5 + pz];
+        if (c === undefined) c = this.patch[px * 5 + pz] = this.world.getChunk(cx, cz) ?? null;
+      } else {
+        const k = (cx + 0x8000) * 0x10000 + (cz + 0x8000);
+        c = this.far.get(k);
+        if (c === undefined) { c = this.world.getChunk(cx, cz) ?? null; this.far.set(k, c); }
+      }
+      this._chunk = c;
       this._cx = cx; this._cz = cz;
     }
     return this._chunk;
@@ -62,12 +81,22 @@ class Access {
     const arr = ch === 0 ? c.skyLight : c.blockLight;
     const lx = wx & 15, lz = wz & 15;
     arr[blockIndex(lx, wy, lz)] = v;
-    this.dirty.add(chunkKey(c.cx, c.cz));
-    // Border cells influence neighbor meshes (AO / smooth lighting).
-    if (lx === 0) this.dirty.add(chunkKey(c.cx - 1, c.cz));
-    if (lx === 15) this.dirty.add(chunkKey(c.cx + 1, c.cz));
-    if (lz === 0) this.dirty.add(chunkKey(c.cx, c.cz - 1));
-    if (lz === 15) this.dirty.add(chunkKey(c.cx, c.cz + 1));
+    // its mesh needs redoing, and a neighbour's too for a border cell
+    // (AO / smooth lighting): noted here, keyed once in flush()
+    const m = 1 | (lx === 0 ? 2 : 0) | (lx === 15 ? 4 : 0) | (lz === 0 ? 8 : 0) | (lz === 15 ? 16 : 0);
+    const was = this.touched.get(c);
+    if (was === undefined || (was | m) !== was) this.touched.set(c, (was ?? 0) | m);
+  }
+
+  flush() {
+    for (const [c, m] of this.touched) {
+      this.dirty.add(chunkKey(c.cx, c.cz));
+      if (m & 2) this.dirty.add(chunkKey(c.cx - 1, c.cz));
+      if (m & 4) this.dirty.add(chunkKey(c.cx + 1, c.cz));
+      if (m & 8) this.dirty.add(chunkKey(c.cx, c.cz - 1));
+      if (m & 16) this.dirty.add(chunkKey(c.cx, c.cz + 1));
+    }
+    this.touched.clear();
   }
 }
 
@@ -159,9 +188,14 @@ export function initChunkLight(world, chunk, dirty) {
   const baseX = chunk.cx * CHUNK_X;
   const baseZ = chunk.cz * CHUNK_Z;
 
-  // 1) vertical skylight per column
+  // 1) vertical skylight per column (and the highest block of all: above
+  // it there's only open sky, full light everywhere, so the scans below
+  // can stop there)
+  let top = 0;
   for (let x = 0; x < CHUNK_X; x++) {
     for (let z = 0; z < CHUNK_Z; z++) {
+      const col = blockIndex(x, 0, z);
+      for (let y = CHUNK_Y - 1; y > top; y--) if (chunk.blocks[col + y] !== 0) { top = y; break; }
       let level = 15;
       for (let y = CHUNK_Y - 1; y >= 0 && level > 0; y--) {
         const idx = blockIndex(x, y, z);
@@ -175,9 +209,10 @@ export function initChunkLight(world, chunk, dirty) {
 
   // 1b) enqueue frontier cells: lit cells with a darker transparent neighbor
   // inside this chunk (cross-chunk frontiers are handled by seed exchange below).
+  const yEnd = Math.min(CHUNK_Y, top + 2);
   for (let x = 0; x < CHUNK_X; x++) {
     for (let z = 0; z < CHUNK_Z; z++) {
-      for (let y = 0; y < CHUNK_Y; y++) {
+      for (let y = 0; y < yEnd; y++) {
         const level = chunk.skyLight[blockIndex(x, y, z)];
         if (level <= 1) continue;
         let frontier = false;
@@ -195,7 +230,7 @@ export function initChunkLight(world, chunk, dirty) {
   // 2) block light emitters
   for (let x = 0; x < CHUNK_X; x++) {
     for (let z = 0; z < CHUNK_Z; z++) {
-      for (let y = 0; y < CHUNK_Y; y++) {
+      for (let y = 0; y < yEnd; y++) {
         const idx = blockIndex(x, y, z);
         const e = EMIT[chunk.blocks[idx]];
         if (e > 0) {
@@ -228,6 +263,7 @@ export function initChunkLight(world, chunk, dirty) {
 
   propagate(acc, 0, skyQ);
   propagate(acc, 1, blockQ);
+  acc.flush();
   dirty.add(chunkKey(chunk.cx, chunk.cz));
 }
 
@@ -276,6 +312,7 @@ export function lightBlockChange(world, wx, wy, wz, oldId, newId, dirty) {
 
     propagate(acc, ch, fill);
   }
+  acc.flush();
 }
 
 export function lightLevelAt(world, wx, wy, wz) {

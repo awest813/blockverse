@@ -157,7 +157,8 @@ export class World {
 
   // ---- streaming ----
   // budgetScale > 1 lets background/hidden ticks do more work per call.
-  update(px, pz, frameStart, budgetScale = 1) {
+  // (lookX, lookZ): the way the camera faces, to do what's in view first
+  update(px, pz, frameStart, budgetScale = 1, lookX = 0, lookZ = 0) {
     // game logic before this call counts against the budgets for at most
     // 4ms, so a slow frame still gets some chunk work done
     frameStart = Math.max(frameStart, performance.now() - 4 * budgetScale);
@@ -170,7 +171,7 @@ export class World {
     if (pcx !== this.centerCx || pcz !== this.centerCz) {
       this.centerCx = pcx;
       this.centerCz = pcz;
-      this.requestMissing(pcx, pcz, R + 1);
+      this.requestMissing(pcx, pcz, R + 1, lookX, lookZ);
       this.evictFar(pcx, pcz, R + 3);
       this.pool.prune((cx, cz) => Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= R + 1, pcx, pcz);
       this.lastRequestAt = frameStart;
@@ -178,14 +179,20 @@ export class World {
       // now and then, fill any gap left by a chunk that failed to generate
       // (the player can't move while the chunk they stand in is missing)
       this.lastRequestAt = frameStart;
-      this.requestMissing(pcx, pcz, R + 1);
+      this.requestMissing(pcx, pcz, R + 1, lookX, lookZ);
     }
+
+    // what to do first: near chunks, and of those the ones in front of you
+    // (one behind you counts as a couple of chunks further off)
+    const pri = (c) => {
+      const dx = c.cx - pcx, dz = c.cz - pcz, d = Math.abs(dx) + Math.abs(dz);
+      return d ? d - (dx * lookX + dz * lookZ) / Math.hypot(dx, dz) * 1.5 : -10;
+    };
 
     // light init: budgeted
     let guard = 0;
-    // nearest first (popped off the end)
-    if (this.lightQueue.length > 1) this.lightQueue.sort((a, b) =>
-      (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)) - (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)));
+    // most urgent first (popped off the end)
+    if (this.lightQueue.length > 1) this.lightQueue.sort((a, b) => pri(b) - pri(a));
     while (this.lightQueue.length && performance.now() - frameStart < lightBudget && guard++ < 4 * budgetScale) {
       const c = this.lightQueue.pop();
       if (this.chunks.get(chunkKey(c.cx, c.cz)) !== c) continue;   // evicted while it waited
@@ -203,8 +210,7 @@ export class World {
         if (!c) { this.dirtyMeshes.delete(key); continue; }
         if (Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) <= R && c.hasLight && this.neighborsLit(c)) list.push(c);
       }
-      list.sort((a, b) =>
-          (Math.abs(a.cx - pcx) + Math.abs(a.cz - pcz)) - (Math.abs(b.cx - pcx) + Math.abs(b.cz - pcz)));
+      list.sort((a, b) => pri(a) - pri(b));
       for (const c of list) {
         this.rebuildMesh(c);
         this.dirtyMeshes.delete(chunkKey(c.cx, c.cz));
@@ -227,14 +233,16 @@ export class World {
     return true;
   }
 
-  requestMissing(pcx, pcz, radius) {
+  requestMissing(pcx, pcz, radius, lookX = 0, lookZ = 0) {
     const wanted = [];
     for (let dx = -radius; dx <= radius; dx++) {
       for (let dz = -radius; dz <= radius; dz++) {
         const cx = pcx + dx, cz = pcz + dz;
         const key = chunkKey(cx, cz);
         if (this.chunks.has(key) || this.pendingGen.has(key)) continue;
-        wanted.push([cx, cz, dx * dx + dz * dz]);
+        // near first, and in front of you before behind
+        const d = Math.hypot(dx, dz);
+        wanted.push([cx, cz, d ? d - ((dx * lookX + dz * lookZ) / d) * 1.5 : -10]);
       }
     }
     wanted.sort((a, b) => a[2] - b[2]);

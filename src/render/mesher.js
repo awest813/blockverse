@@ -3,13 +3,16 @@
 
 import * as THREE from 'three';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z } from '../core/constants.js';
-import { BLOCKS, R_NONE, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
+import { BLOCKS, R_NONE, R_SOLID, R_BLEND, R_CROSS, R_TORCH, R_SHAPE, faceVisible, isWater, B } from '../blocks/blocks.js';
 import { shapeBoxes } from '../blocks/shapes.js';
 import { chunkKey } from '../world/chunk.js';
 import { FACE_PX, FACE_NX, FACE_PY, FACE_NY, FACE_PZ, FACE_NZ } from './atlas.js';
 
 const OPACITY = new Uint8Array(BLOCKS.length);
 for (const b of BLOCKS) if (b) OPACITY[b.id] = b.opacity;
+// full opaque cubes: a face against one is never drawn (see faceVisible)
+const SOLID_CUBE = new Uint8Array(BLOCKS.length);
+for (const b of BLOCKS) if (b && b.render === R_SOLID) SOLID_CUBE[b.id] = 1;
 
 // Face tables. corners are CCW seen from outside; uv matches corner order
 // (u runs left to right as seen from outside, so no face is mirrored).
@@ -83,51 +86,95 @@ const FACE_UV = [
   (p) => [p[0], p[1]], (p) => [1 - p[0], p[1]],
 ];
 
+// Vertex data in typed arrays that grow as needed and are reused from chunk
+// to chunk (meshing is one at a time), so building a mesh makes no garbage
+// beyond the arrays it hands to the GPU.
 class GeoBuilder {
   constructor() {
-    this.pos = [];
-    this.uvw = [];
-    this.light = [];
-    this.tint = [];
-    this.index = [];
+    this.cap = 0;
+    this.reserve(8192);
     this.vcount = 0;
+    this.icount = 0;
   }
+
+  reserve(n) {
+    if (n <= this.cap) return;
+    let cap = Math.max(this.cap * 2, n);
+    const grow = (old, per, T) => { const a = new T(cap * per); if (old) a.set(old); return a; };
+    this.pos = grow(this.pos, 3, Float32Array);
+    this.uvw = grow(this.uvw, 3, Float32Array);
+    this.light = grow(this.light, 2, Float32Array);
+    this.tint = grow(this.tint, 3, Uint8Array);
+    this.index = grow(this.index, 1.5, Uint32Array);
+    this.cap = cap;
+  }
+
+  reset() { this.vcount = 0; this.icount = 0; return this; }
 
   // tints: 4 x rgb per corner (biome colour), or all ones
   quad(px, py, pz, corners, uvs, layer, lights, flip, tints = NO_TINT) {
     const vi = this.vcount;
+    if (vi + 4 > this.cap) this.reserve(vi + 4);
+    const { pos, uvw, light, tint, index } = this;
     for (let i = 0; i < 4; i++) {
-      const c = corners[i];
-      this.pos.push(px + c[0], py + c[1], pz + c[2]);
-      this.uvw.push(uvs[i][0], uvs[i][1], layer);
-      this.light.push(lights[i * 2], lights[i * 2 + 1]);
-      this.tint.push(tints[i * 3], tints[i * 3 + 1], tints[i * 3 + 2]);
+      const c = corners[i], v = vi + i;
+      pos[v * 3] = px + c[0]; pos[v * 3 + 1] = py + c[1]; pos[v * 3 + 2] = pz + c[2];
+      uvw[v * 3] = uvs[i][0]; uvw[v * 3 + 1] = uvs[i][1]; uvw[v * 3 + 2] = layer;
+      light[v * 2] = lights[i * 2]; light[v * 2 + 1] = lights[i * 2 + 1];
+      // biome tint, 0..2 in a byte each (most are 1: stored as 128)
+      for (let j = 0; j < 3; j++) tint[v * 3 + j] = Math.max(0, Math.min(255, Math.round(tints[i * 3 + j] * 128)));
     }
-    if (flip) this.index.push(vi + 1, vi + 2, vi + 3, vi + 1, vi + 3, vi);
-    else this.index.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
+    let k = this.icount;
+    if (flip) { index[k++] = vi + 1; index[k++] = vi + 2; index[k++] = vi + 3; index[k++] = vi + 1; index[k++] = vi + 3; index[k++] = vi; }
+    else { index[k++] = vi; index[k++] = vi + 1; index[k++] = vi + 2; index[k++] = vi; index[k++] = vi + 2; index[k++] = vi + 3; }
+    this.icount = k;
     this.vcount += 4;
   }
 
   build() {
-    if (this.vcount === 0) return null;
+    const n = this.vcount;
+    if (n === 0) return null;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.pos), 3));
-    g.setAttribute('aUvw', new THREE.BufferAttribute(new Float32Array(this.uvw), 3));
-    g.setAttribute('aLight', new THREE.BufferAttribute(new Float32Array(this.light), 2));
-    // biome tint, 0..2 in a byte each (most are 1: stored as 128)
-    const tint = new Uint8Array(this.tint.length);
-    for (let i = 0; i < tint.length; i++) tint[i] = Math.max(0, Math.min(255, Math.round(this.tint[i] * 128)));
-    g.setAttribute('aTint', new THREE.BufferAttribute(tint, 3, true));
-    g.setIndex(new THREE.BufferAttribute(
-      this.vcount < 65536 ? new Uint16Array(this.index) : new Uint32Array(this.index), 1));
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos.slice(0, n * 3), 3));
+    g.setAttribute('aUvw', new THREE.BufferAttribute(this.uvw.slice(0, n * 3), 3));
+    g.setAttribute('aLight', new THREE.BufferAttribute(this.light.slice(0, n * 2), 2));
+    g.setAttribute('aTint', new THREE.BufferAttribute(this.tint.slice(0, n * 3), 3, true));
+    const idx = this.index.subarray(0, this.icount);
+    g.setIndex(new THREE.BufferAttribute(n < 65536 ? Uint16Array.from(idx) : idx.slice(), 1));
     return g;
+  }
+}
+const opaqueBuilder = new GeoBuilder(), waterBuilder = new GeoBuilder();
+
+// The chunk with a one-block border, y from -1 to CHUNK_Y: blocks, sky
+// light and block light (reused between chunks: meshing is one at a time).
+// Same rules as the world accessors: unloaded = solid and sky-lit, below
+// the world = bedrock and dark, above it = air in full sky.
+const PAD_X = CHUNK_X + 2, PAD_Z = CHUNK_Z + 2, PAD_Y = CHUNK_Y + 2;
+const padBlocks = new Uint16Array(PAD_X * PAD_Z * PAD_Y);
+const padSky = new Uint8Array(PAD_X * PAD_Z * PAD_Y);
+const padLight = new Uint8Array(PAD_X * PAD_Z * PAD_Y);
+function fillPadded(chunk, chunkAt, baseX, baseZ) {
+  for (let px = 0; px < PAD_X; px++) {
+    for (let pz = 0; pz < PAD_Z; pz++) {
+      const wx = baseX + px - 1, wz = baseZ + pz - 1;
+      const c = chunkAt(wx, wz);
+      const col = (px * PAD_Z + pz) * PAD_Y;
+      padBlocks[col] = B.BEDROCK; padSky[col] = 0; padLight[col] = 0;                    // y = -1
+      padBlocks[col + PAD_Y - 1] = B.AIR; padSky[col + PAD_Y - 1] = 15; padLight[col + PAD_Y - 1] = 0;   // y = CHUNK_Y
+      const src = ((wx & 15) * CHUNK_Z + (wz & 15)) * CHUNK_Y;
+      if (c && c.hasBlocks) padBlocks.set(c.blocks.subarray(src, src + CHUNK_Y), col + 1);
+      else padBlocks.fill(B.BEDROCK, col + 1, col + 1 + CHUNK_Y);
+      if (c && c.hasLight) { padSky.set(c.skyLight.subarray(src, src + CHUNK_Y), col + 1); padLight.set(c.blockLight.subarray(src, src + CHUNK_Y), col + 1); }
+      else { padSky.fill(15, col + 1, col + 1 + CHUNK_Y); padLight.fill(0, col + 1, col + 1 + CHUNK_Y); }
+    }
   }
 }
 
 // Build geometries for one chunk. `world` provides cross-chunk access.
 export function buildChunkGeometry(world, chunk, atlas) {
-  const opaque = new GeoBuilder();
-  const water = new GeoBuilder();
+  const opaque = opaqueBuilder.reset();
+  const water = waterBuilder.reset();
 
   const baseX = chunk.cx * CHUNK_X;
   const baseZ = chunk.cz * CHUNK_Z;
@@ -142,24 +189,16 @@ export function buildChunkGeometry(world, chunk, atlas) {
     if (dx < -1 || dx > 1 || dz < -1 || dz > 1) return world.chunks.get(chunkKey(wx >> 4, wz >> 4));
     return near[(dx + 1) * 3 + dz + 1];
   };
-  const idx = (wx, wy, wz) => ((wx & 15) * CHUNK_Z + (wz & 15)) * CHUNK_Y + wy;
-  const getBlock = (wx, wy, wz) => {
-    if (wy < 0) return B.BEDROCK;
-    if (wy >= CHUNK_Y) return B.AIR;
-    const c = chunkAt(wx, wz);
-    return c && c.hasBlocks ? c.blocks[idx(wx, wy, wz)] : B.BEDROCK;
-  };
-  const getSky = (wx, wy, wz) => {
-    if (wy >= CHUNK_Y) return 15;
-    if (wy < 0) return 0;
-    const c = chunkAt(wx, wz);
-    return c && c.hasLight ? c.skyLight[idx(wx, wy, wz)] : 15;
-  };
-  const getBlockLight = (wx, wy, wz) => {
-    if (wy < 0 || wy >= CHUNK_Y) return 0;
-    const c = chunkAt(wx, wz);
-    return c && c.hasLight ? c.blockLight[idx(wx, wy, wz)] : 0;
-  };
+  // Every lookup the faces make stays within a block of the chunk, so copy
+  // the chunk and a one-block border of its neighbours (and a layer below
+  // and above the world) into flat arrays once, and read those: far cheaper
+  // than finding the chunk on every one of the ~60 lookups a face makes
+  fillPadded(chunk, chunkAt, baseX, baseZ);
+  const PB = padBlocks, PS = padSky, PL = padLight;
+  const pidx = (wx, wy, wz) => ((wx - baseX + 1) * PAD_Z + (wz - baseZ + 1)) * PAD_Y + wy + 1;
+  const getBlock = (wx, wy, wz) => PB[pidx(wx, wy, wz)];
+  const getSky = (wx, wy, wz) => PS[pidx(wx, wy, wz)];
+  const getBlockLight = (wx, wy, wz) => PL[pidx(wx, wy, wz)];
   const aoVals = [0, 0, 0, 0];
   const off = [0, 0, 0];
   const cell = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];   // 4 cells × xyz
@@ -259,6 +298,12 @@ export function buildChunkGeometry(world, chunk, atlas) {
           }
           continue;
         }
+
+        // buried: every neighbour a full opaque cube, so not a face to draw
+        // (most of a chunk; one look at six array cells instead of six faces)
+        const pi = pidx(wx, y, wz);
+        if (SOLID_CUBE[PB[pi + 1]] && SOLID_CUBE[PB[pi - 1]] && SOLID_CUBE[PB[pi + PAD_Y]] && SOLID_CUBE[PB[pi - PAD_Y]]
+          && SOLID_CUBE[PB[pi + PAD_Z * PAD_Y]] && SOLID_CUBE[PB[pi - PAD_Z * PAD_Y]]) continue;
 
         // waterlogged plants render their cell as water from here on
         const rid = info.waterlogged ? B.WATER : id;

@@ -1741,7 +1741,8 @@ export class Game {
     fog.far = fu.uFogFar.value;
 
     // a hidden tab keeps the world ticking (and loading) but draws nothing
-    this.world.update(this.player.x, this.player.z, now, document.hidden ? 3 : 1);
+    // (which way you're looking: the chunks in front are lit and meshed first)
+    this.world.update(this.player.x, this.player.z, now, document.hidden || this.loading ? 3 : 1, -Math.sin(this.player.yaw), -Math.cos(this.player.yaw));   // (behind the loading screen: a bigger share of each frame)
     if (!document.hidden) this.renderer.render(this.scene, this.camera);
 
     // prompt the player to click when the game is live but the mouse isn't captured
