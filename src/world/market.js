@@ -20,10 +20,11 @@ export const SELLS = new Map([
   [I.BEEF_RAW, 2], [I.PORKCHOP_RAW, 2], [I.MUTTON_RAW, 2], [I.CHICKEN_RAW, 1.5], [I.DUCK_RAW, 1.5],
   [I.WHEAT, 0.5], [I.BERRIES, 0.75], [I.RICE, 0.5], [I.MELON_SLICE, 0.5], [B.MELON, 4], [I.HONEYCOMB, 2], [B.CANDLE, 3], [I.CARROT, 0.5], [I.POTATO, 0.5], [I.BEETROOT, 0.75], [B.PUMPKIN, 3], [I.SCORCH_PEPPER, 4], [B.HAY_BALE, 5],
   [I.CHEESE_SANDWICH, 9], [I.BERRY_PIE, 8], [I.FRIED_RICE, 9], [I.PANCAKES, 6], [I.BUTTERED_POTATO, 6], [I.HONEY_BREAD, 6], [I.SPICY_STEW, 10], [I.BEETROOT_SOUP, 5],
+  [I.OMELETTE, 8], [I.FISH_AND_CHIPS, 9], [I.TOFFEE_APPLE, 4], [I.RICE_BALL, 2], [I.COOKIE, 0.5], [I.MUSHROOM_SOUP, 7], [B.MUSHROOM_BROWN, 0.5], [B.MUSHROOM_RED, 0.5],
   [B.CAKE, 14],
   ...COLOURS.map((c) => [c.wool, c.key === 'white' ? 2 : 3]),   // (dyed wool fetches more)
 ]);
-export const RETURNS = new Map([[I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET], [I.HONEY_BOWL, I.BOWL], [I.SPICY_STEW, I.BOWL], [I.BEETROOT_SOUP, I.BOWL]]);
+export const RETURNS = new Map([[I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET], [I.HONEY_BOWL, I.BOWL], [I.SPICY_STEW, I.BOWL], [I.BEETROOT_SOUP, I.BOWL], [I.MUSHROOM_SOUP, I.BOWL]]);
 
 // what it sells: coins apiece
 export const BUYS = [

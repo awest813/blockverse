@@ -39,6 +39,7 @@ function item(id, name, display, opts = {}) {
     warms: opts.warms ?? 0,        // seconds a hot meal keeps the cold out
     wards: opts.wards ?? 0,        // seconds it halves the harm from fire and lava (spicy stew)
     cures: opts.cures ?? false,    // settles a scorpion's venom
+    poisons: opts.poisons ?? 0,    // seconds it makes you ill (a raw red mushroom)
   });
 }
 
@@ -194,6 +195,17 @@ meal(I.BEETROOT_SOUP, 'beetroot_soup', 'Beetroot Soup', 6, 7.2);
 meal(I.SPICY_STEW, 'spicy_stew', 'Spicy Stew', 8, 9.6, { warms: 300, wards: 180 });
 meal(I.FRIED_RICE, 'fried_rice', 'Fried Rice', 9, 10.8);
 meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 6, 6);
+meal(I.MUSHROOM_SOUP, 'mushroom_soup', 'Creamy Mushroom Soup', 8, 9.6);
+// off the fire, and quick things from the crafting table
+item(I.ROASTED_MUSHROOM, 'roasted_mushroom', 'Roasted Mushroom', { food: 3, sat: 3.6, eatTime: 1 });
+item(I.BAKED_APPLE, 'baked_apple', 'Baked Apple', { food: 5, sat: 6 });
+item(I.ROASTED_BEETROOT, 'roasted_beetroot', 'Roasted Beetroot', { food: 4, sat: 4.8 });
+item(I.ROASTED_SEEDS, 'roasted_seeds', 'Roasted Seeds', { food: 1, sat: 1.2, eatTime: 0.8 });
+item(I.COOKIE, 'cookie', 'Cookie', { food: 2, sat: 0.6, eatTime: 0.8 });
+item(I.TOFFEE_APPLE, 'toffee_apple', 'Toffee Apple', { food: 6, sat: 6 });
+item(I.OMELETTE, 'omelette', 'Omelette', { food: 12, sat: 14.4 });
+item(I.FISH_AND_CHIPS, 'fish_and_chips', 'Fish and Chips', { food: 11, sat: 13.2 });
+item(I.RICE_BALL, 'rice_ball', 'Rice Ball', { food: 4, sat: 4.8, eatTime: 1.1 });
 
 // armour: [material, durability multiplier, points head/chest/legs/feet]
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
@@ -355,10 +367,19 @@ const RARE = new Set([I.DRAKE_EGG, I.DRAGON_SCALE, I.DRAGON_FANG, I.EMBER_BLADE,
   I.DIAMOND_AXE, I.DIAMOND_SPEAR, I.DIAMOND_HOE, I.DIAMOND_SHOVEL, B.DIAMOND_BLOCK]);
 export const isRare = (id) => RARE.has(id);
 
+// blocks you can eat as they are: mushrooms (a red one's hard on the stomach)
+const BLOCK_FOOD = new Map([
+  [B.MUSHROOM_BROWN, { food: 1, sat: 0.6, eatTime: 1 }],
+  [B.MUSHROOM_RED, { food: 1, sat: 0.6, eatTime: 1, poisons: 6 }],
+]);
+
+const blockItems = new Map();
 export function itemInfo(id) {
   if (id < 256) {
+    if (blockItems.has(id)) return blockItems.get(id);
     const b = blockInfo(id);
-    return {
+    const food = BLOCK_FOOD.get(id);
+    const info = {
       id,
       name: b.name,
       display: b.display,
@@ -368,7 +389,10 @@ export function itemInfo(id) {
       tool: null,
       food: 0,
       burnTime: BLOCK_BURN.get(id) ?? 0,
+      ...(food && { sat: 0, sickly: 0, heal: 0, eatTime: 1.6, poisons: 0, ...food }),
     };
+    if (b) blockItems.set(id, info);
+    return info;
   }
   return ITEMS.get(id) ?? null;
 }

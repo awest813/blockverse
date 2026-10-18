@@ -1697,6 +1697,66 @@ tile('apple_pie', (ctx) => {
   rect(ctx, 2, 11, 12, 1, [150, 100, 50]);
   for (let x = 3; x < 13; x += 3) { px(ctx, x, 7, [150, 40, 30]); px(ctx, x + 1, 6, [236, 196, 130]); }   // lattice and fruit
 });
+// off the fire and from the crafting table
+tile('roasted_mushroom', (ctx) => {
+  const cap = [132, 84, 50], capD = [96, 58, 34], capL = [176, 124, 76];
+  for (const [ox, oy] of [[0, 2], [5, -1]]) {
+    rect(ctx, ox + 6, oy + 9, 2, 5, [206, 186, 150]);
+    rect(ctx, ox + 4, oy + 6, 6, 3, cap); rect(ctx, ox + 5, oy + 5, 4, 1, capD);
+    px(ctx, ox + 5, oy + 6, capL); rect(ctx, ox + 4, oy + 8, 6, 1, capD);
+  }
+  px(ctx, 6, 9, [60, 36, 22]); px(ctx, 12, 6, [60, 36, 22]);   // char marks
+});
+tile('baked_apple', (ctx) => {
+  const r = [168, 64, 40], rD = [124, 40, 26], rL = [212, 120, 80];
+  rect(ctx, 5, 6, 6, 6, r); rect(ctx, 4, 7, 8, 4, r);
+  rect(ctx, 6, 12, 4, 1, rD); px(ctx, 6, 7, rL);
+  rect(ctx, 7, 6, 2, 3, [240, 214, 150]); px(ctx, 8, 9, [214, 160, 90]);   // split and soft
+  px(ctx, 8, 5, P.barkOak); px(ctx, 8, 4, P.barkOak);
+  for (const [x, y] of [[5, 3], [6, 2], [10, 3], [11, 2]]) px(ctx, x, y, [236, 236, 240]);
+});
+tile('roasted_beetroot', (ctx) => {
+  const r = [116, 26, 40], d = [80, 16, 26], l = [176, 70, 80];
+  rect(ctx, 3, 7, 5, 5, r); rect(ctx, 4, 6, 3, 7, r); px(ctx, 7, 11, d);
+  rect(ctx, 9, 5, 4, 6, r); rect(ctx, 10, 4, 2, 8, r); px(ctx, 12, 9, d);
+  px(ctx, 4, 8, l); px(ctx, 10, 6, l); px(ctx, 5, 10, d); px(ctx, 11, 8, d);
+});
+tile('roasted_seeds', (ctx, rng) => {
+  for (let i = 0; i < 8; i++) { const x = 4 + ((rng() * 7) | 0), y = 6 + ((rng() * 6) | 0); rect(ctx, x, y, 2, 1, [206, 160, 84]); px(ctx, x, y + 1, [150, 104, 50]); }
+});
+tile('cookie', (ctx) => {
+  const c = [196, 136, 70], d = [150, 98, 46];
+  for (let y = 4; y < 13; y++) { const w = Math.round(Math.sqrt(20.25 - (y - 8.5) ** 2)); rect(ctx, 8 - w, y, w * 2, 1, c); px(ctx, 8 + w - 1, y, d); }
+  for (const [x, y] of [[6, 6], [9, 7], [5, 10], [8, 10], [10, 11]]) px(ctx, x, y, [96, 58, 30]);
+  px(ctx, 7, 5, [222, 170, 104]);
+});
+tile('toffee_apple', (ctx) => {
+  const t = [190, 92, 28], tD = [140, 60, 16], tL = [246, 170, 90];
+  rect(ctx, 4, 7, 7, 6, t); rect(ctx, 3, 8, 9, 4, t); rect(ctx, 5, 13, 5, 1, tD);
+  px(ctx, 5, 8, tL); px(ctx, 5, 9, tL); px(ctx, 11, 11, tD);
+  for (let i = 0; i < 6; i++) px(ctx, 8 + (i >> 1), 6 - i, P.barkOakL);   // the stick
+});
+tile('omelette', (ctx) => {
+  const y = [246, 206, 70], yD = [214, 164, 40], yL = [252, 232, 140];
+  for (let r = 0; r < 7; r++) { const w = Math.round(Math.sqrt(42.25 - r * r)); rect(ctx, 8 - w, 6 + r, w * 2, 1, y); px(ctx, 8 + w - 1, 6 + r, yD); }   // folded in half
+  rect(ctx, 2, 6, 12, 1, yL);
+  for (const [x, yy] of [[5, 8], [9, 8], [7, 10]]) px(ctx, x, yy, [110, 160, 70]);
+});
+tile('fish_and_chips', (ctx) => {
+  const b = [220, 168, 70], bD = [176, 120, 40];
+  rect(ctx, 1, 6, 9, 4, b); rect(ctx, 2, 5, 7, 6, b); rect(ctx, 2, 10, 7, 1, bD); px(ctx, 9, 9, bD);   // battered fish
+  px(ctx, 3, 6, [246, 214, 130]); px(ctx, 5, 7, [246, 214, 130]);
+  for (const [x, y, h] of [[10, 4, 7], [12, 5, 7], [11, 7, 6], [13, 8, 5]]) { rect(ctx, x, y, 1, h, [246, 214, 110]); px(ctx, x, y + h - 1, [214, 170, 70]); }   // chips
+});
+tile('rice_ball', (ctx) => {
+  const w = [246, 244, 236], e = [214, 212, 204];
+  for (let r = 0; r < 9; r++) rect(ctx, 8 - Math.ceil(r * 0.6), 3 + r, Math.ceil(r * 0.6) * 2 + 1, 1, w);
+  rect(ctx, 3, 12, 10, 1, e);
+  rect(ctx, 6, 9, 5, 4, [34, 52, 34]); rect(ctx, 6, 12, 5, 1, [24, 40, 26]);   // the nori
+  px(ctx, 7, 5, [255, 255, 255]);
+});
+tile('mushroom_soup', (ctx) => mealIcon(ctx, [222, 200, 160], [[4, [132, 90, 60]], [7, [246, 236, 210]], [10, [132, 90, 60]]]));
+
 // the cooking pot: fired clay, darker at the rim; the icon shows it steaming on its legs
 tile('pot_side', (ctx, rng) => {
   fillNoise(ctx, rng, [[[168, 92, 60], 6], [[150, 80, 52], 3], [[184, 106, 70], 2]]);

@@ -21,8 +21,9 @@ const BIRD = [I.CHICKEN_RAW, I.CHICKEN_COOKED, I.DUCK_RAW, I.DUCK_COOKED];
 const FISH = [I.FISH_RAW, I.FISH_COOKED, I.CRAB_RAW, I.CRAB_COOKED];   // (crab counts as seafood)
 const OTHER_MEAT = [I.PORKCHOP_RAW, I.PORKCHOP_COOKED, I.MUTTON_RAW, I.MUTTON_COOKED];
 const POTATO = [I.POTATO, I.BAKED_POTATO];
+const MUSHROOM = [B.MUSHROOM_BROWN, B.MUSHROOM_RED, I.ROASTED_MUSHROOM];
 const MEAT = new Set([...BEEF, ...BIRD, ...FISH, ...OTHER_MEAT]);
-const INGREDIENTS = new Set([...MEAT, ...POTATO, I.CARROT, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.PUMPKIN,
+const INGREDIENTS = new Set([...MEAT, ...POTATO, ...MUSHROOM, I.CARROT, B.PUMPKIN,
   B.KELP, I.DRIED_KELP, I.COCONUT, I.APPLE, I.EGG, I.DUCK_EGG, I.WHEAT, I.CHEESE, I.BUTTER, I.BEETROOT, I.SCORCH_PEPPER, I.RICE, I.BERRIES]);
 export const potIngredient = (id) => INGREDIENTS.has(id);
 
@@ -35,10 +36,11 @@ const MEALS = [
   { id: I.COCONUT_CURRY, needs: [[I.COCONUT], [...FISH, ...BIRD], [I.CARROT, ...POTATO]], colour: 3 },
   { id: I.BEEF_STEW, needs: [BEEF, [I.CARROT], POTATO], colour: 2 },
   { id: I.FISH_CHOWDER, needs: [FISH, POTATO], colour: 4 },
-  { id: I.CHICKEN_SOUP, needs: [BIRD, [I.CARROT, ...POTATO, B.MUSHROOM_BROWN, B.MUSHROOM_RED]], colour: 4 },
+  { id: I.CHICKEN_SOUP, needs: [BIRD, [I.CARROT, ...POTATO, ...MUSHROOM]], colour: 4 },
   { id: I.PUMPKIN_SOUP, needs: [[B.PUMPKIN], [I.CARROT, ...POTATO, I.APPLE, I.COCONUT]], colour: 3, meatless: true },
-  { id: I.VEGETABLE_SOUP, needs: [[I.CARROT], POTATO, [B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.KELP, I.DRIED_KELP]], colour: 3, meatless: true },
-  { id: I.MUSHROOM_STEW, needs: [[B.MUSHROOM_BROWN], [B.MUSHROOM_RED]], colour: 2, meatless: true },
+  { id: I.VEGETABLE_SOUP, needs: [[I.CARROT], POTATO, [...MUSHROOM, B.KELP, I.DRIED_KELP]], colour: 3, meatless: true },
+  { id: I.MUSHROOM_SOUP, needs: [MUSHROOM, [I.BUTTER, I.CHEESE]], colour: 4, meatless: true },
+  { id: I.MUSHROOM_STEW, needs: [MUSHROOM, MUSHROOM], colour: 2, meatless: true },
 ];
 
 // the meal a set of ingredients makes: a named one, or else a hearty stew

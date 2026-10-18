@@ -187,4 +187,14 @@ export const I = {
   MELON_SLICE: 429,
   MELON_SEEDS: 430,
   WATERING_CAN: 431,     // (its wear is the water left in it)
+  ROASTED_MUSHROOM: 432,   // either kind, on the fire (cooking takes the red one's sting out)
+  BAKED_APPLE: 433,
+  ROASTED_BEETROOT: 434,
+  ROASTED_SEEDS: 435,      // pumpkin or melon seeds
+  COOKIE: 436,
+  TOFFEE_APPLE: 437,
+  OMELETTE: 438,
+  FISH_AND_CHIPS: 439,
+  RICE_BALL: 440,
+  MUSHROOM_SOUP: 441,      // creamy: mushrooms with butter or cheese, in the pot
 };

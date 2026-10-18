@@ -194,7 +194,7 @@ export class ViewModel {
       // items and plants: a sprite with a little thickness, held like a tool
       const tile = b ? (b.icon ?? (typeof b.textures === 'string' ? b.textures : b.textures.side)) : info?.texture;
       const cls = info?.tool?.class;
-      mesh = heldSprite(tile, b ? 'plant' : GRIP_TOOLS.has(cls) ? 'tool' : cls ? 'gadget' : 'item');
+      mesh = heldSprite(tile, b && !info.food ? 'plant' : GRIP_TOOLS.has(cls) ? 'tool' : cls ? 'gadget' : 'item');   // (a mushroom's food, sized like it)
       mesh.rotation.set(0, -0.95, 0.3);
       mesh.position.set(0.03, 0.08, -0.02);
     }

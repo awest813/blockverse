@@ -35,8 +35,8 @@ const CREATIVE_TABS = [
 function creativeCategory(id) {
   const info = itemInfo(id);
   if (info?.tool || info?.armor || info?.bow || id === I.ARROW) return 'tools';
+  if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH || info.block.shape === 'lantern' ? 'decor' : 'blocks';   // (mushrooms stay with the plants)
   if (info?.food) return 'food';
-  if (info?.block) return info.block.render === R_CROSS || info.block.render === R_TORCH || info.block.shape === 'lantern' ? 'decor' : 'blocks';
   return 'materials';
 }
 
@@ -161,6 +161,19 @@ export class Containers {
       d.className = 'tooltip-sub';
       d.textContent = `Restores ${info.food / 2} hunger` + (info.heal ? ` and ${info.heal / 2} hearts` : '');
       t.appendChild(d);
+      // what else it does to you, good or bad
+      const notes = [
+        info.poisons && 'makes you ill raw',
+        info.sickly >= 0.5 ? 'often upsets your stomach' : info.sickly > 0 && 'can upset your stomach',
+        info.cures && 'settles venom',
+        info.wards && 'wards off fire',
+      ].filter(Boolean);
+      if (notes.length) {
+        const n = document.createElement('div');
+        n.className = 'tooltip-sub';
+        n.textContent = notes.join(' · ').replace(/^./, (c) => c.toUpperCase());
+        t.appendChild(n);
+      }
     }
     if (info?.warms) {
       const d = document.createElement('div');

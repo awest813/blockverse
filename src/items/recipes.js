@@ -160,6 +160,11 @@ shapeless(I.SUGAR, 1, [[B.SUGAR_CANE]]);
 shapeless(I.PUMPKIN_PIE, 1, [[B.PUMPKIN], [I.SUGAR], EGG]);
 shaped(B.CAKE, 1, ['MMM', 'SES', 'WWW'], { M: MILK, S: [I.SUGAR], E: EGG, W: [I.WHEAT] });   // (the buckets come back)
 shapeless(I.APPLE_PIE, 1, [[I.APPLE], [I.WHEAT], [I.SUGAR], EGG]);
+shaped(I.COOKIE, 3, ['WSW'], { W: [I.WHEAT], S: [I.SUGAR] });
+shapeless(I.TOFFEE_APPLE, 1, [[I.APPLE], [I.SUGAR], [I.STICK]]);
+shapeless(I.OMELETTE, 1, [[I.FRIED_EGG], [I.FRIED_EGG], [I.ROASTED_MUSHROOM, I.CHEESE, I.SCORCH_PEPPER]]);
+shapeless(I.FISH_AND_CHIPS, 1, [[I.FISH_COOKED], [I.BAKED_POTATO]]);
+shapeless(I.RICE_BALL, 2, [[I.RICE], [I.RICE], [I.DRIED_KELP]]);
 // the dairy and the henhouse
 shaped(B.NEST, 1, ['W.W', 'WWW'], { W: [I.WHEAT] });
 shaped(B.CHURN, 1, ['.S.', 'P.P', 'PPP'], { S: [I.STICK], P: ANY_PLANKS });
@@ -349,6 +354,12 @@ export const SMELTING = new Map([
   [B.PALM_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.CHARRED_LOG, { id: I.CHARCOAL, count: 1 }],
   [B.CACTUS, { id: I.GREEN_DYE, count: 1 }],
+  [B.MUSHROOM_BROWN, { id: I.ROASTED_MUSHROOM, count: 1 }],
+  [B.MUSHROOM_RED, { id: I.ROASTED_MUSHROOM, count: 1 }],
+  [I.APPLE, { id: I.BAKED_APPLE, count: 1 }],
+  [I.BEETROOT, { id: I.ROASTED_BEETROOT, count: 1 }],
+  [I.PUMPKIN_SEEDS, { id: I.ROASTED_SEEDS, count: 1 }],
+  [I.MELON_SEEDS, { id: I.ROASTED_SEEDS, count: 1 }],
 ]);
 
 export const SMELT_TIME = 10; // seconds per item

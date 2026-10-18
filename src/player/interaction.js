@@ -412,7 +412,8 @@ export class Interaction {
       const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
       const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
       const planting = (info?.places && t?.id === B.FARMLAND && t.ny === 1)     // a carrot aimed at farmland is planted
-        || (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1);   // (and berries on the grass)
+        || (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1)   // (and berries on the grass)
+        || (info?.block && t?.ny === 1 && this.canSetDown(t));                   // (and a mushroom set on the ground)
       const feeding = t && (t.id === B.TROUGH || t.id === B.COMPOSTER);          // or goes in the trough / composter
       if ((info?.food || info?.drink) && wantsIt && !cooking && !planting && !feeding && p.mode !== GAMEMODE_CREATIVE) {
         this.eating = { id: held.id, slot: p.selected, t: 0, need: info.eatTime, auto: this.inputMode === 'touch' };
@@ -616,6 +617,11 @@ export class Interaction {
     if (info.heal) p.health = Math.min(p.maxHealth, p.health + info.heal);
     if (held.id === I.MILK_BUCKET || held.id === I.GOAT_MILK_BUCKET) { p.fireTime = 0; p.poisonTime = 0; }   // cools you down and settles venom
     if (info.cures) p.poisonTime = 0;
+    // a raw red mushroom makes you ill for a bit (milk or honey settle it)
+    if (info.poisons) {
+      if (!(p.poisonTime > 0)) this.cb.notify?.('That red mushroom didn\u2019t agree with you. Cook them first');
+      p.poisonTime = Math.max(p.poisonTime ?? 0, info.poisons);
+    }
     // a spicy stew wards off fire
     if (info.wards) {
       if (!(p.fireWard > 0)) this.cb.notify?.('A fire in your belly: flames and lava hurt you half as much for a while');
@@ -634,6 +640,15 @@ export class Interaction {
     }
     p.events.dispatchEvent(new CustomEvent('inventory'));
     this.cb.playSound(info.drink ? 'pickup' : 'burp', {});
+  }
+
+  // Would a plant aimed at the top of this block go down there? (a mushroom
+  // that can't, on a slab or a crop or a pot, gets eaten instead)
+  canSetDown(t) {
+    let x = t.x, y = t.y, z = t.z;
+    if (!blockInfo(t.id).replaceable) y += 1;
+    const existing = this.world.getBlockW(x, y, z);
+    return blockInfo(existing).replaceable && existing !== B.WATER && this.supportsTop(x, y - 1, z);
   }
 
   // Can something sit on top of this block? Solid, and (for part-blocks)
