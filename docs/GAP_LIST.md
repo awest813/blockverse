@@ -237,7 +237,7 @@ A bot played new worlds from the first tree to the dragon and home (95 runs: 91 
 - [x] Dropped items blink for their last ten seconds before vanishing
 - [ ] Flowing water and lava (sources and flowing levels; waterfalls, irrigation, lava traps)
 - [ ] Experience and enchanting-like progression past diamond and dragon gear
-- [ ] Villages, villagers and trading
+- [ ] Villages, villagers and trading (planned: docs/VILLAGE_PLAN.md)
 - [ ] Boats; minecarts and rails
 - [ ] Redstone-lite: levers, buttons, pressure plates, wire, lamps, powered doors (and switching farm machines)
 - [ ] Fire spreading to flammable blocks (with a switch)
