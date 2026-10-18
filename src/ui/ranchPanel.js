@@ -7,6 +7,10 @@ import { itemInfo } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { SELLS, RETURNS, BUYS, priceOf, sell, bump } from '../world/market.js';
 import { describeAnimal } from '../entities/inspect.js';
+import { B } from '../blocks/blocks.js';
+import { stallState, shelve, unshelve, shelfCount, shelfPrice, catchUp } from '../world/stall.js';
+import { hurryCustomer } from '../entities/customers.js';
+import { worldClock } from '../core/clock.js';
 
 const name = (id) => itemInfo(id)?.display ?? '?';
 
@@ -79,9 +83,76 @@ export class RanchPanel {
 
   // ---- the market ----
 
-  openMarket() {
+  // t: the stall you're at (its shelf and till), if any
+  openMarket(t = null) {
     this.kind = 'market';
+    this.stallAt = t && t.id === B.MARKET_STALL ? { x: t.x, y: t.y, z: t.z } : null;
+    const st = this.stall();
+    if (st) { catchUp(this.game.worldMeta, st, worldClock.now); this.saveStall(st); }
     this.game.setUiOpen(true);
+    this.renderMarket();
+  }
+
+  // the stall's shelf and till (null if it's gone)
+  stall() {
+    const s = this.stallAt, w = this.game.world;
+    if (!s || w.getBlockW(s.x, s.y, s.z) !== B.MARKET_STALL) return null;
+    return stallState(w, s.x, s.y, s.z);
+  }
+  saveStall(st) { const s = this.stallAt; this.game.world.setBlockEntity(s.x, s.y, s.z, st); }
+
+  // the shelf: what's on it, and the till
+  renderShelf(win, st) {
+    const g = this.game, meta = g.worldMeta;
+    const box = document.createElement('section');
+    box.className = 'ranch-shelf';
+    box.innerHTML = '<h4>Your shelf</h4>';
+    const coins = Math.floor(st.till), empties = Object.entries(st.empties).filter(([, v]) => v > 0);
+    const extra = empties.map(([k, v]) => `${v} ${name(Number(k)).toLowerCase()}${v === 1 ? '' : 's'}`).join(', ');
+    const sold = Object.entries(st.sold).map(([k, v]) => `${v} ${name(Number(k)).toLowerCase()}`).join(', ');
+    box.appendChild(this.row(I.COIN, `Till: ${coins} coin${coins === 1 ? '' : 's'}${extra ? ` and ${extra}` : ''}`, sold ? `sold since you last looked: ${sold}` : '', [['Collect', () => this.collect(), !coins && !extra]]));
+    const on = [...new Set(st.slots.filter(Boolean).map((s) => s.id))];
+    if (!on.length) box.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Put things out (Shelve) and customers come by day to buy them, paying a quarter more than the market does on the spot. They come while you\u2019re away too.' }));
+    for (const id of on) {
+      const n = shelfCount(st, id), price = shelfPrice(meta, id);
+      box.appendChild(this.row(id, `${name(id)} ×${n}`, `customers pay ${coinsText(price)} each`, [['Take back', () => this.takeBack(id)]]));
+    }
+    win.appendChild(box);
+  }
+
+  shelveAll(id) {
+    const g = this.game, p = g.player, st = this.stall();
+    if (!st) return;
+    const n = shelve(st, id, p.countOf(id));
+    if (!n) { g.hud.showLabel('The shelf\u2019s full'); return; }
+    p.take(id, n);
+    this.saveStall(st);
+    hurryCustomer(this.stallAt);
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    g.sfx?.play('place', { block: 'wood' });
+    this.renderMarket();
+  }
+
+  takeBack(id) {
+    const g = this.game, st = this.stall();
+    if (!st) return;
+    giveOrDrop(g, id, unshelve(st, id, shelfCount(st, id)));
+    this.saveStall(st);
+    g.player.events.dispatchEvent(new CustomEvent('inventory'));
+    this.renderMarket();
+  }
+
+  collect() {
+    const g = this.game, st = this.stall();
+    if (!st) return;
+    const coins = Math.floor(st.till);
+    st.till -= coins;
+    giveOrDrop(g, I.COIN, coins);
+    for (const [k, v] of Object.entries(st.empties)) giveOrDrop(g, Number(k), v);
+    st.empties = {}; st.sold = {};
+    this.saveStall(st);
+    g.player.events.dispatchEvent(new CustomEvent('inventory'));
+    if (coins) g.sfx?.play('pickup', { pitch: 1.4 });
     this.renderMarket();
   }
 
@@ -93,6 +164,9 @@ export class RanchPanel {
       purse.className = 'ranch-purse';
       purse.textContent = `Your coins: ${p.countOf(I.COIN)}`;
       win.appendChild(purse);
+      const st = this.stall();
+      if (st) this.renderShelf(win, st);
+      const full = st && st.slots.every((s) => s);
       const cols = document.createElement('div');
       cols.className = 'ranch-cols';
       // selling: what you've got that the market takes
@@ -103,10 +177,9 @@ export class RanchPanel {
       for (const id of have) {
         const n = p.countOf(id), price = priceOf(meta, id);
         const each = `${coinsText(price)} coin${price === 1 ? '' : 's'} each${price < SELLS.get(id) * 0.8 ? ' (plenty sold lately)' : ''}`;
-        sellCol.appendChild(this.row(id, `${name(id)} ×${n}`, each, [
-          ['Sell 1', () => this.sell(id, 1)],
-          ['Sell all', () => this.sell(id, n)],
-        ]));
+        const buttons = [['Sell 1', () => this.sell(id, 1)], ['Sell all', () => this.sell(id, n)]];
+        if (st) buttons.push(['Shelve', () => this.shelveAll(id), full && !shelfCount(st, id)]);
+        sellCol.appendChild(this.row(id, `${name(id)} ×${n}`, each, buttons));
       }
       // buying
       const buyCol = document.createElement('section');

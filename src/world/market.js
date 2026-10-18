@@ -67,16 +67,24 @@ export function priceOf(meta, id) {
 // on account for the next sale).
 export function sell(meta, id, n) {
   const m = market(meta);
-  let total = 0;
-  for (let i = 0; i < n; i++) {
-    total += SELLS.get(id) / (1 + (m.glut[id] ?? 0) / GLUT);
-    m.glut[id] = (m.glut[id] ?? 0) + 1;
-  }
-  m.credit += total;
+  m.credit += sellValue(meta, id, n);
   const coins = Math.floor(m.credit + 1e-9);
   m.credit -= coins;
   bump(meta, 'coins', coins);
   return coins;
+}
+
+// What n of id fetch, one after another (each one sold sags the price for
+// the next), counted into the market's glut. Coins as a fraction: the
+// caller decides where the odd part goes.
+export function sellValue(meta, id, n, premium = 1) {
+  const m = market(meta);
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    total += (SELLS.get(id) ?? 0) * premium / (1 + (m.glut[id] ?? 0) / GLUT);
+    m.glut[id] = (m.glut[id] ?? 0) + 1;
+  }
+  return total;
 }
 
 // ---- the ranch's tally ----

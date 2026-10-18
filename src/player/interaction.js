@@ -11,6 +11,7 @@ import { I } from '../items/itemIds.js';
 import { growCrop, cropTime, cropFamily, CROP_FAMILIES, isRipe, saplingHasRoom } from '../world/saplings.js';
 import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
+import { stallContents } from '../world/stall.js';
 import { usePot, potContents } from '../items/cookingPot.js';
 import { useProduce, nestContents, pressContents } from '../world/produce.js';
 import { mulberry32 } from '../core/rng.js';
@@ -76,6 +77,7 @@ export function entityContents(st) {
   if (st.kind === 'shearer') return Number.isInteger(st.dur) && st.dur > 0 ? [{ id: I.SHEARS, count: 1, dur: Math.min(238, st.dur) }] : [];   // (its shears, as worn as they are)
   if (st.kind === 'churn') return Number.isInteger(st.milk) && st.milk > 0 ? [{ id: I.MILK_BUCKET, count: Math.min(4, st.milk) }] : [];   // (the milk not yet churned, back in buckets)
   if (st.kind === 'press') return pressContents(st);   // (the cheese that's ready)
+  if (st.kind === 'stall') return stallContents(st);   // (the shelf, the till, the empties)
   return [];
 }
 
@@ -334,7 +336,7 @@ export class Interaction {
     if (held?.id === I.WHISTLE) { this.cb.whistle?.(p.sneaking); this.useCooldown = 1.5; return; }
     // the ranch's ledger, and the market stall
     if (held?.id === I.LEDGER) { this.cb.openLedger?.(); this.useCooldown = 0.5; return; }
-    if (t && t.id === B.MARKET_STALL && !p.sneaking && !(held && isBlockItem(held.id))) { this.cb.openMarket?.(); this.useCooldown = 0.5; return; }
+    if (t && t.id === B.MARKET_STALL && !p.sneaking && !(held && isBlockItem(held.id))) { this.cb.openMarket?.(t); this.useCooldown = 0.5; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // a ripe berry bush: pick it (it grows them again)
     if (t && t.id === B.BERRY_BUSH_3 && !p.sneaking && !(held && isBlockItem(held.id)) && held?.id !== I.BONE_MEAL) { this.pickBerries(t); this.useCooldown = 0.3; return; }

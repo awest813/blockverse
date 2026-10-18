@@ -30,6 +30,7 @@ import { SignEditor } from './ui/signEditor.js';
 import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
 import { tickTrader, judge } from './entities/trader.js';
+import { tickCustomers, buyAtStall } from './entities/customers.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -198,6 +199,8 @@ export class Game {
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
     this.entities.fx.openBags = (mob) => this.containers.openBags(mob);
     this.entities.fx.openTrader = () => this.ranchPanel.openTrader();
+    this.entities.fx.customerBuys = (c) => buyAtStall(this, c);
+    this.entities.fx.say = (text) => this.hud.showLabel(text);
     this.entities.fx.judge = (led) => judge(this, led);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
     this.entities.fx.drop = (x, y, z, stacks) => this.entities.spawnDrops(x, y, z, stacks);
@@ -234,7 +237,7 @@ export class Game {
       throwItem: (kind) => this.throwItem(kind),
       castRod: () => this.castRod(),
       editSign: (x, y, z) => this.signEditor.open(x, y, z),
-      openMarket: () => this.ranchPanel.openMarket(),
+      openMarket: (t) => this.ranchPanel.openMarket(t),
       openLedger: () => this.ranchPanel.openLedger(),
       fireBow: (power) => this.fireBow(power),
       notify: (text) => this.hud.showLabel(text),
@@ -1661,6 +1664,7 @@ export class Game {
       (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
       tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
       tickTrader(this, dt);
+      tickCustomers(this, dt);
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash
