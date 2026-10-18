@@ -211,6 +211,11 @@ export class ViewModel {
     if (this.swingT >= SWING_TIME * 0.6) this.swingT = 0;
   }
 
+  // an arrow's away: the bow kicks forward a little as it eases down
+  loose() {
+    this.kick = 1;
+  }
+
   // the chestplate's material ('iron' ...) or null: dress the arm to match
   setChest(material) {
     this.chest = material;
@@ -238,6 +243,8 @@ export class ViewModel {
       this.current.visible = true;
       this.equipT = 0;
       this.eatBlend = 0;
+      this.bowPose = 0;   // (a draw broken off by switching doesn't come back aimed)
+      this.kick = 0;
     }
 
     // tint to the light level so the hand isn't glowing in a dark cave
@@ -278,8 +285,6 @@ export class ViewModel {
       frames.forEach((m, i) => { m.visible = i === f; });
       // it swings up into place as the draw starts, and eases back down
       // after a shot with a little kick forward as the arrow leaves
-      if (this.lastDraw > 0.2 && draw <= 0) this.kick = 1;
-      this.lastDraw = draw;
       this.kick = Math.max(0, (this.kick ?? 0) - dt * 6);
       const want = Math.min(1, draw * 4);
       this.bowPose = (this.bowPose ?? 0) + (want - (this.bowPose ?? 0)) * Math.min(1, dt * (want > (this.bowPose ?? 0) ? 18 : 7));

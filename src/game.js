@@ -1266,7 +1266,7 @@ export class Game {
       dir.x * speed, dir.y * speed, dir.z * speed,
       Math.round(1 + 8 * power * power), !creative);
     if (!creative) p.damageHeldTool(1, true);
-    this.viewModel.swing();
+    this.viewModel.loose();
   }
 
   // ---------- explosions ----------
