@@ -78,7 +78,7 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Tools** show in their tooltip how fast they dig and, for pickaxes, which ores they can harvest: wood mines stone and coal, stone adds iron, iron adds gold, diamond and redstone, and only diamond takes obsidian. Gold is the fastest of all but only wood-strength, and wears out quickly
 - **Weapons with weight**: every weapon recovers between swings (a meter under the crosshair shows it) and spamming only taps. Falling blows land **critical hits**, swords **sweep** mobs beside the target, axes hit hardest but slowest, and **spears** (all five materials) reach further and knock foes back
 - **Ancient Blade**: a rare temple-only sword stronger than diamond; **golden apples** (crafted from gold and an apple, or found in temples) restore hunger and four hearts
-- **Bow and arrows**: draw to charge, release to fire; arrows are crafted from flint (from gravel), sticks and feathers, and can be picked back up
+- **Bow and arrows**: draw to charge (the bow bends through three pull frames with the arrow nocked, and comes up to an aiming pose), release to fire; arrows are crafted from flint (from gravel), sticks and feathers, and can be picked back up
 - **Armour**: leather, iron, gold and diamond helmets, chestplates, leggings and boots, with an armour bar, damage reduction and wear; a chestplate shows on your arm in first person
 - **TNT** from gunpowder and sand, lit with a torch — chain reactions included
 - Dying drops your inventory where you fell (or keep it — chosen per world); a day counter tracks how long you've survived
@@ -258,7 +258,7 @@ src/
 
 Key design points (full write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
 
-- **Chunks** store blocks as flat `Uint16Array`s with column-contiguous layout; meshes rebuild incrementally with a per-frame time budget, nearest-first.
+- **Chunks** store blocks as flat `Uint16Array`s with column-contiguous layout; meshes rebuild incrementally with a per-frame time budget, nearest-first and favouring the chunks you're looking towards (the budget triples behind the loading screen).
 - **Terrain workers**: a pool of Web Workers generates raw chunk data off-thread and transfers it back zero-copy. Decorations that cross chunk borders (trees) are re-derived deterministically by every chunk they touch, so there are no seams.
 - **Lighting** is the classic two-queue BFS: light removal enqueues re-fill sources; skylight propagates downward loss-free at level 15. All updates cross chunk borders.
 - **Meshing** emits per-vertex sky/block light with ambient-occlusion, flipping quad diagonals to avoid AO anisotropy; leaves/glass render alpha-tested in the opaque pass, water alpha-blends with a lowered surface.
@@ -268,7 +268,7 @@ Key design points (full write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Performance notes
 
 - Render distance is configurable (2–16 chunks). The default 8 gives ~300–600 draw calls and a few hundred thousand triangles depending on terrain.
-- Heavy work (generation) is off-thread; lighting and meshing are time-sliced on the main thread with a per-frame budget.
+- Heavy work (generation) is off-thread; lighting and meshing are time-sliced on the main thread with a per-frame budget. The mesher works from a padded copy of the chunk and its borders (about 4-6 ms a chunk), skips buried blocks, and reuses its typed-array buffers; light init only scans up to the chunk's tallest block.
 - If the tab is hidden, a worker-driven ticker keeps furnaces smelting and crops growing (browsers throttle hidden-tab timers); you, the mobs and the clock wait, so nothing can happen to you behind the pause menu.
 
 ## Roadmap
