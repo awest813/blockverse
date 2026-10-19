@@ -17,6 +17,8 @@ import { mulberry32 } from '../core/rng.js';
 import { SELLS, bump } from '../world/market.js';
 import { traitScore } from './traits.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
+import { forEachBlockEntity } from '../items/campfire.js';
+import { startSpot } from './customers.js';
 
 const STAY = 600;                        // seconds a visit lasts
 const EVERY = 2 * DAY_LENGTH_SECONDS;    // between visits
@@ -64,6 +66,14 @@ export class Trader extends Mob {
   // pottering about its spot; it turns to face you when you come up
   think(dt, player, playerDist) {
     this.stateTime -= dt;
+    // still on the road in: walk up to its spot (by your stall), only
+    // stopping if you're right in its way
+    this.speed = this.arrived ? 0.8 : 1.3;
+    if (!this.arrived && !(playerDist < 1.8)) {
+      this.arrived = this.goTo(dt, this.spot.x, this.y, this.spot.z, 1.2) || (this.trip = (this.trip ?? 0) + dt) > 60;
+      if (this.arrived && this.trip > 60) { this.x = this.spot.x; this.z = this.spot.z; if (Number.isFinite(this.spot.y)) this.y = this.spot.y; }   // (no way through: it finds one)
+      return;
+    }
     if (playerDist < 5 && !player.dead) { this.moving = false; this.targetYaw = Math.atan2(-(player.x - this.x), -(player.z - this.z)); return; }
     if (this.stateTime > 0) return;
     this.stateTime = 2 + Math.random() * 4;
@@ -100,17 +110,23 @@ function stock(T) {
   T.judged = [];
 }
 
-// a spot for the trader to stand: by your market stall if there's one near, else near you
+// a spot for the trader to stand: by your market stall if there's one near
+// (one you've used within 64 blocks, or any within 24), else near you
 function arrivalSpot(world, p) {
   const px = Math.floor(p.x), py = Math.floor(p.y), pz = Math.floor(p.z);
-  let at = null;
+  let at = null, best = 64;
+  forEachBlockEntity(world, 'stall', (x, y, z) => {
+    const d = Math.hypot(x - p.x, z - p.z);
+    if (d < best && world.getBlockW(x, y, z) === B.MARKET_STALL) { best = d; at = { x, z: z + 2, sy: y, stall: true }; }
+  });
   for (let dx = -24; dx <= 24 && !at; dx++) for (let dz = -24; dz <= 24 && !at; dz++) for (let dy = -4; dy <= 4; dy++) {
-    if (world.getBlockW(px + dx, py + dy, pz + dz) === B.MARKET_STALL) { at = { x: px + dx, z: pz + dz + 2, stall: true }; break; }
+    if (world.getBlockW(px + dx, py + dy, pz + dz) === B.MARKET_STALL) { at = { x: px + dx, z: pz + dz + 2, sy: py + dy, stall: true }; break; }
   }
   if (!at) { const a = Math.random() * Math.PI * 2; at = { x: Math.floor(p.x + Math.cos(a) * 9), z: Math.floor(p.z + Math.sin(a) * 9) }; }
   // the ground there
-  let y = py + 6;
-  while (y > py - 8 && !world.getBlockW(at.x, y - 1, at.z)) y--;
+  const by = at.sy ?? py;
+  let y = by + 6;
+  while (y > by - 8 && !world.getBlockW(at.x, y - 1, at.z)) y--;
   if (world.getBlockW(at.x, y, at.z) || world.getBlockW(at.x, y + 1, at.z)) return null;   // (no room: try again later)
   return { x: at.x + 0.5, y, z: at.z + 0.5, stall: at.stall };
 }
@@ -164,9 +180,14 @@ export function tickTrader(game, dt) {
   T.next = now + EVERY; T.until = now + STAY;
   Object.assign(T, { x: at.x, y: at.y, z: at.z });
   stock(T);
-  game.entities.addMob(new Trader(game.scene, game.world, at.x, at.y, at.z));
+  // to a stall, it walks in from up the road; otherwise it's just come up behind you
+  const from = at.stall && startSpot(game.world, { x: Math.floor(at.x), y: at.y, z: Math.floor(at.z) });
+  const t = new Trader(game.scene, game.world, from?.x ?? at.x, from?.y ?? at.y, from?.z ?? at.z);
+  t.spot = { x: at.x, y: at.y, z: at.z };
+  t.arrived = !from;
+  game.entities.addMob(t);
   game.sfx?.play('pickup', { pitch: 0.8 });
-  game.hud.showLabel(at.stall ? 'A travelling trader has come by your market stall' : 'A travelling trader has come by — and holds a fair: lead an animal to it', true);
+  game.hud.showLabel(at.stall ? (from ? 'A travelling trader is on its way to your market stall' : 'A travelling trader has come by your market stall') : 'A travelling trader has come by — and holds a fair: lead an animal to it', true);
 }
 
 // ---- the fair ----

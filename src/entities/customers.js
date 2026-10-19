@@ -123,7 +123,7 @@ export class Customer extends Mob {
 
 // somewhere 14-20 blocks from the stall, on dry open ground (under the
 // sky: not in a cave, nor up a tree), to set out from
-function startSpot(world, s) {
+export function startSpot(world, s) {
   for (let k = 0; k < 8; k++) {
     const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 6;
     const x = Math.floor(s.x + Math.cos(a) * d), z = Math.floor(s.z + Math.sin(a) * d);
