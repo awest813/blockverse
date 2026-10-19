@@ -1937,12 +1937,12 @@ export class Game {
   // touches the player (a campfire burning you, a spawner's monsters)
   tickBlockEntities(dt, away = false) {
     tickFurnaces(this.world, dt);
-    tickSaplings(this.world, dt);
+    // (crops, saplings, spreading grass and the farm machines: rebuilt lazily)
+    this.world.deferred(() => tickSaplings(this.world, dt));
     tickCampfires(this.world, dt, (x, y, z, drops) => this.entities.spawnDrops(x, y, z, drops));
     tickPots(this.world, dt, (x, y, z) => this.sfx?.play('simmer', { pos: { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, vol: 1.5 }));
     if (!away) tickSpawners(this, dt);
-    tickFarmTech(this, dt);
-    tickRandomGrowth(this.world, this.player, dt);
+    this.world.deferred(() => { tickFarmTech(this, dt); tickRandomGrowth(this.world, this.player, dt); });
     tickFires(this.world, dt);
     if (!away) this.burnInCampfires(dt);
     if (this.containers.open === 'furnace') {

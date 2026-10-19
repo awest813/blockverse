@@ -324,9 +324,69 @@ export class Mob {
     const mat = new THREE.MeshBasicMaterial({ color, vertexColors: true });
     const m = new THREE.Mesh(shadedBox(w, h, d), mat);
     m.position.set(x, y, z);
-    this.materials.push({ mat, base: new THREE.Color(color) });
+    this.materials.push({ mat, base: new THREE.Color(color), mesh: m });
     this.group.add(m);
     return m;
+  }
+
+  // Once built: the boxes nothing ever moves, recolours or hides (a sheep's
+  // body, a cow's horns, a horse's mane...) are merged, per parent, into one
+  // mesh coloured by its vertices, so a mob costs a few draw calls instead
+  // of a dozen or more. Anything the mob keeps hold of (a leg it swings, a
+  // coat it dyes, a saddle it shows) stays a part of its own.
+  mergeStatic() {
+    this.staticMerged = true;
+    const held = new Set(), seen = new Set();
+    const visit = (v, depth) => {
+      if (!v || typeof v !== 'object' || seen.has(v) || depth > 3) return;
+      seen.add(v);
+      if (v.isObject3D || v.isMaterial) { held.add(v); return; }
+      if (Array.isArray(v)) { for (const x of v) visit(x, depth + 1); return; }
+      if (v instanceof Map || v instanceof Set) { for (const x of v.values()) visit(x, depth + 1); return; }
+      if (Object.getPrototypeOf(v) === Object.prototype) for (const k in v) visit(v[k], depth + 1);
+    };
+    for (const k of Object.keys(this)) if (k !== 'materials' && k !== 'group' && k !== 'scene' && k !== 'world') visit(this[k], 0);
+    const byParent = new Map();
+    for (const e of this.materials) {
+      const m = e.mesh, mat = e.mat;
+      if (!m || e.glow || held.has(m) || held.has(mat) || !m.visible || m.children.length || !m.parent || m.material !== mat
+        || mat.map || mat.transparent || mat.side !== THREE.FrontSide || !SHARED.has(m.geometry)) continue;
+      if (!byParent.has(m.parent)) byParent.set(m.parent, []);
+      byParent.get(m.parent).push(e);
+    }
+    const merged = new Set();
+    for (const [parent, parts] of byParent) {
+      if (parts.length < 2) continue;
+      let verts = 0, idx = 0;
+      for (const { mesh } of parts) { verts += mesh.geometry.attributes.position.count; idx += mesh.geometry.index.count; }
+      const pos = new Float32Array(verts * 3), col = new Float32Array(verts * 3), index = new Uint16Array(idx);
+      const v3 = new THREE.Vector3();
+      let vo = 0, io = 0;
+      for (const { mesh, base } of parts) {
+        mesh.updateMatrix();
+        const g = mesh.geometry, P = g.attributes.position, C = g.attributes.color, I0 = g.index.array;
+        for (let i = 0; i < P.count; i++) {
+          v3.fromBufferAttribute(P, i).applyMatrix4(mesh.matrix);
+          pos[(vo + i) * 3] = v3.x; pos[(vo + i) * 3 + 1] = v3.y; pos[(vo + i) * 3 + 2] = v3.z;
+          col[(vo + i) * 3] = C.getX(i) * base.r; col[(vo + i) * 3 + 1] = C.getY(i) * base.g; col[(vo + i) * 3 + 2] = C.getZ(i) * base.b;
+        }
+        for (let i = 0; i < I0.length; i++) index[io + i] = I0[i] + vo;
+        vo += P.count; io += I0.length;
+        parent.remove(mesh);
+        mesh.material.dispose();
+        merged.add(mesh);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setIndex(new THREE.BufferAttribute(index, 1));
+      geo.computeBoundingSphere();
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+      const one = new THREE.Mesh(geo, mat);
+      parent.add(one);
+      this.materials.push({ mat, base: new THREE.Color(0xffffff), mesh: one });
+    }
+    if (merged.size) this.materials = this.materials.filter((e) => !merged.has(e.mesh));
   }
 
   // a part that shines in the dark (a spider's eyes): never drawn darker than this
@@ -338,6 +398,7 @@ export class Mob {
 
   update(dt, player) {
     if (this.dead) return;
+    if (!this.staticMerged) this.mergeStatic();
     if (this.dying !== undefined) { this.animateDeath(dt); return; }
     this.age += dt;
     this.hurtCooldown = Math.max(0, this.hurtCooldown - dt);

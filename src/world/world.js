@@ -27,6 +27,12 @@ export class World {
     this.pendingGen = new Set();
     this.lightQueue = [];                 // chunks with blocks, awaiting light
     this.dirtyMeshes = new Set();         // chunk keys needing rebuild
+    // Changes the world makes by itself (grass spreading, crops and saplings
+    // growing) wait a moment before their chunk is rebuilt, so several in
+    // one chunk share a rebuild and they never stack up in one frame: key ->
+    // when it was first marked. (Anything the player does is rebuilt at once.)
+    this.lazyMeshes = new Map();
+    this.deferRemesh = false;
     this.materials = createChunkMaterials(atlas);
     this.group = new THREE.Group();
     this.group.matrixAutoUpdate = false;
@@ -107,15 +113,28 @@ export class World {
     if (old === B.EMBER_PORTAL || old === B.CHARRED_STONE) this.portalChecks.push(wx, wy, wz);
     if (this.blockChanges.length < 60000) this.blockChanges.push(wx, wy, wz, old, id);
 
+    const dirty = this.deferRemesh ? this.lazyDirty : this.dirtyMeshes;
     if (c.hasLight) {
-      lightBlockChange(this, wx, wy, wz, old, id, this.dirtyMeshes);
+      lightBlockChange(this, wx, wy, wz, old, id, dirty);
     }
-    this.dirtyMeshes.add(chunkKey(cx, cz));
-    if (lx === 0) this.dirtyMeshes.add(chunkKey(cx - 1, cz));
-    if (lx === 15) this.dirtyMeshes.add(chunkKey(cx + 1, cz));
-    if (lz === 0) this.dirtyMeshes.add(chunkKey(cx, cz - 1));
-    if (lz === 15) this.dirtyMeshes.add(chunkKey(cx, cz + 1));
+    dirty.add(chunkKey(cx, cz));
+    if (lx === 0) dirty.add(chunkKey(cx - 1, cz));
+    if (lx === 15) dirty.add(chunkKey(cx + 1, cz));
+    if (lz === 0) dirty.add(chunkKey(cx, cz - 1));
+    if (lz === 15) dirty.add(chunkKey(cx, cz + 1));
     return old;
+  }
+
+  // the deferred set, as a Set-like the light code can add to
+  get lazyDirty() {
+    const lazy = this.lazyMeshes;
+    return this._lazyAdder ??= { add: (k) => { if (!lazy.has(k)) lazy.set(k, performance.now()); } };
+  }
+
+  // run fn with the changes it makes rebuilt lazily
+  deferred(fn) {
+    this.deferRemesh = true;
+    try { return fn(); } finally { this.deferRemesh = false; }
   }
 
   // something in the chunk changed that setBlock didn't see (a container's
@@ -198,6 +217,21 @@ export class World {
       if (this.chunks.get(chunkKey(c.cx, c.cz)) !== c) continue;   // evicted while it waited
       if (!c.hasBlocks || c.hasLight) continue;
       initChunkLight(this, c, this.dirtyMeshes);
+    }
+
+    // the world's own changes, once they've waited (near you briefly, further
+    // off a few seconds), join the queue: one a frame
+    if (this.lazyMeshes.size) {
+      for (const [key, at] of this.lazyMeshes) {
+        if (this.dirtyMeshes.has(key)) { this.lazyMeshes.delete(key); continue; }   // (being rebuilt anyway)
+        const c = this.chunks.get(key);
+        if (!c) { this.lazyMeshes.delete(key); continue; }
+        const near = Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) <= 2;
+        if (frameStart - at < (near ? 800 : 4000)) continue;
+        this.lazyMeshes.delete(key);
+        this.dirtyMeshes.add(key);
+        break;
+      }
     }
 
     // mesh rebuilds: nearest dirty chunks first, budgeted

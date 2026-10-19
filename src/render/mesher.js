@@ -37,6 +37,36 @@ for (const f of FACES) {
   });
 }
 
+// how each face's uv follows its corners: for u and v, the in-plane axis it
+// runs along and whether it runs against it (so a merged face of w x h
+// cells can carry uvs running 0..w and 0..h, the texture repeating)
+for (const f of FACES) {
+  f.uvAxis = [0, 1].map((comp) => {
+    for (const k of [f.ta, f.tb]) {
+      if (f.corners.every((c, i) => f.uvs[i][comp] === c[k])) return [k, false];
+      if (f.corners.every((c, i) => f.uvs[i][comp] === 1 - c[k])) return [k, true];
+    }
+    throw new Error('face uv map');
+  });
+  f.normalAxis = f.dir[0] ? 0 : f.dir[1] ? 1 : 2;
+}
+
+// ---- merging (greedy meshing) ----
+// A cube face lit and tinted the same at all four corners looks just like
+// its neighbour in the same plane if that's the same block face, light and
+// tint: such runs are merged into one quad (most of the ground, walls and
+// cave rock), cutting the triangles drawn by a fifth to a quarter. Each
+// cell holds its face's look: texture layer (-1: nothing to merge there),
+// sky and block light, and tint (r, g, b packed).
+const VOLUME = CHUNK_X * CHUNK_Y * CHUNK_Z;
+const DIMS = [CHUNK_X, CHUNK_Y, CHUNK_Z];
+const mLayer = new Int16Array(6 * VOLUME).fill(-1);
+const mSky = new Float32Array(6 * VOLUME), mBlk = new Float32Array(6 * VOLUME);
+const mTint = new Int32Array(6 * VOLUME);
+const mergeSlices = new Uint16Array(6 * CHUNK_Y);   // faces waiting per (face, slice along its normal)
+const cellOf = (fi, p) => fi * VOLUME + (p[0] * CHUNK_Z + p[2]) * CHUNK_Y + p[1];
+const sameLook = (i, j) => mLayer[j] === mLayer[i] && mSky[j] === mSky[i] && mBlk[j] === mBlk[i] && mTint[j] === mTint[i];
+
 const AO_LEVELS = [0.45, 0.62, 0.8, 1.0];
 
 // ---- biome colours ----
@@ -316,7 +346,8 @@ export function buildChunkGeometry(world, chunk, atlas) {
         // water under ice fills its cell (no gap below the ice)
         const topY = isFluid && !(rid === B.WATER ? isWater(above) || above === B.ICE : above === rid) ? 0.875 : 1;
 
-        for (const f of FACES) {
+        for (let fi = 0; fi < 6; fi++) {
+          const f = FACES[fi];
           const nx = wx + f.dir[0], ny = y + f.dir[1], nz = wz + f.dir[2];
           const nId = getBlock(nx, ny, nz);
           if (!faceVisible(rid, nId)) continue;
@@ -378,11 +409,72 @@ export function buildChunkGeometry(world, chunk, atlas) {
           let ft = NO_TINT;
           const tw = TINTED.get(rid);
           if (tw !== undefined && !(rid === B.GRASS && f.dir[1] === -1)) ft = tintFor(tw, x, z, rid === B.GRASS && f.dir[1] === 0 ? corners : null);
+          // the same all over: set it aside to merge with its neighbours
+          if (target === opaque && corners === f.corners && lights[0] === lights[2] && lights[0] === lights[4] && lights[0] === lights[6]
+            && lights[1] === lights[3] && lights[1] === lights[5] && lights[1] === lights[7]) {
+            const r = Math.round(ft[0] * 128), g = Math.round(ft[1] * 128), bl = Math.round(ft[2] * 128);
+            if (r === Math.round(ft[9] * 128) && g === Math.round(ft[10] * 128) && bl === Math.round(ft[11] * 128) && r === Math.round(ft[3] * 128) && r === Math.round(ft[6] * 128)) {
+              const ci = fi * VOLUME + (x * CHUNK_Z + z) * CHUNK_Y + y;
+              mLayer[ci] = layer; mSky[ci] = lights[0]; mBlk[ci] = lights[1]; mTint[ci] = (r << 16) | (g << 8) | bl;
+              mergeSlices[fi * CHUNK_Y + (f.normalAxis === 0 ? x : f.normalAxis === 1 ? y : z)]++;
+              continue;
+            }
+          }
           target.quad(x, y, z, corners, f.uvs, layer, lights, flip, ft);
         }
       }
     }
   }
 
+  emitMerged(opaque);
   return { opaqueGeo: opaque.build(), waterGeo: water.build() };
+}
+
+// Greedy-merge the faces set aside in buildChunkGeometry and emit them
+// (clearing the cells for the next chunk as it goes).
+const mLights = new Float32Array(8), mTints = new Float32Array(12);
+const mCorners = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], mUvs = [[0, 0], [0, 0], [0, 0], [0, 0]];
+function emitMerged(out) {
+  const STRIDE = [CHUNK_Z * CHUNK_Y, 1, CHUNK_Y];   // cell index steps along x, y, z
+  const p = [0, 0, 0];
+  for (let fi = 0; fi < 6; fi++) {
+    const f = FACES[fi], n = f.normalAxis, a = f.ta, b = f.tb, A = DIMS[a], Bd = DIMS[b];
+    const sa = STRIDE[a], sb = STRIDE[b];
+    for (let s = 0; s < DIMS[n]; s++) {
+      if (!mergeSlices[fi * CHUNK_Y + s]) continue;
+      mergeSlices[fi * CHUNK_Y + s] = 0;
+      const base = fi * VOLUME + s * STRIDE[n];
+      for (let j = 0; j < Bd; j++) {
+        for (let i = 0; i < A; i++) {
+          const c0 = base + i * sa + j * sb;
+          if (mLayer[c0] < 0) continue;
+          // as wide as it goes along a, then as tall as whole rows allow along b
+          let w = 1;
+          while (i + w < A && sameLook(c0, c0 + w * sa)) w++;
+          let h = 1;
+          grow: for (; j + h < Bd; h++) {
+            const row = c0 + h * sb;
+            for (let k = 0; k < w; k++) if (!sameLook(c0, row + k * sa)) break grow;
+          }
+          const layer = mLayer[c0], sky = mSky[c0], blk = mBlk[c0], tint = mTint[c0];
+          for (let jj = 0; jj < h; jj++) for (let k = 0; k < w; k++) mLayer[c0 + jj * sb + k * sa] = -1;
+          // the quad: corners stretched over w x h, uvs running 0..w and 0..h
+          const size = [1, 1, 1];
+          size[a] = w; size[b] = h;
+          for (let c = 0; c < 4; c++) {
+            const fc = f.corners[c];
+            mCorners[c][0] = fc[0] * size[0]; mCorners[c][1] = fc[1] * size[1]; mCorners[c][2] = fc[2] * size[2];
+            for (let comp = 0; comp < 2; comp++) {
+              const [k, rev] = f.uvAxis[comp];
+              mUvs[c][comp] = rev ? (1 - fc[k]) * size[k] : fc[k] * size[k];
+            }
+          }
+          const r = (tint >> 16) & 255, g = (tint >> 8) & 255, bl = tint & 255;
+          for (let c = 0; c < 4; c++) { mLights[c * 2] = sky; mLights[c * 2 + 1] = blk; mTints[c * 3] = r / 128; mTints[c * 3 + 1] = g / 128; mTints[c * 3 + 2] = bl / 128; }
+          p[n] = s; p[a] = i; p[b] = j;
+          out.quad(p[0], p[1], p[2], mCorners, mUvs, layer, mLights, false, mTints);
+        }
+      }
+    }
+  }
 }

@@ -270,7 +270,7 @@ Key design points (full write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Performance notes
 
 - Render distance is configurable (2–16 chunks). The default 8 gives ~300–600 draw calls and a few hundred thousand triangles depending on terrain.
-- Heavy work (generation) is off-thread; lighting and meshing are time-sliced on the main thread with a per-frame budget. The mesher works from a padded copy of the chunk and its borders (about 4-6 ms a chunk), skips buried blocks, and reuses its typed-array buffers; light init only scans up to the chunk's tallest block.
+- Heavy work (generation) is off-thread; lighting and meshing are time-sliced on the main thread with a per-frame budget. The mesher works from a padded copy of the chunk and its borders (about 4-6 ms a chunk), skips buried blocks, and reuses its typed-array buffers; light init only scans up to the chunk's tallest block. Faces lit and tinted alike at every corner merge with matching neighbours into larger quads (greedy meshing: about a quarter fewer terrain triangles, looking the same). A mob's boxes that never move are merged into one mesh, so a herd costs a few draw calls an animal rather than a dozen. Chunks changed by the world itself (grass spreading, crops and saplings growing, farm machines) are rebuilt after a short wait and one a frame, so they never stack up into a hitch.
 - If the tab is hidden, a worker-driven ticker keeps furnaces smelting and crops growing (browsers throttle hidden-tab timers); you, the mobs and the clock wait, so nothing can happen to you behind the pause menu.
 
 ## Roadmap

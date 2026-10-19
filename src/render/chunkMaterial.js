@@ -49,7 +49,9 @@ void main() {
     // (ice shares the pass but stays put)
     ? `vec2 wuv = vUvw.xy + (abs(vUvw.z - uIceLayer) < 0.5 ? vec2(0.0) : vec2(uTime * 0.045, sin(uTime * 0.6) * 0.06 + uTime * 0.02));
   vec4 tex = textureGrad(uAtlas, vec3(fract(wuv), vUvw.z), dFdx(vUvw.xy), dFdy(vUvw.xy));`
-    : 'vec4 tex = texture(uAtlas, vec3(vUvw.xy, vUvw.z));'}
+    // (a merged face's uvs run past 1: the texture repeats, with gradients
+    // from the unwrapped coords so the mip level doesn't jump at the seams)
+    : 'vec4 tex = textureGrad(uAtlas, vec3(fract(vUvw.xy), vUvw.z), dFdx(vUvw.xy), dFdy(vUvw.xy));'}
   ${water ? '' : 'if (tex.a < 0.5) discard;'}
   // torchlight is a touch warm; skylight takes the tint of the hour
   vec3 br = clamp(max(vLight.y * vec3(1.0, 0.93, 0.82), vLight.x * uDay * uSkyTint) + 0.04, 0.0, 1.0);
