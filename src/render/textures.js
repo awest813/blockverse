@@ -125,6 +125,15 @@ tile('grass_top', (ctx, rng) => {
   speckle(ctx, rng, [130, 200, 96], 6);
 });
 
+tile('dirt_path_top', (ctx, rng) => {
+  fillNoise(ctx, rng, [[[150, 118, 70], 6], [[134, 104, 60], 4], [[166, 134, 84], 3]]);
+  speckle(ctx, rng, [112, 86, 50], 10);
+});
+tile('dirt_path_side', (ctx, rng) => {
+  generators['dirt'](ctx, rng);
+  for (let x = 0; x < TILE; x++) { const d = 1 + ((rng() * 2) | 0); for (let y = 0; y < d; y++) px(ctx, x, y, rng() < 0.5 ? [150, 118, 70] : [134, 104, 60]); }
+});
+
 tile('grass_side', (ctx, rng) => {
   generators['dirt'](ctx, rng);
   rect(ctx, 0, 0, TILE, 3, P.grass);

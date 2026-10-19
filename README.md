@@ -32,11 +32,12 @@ BlockVerse is an original, from-scratch implementation of the classic voxel-sand
 - **Desert temples**: sandstone pyramids with corner towers; dig through the chiseled square in the hall floor to find a sealed vault of four treasure chests
 - **Forest temples**: overgrown, crumbling two-storey ruins in forests and swamps, often with a spider spawner below and a sanctum up on the terrace
 - **Shrines**: small pillared pavilions dotted across the land with an offering chest, built from local materials (sandstone in the desert, spruce in the snow)
+- **Villages** (generator 12): a square with a roofed well, lanterns and a market stall, two to four dirt-path roads out from it lit by lamp posts, and along them houses (beds, a chest, a table or furnace), bigger family houses, a smithy (furnaces, an iron block, a chest of ingots and the odd tool or saddle), a kitchen (a cooking pot by a campfire, a churn), a library, fields of wheat, carrots, potatoes and beetroot round a water channel, and a stable paddock with hay and a trough. Built in the style of the biome (oak on the plains and in forests, birch in the birch woods, spruce in the snow, sandstone with flat roofs in the desert), each with its own name, shown as you walk in. A village is planned from the seed and each chunk builds its own slice, so it spans chunk borders without seams; about one turns up every 800–900 blocks. A shovel makes a dirt path from grass
 - Structures keep their distance from each other, and trees grow around them rather than through them
 - Shipwrecks full of cargo and crumbling ocean ruins on the sea floor, wells in the desert, and fossils buried deep beneath deserts and swamps
 - Kelp forests and seagrass under the sea, lily pads on shallow swamp pools, snow blankets on the tundra, and lava pooling in the deepest caves
 - Decoration follows the biome under every tree and flower: river banks are wooded and grassy, sugar cane lines any water's edge, and mossy boulders dot mountains and tundra
-- Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams. Generator 10 (new worlds) samples every noise channel off its lattice (rivers no longer meet in a grid, and spawns differ from world to world), drops the last single-column biome specks, runs ore veins across chunk borders, adds flower meadows and bushes, keeps desert temples and wells from being crowded out, and clears the ground in front of every temple and shrine door; a new world never starts you inside a tree or on a speck of an island. Generator 11 adds blue cornflowers to the plains, berry bushes to the snowy forests and wild rice along swamp and river banks, and leaves the rest of the land exactly as generator 10 made it
+- Worlds remember their generator version, so terrain improvements only apply to new worlds and old ones never develop seams. Generator 10 (new worlds) samples every noise channel off its lattice (rivers no longer meet in a grid, and spawns differ from world to world), drops the last single-column biome specks, runs ore veins across chunk borders, adds flower meadows and bushes, keeps desert temples and wells from being crowded out, and clears the ground in front of every temple and shrine door; a new world never starts you inside a tree or on a speck of an island. Generator 11 adds blue cornflowers to the plains, berry bushes to the snowy forests and wild rice along swamp and river banks, and leaves the rest of the land exactly as generator 10 made it. Generator 12 adds villages
 - **Ores by depth**: coal, iron, gold, redstone, and diamond, each with its own distribution band
 - Trees (oak, birch, spruce, and leaning **coconut palms** on warm beaches), cacti, sugar cane, flowers, tall grass, pumpkins, mushrooms — features generate seamlessly across chunk borders
 - Chunks (16×128×16) stream in and out around the player; terrain generation runs in a **Web Worker pool** so the main thread never stutters
@@ -278,7 +279,7 @@ Ideas that would fit the engine as it stands:
 
 - Flowing water & lava simulation
 - Redstone-style logic circuits
-- More structures (villages, strongholds) via the deterministic feature system
+- More structures (strongholds) via the deterministic feature system; villagers, trading and the rest of docs/VILLAGE_PLAN.md
 - Multiplayer over WebRTC
 - Height-4096 worlds with cubic chunks
 

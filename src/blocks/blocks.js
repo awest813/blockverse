@@ -160,6 +160,7 @@ export const B = {
   MELON_STEM_0: 172, MELON_STEM_1: 173, MELON_STEM_2: 174, MELON_STEM_3: 175,   // a grown stem sets melons beside it
   SHEARER: 176,          // shears full fleeces nearby into a chest beside it. {kind: 'shearer', dur}
   MILKER: 177,           // fills empty buckets from a chest beside it with milk from cows and goats nearby. {kind: 'milker'}
+  DIRT_PATH: 178,        // trodden earth: village roads (a shovel makes it from grass)
 };
 
 // Tool classes
@@ -236,6 +237,10 @@ reg(def(B.SANDSTONE, 'sandstone', 'Sandstone', {
 }));
 reg(def(B.GRAVEL, 'gravel', 'Gravel', {
   drop: (rng) => [{ id: rng() < 0.15 ? I.FLINT : B.GRAVEL, count: 1 }], hardness: 0.6, tool: TOOL_SHOVEL, sound: 'sand' }));
+reg(def(B.DIRT_PATH, 'dirt_path', 'Dirt Path', {
+  hardness: 0.6, tool: TOOL_SHOVEL, drop: B.DIRT, sound: 'dirt',
+  textures: { top: 'dirt_path_top', bottom: 'dirt', side: 'dirt_path_side' },
+}));
 reg(def(B.CLAY, 'clay', 'Clay', {
   hardness: 0.6, tool: TOOL_SHOVEL, sound: 'dirt',
   drop: () => [{ id: I.CLAY_BALL, count: 4 }],

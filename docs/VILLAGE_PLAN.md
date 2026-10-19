@@ -156,7 +156,23 @@ beehive, market stall, furnace, bookshelves, signs and farmland with water.
    about 200 blocks of a village when one is close enough. It never
    insists.
 
-### Step 1 is shippable as it is
+### Step 1 (done)
+
+Generator 12 (`world/villages.js`):
+- Regions are 24 chunks a side, and 70% of them try for a village. About 19% end up with one, roughly one every 870 blocks.
+- Siting and the layout come from the seed alone: the square, two to four roads, and plots on alternate sides of each road, each with an odd width, a door facing the road, a step out to it and a levelled floor.
+- Each chunk builds its slice column by column.
+- Orientations (doors, stairs) come out of generation in a new `meta` array.
+- There are four styles (oak, birch, spruce, sand) and seven buildings (house, family house, smithy, kitchen, library, farm, stable). Each village has a name, and an "Entering …" banner shows as you walk in.
+- Shovels make dirt paths.
+- Checks:
+  - generators 1–11 are byte-identical (`cmp9`, `cmp10`, `cmp11`);
+  - village chunks match across three load orders (140/140);
+  - planning costs 0.2 ms a region, and generating a village chunk about 5.7 ms in Node.
+
+Still to come from Phase 1: the spawn nudge toward a village, the bell, lectern, barrel and oven blocks, `/locate village`, and village-owned animals in the pens.
+
+### Step 1 was shippable on its own
 
 Villages without villagers are still worth finding (shelter, beds, loot,
 fields to harvest). They let the generator settle and be tested on its own:

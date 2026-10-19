@@ -257,7 +257,7 @@ export class World {
       let saved = null;
       if (this.loadChunk) saved = await this.loadChunk(cx, cz);
 
-      let blocks, heightMap, biomeMap, generated = null;
+      let blocks, heightMap, biomeMap, generated = null, genMeta = null;
       if (saved) {
         blocks = saved.blocks;
         heightMap = new Uint8Array(CHUNK_X * CHUNK_Z);
@@ -277,12 +277,14 @@ export class World {
         heightMap = res.heightMap;
         biomeMap = res.biomeMap;
         generated = res.entities;   // e.g. dungeon chests
+        genMeta = res.meta;         // (a village's doors and stairs)
       }
 
       if (!this.pendingGen.has(key)) return; // world disposed meanwhile
       const chunk = new Chunk(cx, cz);
       chunk.setData(blocks, heightMap, biomeMap);
       if (saved?.meta) chunk.meta = saved.meta;
+      else if (genMeta) chunk.meta = genMeta;
       for (const [idx, data] of saved?.blockEntities ?? generated ?? []) chunk.blockEntities.set(idx, data);
       // only data that never reached the store (an evicted chunk still waiting
       // for a save) needs writing again; the rest is already on disk

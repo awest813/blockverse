@@ -31,6 +31,7 @@ import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
 import { tickTrader, judge } from './entities/trader.js';
 import { tickCustomers, buyAtStall, resetCustomers } from './entities/customers.js';
+import { villageAt } from './world/villages.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -1408,6 +1409,17 @@ export class Game {
     if (this.player.mode !== GAMEMODE_CREATIVE) this.hud.toast(`Day ${this.day}`, 'You made it through the night.', B.BED, 5000);
   }
 
+  // walking into a village: its name over the hotbar, once each time
+  villageBanner(dt) {
+    this._villageT = (this._villageT ?? 0) - dt;
+    if (this._villageT > 0 || this.dimension !== 'overworld') return;
+    this._villageT = 1;
+    const p = this.player, v = villageAt(this.world.gen, Math.floor(p.x), Math.floor(p.z));
+    const inside = v && p.x >= v.bounds.x0 - 2 && p.x <= v.bounds.x1 + 3 && p.z >= v.bounds.z0 - 2 && p.z <= v.bounds.z1 + 3;
+    if (inside && this._village !== v.id) this.hud.showLabel(`Entering ${v.name}`, true);
+    this._village = inside ? v.id : null;
+  }
+
   isNight() {
     return this.time > 0.51 && this.time < 0.985;
   }
@@ -1666,6 +1678,7 @@ export class Game {
       tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
       tickTrader(this, dt);
       tickCustomers(this, dt);
+      this.villageBanner(dt);
       if (this.dimension === SCORCH) this.updateDragon(dt);
 
       // footsteps + splash

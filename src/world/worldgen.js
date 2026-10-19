@@ -1,6 +1,7 @@
 // Deterministic, seed-driven terrain generation. This module is pure
 // (no DOM, no THREE) so it can run inside Web Workers.
 
+import { buildVillageSlice } from './villages.js';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/constants.js';
 import { Noise } from '../core/noise.js';
 import { coordRng, mulberry32 } from '../core/rng.js';
@@ -47,7 +48,10 @@ function smoothstep(a, b, x) {
 //     that cross chunk borders, flower meadows and bushes, structures kept
 //     apart without losing desert temples and wells, and a clear way in to
 //     every temple and shrine.
-export const LATEST_GEN = 11;
+//  11 - cornflowers, berry bushes and wild rice.
+//  12 - villages (world/villages.js): a square and well, roads, houses, a
+//     smithy, a kitchen, a library, fields and stables, styled by biome.
+export const LATEST_GEN = 12;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -294,8 +298,11 @@ export class WorldGen {
     const entities = plan || this.version < 2 ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
     this.decorate(blocks, cx, cz);
     if (plan) entities.push(...buildStructure(this, blocks, cx, cz));
+    // generator 12: this chunk's slice of a village (and the facings of its doors and stairs)
+    const holder = {};
+    if (this.version >= 12) entities.push(...buildVillageSlice(this, blocks, cx, cz, holder));
 
-    return { blocks, heightMap, biomeMap, entities };
+    return { blocks, heightMap, biomeMap, entities, meta: holder.meta ?? null };
   }
 
   // Generator 5: things that live on one column (so they never cross a chunk

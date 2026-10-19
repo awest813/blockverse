@@ -8,6 +8,7 @@ import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/consta
 import { coordRng } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
 import { I } from '../items/itemIds.js';
+import { inVillage, villageAt } from './villages.js';
 import { makeStack } from '../items/items.js';
 
 // ---- loot: [id, min, max, chance] ----
@@ -282,6 +283,11 @@ function rawPlan(gen, cx, cz) {
 }
 
 function makePlan(gen, cx, cz) {
+  // generator 12: a village has the ground to itself
+  if (gen.version >= 12) {
+    const v = villageAt(gen, cx * CHUNK_X + 8, cz * CHUNK_Z + 8), m = 8;
+    if (v && v.bounds.x0 - m <= cx * CHUNK_X + 15 && v.bounds.x1 + m >= cx * CHUNK_X && v.bounds.z0 - m <= cz * CHUNK_Z + 15 && v.bounds.z1 + m >= cz * CHUNK_Z) return null;
+  }
   const rng = coordRng(gen.seed, cx, cz, 6161);
   const roll = rng();
   const biome = gen.biomeOf(gen.columnAt(cx * CHUNK_X + 8, cz * CHUNK_Z + 8));
@@ -323,6 +329,7 @@ function makePlan(gen, cx, cz) {
 // Is this world column within `margin` blocks of a planned structure?
 export function nearStructure(gen, wx, wz, margin = 3) {
   if (gen.version < 3) return false;
+  if (gen.version >= 12 && inVillage(gen, wx, wz, margin + 1)) return true;   // (a village's roads, plots and square)
   const cx = Math.floor(wx / CHUNK_X), cz = Math.floor(wz / CHUNK_Z);
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {

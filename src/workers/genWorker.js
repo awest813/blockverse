@@ -20,10 +20,10 @@ self.onmessage = (e) => {
       self.postMessage({ type: 'chunk', jobId, cx, cz, error: String(err?.stack ?? err) });
       return;
     }
-    const { blocks, heightMap, biomeMap, entities } = out;
+    const { blocks, heightMap, biomeMap, entities, meta = null } = out;
     self.postMessage(
-      { type: 'chunk', jobId, cx, cz, blocks, heightMap, biomeMap, entities },
-      [blocks.buffer, heightMap.buffer, biomeMap.buffer],
+      { type: 'chunk', jobId, cx, cz, blocks, heightMap, biomeMap, entities, meta },
+      meta ? [blocks.buffer, heightMap.buffer, biomeMap.buffer, meta.buffer] : [blocks.buffer, heightMap.buffer, biomeMap.buffer],
     );
   }
 };

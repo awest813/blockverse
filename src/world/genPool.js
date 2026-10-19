@@ -64,7 +64,7 @@ export class GenPool {
       p.job.resolve(this.generateLocal(p.job.cx, p.job.cz));
       return;
     }
-    p.job.resolve({ blocks: msg.blocks, heightMap: msg.heightMap, biomeMap: msg.biomeMap, entities: msg.entities });
+    p.job.resolve({ blocks: msg.blocks, heightMap: msg.heightMap, biomeMap: msg.biomeMap, entities: msg.entities, meta: msg.meta ?? null });
   }
 
   retire(worker) {

@@ -841,6 +841,15 @@ export class Interaction {
     const above = this.world.getBlockW(t.x, t.y + 1, t.z);
     const aboveFree = above === B.AIR || blockInfo(above).replaceable;
 
+    // shovel: grass -> a trodden path
+    if (info?.tool?.class === 'shovel' && (t.id === B.GRASS || t.id === B.SNOWY_GRASS) && t.ny === 1 && aboveFree) {
+      if (above !== B.AIR) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
+      this.world.setBlock(t.x, t.y, t.z, B.DIRT_PATH);
+      this.cb.playSound('place', { block: 'dirt' });
+      if (!creative) p.damageHeldTool(1);
+      return true;
+    }
+
     // hoe: grass / dirt -> farmland
     if (info?.tool?.class === 'hoe') {
       if (!SOIL.has(t.id) || !aboveFree || t.ny < 0) return false;
