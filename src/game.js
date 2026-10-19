@@ -31,7 +31,7 @@ import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
 import { tickTrader, judge } from './entities/trader.js';
 import { tickCustomers, buyAtStall, resetCustomers } from './entities/customers.js';
-import { villageAt } from './world/villages.js';
+import { villageAt, villageIn, inVillage, REGION } from './world/villages.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -469,6 +469,25 @@ export class Game {
         const a = (k / n) * Math.PI * 2;
         const x = Math.round(8 + Math.cos(a) * r), z = Math.round(8 + Math.sin(a) * r);
         if (dry(x, z)) { sx = x; sz = z; found = true; }
+      }
+    }
+    // generator 12: a village within a few hundred blocks? Start within sight
+    // of it (on dry ground a little way out, on the near side), not in it
+    if (gen.version >= 12) {
+      const R = REGION * 16;
+      let best = null;
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+        const v = villageIn(gen, Math.floor(sx / R) + dx, Math.floor(sz / R) + dz);
+        const d = v && Math.hypot(v.x - sx, v.z - sz);
+        if (v && d < 300 && (!best || d < best.d)) best = { v, d };
+      }
+      if (best && best.d > 60) {
+        const { v } = best, half = Math.max(v.bounds.x1 - v.bounds.x0, v.bounds.z1 - v.bounds.z0) / 2;
+        const ux = (sx - v.x) / best.d, uz = (sz - v.z) / best.d;
+        for (const out of [30, 40, 50, 22]) {
+          const x = Math.round(v.x + ux * (half + out)), z = Math.round(v.z + uz * (half + out));
+          if (dry(x, z) && !inVillage(gen, x, z, 4)) { sx = x; sz = z; break; }
+        }
       }
     }
     this.freshSpawn = true;   // (checked against the real blocks once they load: finishArrival)

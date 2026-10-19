@@ -1,5 +1,6 @@
 // Runtime mob spawning and despawning around the player.
 
+import { inVillage } from '../world/villages.js';
 import { Pig, Sheep, Zombie, Husk, Drowned, Skeleton, Spider, Creeper, Scorpion } from './mobs.js';
 import { SkeletonKnight, AshDrake, CinderHound } from './scorchMobs.js';
 import { Cow, Chicken, Fox, Bird, Fish, Whale, Dog, Cat, Dolphin, Manatee, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Seagull, Pelican, Crab } from './animals.js';
@@ -262,6 +263,8 @@ export class MobSpawner {
         const bl = this.world.getBlockLightW(wx, y, wz);
         const light = Math.max((sky / 15) * dayFactor * 15, bl);
         if (light > 7) continue;
+        // nor in a village (on its roofs, in its gardens): its lamps keep the night off
+        if (this.dimension !== 'scorch' && inVillage(this.world.gen, wx, wz, 2)) continue;
         // deserts breed husks instead of zombies
         let Cls = pickHostile(this.hostileTable());
         if (Cls === Zombie && this.world.biomeAt(wx, wz) === BIOME.DESERT && Math.random() < 0.8) Cls = Husk;

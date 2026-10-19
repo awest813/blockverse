@@ -170,7 +170,11 @@ Generator 12 (`world/villages.js`):
   - village chunks match across three load orders (140/140);
   - planning costs 0.2 ms a region, and generating a village chunk about 5.7 ms in Node.
 
-Still to come from Phase 1: the spawn nudge toward a village, the bell, lectern, barrel and oven blocks, `/locate village`, and village-owned animals in the pens.
+Also done:
+- the spawn nudge: a new world with a village within 300 blocks starts about 30 blocks outside it;
+- no surface monster spawns inside a village's footprint, a little earlier than Phase 5.
+
+Still to come from Phase 1: the bell, lectern, barrel and oven blocks, `/locate village`, and village-owned animals in the pens.
 
 ### Step 1 was shippable on its own
 
