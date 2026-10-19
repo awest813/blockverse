@@ -15,22 +15,22 @@ import { COLOURS } from '../items/dyes.js';
 
 // what the market buys: coins apiece, at their best (empty bucket or bowl back with a full one)
 export const SELLS = new Map([
-  [I.EGG, 1], [I.DUCK_EGG, 1.5], [I.MILK_BUCKET, 4], [I.GOAT_MILK_BUCKET, 5], [I.BUTTER, 3], [I.CHEESE, 6],
+  [I.EGG, 2], [I.DUCK_EGG, 2.5], [I.MILK_BUCKET, 4], [I.GOAT_MILK_BUCKET, 5], [I.BUTTER, 3], [I.CHEESE, 6],
   [I.HONEY_BOWL, 5], [I.LEATHER, 2], [I.FEATHER, 0.5],
   [I.BEEF_RAW, 2], [I.PORKCHOP_RAW, 2], [I.MUTTON_RAW, 2], [I.CHICKEN_RAW, 1.5], [I.DUCK_RAW, 1.5],
-  [I.WHEAT, 0.5], [I.BERRIES, 0.75], [I.RICE, 0.5], [I.MELON_SLICE, 0.5], [B.MELON, 4], [I.HONEYCOMB, 2], [B.CANDLE, 3], [I.CARROT, 0.5], [I.POTATO, 0.5], [I.BEETROOT, 0.75], [B.PUMPKIN, 3], [I.SCORCH_PEPPER, 4], [B.HAY_BALE, 5],
-  [I.CHEESE_SANDWICH, 9], [I.BERRY_PIE, 8], [I.FRIED_RICE, 9], [I.PANCAKES, 6], [I.BUTTERED_POTATO, 6], [I.HONEY_BREAD, 6], [I.SPICY_STEW, 10], [I.BEETROOT_SOUP, 5],
-  [I.OMELETTE, 8], [I.FISH_AND_CHIPS, 9], [I.TOFFEE_APPLE, 4], [I.RICE_BALL, 2], [I.COOKIE, 0.5], [I.MUSHROOM_SOUP, 7], [B.MUSHROOM_BROWN, 0.5], [B.MUSHROOM_RED, 0.5],
-  [B.CAKE, 14],
+  [I.WHEAT, 0.5], [I.BERRIES, 0.75], [I.RICE, 0.5], [I.MELON_SLICE, 0.5], [B.MELON, 5], [I.HONEYCOMB, 2], [B.CANDLE, 3], [I.CARROT, 0.5], [I.POTATO, 0.5], [I.BEETROOT, 0.75], [B.PUMPKIN, 3], [I.SCORCH_PEPPER, 4], [B.HAY_BALE, 5],
+  [I.BREAD, 2], [I.CHEESE_SANDWICH, 9], [I.BERRY_PIE, 8], [I.FRIED_RICE, 3], [I.PANCAKES, 6], [I.BUTTERED_POTATO, 6], [I.HONEY_BREAD, 6], [I.SPICY_STEW, 6], [I.BEETROOT_SOUP, 2],
+  [I.OMELETTE, 8], [I.FISH_AND_CHIPS, 9], [I.TOFFEE_APPLE, 4], [I.RICE_BALL, 2], [I.COOKIE, 0.5], [I.MUSHROOM_SOUP, 3], [B.MUSHROOM_BROWN, 0.5], [B.MUSHROOM_RED, 0.5],
+  [B.CAKE, 20],
   ...COLOURS.map((c) => [c.wool, c.key === 'white' ? 2 : 3]),   // (dyed wool fetches more)
 ]);
-export const RETURNS = new Map([[I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET], [I.HONEY_BOWL, I.BOWL], [I.SPICY_STEW, I.BOWL], [I.BEETROOT_SOUP, I.BOWL], [I.MUSHROOM_SOUP, I.BOWL]]);
+export const RETURNS = new Map([[I.MILK_BUCKET, I.BUCKET], [I.GOAT_MILK_BUCKET, I.BUCKET], [I.HONEY_BOWL, I.BOWL], [I.SPICY_STEW, I.BOWL], [I.BEETROOT_SOUP, I.BOWL], [I.MUSHROOM_SOUP, I.BOWL], [I.FRIED_RICE, I.BOWL]]);
 
 // what it sells: coins apiece
 export const BUYS = [
   [I.NAME_TAG, 6], [I.LEAD, 4], [I.SADDLE, 18], [I.WHISTLE, 10], [I.GOLDEN_CARROT, 8],
   [I.IRON_HORSE_ARMOR, 30], [I.DIAMOND_HORSE_ARMOR, 90],
-  [I.BEETROOT_SEEDS, 1], [I.PUMPKIN_SEEDS, 2], [I.RICE, 2], [I.BERRIES, 2], [B.CORNFLOWER, 2], [I.MELON_SEEDS, 3], [I.BONE_MEAL, 1], [B.BEEHIVE, 12], [B.NEST, 4],
+  [I.BEETROOT_SEEDS, 1], [I.PUMPKIN_SEEDS, 2], [I.RICE, 2], [I.BERRIES, 2], [B.CORNFLOWER, 2], [I.MELON_SEEDS, 3], [I.BONE_MEAL, 2], [B.BEEHIVE, 12], [B.NEST, 4],
   [I.RED_DYE, 2], [I.YELLOW_DYE, 2], [I.GREEN_DYE, 3], [I.BLACK_DYE, 2], [I.PINK_DYE, 3], [I.ORANGE_DYE, 3],
 ];
 
@@ -43,7 +43,7 @@ function market(meta) {
   if (!m.glut || typeof m.glut !== 'object') m.glut = {};
   // what's been sold drains away as time passes
   const now = worldClock.now, dt = Number.isFinite(m.at) ? Math.max(0, now - m.at) : 0;
-  m.at = Math.round(now);
+  m.at = now;
   if (dt > 0) {
     const k = Math.exp(-dt / RECOVER);
     for (const id of Object.keys(m.glut)) {
@@ -56,10 +56,14 @@ function market(meta) {
 }
 
 // what one of `id` fetches now (0: the market won't take it)
+// what's counted together for the glut: wool of any colour is one market
+const ALL_WOOL = new Set(COLOURS.map((c) => c.wool));
+const glutKey = (id) => (ALL_WOOL.has(id) ? B.WOOL : id);
+
 export function priceOf(meta, id) {
   const base = SELLS.get(id);
   if (!base) return 0;
-  const glut = market(meta).glut[id] ?? 0;
+  const glut = market(meta).glut[glutKey(id)] ?? 0;
   return base / (1 + glut / GLUT);
 }
 
@@ -80,9 +84,10 @@ export function sell(meta, id, n) {
 export function sellValue(meta, id, n, premium = 1) {
   const m = market(meta);
   let total = 0;
+  const k = glutKey(id);
   for (let i = 0; i < n; i++) {
-    total += (SELLS.get(id) ?? 0) * premium / (1 + (m.glut[id] ?? 0) / GLUT);
-    m.glut[id] = (m.glut[id] ?? 0) + 1;
+    total += (SELLS.get(id) ?? 0) * premium / (1 + (m.glut[k] ?? 0) / GLUT);
+    m.glut[k] = (m.glut[k] ?? 0) + 1;
   }
   return total;
 }

@@ -121,7 +121,7 @@ item(I.BUTTER, 'butter', 'Butter');
 item(I.CHEESE, 'cheese', 'Cheese', { food: 4, sat: 6 });
 item(I.GOAT_MILK_BUCKET, 'goat_milk_bucket', 'Goat Milk', { stack: 1, drink: true, returns: I.BUCKET, heal: 4 });
 item(I.DUCK_EGG, 'duck_egg', 'Duck Egg', { stack: 16 });
-item(I.CHEESE_SANDWICH, 'cheese_sandwich', 'Cheese Sandwich', { food: 9, sat: 11 });
+item(I.CHEESE_SANDWICH, 'cheese_sandwich', 'Cheese Sandwich', { food: 10, sat: 12 });
 item(I.BUTTERED_POTATO, 'buttered_potato', 'Buttered Potato', { food: 7, sat: 8 });
 item(I.PANCAKES, 'pancakes', 'Pancakes', { food: 6, sat: 7 });
 item(I.WHISTLE, 'whistle', 'Shepherd\u2019s Whistle', { stack: 1 });
@@ -143,7 +143,7 @@ item(I.RICE, 'rice', 'Rice', { places: B.RICE_0 });
 item(I.BLUE_DYE, 'blue_dye', 'Blue Dye');
 item(I.CYAN_DYE, 'cyan_dye', 'Cyan Dye');
 item(I.PURPLE_DYE, 'purple_dye', 'Purple Dye');
-item(I.BERRY_PIE, 'berry_pie', 'Berry Pie', { food: 8, sat: 4.8 });
+item(I.BERRY_PIE, 'berry_pie', 'Berry Pie', { food: 9, sat: 10.8 });
 item(I.HONEYCOMB, 'honeycomb', 'Honeycomb');
 item(I.MELON_SLICE, 'melon_slice', 'Melon Slice', { food: 2, sat: 1.2 });
 item(I.MELON_SEEDS, 'melon_seeds', 'Melon Seeds', { places: B.MELON_STEM_0 });
@@ -171,30 +171,30 @@ item(I.DRIED_KELP, 'dried_kelp', 'Dried Kelp', { food: 1, eatTime: 0.8 });
 item(I.FLINT_AND_STEEL, 'flint_and_steel', 'Flint and Steel', { stack: 1, tool: { class: 'igniter', tier: 0, speed: 1, durability: 64, damage: 1 } });
 item(I.EGG, 'egg', 'Egg', { stack: 16 });
 item(I.SUGAR, 'sugar', 'Sugar');
-item(I.PUMPKIN_PIE, 'pumpkin_pie', 'Pumpkin Pie', { food: 8, sat: 4.8 });
+item(I.PUMPKIN_PIE, 'pumpkin_pie', 'Pumpkin Pie', { food: 8, sat: 8 });
 // rendered from whales: burns twice as long as coal, and lights lanterns and torches
 item(I.WHALE_OIL, 'whale_oil', 'Whale Oil', { burnTime: 160 });
 item(I.FISHING_ROD, 'fishing_rod', 'Fishing Rod', { stack: 1, tool: { class: 'rod', tier: 0, speed: 1, durability: 64, damage: 1 }, burnTime: 10 });
 item(I.SHEARS, 'shears', 'Shears', { stack: 1, tool: { class: 'shears', tier: 0, speed: 6, durability: 238, damage: 1 } });
-item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, sat: 9.6, heal: 8 });
+item(I.GOLDEN_APPLE, 'golden_apple', 'Golden Apple', { food: 4, sat: 9.6, heal: 12, cures: true });
 item(I.MUSHROOM_STEW, 'mushroom_stew', 'Mushroom Stew', { food: 6, sat: 7.2, stack: 1, returns: I.BOWL, warms: 60 });
 // cooking: quick bites from the furnace and the crafting table, and hot meals
 // from the cooking pot (they come in a bowl, warm you through, and some do more)
 item(I.FRIED_EGG, 'fried_egg', 'Fried Egg', { food: 4, sat: 4.8, eatTime: 1.1 });
 item(I.SUSHI, 'sushi', 'Sushi Roll', { food: 3, sat: 4.2, eatTime: 0.9 });
-item(I.APPLE_PIE, 'apple_pie', 'Apple Pie', { food: 8, sat: 5.6 });
+item(I.APPLE_PIE, 'apple_pie', 'Apple Pie', { food: 10, sat: 12 });
 item(I.COCONUT_MILK, 'coconut_milk', 'Coconut Milk', { food: 2, sat: 1.2, stack: 1, drink: true, returns: I.BOWL, cures: true, eatTime: 1.2 });
-const meal = (id, name, display, food, sat, extra = {}) => item(id, name, display, { food, sat, stack: 1, returns: I.BOWL, warms: 120, eatTime: 1.8, ...extra });
+const meal = (id, name, display, food, sat, extra = {}) => item(id, name, display, { food, sat, stack: 1, returns: I.BOWL, warms: 300, eatTime: 1.8, ...extra });   // (a hot meal sees you through half a cold night)
 meal(I.BEEF_STEW, 'beef_stew', 'Beef Stew', 10, 14);
 meal(I.CHICKEN_SOUP, 'chicken_soup', 'Chicken Soup', 8, 9.6, { heal: 4 });
 meal(I.FISH_CHOWDER, 'fish_chowder', 'Fish Chowder', 9, 11);
 meal(I.VEGETABLE_SOUP, 'vegetable_soup', 'Vegetable Soup', 7, 8.4);
 meal(I.PUMPKIN_SOUP, 'pumpkin_soup', 'Pumpkin Soup', 7, 8.4);
-meal(I.COCONUT_CURRY, 'coconut_curry', 'Coconut Curry', 10, 12, { warms: 180 });
+meal(I.COCONUT_CURRY, 'coconut_curry', 'Coconut Curry', 10, 12, { warms: 420 });
 meal(I.BEETROOT_SOUP, 'beetroot_soup', 'Beetroot Soup', 6, 7.2);
-meal(I.SPICY_STEW, 'spicy_stew', 'Spicy Stew', 8, 9.6, { warms: 300, wards: 180 });
+meal(I.SPICY_STEW, 'spicy_stew', 'Spicy Stew', 8, 9.6, { warms: 600, wards: 180 });
 meal(I.FRIED_RICE, 'fried_rice', 'Fried Rice', 9, 10.8);
-meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 6, 6);
+meal(I.HEARTY_STEW, 'hearty_stew', 'Hearty Stew', 7, 8.4);
 meal(I.MUSHROOM_SOUP, 'mushroom_soup', 'Creamy Mushroom Soup', 8, 9.6);
 // off the fire, and quick things from the crafting table
 item(I.ROASTED_MUSHROOM, 'roasted_mushroom', 'Roasted Mushroom', { food: 3, sat: 3.6, eatTime: 1 });

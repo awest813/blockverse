@@ -49,7 +49,7 @@ const NAME_PARTS = {
 // ---- loot ----
 
 const LOOT = {
-  house: [[I.BREAD, 1, 4, 0.6], [I.APPLE, 1, 3, 0.4], [I.WHEAT_SEEDS, 2, 6, 0.4], [I.CARROT, 1, 3, 0.3], [I.POTATO, 1, 3, 0.3], [I.STICK, 2, 6, 0.3], [B.TORCH, 2, 5, 0.3], [I.COIN, 1, 4, 0.25], [I.STRING, 1, 3, 0.15]],
+  house: [[I.BREAD, 1, 4, 0.6], [I.APPLE, 1, 3, 0.4], [I.WHEAT_SEEDS, 2, 6, 0.4], [I.CARROT, 1, 3, 0.3], [I.POTATO, 1, 3, 0.3], [I.STICK, 2, 6, 0.3], [B.TORCH, 2, 5, 0.3], [I.COIN, 2, 6, 0.25], [I.STRING, 1, 3, 0.15]],
   smithy: [[I.IRON_INGOT, 1, 5, 0.6], [I.COAL, 2, 8, 0.6], [I.GOLD_INGOT, 1, 3, 0.25], [I.IRON_PICKAXE, 1, 1, 0.2], [I.IRON_SWORD, 1, 1, 0.15], [I.IRON_HELMET, 1, 1, 0.12], [I.SADDLE, 1, 1, 0.12], [I.IRON_HORSE_ARMOR, 1, 1, 0.06], [I.FLINT, 1, 3, 0.3], [I.BUCKET, 1, 1, 0.2]],
   kitchen: [[I.BREAD, 2, 5, 0.6], [I.BOWL, 2, 4, 0.5], [I.BAKED_POTATO, 1, 4, 0.4], [I.EGG, 1, 4, 0.4], [I.SUGAR, 1, 3, 0.3], [I.CHEESE, 1, 2, 0.2], [I.BUTTER, 1, 2, 0.2], [I.COOKIE, 2, 6, 0.3], [I.HONEY_BOWL, 1, 1, 0.1]],
   library: [[I.BOOK, 1, 3, 0.6], [I.PAPER, 2, 8, 0.6], [I.FEATHER, 1, 4, 0.4], [I.NAME_TAG, 1, 1, 0.2], [I.LEDGER, 1, 1, 0.1], [B.CANDLE, 1, 3, 0.3]],

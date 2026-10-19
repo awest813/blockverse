@@ -123,11 +123,12 @@ export class RanchPanel {
   shelveAll(id) {
     const g = this.game, p = g.player, st = this.stall();
     if (!st) return;
+    const wasEmpty = st.slots.every((s) => !s);
     const n = shelve(st, id, p.countOf(id));
     if (!n) { g.hud.showLabel('The shelf\u2019s full'); return; }
     p.take(id, n);
     this.saveStall(st);
-    hurryCustomer(this.stallAt);
+    if (wasEmpty) hurryCustomer(this.stallAt);   // (an empty shelf just stocked: someone's soon by; not every time)
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('place', { block: 'wood' });
     this.renderMarket();

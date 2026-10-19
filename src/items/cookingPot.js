@@ -90,9 +90,9 @@ export function tickPots(world, dt, onCooked) {
     st.t += dt;
     if (st.t < SIMMER_TIME) return;
     st.meal = potMeal(st.items).id;
-    // a proper recipe stretches to a helping more than went in; a pot of
-    // odds and ends to a helping less
-    st.servings = st.meal === I.HEARTY_STEW ? Math.max(1, st.items.length - 1) : Math.min(POT_MAX_ITEMS, st.items.length + 1);
+    // a proper recipe stretches to a helping more than went in (a fourth
+    // thing in makes a fifth helping); a pot of odds and ends, one apiece
+    st.servings = st.meal === I.HEARTY_STEW ? st.items.length : st.items.length + 1;
     showPot(world, x, y, z, st);
     onCooked?.(x, y, z, st);
   });

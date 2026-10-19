@@ -441,7 +441,7 @@ export class Player {
     if (FIERY.has(cause)) {
       const scales = this.armor.filter((s) => s && DRAGON_SCALE.has(s.id)).length;
       if (scales) amount = Math.max(0, Math.round(amount * (1 - 0.2 * scales) * 2) / 2);
-      if (this.fireWard > 0) amount = Math.round(amount) / 2;   // a spicy stew inside you
+      if (this.fireWard > 0) amount = Math.max(0.5, Math.round(amount) / 2);   // a spicy stew inside you (halves it, to a half heart at least)
       if (amount <= 0) return;
     }
     this.health -= amount;

@@ -8,7 +8,7 @@ import { COLOURS } from '../items/dyes.js';
 import { worldBoxes, shapeBoxes } from '../blocks/shapes.js';
 import { itemInfo, isBlockItem } from '../items/items.js';
 import { I } from '../items/itemIds.js';
-import { growCrop, cropTime, cropFamily, CROP_FAMILIES, isRipe, saplingHasRoom } from '../world/saplings.js';
+import { growCrop, cropTime, cropFamily, CROP_FAMILIES, isRipe, saplingHasRoom, stemCanFruit } from '../world/saplings.js';
 import { useComposter, useTrough, describeMachine } from '../world/farmtech.js';
 import { campfireCookable, addToCampfire, campfireState } from '../items/campfire.js';
 import { stallContents } from '../world/stall.js';
@@ -411,7 +411,8 @@ export class Interaction {
     // 2) start eating (or drinking) — it takes a moment
     if (held) {
       const info = itemInfo(held.id);
-      const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth);
+      // (full up, you'd still take a cure for venom or something hot in the cold)
+      const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth) || (info?.cures && p.poisonTime > 0) || (info?.warms && p.freeze > 0.3);
       const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
       const planting = (info?.places && t?.id === B.FARMLAND && t.ny === 1)     // a carrot aimed at farmland is planted
         || (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1)   // (and berries on the grass)
@@ -561,7 +562,7 @@ export class Interaction {
     if (p.mode === GAMEMODE_CREATIVE) return false;
     if (p.hunger >= 20) { this.cb.notify?.('You\u2019re not hungry'); return true; }
     const eaten = this.world.getMetaW(t.x, t.y, t.z) + 1;
-    p.eat(2, 1.6);
+    p.eat(3, 2.4);
     this.cb.playSound('eat', {});
     this.cb.crumbs?.(B.CAKE);
     if (eaten >= 7) {
@@ -893,6 +894,10 @@ export class Interaction {
         return true;
       } else if (SAPLINGS.has(t.id) && !saplingHasRoom(this.world, t.x, t.y, t.z)) {
         this.cb.notify?.('No room for a tree to grow here: clear the space above it');
+        return true;
+      } else if (CROPS.has(t.id) && cropFamily(t.id)?.[3] && t.id === cropFamily(t.id)[1] && !stemCanFruit(this.world, t.x, t.y, t.z, cropFamily(t.id)[3])) {
+        // a grown stem with a fruit beside it already, or nowhere to set one
+        this.cb.notify?.('This stem has a fruit already, or no open ground beside it for one');
         return true;
       } else if (CROPS.has(t.id)) {
         growCrop(this.world, t.x, t.y, t.z, 2, this.dropRng);

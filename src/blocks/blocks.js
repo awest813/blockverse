@@ -391,7 +391,7 @@ for (let stage = 0; stage < 4; stage++) {
     ...plant, hardness: 0, textures: `wheat_stage_${stage}`,
     drop: stage < 3
       ? () => [{ id: I.WHEAT_SEEDS, count: 1 }]
-      : (rng) => [{ id: I.WHEAT, count: 1 }, { id: I.WHEAT_SEEDS, count: 1 + ((rng() * 3) | 0) }],
+      : (rng) => [{ id: I.WHEAT, count: rng() < 0.5 ? 2 : 1 }, { id: I.WHEAT_SEEDS, count: 1 + ((rng() * 3) | 0) }],
   }));
 }
 // carrots and potatoes: planted from the vegetable itself; ripe ones give 2-4

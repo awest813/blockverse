@@ -81,11 +81,16 @@ export const isRipe = (id) => CROP_FAMILIES.some(([, ripe, , fruit]) => id === r
 
 // A grown stem sets a pumpkin (or melon) on open ground beside it (one at a time).
 const FRUIT_GROUND = new Set([B.DIRT, B.GRASS, B.FARMLAND, B.SNOWY_GRASS, B.ASH, B.ASHEN_GRASS]);
+const FRUIT_SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const fruitSpots = (world, x, y, z) => FRUIT_SIDES.filter(([dx, dz]) => world.getBlockW(x + dx, y, z + dz) === B.AIR && FRUIT_GROUND.has(world.getBlockW(x + dx, y - 1, z + dz)));
+// can a grown stem set a fruit now? (none beside it yet, and room for one)
+export function stemCanFruit(world, x, y, z, fruit) {
+  return !FRUIT_SIDES.some(([dx, dz]) => world.getBlockW(x + dx, y, z + dz) === fruit) && fruitSpots(world, x, y, z).length > 0;
+}
 function setFruit(world, x, y, z, fruit, rng) {
-  const sides = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  if (sides.some(([dx, dz]) => world.getBlockW(x + dx, y, z + dz) === fruit)) return;
-  const [dx, dz] = sides[(rng() * 4) | 0];
-  if (world.getBlockW(x + dx, y, z + dz) !== B.AIR || !FRUIT_GROUND.has(world.getBlockW(x + dx, y - 1, z + dz))) return;
+  if (!stemCanFruit(world, x, y, z, fruit)) return;
+  const spots = fruitSpots(world, x, y, z);   // (any open side, not one picked blind)
+  const [dx, dz] = spots[(rng() * spots.length) | 0];
   world.setBlock(x + dx, y, z + dz, fruit);
 }
 
