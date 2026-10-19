@@ -20,6 +20,7 @@ export const PREMIUM = 1.25;           // over the market's on-the-spot price
 export const CUSTOMER_EVERY = 75;      // seconds between customers, on average, by day
 const AWAY_PER_DAY = 6;                // customers a day while you're away...
 const AWAY_MAX = 12;                   // ...and at most this many, however long
+const TILL_MAX = 20000;                // (more than a full shelf of the dearest thing ever fetches)
 
 // who comes, and what each is after
 const DAIRY = [I.EGG, I.DUCK_EGG, I.MILK_BUCKET, I.GOAT_MILK_BUCKET, I.BUTTER, I.CHEESE];
@@ -41,8 +42,12 @@ export function stallState(world, x, y, z) {
   if (!Array.isArray(st.slots) || st.slots.length !== SHELF) st.slots = new Array(SHELF).fill(null);
   st.slots = st.slots.map((s) => (s && Number.isInteger(s.id) && SELLS.has(s.id) && Number.isInteger(s.count) && s.count > 0 ? { id: s.id, count: Math.min(64, s.count) } : null));
   if (!Number.isFinite(st.till) || st.till < 0) st.till = 0;
+  st.till = Math.min(st.till, TILL_MAX);
   if (!st.empties || typeof st.empties !== 'object' || Array.isArray(st.empties)) st.empties = {};
-  for (const k of Object.keys(st.empties)) if (!(Number.isInteger(st.empties[k]) && st.empties[k] > 0 && [I.BUCKET, I.BOWL].includes(Number(k)))) delete st.empties[k];
+  for (const k of Object.keys(st.empties)) {
+    if (!(Number.isInteger(st.empties[k]) && st.empties[k] > 0 && [I.BUCKET, I.BOWL].includes(Number(k)))) delete st.empties[k];
+    else st.empties[k] = Math.min(st.empties[k], SHELF * 64);
+  }
   if (!st.sold || typeof st.sold !== 'object' || Array.isArray(st.sold)) st.sold = {};
   return st;
 }
@@ -128,8 +133,11 @@ export function catchUp(meta, st, now, rng = Math.random) {
 export function stallContents(st) {
   if (!st) return [];
   const out = (Array.isArray(st.slots) ? st.slots : []).filter((s) => s && Number.isInteger(s.id) && s.count > 0).map((s) => ({ id: s.id, count: s.count }));
-  const coins = Math.floor(Number.isFinite(st.till) ? st.till : 0);
+  const coins = Math.floor(Number.isFinite(st.till) ? Math.min(TILL_MAX, Math.max(0, st.till)) : 0);
   for (let c = coins; c > 0; c -= 64) out.push({ id: I.COIN, count: Math.min(64, c) });
-  for (const [k, v] of Object.entries(st.empties ?? {})) if (Number.isInteger(v) && v > 0 && [I.BUCKET, I.BOWL].includes(Number(k))) out.push({ id: Number(k), count: Math.min(64, v) });
+  for (const [k, v] of Object.entries(st.empties ?? {})) {
+    if (!(Number.isInteger(v) && v > 0 && [I.BUCKET, I.BOWL].includes(Number(k)))) continue;
+    for (let c = Math.min(v, SHELF * 64); c > 0; c -= 64) out.push({ id: Number(k), count: Math.min(64, c) });
+  }
   return out;
 }

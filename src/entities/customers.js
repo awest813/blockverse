@@ -5,7 +5,7 @@
 // away, the stall's catch-up does the selling (world/stall.js).
 
 import { Mob } from './mob.js';
-import { B, isSolid } from '../blocks/blocks.js';
+import { B, isSolid, blockInfo } from '../blocks/blocks.js';
 import { worldClock } from '../core/clock.js';
 import { itemInfo } from '../items/items.js';
 import { forEachBlockEntity } from '../items/campfire.js';
@@ -13,6 +13,8 @@ import { stallState, customerBuys, pickCustomer, catchUp, shelfEmpty, CUSTOMER_E
 
 const NEAR = 40;          // a stall this close to you has live customers
 const GIVE_UP = 90;       // seconds a customer spends trying to get there
+const MAX_AGE = 300;      // by the world's clock: however it's gone, it's gone by then
+const OFF = 28;           // how far off they head when they leave
 
 export class Customer extends Mob {
   constructor(scene, world, x, y, z, type, stall) {
@@ -21,6 +23,8 @@ export class Customer extends Mob {
     this.w = 0.6; this.h = 1.8; this.health = 20;
     this.speed = 1.7; this.fleeSpeed = 1.7;
     this.kind = 'customer';
+    this.label = type.label.replace(/^An? /, '').toLowerCase();   // (for the inspect card)
+    this.bornAt = worldClock.now;
     this.countsForCap = false;
     this.type = type;
     this.stall = stall;      // {x, y, z}
@@ -67,13 +71,46 @@ export class Customer extends Mob {
     }
     // off again, the way it came
     if (this.exit) this.goTo(dt, this.exit.x, this.y, this.exit.z, 1.5);
-    if (Math.hypot(player.x - this.x, player.z - this.z) > NEAR + 16 || this.trip > GIVE_UP * 2.5 || (this.exit && Math.hypot(this.exit.x - this.x, this.exit.z - this.z) < 2)) this.kill();
+    // stuck on the way (a tree, a wall): note it every few seconds
+    this.stuckT = (this.stuckT ?? 0) + dt;
+    if (this.stuckT > 3) {
+      if (Math.hypot(this.x - (this.lastX ?? 0), this.z - (this.lastZ ?? 0)) < 0.6) this.stuck = (this.stuck ?? 0) + 1;
+      this.lastX = this.x; this.lastZ = this.z; this.stuckT = 0;
+    }
+    // gone once well away and out of your sight (or there, or stuck)
+    const dx = this.x - player.x, dz = this.z - player.z, d = Math.hypot(dx, dz);
+    const look = player.lookDir(), behind = dx * look.x + dz * look.z < 0;
+    const there = this.exit && Math.hypot(this.exit.x - this.x, this.exit.z - this.z) < 2;
+    if (this.trip > GIVE_UP * 2.5 || d > OFF || (d > 16 && behind) || (there && d > 12) || (this.stuck >= 2 && d > 10)) this.kill();
   }
 
-  leave() {
+  // off along the way it came (away from the stall's middle), well out of the way
+  leave(turn = 0) {
     this.state = 'go';
     this.path = null;
-    if (!this.exit) this.exit = { x: this.x + (this.x - this.stall.x) * 4, z: this.z + (this.z - this.stall.z) * 4 };
+    const cx = this.stall.x + 0.5, cz = this.stall.z + 0.5;
+    let a = Math.atan2(this.z - cz, this.x - cx) + turn;
+    if (!Number.isFinite(a)) a = Math.random() * Math.PI * 2;
+    this.exit = { x: cx + Math.cos(a) * OFF, z: cz + Math.sin(a) * OFF };
+  }
+
+  // never into lava, water or off a drop: on the way there, give up; on the
+  // way off, try another way
+  avoidHazards() {
+    if (!this.moving || !this.onGround) return;
+    const ax = Math.floor(this.x - Math.sin(this.yaw) * (this.w / 2 + 0.6));
+    const az = Math.floor(this.z - Math.cos(this.yaw) * (this.w / 2 + 0.6));
+    const y = Math.floor(this.y);
+    let drop = 0, bad = false;
+    for (; drop < 4 && !isSolid(this.world.getBlockW(ax, y - 1 - drop, az)); drop++) {
+      const id = this.world.getBlockW(ax, y - 1 - drop, az);
+      if (id === B.LAVA || id === B.WATER) { bad = true; break; }
+    }
+    const here = this.world.getBlockW(ax, y, az);
+    if (!(bad || drop >= 4 || here === B.LAVA || here === B.WATER || here === B.FIRE)) return;
+    this.moving = false; this.vx = this.vz = 0;
+    if (this.state === 'come') this.leave();
+    else if (this.state === 'go') this.leave((this.turns = (this.turns ?? 0) + 1) * Math.PI / 2);
   }
 
   damage() { return false; }   // (customers come in peace, and so should you)
@@ -84,7 +121,8 @@ export class Customer extends Mob {
   }
 }
 
-// somewhere 14-20 blocks from the stall, on dry ground, to set out from
+// somewhere 14-20 blocks from the stall, on dry open ground (under the
+// sky: not in a cave, nor up a tree), to set out from
 function startSpot(world, s) {
   for (let k = 0; k < 8; k++) {
     const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 6;
@@ -94,14 +132,17 @@ function startSpot(world, s) {
     while (y > s.y - 10 && !isSolid(world.getBlockW(x, y - 1, z))) y--;
     const below = world.getBlockW(x, y - 1, z);
     if (!isSolid(below) || world.getBlockW(x, y, z) || world.getBlockW(x, y + 1, z)) continue;
+    if (world.getSkyW(x, y, z) < 15 || Math.abs(y - s.y) > 4 || /leaves/.test(blockInfo(below).name)) continue;
     return { x: x + 0.5, y, z: z + 0.5 };
   }
   return null;
 }
 
 const nextAt = new Map();   // stall key -> clock time the next customer sets out (not saved)
-const seen = new Set();     // stalls caught up this session
 const key = (s) => `${s.x},${s.y},${s.z}`;
+
+// a new world (or the other one): nobody's on their way
+export function resetCustomers() { nextAt.clear(); timer = 0; markTimer = 0; }
 
 // a customer for this stall soon (just stocked: don't keep them waiting long)
 export function hurryCustomer(s) {
@@ -116,26 +157,28 @@ export function tickCustomers(game, dt) {
   timer = 1;
   markTimer -= 1;
   const w = game.world, p = game.player, now = worldClock.now, meta = game.worldMeta;
-  const live = game.entities.mobs.filter((m) => m.kind === 'customer' && !m.dead);
+  let live = game.entities.mobs.filter((m) => m.kind === 'customer' && !m.dead);
   if (game.dimension !== 'overworld') return;
   const night = game.isNight();
   // the stalls near you: catch up on who came while you were gone, and keep
   // their clocks current while you're here (now and then: it's a save)
+  // (a customer left in a chunk that's gone, or out too long, is gone too:
+  // one stuck somewhere would keep everyone else away)
+  for (const c of live) if (!w.isLoaded(Math.floor(c.x), Math.floor(c.z)) || !(now - c.bornAt < MAX_AGE)) c.kill();
   const stalls = [];
   forEachBlockEntity(w, 'stall', (x, y, z) => {
     if (Math.hypot(x + 0.5 - p.x, z + 0.5 - p.z) > NEAR || w.getBlockW(x, y, z) !== B.MARKET_STALL) return;
     const st = stallState(w, x, y, z), s = { x, y, z, st };
-    if (!seen.has(key(s))) {
-      seen.add(key(s));
-      const { came } = catchUp(meta, st, now);
-      w.setBlockEntity(x, y, z, st);
-      if (came) game.hud.showLabel(`While you were away, ${came} customer${came === 1 ? '' : 's'} came by your stall: ${Math.floor(st.till)} coin${Math.floor(st.till) === 1 ? '' : 's'} in the till`, true);
-    } else if (markTimer <= 0) { st.at = now; w.setBlockEntity(x, y, z, st); }
+    // back after a while away: who came meanwhile (nothing if you never left)
+    const { came } = catchUp(meta, st, now);
+    if (came || markTimer <= 0) w.setBlockEntity(x, y, z, st);   // (its clock: saved now and then)
+    if (came) game.hud.showLabel(`While you were away, ${came} customer${came === 1 ? '' : 's'} came by your stall: ${Math.floor(st.till)} coin${Math.floor(st.till) === 1 ? '' : 's'} in the till`, true);
     stalls.push(s);
   });
   if (markTimer <= 0) markTimer = 30;
   // customers whose stall's gone (or night's falling) head off
   for (const c of live) if (c.state !== 'go' && (night || w.getBlockW(c.stall.x, c.stall.y, c.stall.z) !== B.MARKET_STALL)) c.leave();
+  live = live.filter((c) => !c.dead);
   if (night || p.dead || live.length) return;
   // one at a time, to the nearest stall with something on its shelf
   const s = stalls.filter((q) => !shelfEmpty(q.st)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];

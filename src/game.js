@@ -30,7 +30,7 @@ import { SignEditor } from './ui/signEditor.js';
 import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
 import { tickTrader, judge } from './entities/trader.js';
-import { tickCustomers, buyAtStall } from './entities/customers.js';
+import { tickCustomers, buyAtStall, resetCustomers } from './entities/customers.js';
 import { MobSpawner } from './entities/mobSpawner.js';
 import { itemInfo, isBlockItem, makeStack, maxStack, weaponStats, I, isRare } from './items/items.js';
 import { generateTile } from './render/textures.js';
@@ -200,6 +200,7 @@ export class Game {
     this.entities.fx.openBags = (mob) => this.containers.openBags(mob);
     this.entities.fx.openTrader = () => this.ranchPanel.openTrader();
     this.entities.fx.customerBuys = (c) => buyAtStall(this, c);
+    resetCustomers();
     this.entities.fx.say = (text) => this.hud.showLabel(text);
     this.entities.fx.judge = (led) => judge(this, led);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
