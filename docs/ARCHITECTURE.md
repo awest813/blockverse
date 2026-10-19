@@ -144,6 +144,20 @@ AO uses the standard 3-neighbor rule (`side1 && side2 ? 0 : 3 - sum`), and the
 quad diagonal flips when needed to avoid the classic AO anisotropy artifact.
 Smooth lighting averages the four light cells adjacent to each vertex.
 
+**Greedy merging**: a full-cube face whose four corners agree on light, AO
+and tint is set aside instead of emitted, and at the end of the chunk the
+set-aside faces of each layer are merged into the largest rectangles of the
+same tile. The shader tiles the texture across a merged quad with
+`fract()` and explicit gradients (`textureGrad`), so mipmaps don't seam.
+Faces with any lighting gradient stay as single quads, so the image is
+unchanged.
+
+**Lazy rebuilds**: an edit the player makes remeshes at once, but changes the
+world makes on its own (crops growing, saplings, farm machines) go through
+`world.deferred()` and wait (about a second for nearby chunks, a few seconds
+for far ones), one rebuild per frame, so a field ripening doesn't stall a
+frame.
+
 The fragment shader computes
 `brightness = max(blockLight, skyLight * uDay)`, so night dims sunlight but
 never torches. Fog is distance-based with colors driven by the sky system.
@@ -173,7 +187,10 @@ voxel grid, shared by the player, item drops, and mobs.
   gravity that magnetize to the player.
 - **Mobs** (`src/entities/mob.js`, `mobs.js`): box-model creatures with
   vertex-shaded faces, wander/flee/chase state machines, 1-block hop,
-  knockback, and voxel-light-aware tinting. The spawner keeps population caps
+  knockback, and voxel-light-aware tinting. On its first update a mob merges
+  the parts that never move on their own into one vertex-coloured mesh per
+  parent, which cuts its draw calls; hurt and death flashes tint the merged
+  mesh through a shader uniform (`tintPart`). The spawner keeps population caps
   around the player and requires darkness for zombies.
 
 ## 6. Persistence

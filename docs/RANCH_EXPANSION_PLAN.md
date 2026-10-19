@@ -77,7 +77,7 @@ Pens (`world/ranch.js`): a bounded flood fill over the ground an animal can walk
 
 ### Step 3 (done)
 
-Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chickens), fleece (sheep), litter (pigs). They are rolled once, saved and clamped on load, inherited from one parent or the mean of both, plus a little mutation and a rare standout. Horses keep their own. Rare variants: black sheep and golden hens. Dyes and colours (`items/dyes.js`): nine colours, eight dye items, eight coloured wools and nine carpets. A sheep can be dyed, shears to its colour, and its lambs blend their parents' fleece. The card lists traits and named parents. Still to do: new flowers by biome (a generator change, so it must be gated by version), piebald horses.
+Traits (`entities/traits.js`): milk (cows, goats), temper (goats), laying (chickens), fleece (sheep), litter (pigs). They are rolled once, saved and clamped on load, inherited from one parent or the mean of both, plus a little mutation and a rare standout. Horses keep their own. Rare variants: black sheep and golden hens. Dyes and colours (`items/dyes.js`): nine colours, eight dye items, eight coloured wools and nine carpets. A sheep can be dyed, shears to its colour, and its lambs blend their parents' fleece. The card lists traits and named parents. New flowers by biome (generator 11) and piebald horses came later.
 
 ## Phase 3: needs, welfare and production
 
@@ -136,11 +136,11 @@ Horse armour (five materials, cutting 12–44% of damage; dragon scale makes the
 
 ### Step 7 (done)
 
-Beehives (`hive {bees, honey, work, at}` in `world/produce.js`) gain bees by day when there are two or more flowers within 5 blocks. Honey comes from bee-seconds of world clock, so it catches up after being unloaded. Bees are cosmetic fliers (`entities/bees.js`), not saved. Crops within 4 blocks of a hive with bees grow 1.3 times as fast. New crops: beetroot (seeds from tall grass), pumpkin stems (a fruiting family that sets pumpkins beside them, which harvesters pick), and Scorch peppers (from charred leaves, plantable only in the Scorchlands, where ash can be hoed). New food: beetroot soup, spicy stew (`wards`: half fire damage), honey and honey bread. Still to do: berries and rice (they need a gated generator), melons, honeycomb and candles.
+Beehives (`hive {bees, honey, work, at}` in `world/produce.js`) gain bees by day when there are two or more flowers within 5 blocks. Honey comes from bee-seconds of world clock, so it catches up after being unloaded. Bees are cosmetic fliers (`entities/bees.js`), not saved. Crops within 4 blocks of a hive with bees grow 1.3 times as fast. New crops: beetroot (seeds from tall grass), pumpkin stems (a fruiting family that sets pumpkins beside them, which harvesters pick), and Scorch peppers (from charred leaves, plantable only in the Scorchlands, where ash can be hoed). New food: beetroot soup, spicy stew (`wards`: half fire damage), honey and honey bread. Berries, rice, melons, honeycomb and candles came later (generator 11 and the extras).
 
 ### Step 8 (done)
 
-`world/market.js`: a sell list at base prices, falling with `glut` (32 of one item halves its price) and recovering exponentially over world time. Fractional coins stay in `market.credit`. There's a fixed buy list. The ranch tally (`ranchStats`: eggs, wool, milk, butter, cheese, honey, young born, coins) is bumped where each happens. `ui/ranchPanel.js` provides the market window (on the market stall block) and the ledger (an item), which lists live, stashed and other-dimension animals and pets. Still to do: the travelling trader, fairs.
+`world/market.js`: a sell list at base prices, falling with `glut` (32 of one item halves its price) and recovering exponentially over world time. Fractional coins stay in `market.credit`. There's a fixed buy list. The ranch tally (`ranchStats`: eggs, wool, milk, butter, cheese, honey, young born, coins) is bumped where each happens. `ui/ranchPanel.js` provides the market window (on the market stall block) and the ledger (an item), which lists live, stashed and other-dimension animals and pets. The travelling trader and the fair came later (below).
 
 ### Audit (after step 8)
 
@@ -167,6 +167,12 @@ Twenty-four scripted playthroughs ran with no crashes or console errors. Generat
 ### The trader and the fair (done)
 
 `entities/trader.js` holds the visit in `worldMeta.trader` (`next`, `until`, the spot, `visit`, `offers`, `wants`, `judged`). The trader comes every 2 in-game days, by day, next to a market stall within 24 blocks (or near the player), and stays 10 minutes or until nightfall. A reload mid-visit respawns it. Each visit rolls four offers and two wants (paid double, up to 8 each, never something it's also selling). The fair judges led animals once a visit with `traitScore` (plus mood and rarity) and awards a ribbon (saved) and 4–30 coins.
+
+The trader now walks in from 14–20 blocks off and makes for the stall, rather than appearing beside it.
+
+### Stall customers (done)
+
+`world/stall.js` gives the market stall a nine-slot shelf, a till and a pile of empties. Using the stall opens the shelf. By day a customer (a cook, a farmhand, a tailor or a neighbour, each after different things) walks up about every 75 s, buys one or two things at 1.25× the market's spot price and walks off; buckets and bowls they hand back wait in the stall. While you're away about six customers a day come (twelve at most), caught up when the chunk loads. Breaking the stall drops the shelf, the till's coins and the empties.
 
 ### Automation (done)
 
