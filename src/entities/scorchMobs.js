@@ -23,7 +23,7 @@ export class SkeletonKnight extends Zombie {
     super(scene, world, x, y, z);
     this.kind = 'knight';
     this.ambientSound = 'skeleton';
-    this.health = 30;
+    this.health = 28;
     this.speed = 1.1;
     this.fleeSpeed = 2.5;
     this.meleeDamage = 4;
@@ -235,7 +235,7 @@ export class AshDrake extends Flier {
       this.orbit += dt * 0.7 * this.orbitDir;
       this.flyTo(player.x + Math.cos(this.orbit) * 8, player.y + 5, player.z + Math.sin(this.orbit) * 8);
       if (this.shootCooldown <= 0 && playerDist < 22 && this.canSee(player, 0.4)) {
-        this.shootCooldown = 3.2 + Math.random() * 1.6;
+        this.shootCooldown = 4.5 + Math.random() * 2;
         this.spit(player, 14, 3);
       }
       return;
@@ -443,7 +443,7 @@ export class ScorchDragon extends Flier {
 
   onDeath() {
     const roll = (lo, hi) => lo + ((Math.random() * (hi - lo + 1)) | 0);
-    this.dropFn?.([makeStack(I.DRAGON_SCALE, roll(6, 10)), makeStack(I.DRAGON_FANG, 1), makeStack(I.DIAMOND, roll(2, 4)),
+    this.dropFn?.([makeStack(I.DRAGON_SCALE, roll(8, 12)), makeStack(I.DRAGON_FANG, 1), makeStack(I.DIAMOND, roll(2, 4)),
       makeStack(I.GOLD_INGOT, roll(4, 8)), makeStack(I.GOLDEN_APPLE, 1), makeStack(I.DRAKE_EGG, 1)]);
   }
 }

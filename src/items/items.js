@@ -11,7 +11,7 @@ const TIER_STATS = {
   wood: { tier: 1, speed: 2, durability: 60, damage: 4 },
   stone: { tier: 2, speed: 4, durability: 132, damage: 5 },
   iron: { tier: 3, speed: 6, durability: 251, damage: 6 },
-  gold: { tier: 1, speed: 12, durability: 33, damage: 4 },
+  gold: { tier: 2, speed: 12, durability: 96, damage: 4 },   // (fast and fragile: a quarrying pick)
   diamond: { tier: 4, speed: 8, durability: 1562, damage: 7 },
 };
 
@@ -55,7 +55,7 @@ function toolItem(id, material, cls) {
       speed: s.speed,
       durability: s.durability,
       damage: cls === 'sword' ? s.damage
-        : cls === 'axe' ? s.damage + 1        // hits hard but slowly (see WEAPON_STATS)
+        : cls === 'axe' ? s.damage + 2        // hits hard but slowly (see WEAPON_STATS)
           : cls === 'spear' ? s.damage - 1    // longer reach, bigger knockback
             : Math.max(1, s.damage - 3),
     },
@@ -247,7 +247,7 @@ item(I.ANCIENT_SWORD, 'ancient_sword', 'Ancient Blade', {
 });
 // the Ember Blade: a dragon's fang on a hilt of its scales; sets what it hits alight
 item(I.EMBER_BLADE, 'ember_blade', 'Ember Blade', {
-  stack: 1, tool: { class: 'sword', tier: 4, speed: 8, durability: 1400, damage: 9, ignites: 4 },
+  stack: 1, tool: { class: 'sword', tier: 4, speed: 8, durability: 2000, damage: 9, ignites: 4 },
 });
 
 // How each weapon class swings: seconds to a full-strength hit, extra reach

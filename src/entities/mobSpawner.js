@@ -99,7 +99,8 @@ export class MobSpawner {
     if (this.dimension === 'scorch') {
       if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
       // ash drakes take wing from anywhere (they don't need the dark)
-      if (this.difficulty > 0 && mobs.filter((m) => m instanceof AshDrake && !m.tamed).length < DRAKE_CAP && Math.random() < 0.2) this.trySpawnLocal(player, AshDrake, () => true);
+      // (not while the dragon's up: it calls its own)
+      if (this.difficulty > 0 && !mobs.some((m) => m.kind === 'dragon' && !m.dead) && mobs.filter((m) => m instanceof AshDrake && !m.tamed).length < DRAKE_CAP && Math.random() < 0.2) this.trySpawnLocal(player, AshDrake, () => true);
       // cinder hounds roam the burnt forest in ones and twos (at any difficulty: they're wild animals)
       const hounds = mobs.filter((m) => m instanceof CinderHound && !m.tamed).length;
       if (hounds < HOUND_CAP && Math.random() < 0.15) {

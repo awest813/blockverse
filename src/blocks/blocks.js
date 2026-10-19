@@ -327,7 +327,7 @@ reg(def(B.DIAMOND_ORE, 'diamond_ore', 'Diamond Ore', {
 }));
 reg(def(B.REDSTONE_ORE, 'redstone_ore', 'Redstone Ore', {
   hardness: 3, tool: TOOL_PICKAXE, minTier: 3,
-  drop: (rng) => [{ id: I.REDSTONE_DUST, count: 1 + ((rng() * 3) | 0) }],
+  drop: (rng) => [{ id: I.REDSTONE_DUST, count: 1 + ((rng() * 2) | 0) }],
 }));
 reg(def(B.GLASS, 'glass', 'Glass', { render: R_CUTOUT, opacity: 0, hardness: 0.3, drop: null, sound: 'glass' }));
 reg(def(B.GLOWSTONE, 'glowstone', 'Glowstone', { lightEmit: 15, hardness: 0.3, sound: 'glass' }));

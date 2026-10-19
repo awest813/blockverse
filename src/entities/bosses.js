@@ -83,7 +83,7 @@ export class ZombieBrute extends BossMixin(Zombie) {
     this.kind = 'brute';
     this.speed = 0.9;
     this.fleeSpeed = 2.1;
-    this.meleeDamage = 6;
+    this.meleeDamage = 5;
     this.slamCooldown = 5;
     this.windup = 0;
     bossify(this, { name: 'Zombie Brute', health: 60, scale: 1.45 });
@@ -151,7 +151,7 @@ export class BoneArcher extends BossMixin(Skeleton) {
   shootArrow(x, y, z, vx, vy, vz, dmg) {
     for (const a of [-0.13, 0, 0.13]) {
       const c = Math.cos(a), s = Math.sin(a);
-      this.fx?.shoot(x, y, z, vx * c - vz * s, vy, vx * s + vz * c, dmg + 1, this.kind);
+      this.fx?.shoot(x, y, z, vx * c - vz * s, vy, vx * s + vz * c, dmg + 2, this.kind);
     }
   }
 

@@ -1010,11 +1010,12 @@ export class Game {
     // critical hit: a full-strength blow while falling
     const crit = charge > 0.9 && !p.onGround && !p.flying && p.vy < 0 && !p.inWater && !p.onLadder && !p.inLava && !p.mount;
     if (crit) dmg *= 1.5;
+    const onShield = !!best.guards?.(p) && !(best.hurtCooldown > 0);   // (a blow on a knight's shield doesn't set it alight)
     if (!best.damage(dmg, p)) return true;
     this.sinceAttack = 0;
     // the Ember Blade sets what it strikes alight
     const ignites = held ? itemInfo(held.id)?.tool?.ignites : 0;
-    if (ignites && !best.fireproof && !best.dead) best.fireTime = Math.max(best.fireTime ?? 0, ignites);
+    if (ignites && !onShield && !best.fireproof && !best.dead) best.fireTime = Math.max(best.fireTime ?? 0, ignites);
     const dir = p.lookDir();
     const hd = Math.hypot(dir.x, dir.z) || 1;
     // extra knockback for heavy weapons (scaled by charge)

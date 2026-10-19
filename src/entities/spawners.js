@@ -38,6 +38,8 @@ export function tickSpawners(game, dt) {
       st.t = (st.t ?? 2) - dt;
       if (st.t > 0) continue;
       st.t = 8 + Math.random() * 14;
+      // (the cage rests while its guardian fights: a duel, not a crowd)
+      if (game.entities.mobs.some((m) => m.boss && !m.dead && m.dying === undefined && m.home?.cage === `${x},${y},${z}`)) continue;
       spawnAround(game, x, y, z, MOBS[st.mob] ?? Zombie);
     }
   }

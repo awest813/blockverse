@@ -340,7 +340,7 @@ export class Player {
       if (this.regenTimer >= (this.hunger >= 20 && this.saturation > 0 ? 0.6 : 2.5)) {
         this.regenTimer = 0;
         this.health = Math.min(this.maxHealth, this.health + 1);
-        this.addExhaustion(1.5);
+        this.addExhaustion(3);
       }
     } else if (this.hunger <= 0) {
       this.starveTimer += dt;
@@ -428,7 +428,6 @@ export class Player {
       if (amount <= 0) return;
       amount = Math.max(0.5, Math.round(amount * 2) / 2);
     }
-    this.hurtCooldown = 0.5;
     // armour soaks up to 80% of attacks and explosions (not falls, hunger, drowning)
     if (!UNARMORED_DAMAGE.has(cause)) {
       const pts = this.armorPoints();
@@ -440,10 +439,13 @@ export class Player {
     // dragon scale turns fire: a fifth less from flames and lava per piece
     if (FIERY.has(cause)) {
       const scales = this.armor.filter((s) => s && DRAGON_SCALE.has(s.id)).length;
-      if (scales) amount = Math.max(0, Math.round(amount * (1 - 0.2 * scales) * 2) / 2);
+      if (scales) amount = Math.max(0.5, Math.round(amount * (1 - 0.2 * scales) * 2) / 2);   // (a fifth a piece: never all of it)
       if (this.fireWard > 0) amount = Math.max(0.5, Math.round(amount) / 2);   // a spicy stew inside you (halves it, to a half heart at least)
       if (amount <= 0) return;
     }
+    // only a hit that hurts gives the moment's grace (one that did nothing,
+    // a burn tick on a dragon-scaled back, used to make you untouchable)
+    this.hurtCooldown = 0.5;
     this.health -= amount;
     this.events.dispatchEvent(new CustomEvent('hurt', { detail: { amount, cause } }));
     if (this.health <= 0) {

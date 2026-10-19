@@ -113,7 +113,7 @@ shapeless(I.BONE_MEAL, 3, [[I.BONE]]);
 shaped(B.BONE_BLOCK, 1, ['XXX', 'XXX', 'XXX'], { X: [I.BONE_MEAL] });
 shapeless(I.BONE_MEAL, 9, [[B.BONE_BLOCK]]);
 shaped(I.BOW, 1, ['.SX', 'S.X', '.SX'], { S: [I.STICK], X: [I.STRING] });
-shaped(I.ARROW, 4, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
+shaped(I.ARROW, 6, ['F', 'S', 'E'], { F: [I.FLINT], S: [I.STICK], E: [I.FEATHER] });
 shaped(B.WOOL, 1, ['SS', 'SS'], { S: [I.STRING] });
 // dyes, from flowers and the like (white is bone meal), and the ones mixed from them
 shapeless(I.RED_DYE, 2, [[B.POPPY]]);
