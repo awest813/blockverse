@@ -152,8 +152,11 @@ function planVillage(gen, rx, rz) {
   for (const d of dirs) {
     const [dx, dz] = DIRS[d], [px, pz] = DIRS[(d + 1) % 4];
     const want = 22 + Math.floor(rng() * 20);
+    // level across, and climbing or dropping at most a block a step (it
+    // cuts into rises and is built up over dips rather than stair-stepping
+    // over every bump)
     const cells = [];
-    let len = 0;
+    let len = 0, prev = y;
     for (let s = SQUARE + 1; s <= SQUARE + want; s++) {
       const row = [];
       for (let w = -1; w <= 1; w++) {
@@ -163,7 +166,9 @@ function planVillage(gen, rx, rz) {
         row.push([x, z, g.h]);
       }
       if (!row.length) break;
-      cells.push(...row);
+      const ry = Math.max(prev - 1, Math.min(prev + 1, median(row.map((c) => c[2]))));
+      for (const c of row) cells.push([c[0], c[1], ry]);
+      prev = ry;
       len = s;
     }
     if (len < SQUARE + 8) continue;
@@ -189,8 +194,10 @@ function planVillage(gen, rx, rz) {
       const hs = [...corners, at(s + (w >> 1), 3 + (depth >> 1))].map(([x, z]) => ground(x, z).h);
       const fits = hs.every((h) => h > SEA_LEVEL) && Math.max(...hs) - Math.min(...hs) <= 3 && !overlaps(box);
       if (fits) {
-        const floor = median(hs);
         const door = at(s + (w >> 1), 2);   // the step between the road and the door
+        // the floor at the step's ground if that's higher (within reason), so
+        // the step out to the road is level with the door, not a trench
+        const floor = Math.min(Math.max(...hs) + 1, Math.max(median(hs), ground(door[0], door[1]).h));
         const plot = { kind: 'plot', name, ...box, y: floor, w, depth, rot: (n + 2) % 4, door, seed: (rng() * 2 ** 31) | 0 };
         pieces.push(plot); boxes.push(plot, { x0: door[0], x1: door[0], z0: door[1], z1: door[1] });
         s += w + 2 + Math.floor(rng() * 3);
