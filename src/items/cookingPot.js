@@ -43,6 +43,9 @@ const MEALS = [
   { id: I.MUSHROOM_STEW, needs: [MUSHROOM, MUSHROOM], colour: 2, meatless: true },
 ];
 
+// every meal a pot can hold (for checking a saved one)
+export const potMealIds = new Set([...MEALS.map((m) => m.id), I.HEARTY_STEW]);
+
 // the meal a set of ingredients makes: a named one, or else a hearty stew
 export function potMeal(items) {
   for (const m of MEALS) {
@@ -142,7 +145,7 @@ export function usePot(it, t, held, { creative, itemName }) {
   if (st.meal) {
     if (held?.id === I.BOWL) {
       const meal = st.meal;
-      if (--st.servings <= 0) emptyPot(st);
+      if (!(--st.servings > 0)) emptyPot(st);
       if (!creative) p.consumeHeld(1);
       giveBack(meal);
       if (!st.meal) say('That’s the last of it');

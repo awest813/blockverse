@@ -1,8 +1,10 @@
 // Persistence: worlds and chunks in IndexedDB, settings in localStorage.
 
 import { LATEST_GEN } from '../world/worldgen.js';
+import { SCORCH_LATEST } from '../world/scorchgen.js';
 import { CHUNK_VOLUME, GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE } from '../core/constants.js';
 import { isLowEndDevice } from '../ui/display.js';
+import { BLOCKS } from '../blocks/blocks.js';
 
 // a chunk's key after the world id: "cx,cz", or "s:cx,cz" in the Scorchlands
 const CHUNK_SUFFIX = /^(s:)?-?\d+,-?\d+$/;
@@ -139,8 +141,10 @@ export class SaveStore {
       const tx = this.db.transaction(['worlds', 'chunks'], 'readwrite');
       const store = tx.objectStore('chunks');
       for (const c of chunks) {
-        // t: the world's clock when written (growth catches up from it on load)
-        store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()], t: Number.isFinite(meta.clock) ? meta.clock : undefined },
+        // t: the world's clock as of its contents (growth catches up from it on
+        // load): when it left memory, for one that already had
+        const t = Number.isFinite(c.evictedAt) ? c.evictedAt : meta.clock;
+        store.put({ blocks: c.blocks, meta: c.meta ?? null, blockEntities: [...c.blockEntities.entries()], t: Number.isFinite(t) ? t : undefined },
           this.chunkKey(meta.id, c.cx, c.cz, dimension));
       }
       tx.objectStore('worlds').put(meta);
@@ -183,6 +187,11 @@ export class SaveStore {
     if (data?.format !== 'blockverse-world' || !data.meta) throw new Error('Not a BlockVerse world file');
     const m = data.meta;
     if (typeof m.name !== 'string' || m.seed === undefined || !Array.isArray(data.chunks)) throw new Error('The world file is damaged or incomplete');
+    // a world from a newer BlockVerse: its terrain and blocks would come out wrong here
+    const newer = (v, latest) => v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= latest);
+    if ((Number.isFinite(data.version) && data.version > 1) || newer(m.genVersion, LATEST_GEN) || newer(m.scorchVersion, SCORCH_LATEST)) {
+      throw new Error('This world was made with a newer version of BlockVerse (or the file is damaged)');
+    }
     const meta = { ...data.meta, id: this.newId(), lastPlayed: Date.now() };
     // lists the game iterates: anything else would stop the world opening
     // (each entry too: a null or a position that isn't a number breaks loading)
@@ -268,6 +277,8 @@ export class SaveStore {
       console.warn(`chunk ${cx},${cz}: saved data is damaged; regenerating it`);
       return null;
     }
+    // a block this build doesn't know (a newer build's, or a damaged save) becomes air
+    for (let i = 0; i < blocks.length; i++) if (!BLOCKS[blocks[i]]) blocks[i] = 0;
     return { blocks, meta, blockEntities: validEntities(v.blockEntities), t: Number.isFinite(v.t) ? v.t : undefined };
   }
 }

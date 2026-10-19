@@ -6,7 +6,7 @@ import { Arrow, Fireball } from './projectile.js';
 import { moveEntity } from '../core/physics.js';
 import { Pig, Sheep } from './mobs.js';
 import { Cow, Chicken, Goat, Horse, Duck, Panda, Sloth, Capybara, PolarBear, Camel, Pelican, Crab } from './animals.js';
-import { isRare } from '../items/items.js';
+import { isRare, isKnownItem } from '../items/items.js';
 import { worldClock } from '../core/clock.js';
 import { traitsOf, cleanTraits } from './traits.js';
 
@@ -105,7 +105,7 @@ export class EntityManager {
   }
 
   // Put saved drops back once the ground under them has loaded.
-  restoreDrops(list) { this.pendingDrops = [...(list ?? [])]; }
+  restoreDrops(list) { this.pendingDrops = (list ?? []).filter((s) => isKnownItem(s?.id) && Number.isInteger(s.count) && s.count > 0); }   // (an id this build doesn't know is left out)
 
   update(dt, player) {
     if (this.pendingDrops?.length) {
@@ -232,7 +232,7 @@ export function restoreAnimal(scene, world, a) {
   if (!Cls) return null;
   const mob = new Cls(scene, world, a.x, a.y + 0.05, a.z);
   mob.persistent = true;
-  mob.health = a.health ?? mob.health;
+  mob.health = Number.isFinite(a.health) && a.health > 0 ? a.health : mob.health;   // (a damaged save: full health)
   // game time since it was stashed (capped: two days at most)
   const away = Number.isFinite(a.at) ? Math.min(2400, Math.max(0, worldClock.now - a.at)) : 0;
   if (typeof a.id === 'string') mob.id = a.id;

@@ -374,6 +374,10 @@ const BLOCK_FOOD = new Map([
 ]);
 
 const blockItems = new Map();
+// an id this build knows as something you can hold (a saved stack from a
+// newer build, or a damaged one, may not be)
+export const isKnownItem = (id) => Number.isInteger(id) && id > 0 && (id < 256 ? !!BLOCKS[id] : !!itemInfo(id));
+
 export function itemInfo(id) {
   if (id < 256) {
     if (blockItems.has(id)) return blockItems.get(id);

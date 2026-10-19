@@ -40,16 +40,16 @@ const RECOVER = 1200;     // seconds of the world's clock for a pile to shrink t
 function market(meta) {
   if (!meta.market || typeof meta.market !== 'object' || Array.isArray(meta.market)) meta.market = {};
   const m = meta.market;
-  if (!m.glut || typeof m.glut !== 'object') m.glut = {};
-  // what's been sold drains away as time passes
+  if (!m.glut || typeof m.glut !== 'object' || Array.isArray(m.glut)) m.glut = {};
+  // what's been sold drains away as time passes (and a saved glut that isn't
+  // a sensible number, from a damaged file, goes)
   const now = worldClock.now, dt = Number.isFinite(m.at) ? Math.max(0, now - m.at) : 0;
   m.at = now;
-  if (dt > 0) {
-    const k = Math.exp(-dt / RECOVER);
-    for (const id of Object.keys(m.glut)) {
-      const v = (Number(m.glut[id]) || 0) * k;
-      if (v < 0.5) delete m.glut[id]; else m.glut[id] = v;
-    }
+  const k = dt > 0 ? Math.exp(-dt / RECOVER) : 1;
+  for (const id of Object.keys(m.glut)) {
+    const v = m.glut[id];
+    if (!(typeof v === 'number' && v * k >= 0.5)) delete m.glut[id];
+    else m.glut[id] = Math.min(v * k, 1e4);
   }
   if (!Number.isFinite(m.credit) || m.credit < 0) m.credit = 0;
   return m;

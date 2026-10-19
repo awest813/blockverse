@@ -7,7 +7,7 @@
 // Block entity: {kind: 'stall', slots: [{id, count} | null x9], till: coins
 // (a fraction carries over), empties: {id: count} (buckets and bowls they
 // hand back), at: clock when last seen to, sold: {id: count} since you last
-// looked}
+// looked, next: clock when the next customer sets out}
 
 import { I } from '../items/itemIds.js';
 import { B } from '../blocks/blocks.js';

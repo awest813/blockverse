@@ -9,7 +9,7 @@ import { moveEntity, entityInBlock, entityInWater, pointInWater } from '../core/
 import { FROZEN, BIOME } from '../world/worldgen.js';
 import { I } from '../items/itemIds.js';
 import { B } from '../blocks/blocks.js';
-import { itemInfo, makeStack, maxStack } from '../items/items.js';
+import { itemInfo, makeStack, maxStack, isKnownItem } from '../items/items.js';
 
 // damage from monsters scales with difficulty (Game sets mobDamageScale)
 const MOB_DAMAGE = new Set(['zombie', 'husk', 'drowned', 'skeleton', 'spider', 'dog', 'brute', 'bonearcher', 'broodmother', 'spiderling', 'polarbear', 'scorpion', 'crab', 'knight', 'captain', 'cinderhound', 'drake', 'fireball', 'dragon', 'dragonfire']);   // (explosions hurt at any difficulty)
@@ -614,23 +614,26 @@ export class Player {
 
   deserialize(d) {
     if (!d) return;
+    // (a damaged save: a number in range, or the default)
+    const num = (v, def, max) => (Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : def);
+    const placed = (q) => q && typeof q === 'object' && [q.x, q.y, q.z].every(Number.isFinite);
     Object.assign(this, {
       x: d.x, y: d.y, z: d.z, yaw: d.yaw ?? 0, pitch: d.pitch ?? 0,
-      health: d.health ?? 20, hunger: d.hunger ?? 20, saturation: d.saturation ?? 5,
-      air: d.air ?? 20, mode: d.mode ?? GAMEMODE_SURVIVAL, flying: d.flying ?? false,
+      health: num(d.health, 20, 20), hunger: num(d.hunger, 20, 20), saturation: num(d.saturation, 5, 20),
+      air: num(d.air, 20, 20), mode: d.mode ?? GAMEMODE_SURVIVAL, flying: d.flying ?? false,
       selected: Number.isInteger(d.selected) && d.selected >= 0 && d.selected < 9 ? d.selected : 0,
     });
     // a stack the game no longer knows (or a damaged one) is dropped, not kept as a ghost
-    const stack = (s) => (s && Number.isInteger(s.id) && s.count > 0 && itemInfo(s.id) ? { ...s, count: Math.min(s.count, maxStack(s.id)) } : null);
+    const stack = (s) => (s && Number.isInteger(s.id) && s.count > 0 && isKnownItem(s.id) ? { ...s, count: Math.min(s.count, maxStack(s.id)) } : null);
     if (Array.isArray(d.inventory)) {
       this.inventory = Array.from({ length: this.inventory.length }, (_, i) => stack(d.inventory[i]));
     }
     this.extraStacks = (Array.isArray(d.extra) ? d.extra : []).map(stack).filter(Boolean);   // carried stacks that didn't fit: dropped at your feet on load
     if (Array.isArray(d.armor)) this.armor = Array.from({ length: this.armor.length }, (_, i) => stack(d.armor[i]));
-    if (d.spawnPoint) this.spawnPoint = { ...d.spawnPoint };
+    if (placed(d.spawnPoint)) this.spawnPoint = { ...d.spawnPoint };
     // saves from before beds: the spawn point was always the world spawn
-    this.worldSpawn = { ...(d.worldSpawn ?? this.spawnPoint) };
-    this.bedPos = d.bedPos ?? null;
+    this.worldSpawn = { ...(placed(d.worldSpawn) ? d.worldSpawn : this.spawnPoint) };
+    this.bedPos = placed(d.bedPos) ? d.bedPos : null;
     const secs = (v, max) => (Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : 0);
     this.fireTime = secs(d.fireTime, 30); this.poisonTime = secs(d.poisonTime, 30);
     this.freeze = secs(d.freeze, 1); this.warmTime = secs(d.warmTime, 600); this.fireWard = secs(d.fireWard, 600);

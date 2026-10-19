@@ -48,6 +48,7 @@ import { BlockUpdates } from './world/blockUpdates.js';
 import { worldClock } from './core/clock.js';
 import { describeAnimal } from './entities/inspect.js';
 import { catchUpChunk } from './world/saplings.js';
+import { cleanBlockEntities } from './world/entityClean.js';
 import { tickRanch } from './world/ranch.js';
 import { checkPortalsNear, forgetPortal, rememberPortal, nearestPortal, portalAt, buildPortal, standSpot } from './world/portal.js';
 import { LAVA_LEVEL } from './world/scorchgen.js';
@@ -175,7 +176,8 @@ export class Game {
       } : null,
     });
     // a saved chunk read back in: its crops catch up on the time it was away
-    this.world.onChunkLoaded = (c, t) => catchUpChunk(this.world, c, t, worldClock.now);
+    // (its block entities made sound first: a damaged save may say anything)
+    this.world.onChunkLoaded = (c, t) => { cleanBlockEntities(c); catchUpChunk(this.world, c, t, worldClock.now); };
     this.scene.add(this.world.group);
     this.campfireFx = new CampfireFx(this.scene, this.world, atlas, (name, opts) => this.sfx?.play(name, opts));
     this.signFx = new SignFx(this.scene, this.world);
@@ -1193,7 +1195,7 @@ export class Game {
       pet.tamed = true;
       pet.onTamed();
       pet.sitting = !!p.sitting;
-      pet.health = p.health ?? pet.maxTamedHealth;
+      pet.health = Number.isFinite(p.health) && p.health > 0 ? Math.min(p.health, pet.maxTamedHealth) : pet.maxTamedHealth;
       if (Number.isInteger(p.coat)) pet.setCoat?.(p.coat);
       if (typeof p.name === 'string') pet.setName(p.name);
       if (typeof p.id === 'string') pet.id = p.id;
@@ -1654,7 +1656,27 @@ export class Game {
     }
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    // a bad entry from a damaged save mustn't stop the world drawing or saving
+    try { this.frame(now, dt); } catch (err) { this.frameError(err); }
+    if (this.store) {
+      // real time, not game time: a slow device runs the game slowly, but the
+      // edits you made are just as worth keeping every 10 seconds
+      if (now - this.lastSaveAt > this.saveEvery && !this.loading) {   // (not while it's still loading: Cancel leaves the save as it was)   // only changed chunks are written, so this is cheap
+        const saving = this.save();
+        if (saving) this.hud.showSaving(saving);
+      }
+    }
+    this.input.endFrame();
+  }
 
+  // the same error every frame is logged once
+  frameError(err) {
+    const key = String(err?.stack ?? err).slice(0, 300);
+    if ((this._frameErrors ??= new Set()).has(key)) return;
+    if (this._frameErrors.size < 20) { this._frameErrors.add(key); console.error('frame error', err); }
+  }
+
+  frame(now, dt) {
     this._fpsFrames++;
     this._fpsTime += (now - (this._lastReal ?? now)) / 1000;
     this._lastReal = now;
@@ -1687,44 +1709,46 @@ export class Game {
     if (gamePaused || document.hidden) {
       // furnaces, crops and pots carry on in a background tab, and while an
       // inventory or furnace window is open (you watch the furnace work)
-      if (document.hidden || (this.uiOpen && !this.paused && !this.sleeping)) this.tickBlockEntities(dt, true);
+      if (document.hidden || (this.uiOpen && !this.paused && !this.sleeping)) { try { this.tickBlockEntities(dt, true); } catch (err) { this.frameError(err); } }
     } else {
-      const wasInWater = this.player.inWater;
-      const px0 = this.player.x, pz0 = this.player.z;
-      this.player.update(this.input, dt, gamePaused);
-      this.interaction.update(this.input, dt, gamePaused);
-      this.entities.update(dt, this.player);
-      if (this.player.mount) this.player.syncToMount();
-      this.mobSpawner.update(dt, this.player, day);
-      this.tickBlockEntities(dt);
-      this.updatePortals(dt);
-      this.updateWeather(dt);
-      this.updateInspect(dt);
-      (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
-      tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
-      tickTrader(this, dt);
-      tickCustomers(this, dt);
-      this.villageBanner(dt);
-      if (this.dimension === SCORCH) this.updateDragon(dt);
+      try {
+        const wasInWater = this.player.inWater;
+        const px0 = this.player.x, pz0 = this.player.z;
+        this.player.update(this.input, dt, gamePaused);
+        this.interaction.update(this.input, dt, gamePaused);
+        this.entities.update(dt, this.player);
+        if (this.player.mount) this.player.syncToMount();
+        this.mobSpawner.update(dt, this.player, day);
+        this.tickBlockEntities(dt);
+        this.updatePortals(dt);
+        this.updateWeather(dt);
+        this.updateInspect(dt);
+        (this.blockUpdates ??= new BlockUpdates(this)).update(dt);
+        tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
+        tickTrader(this, dt);
+        tickCustomers(this, dt);
+        this.villageBanner(dt);
+        if (this.dimension === SCORCH) this.updateDragon(dt);
 
-      // footsteps + splash
-      if (this.player.onGround && !this.player.flying) {
-        this._stepDistance += Math.hypot(this.player.x - px0, this.player.z - pz0);
-        if (this._stepDistance > 2.1) {
-          this._stepDistance = 0;
-          const ground = blockInfo(this.world.getBlockW(
-            Math.floor(this.player.x), Math.floor(this.player.y) - 1, Math.floor(this.player.z)));
-          // left, right, left...; sneaking is silent
-          this._stepSide = -(this._stepSide ?? 0.15);
-          if (ground.id !== 0 && !this.player.sneaking) this.sfx?.play('step', { block: ground.sound, pan: this._stepSide });
+        // footsteps + splash
+        if (this.player.onGround && !this.player.flying) {
+          this._stepDistance += Math.hypot(this.player.x - px0, this.player.z - pz0);
+          if (this._stepDistance > 2.1) {
+            this._stepDistance = 0;
+            const ground = blockInfo(this.world.getBlockW(
+              Math.floor(this.player.x), Math.floor(this.player.y) - 1, Math.floor(this.player.z)));
+            // left, right, left...; sneaking is silent
+            this._stepSide = -(this._stepSide ?? 0.15);
+            if (ground.id !== 0 && !this.player.sneaking) this.sfx?.play('step', { block: ground.sound, pan: this._stepSide });
+          }
         }
-      }
-      if (!wasInWater && this.player.inWater && this.player.vy < -3) this.sfx?.play('splash');
-      // swimming: a stroke every couple of blocks
-      if (this.player.inWater && !this.player.onGround && !this.player.flying) {
-        this._swimDistance = (this._swimDistance ?? 0) + Math.hypot(this.player.x - px0, this.player.z - pz0, this.player.vy * dt * 0.5);
-        if (this._swimDistance > 2.4) { this._swimDistance = 0; this.sfx?.play('swim'); }
-      }
+        if (!wasInWater && this.player.inWater && this.player.vy < -3) this.sfx?.play('splash');
+        // swimming: a stroke every couple of blocks
+        if (this.player.inWater && !this.player.onGround && !this.player.flying) {
+          this._swimDistance = (this._swimDistance ?? 0) + Math.hypot(this.player.x - px0, this.player.z - pz0, this.player.vy * dt * 0.5);
+          if (this._swimDistance > 2.4) { this._swimDistance = 0; this.sfx?.play('swim'); }
+        }
+      } catch (err) { this.frameError(err); }   // (a bad mob or block entity: the frame still draws)
     }
 
     this.highlight.update(this.interaction.target, this.interaction.breakProgress, this.world);
@@ -1805,17 +1829,6 @@ export class Game {
       this.hints.update(0.25);
       this.updateDebug();
     }
-
-    if (this.store) {
-      // real time, not game time: a slow device runs the game slowly, but the
-      // edits you made are just as worth keeping every 10 seconds
-      if (now - this.lastSaveAt > this.saveEvery && !this.loading) {   // (not while it's still loading: Cancel leaves the save as it was)   // only changed chunks are written, so this is cheap
-        const saving = this.save();
-        if (saving) this.hud.showSaving(saving);
-      }
-    }
-
-    this.input.endFrame();
   }
 
   updateViewModel(dt, paused) {

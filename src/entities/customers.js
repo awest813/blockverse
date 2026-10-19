@@ -138,7 +138,7 @@ export function startSpot(world, s) {
   return null;
 }
 
-const nextAt = new Map();   // stall key -> clock time the next customer sets out (not saved)
+const nextAt = new Map();   // stall key -> clock time the next customer sets out (kept on the stall too: st.next)
 const key = (s) => `${s.x},${s.y},${s.z}`;
 
 // a new world (or the other one): nobody's on their way
@@ -184,12 +184,15 @@ export function tickCustomers(game, dt) {
   const s = stalls.filter((q) => !shelfEmpty(q.st)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
   if (!s) return;
   const k = key(s);
-  if (!nextAt.has(k)) nextAt.set(k, now + CUSTOMER_EVERY * (0.3 + Math.random() * 0.5));
+  // (after a reload: the stall's own word, if it's a sensible one)
+  if (!nextAt.has(k)) nextAt.set(k, Number.isFinite(s.st.next) && s.st.next - now < CUSTOMER_EVERY * 1.5 ? s.st.next : now + CUSTOMER_EVERY * (0.3 + Math.random() * 0.5));
   if (now < nextAt.get(k)) return;
   const type = pickCustomer(s.st);
   const at = type && startSpot(w, s);
   if (!at) return;
   nextAt.set(k, now + CUSTOMER_EVERY * (0.6 + Math.random() * 0.8));
+  s.st.next = nextAt.get(k);
+  w.setBlockEntity(s.x, s.y, s.z, s.st);
   game.entities.addMob(new Customer(game.scene, w, at.x, at.y, at.z, type, { x: s.x, y: s.y, z: s.z }));
 }
 
