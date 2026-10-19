@@ -377,6 +377,8 @@ export class Game {
       // close any open window first: a stack on the cursor or in the crafting
       // grid goes back into the inventory, so it drops with the rest
       this.containers.close();
+      this.ranchPanel.close();
+      if (this.signEditor.isOpen()) this.signEditor.close(!!this.signEditor.prompt);   // (a sign keeps its text; a name is dropped)
       const dropped = this.dropInventoryOnDeath();
       this.uiHooks?.showDeath?.(e.detail?.cause, dropped);
     });
@@ -776,6 +778,10 @@ export class Game {
       if (this.uiHooks?.handleKey?.(code, e)) return true;
       if (this.sleeping) return true;   // no inventory / chat / pause mid-fade
 
+      if (this.chat.open) {
+        if (code === 'Escape') this.chat.hide();   // (the touch pause button closes the chat box)
+        return true;
+      }
       // inventory-style screens: E / Esc close, 1-9 and drop act on the hovered slot
       if (this.containers.isOpen()) {
         if (code === 'Escape' || input.is(code, 'inventory')) {
@@ -1552,14 +1558,14 @@ export class Game {
     const tips = this.input.altInput === 'touch' ? [
       'Welcome! Left stick moves, drag to look.',
       'Tap to place or use, touch and hold to mine.',
-      creative ? 'Tap ▦ for every block and item.' : 'Punch a tree for wood, then tap ▦ to craft planks.',
+      creative ? 'Tap ▦ for every block and item.' : 'Mine a tree for wood, then tap ▦ to craft planks.',
     ] : this.input.altInput === 'gamepad' ? [
       'Welcome! Sticks move and look, RT mines, LT places.',
       creative ? 'Y opens every block and item.' : 'Mine a tree for wood, then press Y to craft planks.',
       'Start pauses and shows all controls.',
     ] : [
       `Welcome! ${k('forward')}${k('left')}${k('back')}${k('right')} to move, mouse to look.`,
-      isChromeOS() ? 'Click and hold to mine, two-finger click to place or use.' : 'Hold left click to mine, right click to place or use.',
+      isChromeOS() ? 'Click and hold to mine, two-finger click to place or use.' : 'Hold left-click to mine, right-click to place or use.',
       creative ? `Press ${k('inventory')} for every block and item. Double-tap ${k('jump')} to fly.`
         : `Mine a tree for wood, then press ${k('inventory')} to craft planks.`,
       'Esc pauses and shows all controls.',

@@ -170,7 +170,7 @@ export class GamepadController {
     if (edge(B.X)) this.activate(list, 2, false);
     if (edge(B.RB) && !this.switchTab(1)) this.activate(list, 0, true);
     if (edge(B.LB)) this.switchTab(-1);
-    if (edge(B.B) || edge(B.START) || (edge(B.Y) && this.getGame()?.containers.isOpen())) this.sendEscape();
+    if (edge(B.B) || edge(B.START) || (edge(B.Y) && (this.getGame()?.containers.isOpen() || this.getGame()?.ranchPanel?.isOpen()))) this.sendEscape();
   }
 
   candidates() {

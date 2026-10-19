@@ -49,9 +49,9 @@ function controlsList(bindings) {
   const k = (id) => keyLabel(bindings[id]);
   return [
     [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Move'], ['Mouse', 'Look'],
-    ['Left click', 'Mine / attack'], ['Right click', 'Place / use'],
+    ['Left-click', 'Mine / attack'], ['Right-click', 'Place / use'],
     [k('jump'), 'Jump (double-tap: fly in creative)'], [`${k('sprint')} / ${k('sneak')}`, 'Sprint / sneak'],
-    [`Middle click / ${k('pickBlock')}`, 'Pick block'], ['1–9 / wheel', 'Hotbar'],
+    [`Middle-click / ${k('pickBlock')}`, 'Pick block'], ['1–9 / wheel', 'Hotbar'],
     [k('inventory'), 'Inventory'], [k('drop'), 'Drop item (Ctrl: stack)'],
     [`${k('chat')} or ${k('command')}`, 'Chat & commands'], [k('hideHud'), 'Hide HUD'],
     [k('debug'), 'Debug info'], [k('screenshot'), 'Screenshot'], ['Esc', 'Pause'],

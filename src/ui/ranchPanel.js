@@ -21,6 +21,11 @@ function giveOrDrop(g, id, n) {
   const left = p.give(id, n);
   if (left > 0) g.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id, count: left }]);
 }
+// an animal kind for people: 'polarbear' -> 'polar bear', and its plural
+const KIND_NAMES = { polarbear: 'polar bear', bonearcher: 'bone archer', cinderhound: 'cinder hound', broodmother: 'brood mother' };
+const KIND_PLURALS = { sheep: 'sheep', fish: 'fish', fox: 'foxes', wolf: 'wolves', whelp: 'whelps', sloth: 'sloths', polarbear: 'polar bears', capybara: 'capybaras', cinderhound: 'cinder hounds' };
+const kindName = (k) => KIND_NAMES[k] ?? k;
+const kindPlural = (k, n) => (n === 1 ? kindName(k) : KIND_PLURALS[k] ?? `${kindName(k)}s`);
 const coinsText = (v) => (v >= 10 ? `${Math.round(v)}` : v.toFixed(1).replace(/\.0$/, ''));
 
 export class RanchPanel {
@@ -42,6 +47,7 @@ export class RanchPanel {
 
   // the window's frame; fill(win) adds the rest
   frame(title, fill) {
+    const fresh = !this.root.querySelector('.ranch-panel');   // (not a redraw after a sale)
     this.root.innerHTML = '';
     const screen = document.createElement('div');
     screen.className = 'screen dim container-screen';
@@ -49,6 +55,7 @@ export class RanchPanel {
     win.className = 'inv-window ranch-panel';
     win.setAttribute('role', 'dialog');
     win.setAttribute('aria-label', title);
+    win.setAttribute('aria-modal', 'true');
     const h = document.createElement('h3');
     h.textContent = title;
     const x = document.createElement('button');
@@ -59,6 +66,7 @@ export class RanchPanel {
     screen.appendChild(win);
     screen.addEventListener('mousedown', (e) => { if (e.target === screen) this.close(); });
     this.root.appendChild(screen);
+    if (fresh) x.focus({ preventScroll: true });   // (keys and a gamepad start inside the window)
   }
 
   row(icon, text, sub, buttons) {
@@ -109,13 +117,13 @@ export class RanchPanel {
     box.innerHTML = '<h4>Your shelf</h4>';
     const coins = Math.floor(st.till), empties = Object.entries(st.empties).filter(([, v]) => v > 0);
     const extra = empties.map(([k, v]) => `${v} ${name(Number(k)).toLowerCase()}${v === 1 ? '' : 's'}`).join(', ');
-    const sold = Object.entries(st.sold).map(([k, v]) => `${v} ${name(Number(k)).toLowerCase()}`).join(', ');
+    const sold = Object.entries(st.sold).map(([k, v]) => `${name(Number(k)).toLowerCase()} ×${v}`).join(', ');
     box.appendChild(this.row(I.COIN, `Till: ${coins} coin${coins === 1 ? '' : 's'}${extra ? ` and ${extra}` : ''}`, sold ? `sold since you last looked: ${sold}` : '', [['Collect', () => this.collect(), !coins && !extra]]));
     const on = [...new Set(st.slots.filter(Boolean).map((s) => s.id))];
     if (!on.length) box.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Put things out (Shelve) and customers come by day to buy them, paying a quarter more than the market does on the spot. They come while you\u2019re away too.' }));
     for (const id of on) {
       const n = shelfCount(st, id), price = shelfPrice(meta, id);
-      box.appendChild(this.row(id, `${name(id)} ×${n}`, `customers pay ${coinsText(price)} each`, [['Take back', () => this.takeBack(id)]]));
+      box.appendChild(this.row(id, `${name(id)} ×${n}`, `customers pay ${coinsText(price)} coin${price === 1 ? '' : 's'} each`, [['Take back', () => this.takeBack(id)]]));
     }
     win.appendChild(box);
   }
@@ -244,8 +252,10 @@ export class RanchPanel {
       buyCol.innerHTML = '<h4>For sale this visit</h4>';
       const coins = p.countOf(I.COIN);
       for (const [id, cost] of offers) buyCol.appendChild(this.row(id, name(id), `${cost} coin${cost === 1 ? '' : 's'}`, [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
+      if (!offers.length) buyCol.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Sold out this visit.' }));
       const wantCol = document.createElement('section');
       wantCol.innerHTML = '<h4>Wanted</h4>';
+      if (!wants.length) wantCol.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Nothing this visit.' }));
       for (const w of wants) {
         const [id, price, left] = w, have = p.countOf(id);
         wantCol.appendChild(this.row(id, name(id), left > 0 ? `pays ${price} each (${left} more wanted)` : 'has all it wants', [
@@ -296,7 +306,7 @@ export class RanchPanel {
       tally.className = 'ranch-purse';
       const kinds = {};
       for (const r of rows) kinds[r.kind] = (kinds[r.kind] ?? 0) + 1;
-      tally.textContent = rows.length ? `${rows.length} animals: ${Object.entries(kinds).map(([k, n]) => `${n} ${k}${n > 1 ? 's' : ''}`).join(', ')}` : 'No animals yet: feed, lead, pen or name one and it’s yours.';
+      tally.textContent = rows.length ? `${rows.length} animal${rows.length === 1 ? "" : "s"}: ${Object.entries(kinds).map(([k, n]) => `${n} ${kindPlural(k, n)}`).join(', ')}` : 'No animals yet: feed, lead, pen or name one and it’s yours.';
       win.appendChild(tally);
       const made = [['eggs', 'eggs laid'], ['wool', 'wool shorn'], ['milk', 'buckets of milk'], ['butter', 'butter'], ['cheese', 'cheeses'], ['honey', 'bowls of honey'], ['born', 'young born'], ['coins', 'coins earned']]
         .filter(([k]) => stats[k] > 0).map(([k, label]) => `${Math.round(stats[k])} ${label}`);
@@ -307,7 +317,7 @@ export class RanchPanel {
       for (const r of rows.slice(0, 200)) {
         const d = r.dim === here ? `${Math.round(Math.hypot(r.x - p.x, r.z - p.z))} blocks away` : `in the ${where[r.dim]}`;
         const sub = `${d} (${Math.round(r.x)}, ${Math.round(r.z)})${r.card ? ' · ' + r.card.lines.slice(0, 2).join(' · ') : ''}`;
-        list.appendChild(this.row(null, r.name ? `${r.name} the ${r.kind}` : r.kind[0].toUpperCase() + r.kind.slice(1), sub, []));
+        list.appendChild(this.row(null, r.name ? `${r.name} the ${kindName(r.kind)}` : kindName(r.kind)[0].toUpperCase() + kindName(r.kind).slice(1), sub, []));
       }
       win.appendChild(list);
     });
