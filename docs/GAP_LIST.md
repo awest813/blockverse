@@ -111,7 +111,8 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Dirty-chunk queue drops unloaded chunks; light queue sorted once a frame; chunk work keeps a budget on slow frames
 - [x] Audio: limiter, positional falloff and stereo panning, per-sound throttles, background-tab suspend, ambience (fire, lava, caves, crickets, heartbeat), door/chest/sizzle/burp sounds
 - [x] Mesher reads the 3×3 neighbour chunks directly with precomputed offsets (same output, ~2× faster rebuilds)
-- [x] Mob part boxes share geometry by size (materials stay per part: parts animate and recolour on their own — collars, sheared wool, the creeper flash)
+- [x] Mob part boxes share geometry by size; the boxes a mob never moves or recolours merge into one vertex-coloured mesh (mob draw calls 234 → 96)
+- [x] Greedy meshing (~25% fewer terrain triangles); chunk changes the world makes itself rebuild lazily, one a frame
 - [x] Slabs, stairs and other shaped blocks get smooth per-corner light from the cells around them
 - [x] Water drifts gently (animated texture)
 
@@ -237,12 +238,15 @@ A bot played new worlds from the first tree to the dragon and home (95 runs: 91 
 - [x] Dropped items blink for their last ten seconds before vanishing
 - [ ] Flowing water and lava (sources and flowing levels; waterfalls, irrigation, lava traps)
 - [ ] Experience and enchanting-like progression past diamond and dragon gear
-- [ ] Villages, villagers and trading (planned: docs/VILLAGE_PLAN.md)
+- [x] Villages (generator 12): square, roads, houses, smithy, kitchen, library, fields, stable; no night spawns; a start in sight of one
+- [ ] Villagers and trading with them (planned: docs/VILLAGE_PLAN.md)
 - [ ] Boats; minecarts and rails
 - [ ] Redstone-lite: levers, buttons, pressure plates, wire, lamps, powered doors (and switching farm machines)
 - [ ] Fire spreading to flammable blocks (with a switch)
-- [ ] Dyes and coloured wool / glass; flowers used in recipes
+- [x] Dyes, coloured wool and carpets; flowers make dyes
+- [ ] Coloured glass
 - [ ] Building set: stairs, slabs, doors and fences in every wood; walls; trapdoors; sideways logs; wall torches
 - [ ] Maps, compass and clock; item frames, armour stands, paintings; third-person view
-- [ ] Growth while away (crops, saplings, furnaces catch up when a chunk loads, and while you sleep)
+- [x] Crops, saplings, hives and kept animals catch up when a chunk loads (up to two days)
+- [ ] Furnaces catch up while away
 - [ ] Papercuts: chest sort / quick-stack, sleep blocked by named monsters, crops needing light, a corner coordinate readout, /setblock and /fill

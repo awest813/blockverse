@@ -27,7 +27,6 @@ const DAIRY = [I.EGG, I.DUCK_EGG, I.MILK_BUCKET, I.GOAT_MILK_BUCKET, I.BUTTER, I
 const CROPS = [I.WHEAT, I.BERRIES, I.RICE, I.MELON_SLICE, B.MELON, I.CARROT, I.POTATO, I.BEETROOT, B.PUMPKIN, I.SCORCH_PEPPER, B.HAY_BALE, B.MUSHROOM_BROWN, B.MUSHROOM_RED];
 const MEAT = [I.BEEF_RAW, I.PORKCHOP_RAW, I.MUTTON_RAW, I.CHICKEN_RAW, I.DUCK_RAW, I.LEATHER, I.FEATHER];
 const WOOL = COLOURS.map((c) => c.wool);
-const HIVE = [I.HONEY_BOWL, I.HONEYCOMB, B.CANDLE];
 export const CUSTOMERS = [
   { job: 'cook', label: 'A cook', wants: [...DAIRY, ...MEAT.slice(0, 5), I.RICE, I.SCORCH_PEPPER, B.MUSHROOM_BROWN, I.HONEY_BOWL], colours: [0xf0ece0, 0x9a3a2a] },
   { job: 'farmhand', label: 'A farmhand', wants: [...CROPS, I.EGG, I.LEATHER], colours: [0x6a8a3a, 0x8a6a3a] },

@@ -635,4 +635,4 @@ export function placeFossil(gen, blocks, cx, cz, heightMap, biome) {
   put(len, y0 + 3, 0); put(len, y0 + 4, 0);              // a skull-ish end
 }
 
-export const STRUCTURE_NAMES = { desert_temple: 'Desert Temple', forest_temple: 'Forest Temple', shrine: 'Shrine', well: 'Well', shipwreck: 'Shipwreck', ocean_ruin: 'Ocean Ruin' };
+

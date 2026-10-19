@@ -460,4 +460,3 @@ const BUILD = {
   },
 };
 
-export const VILLAGE_STYLES = Object.keys(STYLES);

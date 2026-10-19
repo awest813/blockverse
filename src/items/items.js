@@ -314,7 +314,7 @@ const USES = new Map([
   [I.SCORCH_PEPPER, 'Grows only in the Scorchlands\u2019 heat (plant it on farmland there). In a pot with meat or potatoes: spicy stew'],
   [I.SPICY_STEW, 'Warms you through and halves the harm from fire and lava for three minutes'],
   [I.HONEY_BOWL, 'Sweet, and settles venom'],
-  [B.MARKET_STALL, 'Use it to sell eggs, milk, butter, cheese, wool, honey and more for coins (prices drop when you sell a lot of one thing), and buy what a ranch needs'],
+  [B.MARKET_STALL, 'Use it to sell eggs, milk, butter, cheese, wool, honey and more for coins (prices drop when you sell a lot of one thing), and buy what a ranch needs; shelve goods and by day customers buy them for a quarter more, leaving coins in the till'],
   [I.COIN, 'Spend them at a market stall'],
   [I.LEDGER, 'Read it: every animal that\u2019s yours, wherever it is, and what your ranch has made'],
   [I.BERRIES, 'Pick them from berry bushes in the snowy forests (use a ripe bush); set one on grass to grow a bush of your own'],

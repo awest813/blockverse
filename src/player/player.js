@@ -3,7 +3,7 @@
 import {
   PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_EYE, GRAVITY, JUMP_SPEED,
   WALK_SPEED, SPRINT_SPEED, SNEAK_SPEED, FLY_SPEED, SWIM_SPEED,
-  GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE, CHUNK_Y,
+  GAMEMODE_SURVIVAL, GAMEMODE_CREATIVE,
 } from '../core/constants.js';
 import { moveEntity, entityInBlock, entityInWater, pointInWater } from '../core/physics.js';
 import { FROZEN, BIOME } from '../world/worldgen.js';

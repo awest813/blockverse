@@ -315,11 +315,3 @@ export function lightBlockChange(world, wx, wy, wz, oldId, newId, dirty) {
   acc.flush();
 }
 
-export function lightLevelAt(world, wx, wy, wz) {
-  if (wy >= CHUNK_Y) return { sky: 15, block: 0 };
-  if (wy < 0) return { sky: 0, block: 0 };
-  const c = world.getChunk(wx >> 4, wz >> 4);
-  if (!c || !c.hasLight) return { sky: 15, block: 0 };
-  const idx = blockIndex(wx & 15, wy, wz & 15);
-  return { sky: c.skyLight[idx], block: c.blockLight[idx] };
-}

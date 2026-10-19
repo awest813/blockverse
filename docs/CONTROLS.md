@@ -68,7 +68,9 @@ Touch controls appear automatically on the first touch.
 | Right click a dog with a bone / a cat with raw fish | Try to tame it (about 1 in 3 per item) |
 | Right click your pet | Sit / follow |
 | Right click TNT while holding a torch | Light the fuse — run! |
-| Right click a campfire with raw meat, fish, a potato, an egg or kelp | Put it on to cook (up to 4 at once, ~30 s each, no fuel) |
+| Right click a campfire with raw meat or fish, a potato, an egg, kelp, a mushroom, an apple, a beetroot or pumpkin/melon seeds | Put it on to cook (up to 4 at once, ~30 s each, no fuel) |
+| Right click with a mushroom | Eat it (a red one makes you ill unless roasted); aimed at the ground, set it down |
+| Right click a market stall | Sell and buy; shelve goods for customers to buy by day; collect the till |
 | Right click a cooking pot | Water bucket: fill it · food: put it in · bowl: ladle out the meal · empty hand: see what's cooking |
 | Right click a cake | Eat a slice (when you're hungry) |
 | Right click a lit campfire with a shovel / an unlit one with a torch | Put it out / relight it |
@@ -129,8 +131,9 @@ Touch controls appear automatically on the first touch.
 - Each block has a hardness and an optional preferred tool class.
 - Better tool tiers mine faster; some blocks need a minimum tier to drop
   anything (iron needs stone+, gold/diamond/redstone need iron+, obsidian
-  needs diamond). Gold tools are very fast but only stone-tier: a gold
-  pickaxe gets nothing from iron, gold or diamond ore.
+  needs diamond). Gold tools are the fastest of all but only stone-strength
+  and fragile (96 uses): a gold pickaxe mines iron ore, but gets nothing from
+  gold, diamond or redstone ore.
 - Tools lose 1 durability per block or hit; the bar under the icon shows wear.
 
 ## Commands
@@ -151,4 +154,6 @@ Open chat with `T` or `/`, then:
 | `/kill` | Give up |
 | `/clear` | Empty your inventory |
 | `/rd <2-16>` | Set render distance |
+| `/weather <clear\|rain> [seconds]` | Start or stop a shower |
+| `/dimension <overworld\|scorchlands>` | Go straight to the other dimension |
 | `/summon <mob>` | Summon a mob or animal, e.g. `/summon camel` (Tab completes names) |

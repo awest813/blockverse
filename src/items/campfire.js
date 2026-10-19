@@ -8,7 +8,8 @@ import { itemInfo } from './items.js';
 
 export const CAMPFIRE_SLOTS = 4;
 
-// what the furnace turns into food (raw meat, potatoes, eggs, kelp)
+// what the furnace turns into food (raw meat and fish, potatoes, eggs, kelp,
+// mushrooms, apples, beetroot, seeds)
 export function campfireCookable(id) {
   return SMELTING.has(id) && (itemInfo(SMELTING.get(id).id)?.food ?? 0) > 0;
 }

@@ -178,7 +178,7 @@ export class Containers {
     if (info?.warms) {
       const d = document.createElement('div');
       d.className = 'tooltip-sub';
-      d.textContent = `Hot: keeps the cold out for ${info.warms >= 120 ? `${info.warms / 60} minutes` : 'a minute'}`;
+      d.textContent = `Hot: keeps the cold out for ${info.warms >= 120 ? `${info.warms / 60} minutes` : info.warms >= 60 ? 'a minute' : `${info.warms} seconds`}`;
       t.appendChild(d);
     }
     if (info?.tool && WEAPON_STATS[info.tool.class]) {

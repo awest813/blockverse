@@ -2,11 +2,9 @@
 export const CHUNK_X = 16;
 export const CHUNK_Y = 128;
 export const CHUNK_Z = 16;
-export const CHUNK_AREA = CHUNK_X * CHUNK_Z;
 export const CHUNK_VOLUME = CHUNK_X * CHUNK_Y * CHUNK_Z;
 
 export const SEA_LEVEL = 42;
-export const MAX_LIGHT = 15;
 
 // Index of a block inside a chunk's flat arrays. x,z in [0,16), y in [0,128).
 // Layout: y-major columns would thrash cache during column scans; we use

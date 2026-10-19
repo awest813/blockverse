@@ -608,12 +608,6 @@ export function blockInfo(id) {
   return BLOCKS[id] ?? BLOCKS[B.AIR];
 }
 
-// Is this block a full opaque cube (for face culling + light blocking)?
-export function isOpaque(id) {
-  const b = BLOCKS[id];
-  return b ? b.opacity >= 15 : false;
-}
-
 export function isSolid(id) {
   const b = BLOCKS[id];
   return b ? b.solid : false;

@@ -75,7 +75,7 @@ export class Hints {
       ['shear', () => has([I.SHEARS]) && near(['sheep'], 8), I.SHEARS,
         'Shearing', `${cap(k('use'))} a sheep with shears for wool; its fleece grows back.`],
       ['milk', () => has([I.BUCKET]) && near(['cow', 'goat'], 8), I.MILK_BUCKET,
-        'Milk', `${cap(k('use'))} a cow or goat with a bucket. Milk cures poison and puts out fire.`],
+        'Milk', `${cap(k('use'))} a cow or goat with a bucket. Milk settles venom and puts out fire.`],
       ['eggs', () => has([I.EGG]), I.EGG,
         'Eggs', `Throw one (${k('use')}) and now and then a chick hatches, or fry them on a campfire.`],
       ['bone', () => has([I.BONE]), I.BONE_MEAL,

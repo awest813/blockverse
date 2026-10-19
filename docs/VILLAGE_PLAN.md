@@ -37,8 +37,8 @@ names a village as the market's eventual home.
 
 ## The hard part: structures bigger than a chunk
 
-Every structure today fits inside one 16×16 chunk and is built when that
-chunk is generated. A village is about 64–112 blocks across, spanning 4–7
+Every structure before villages (temples, wells, shrines, dungeons) fits
+inside one 16×16 chunk and is built when that chunk is generated. A village is about 64–112 blocks across, spanning 4–7
 chunks a side. The way through already exists for trees: a feature's world
 position is known from the seed alone, and each chunk builds only the part
 of it inside its own bounds. Villages work the same way, one level up.
@@ -76,8 +76,8 @@ of it inside its own bounds. Villages work the same way, one level up.
      - Up to 6 blocks of air are cleared above, trimming hillsides.
    - Roads follow the ground. A step of more than one block becomes a short
      stair, and a road leg that needs more is dropped.
-4. **Building it.** Generation calls `buildVillagePieces(gen, blocks, cx,
-   cz)`.
+4. **Building it.** Generation calls `buildVillageSlice(gen, blocks, cx,
+   cz, holder)`.
    - It looks up the village (if any) whose bounds overlap this chunk, then
      builds every piece clipped to the chunk, much as `applyFeature` clips a
      tree.
@@ -426,8 +426,8 @@ fields to harvest). They let the generator settle and be tested on its own:
 
 ## Open questions
 
-- **Village density.** One village per about 600–900 blocks is a guess.
-  The siting survey in step 1 should settle it.
+- **Village density** (settled): the step 1 survey found about 19% of
+  regions with a village, about one every 870 blocks.
 - **Who sets the price of ranch goods**, the stall or the villages? The
   plan keeps the stall and makes it per village. The alternative is to
   retire the player-built stall once villages exist.
@@ -435,6 +435,5 @@ fields to harvest). They let the generator settle and be tested on its own:
   should feel personal and cost upkeep; machines are cheap and dumb. Is
   that distinct enough, or should hired hands only do what machines can't
   (sell at market for you, breed for traits)?
-- **Generator 11 or 12.** Generator 11 is still unreleased, so villages
-  could join it. The plan uses 12 so that generator 11 (plants and
-  berries) can ship on its own without waiting for villages.
+- **Generator 11 or 12** (settled): villages are generator 12, so
+  generator 11 (plants and berries) shipped on its own.
