@@ -208,12 +208,13 @@ function planVillage(gen, rx, rz) {
     for (let s = SQUARE + 6; s < road.len; s += 12) {
       const [x, z] = [X + dx * s + DIRS[(d + 1) % 4][0] * 2, Z + dz * s + DIRS[(d + 1) % 4][1] * 2];
       const lamp = { kind: 'lamp', x0: x, x1: x, z0: z, z1: z, y: ground(x, z).h };
-      if (lamp.y > SEA_LEVEL && !overlaps(lamp, 0)) { pieces.push(lamp); boxes.push(lamp); }
+      const underEaves = pieces.some((q) => q.kind === 'plot' && x >= q.x0 - 1 && x <= q.x1 + 1 && z >= q.z0 - 1 && z <= q.z1 + 1);
+      if (lamp.y > SEA_LEVEL && !overlaps(lamp, 0) && !underEaves) { pieces.push(lamp); boxes.push(lamp); }
     }
   }
   const [a, b] = NAME_PARTS[styleKey];
   const name = a[(rng() * a.length) | 0] + b[(rng() * b.length) | 0];
-  const bounds = { x0: Math.min(...boxes.map((p) => p.x0)), x1: Math.max(...boxes.map((p) => p.x1)), z0: Math.min(...boxes.map((p) => p.z0)), z1: Math.max(...boxes.map((p) => p.z1)) };
+  const bounds = { x0: Math.min(...boxes.map((p) => p.x0)) - 1, x1: Math.max(...boxes.map((p) => p.x1)) + 1, z0: Math.min(...boxes.map((p) => p.z0)) - 1, z1: Math.max(...boxes.map((p) => p.z1)) + 1 };   // (1: eaves)
   return { id: `${rx},${rz}`, name, style: styleKey, x: X, z: Z, y, bounds, pieces, boxes };
 }
 
@@ -246,7 +247,7 @@ export function buildVillageSlice(gen, blocks, cx, cz, holder) {
     for (let yy = y + 1; yy <= y + clear && yy < CHUNK_Y; yy++) set(x, yy, z, B.AIR);
   };
   const earth = v.style === 'sand' ? B.SAND : B.DIRT;
-  const touches = (p) => !(p.x0 > bx1 || p.x1 < bx0 || p.z0 > bz1 || p.z1 < bz0);
+  const touches = (p, m = 0) => !(p.x0 - m > bx1 || p.x1 + m < bx0 || p.z0 - m > bz1 || p.z1 + m < bz0);
 
   for (const p of v.pieces) {
     if (p.kind === 'road') {
@@ -256,13 +257,13 @@ export function buildVillageSlice(gen, blocks, cx, cz, holder) {
       }
     } else if (p.kind === 'lamp') {
       if (!inside(p.x0, p.z0)) continue;
-      column(p.x0, p.z0, p.y, get(p.x0, p.y, p.z0) === B.AIR ? earth : get(p.x0, p.y, p.z0), earth, 4);
+      column(p.x0, p.z0, p.y, get(p.x0, p.y, p.z0) === B.AIR ? earth : get(p.x0, p.y, p.z0), earth, 3);   // (3: not into an eave over it)
       set(p.x0, p.y + 1, p.z0, v.style === 'sand' ? B.SANDSTONE : B.OAK_FENCE);
       set(p.x0, p.y + 2, p.z0, v.style === 'sand' ? B.SANDSTONE : B.OAK_FENCE);
       set(p.x0, p.y + 3, p.z0, B.LANTERN);
     } else if (p.kind === 'square' && touches(p)) {
       buildSquare(v, S, p, set, column, earth);
-    } else if (p.kind === 'plot' && (touches(p) || inside(p.door[0], p.door[1]))) {
+    } else if (p.kind === 'plot' && (touches(p, 1) || inside(p.door[0], p.door[1]))) {   // (1: the roof's eaves overhang the plot)
       buildPlot(p, S, v.style, set, get, column, earth, out);
     }
   }
@@ -367,7 +368,7 @@ function roof(b, S, w, d, ly) {
       b.set(lx, ly + k, zb, S.roof, 0);   // rising toward the front
     }
     // the gable ends, walled up under the slopes
-    if (k > 0) for (let lz = zf + 1; lz < zb; lz++) { b.set(0, ly + k, lz, S.wall); b.set(w - 1, ly + k, lz, S.wall); }
+    for (let lz = zf + 1; lz < zb; lz++) { b.set(0, ly + k, lz, S.wall); b.set(w - 1, ly + k, lz, S.wall); }
     if (zb - zf <= 1) break;
   }
 }
@@ -377,17 +378,17 @@ const BUILD = {
     shell(b, S, w, d);
     roof(b, S, w, d, 4);
     b.set(1, 1, d - 2, B.BED);
-    b.entity(b.set(w - 2, 1, d - 2, B.CHEST), lootChest(rng, LOOT.house));
-    b.set(w - 2, 1, 1, rng() < 0.5 ? B.CRAFTING_TABLE : B.FURNACE);
+    b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.house));
+    b.set(w - 2, 1, 1, rng() < 0.5 ? B.CRAFTING_TABLE : B.FURNACE, 3);
     b.set(1, 1, 1, B.LANTERN);
   },
   bighouse(b, S, style, w, d, rng) {
     shell(b, S, w, d);
     roof(b, S, w, d, 4);
     b.set(1, 1, d - 2, B.BED); b.set(2, 1, d - 2, B.BED);
-    b.entity(b.set(w - 2, 1, d - 2, B.CHEST), lootChest(rng, LOOT.house));
-    b.set(w - 2, 1, 1, B.CRAFTING_TABLE);
-    b.set(w - 2, 1, 2, B.FURNACE);
+    b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.house));
+    b.set(w - 2, 1, 1, B.CRAFTING_TABLE, 3);
+    b.set(w - 2, 1, 2, B.FURNACE, 3);
     b.set(1, 1, 1, B.LANTERN);
     b.set(1, 1, 3, B.BOOKSHELF);
     if (style !== 'sand') b.set(3, 1, d - 2, rng() < 0.5 ? B.RED_CARPET : B.BROWN_CARPET);
@@ -396,9 +397,9 @@ const BUILD = {
     shell(b, S, w, d, 3, { open: true, wall: style === 'sand' ? S.wall : B.COBBLESTONE });
     roof(b, S, w, d, 4);
     for (let lx = 1; lx < w - 1; lx++) for (let lz = 1; lz < d - 1; lz++) b.set(lx, 0, lz, B.COBBLESTONE);
-    b.set(1, 1, d - 2, B.FURNACE); b.set(2, 1, d - 2, B.FURNACE);
-    b.entity(b.set(w - 2, 1, d - 2, B.CHEST), lootChest(rng, LOOT.smithy));
-    b.set(w - 2, 1, 1, B.CRAFTING_TABLE);
+    b.set(1, 1, d - 2, B.FURNACE, 0); b.set(2, 1, d - 2, B.FURNACE, 0);
+    b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.smithy));
+    b.set(w - 2, 1, 1, B.CRAFTING_TABLE, 3);
     b.set(3, 1, d - 2, B.IRON_BLOCK);
     b.set(1, 1, 1, B.LANTERN);
   },
@@ -408,8 +409,8 @@ const BUILD = {
     b.set(1, 0, d - 2, B.COBBLESTONE);
     b.set(1, 1, d - 2, B.CAMPFIRE_OFF);
     b.set(2, 1, d - 2, B.COOKING_POT);
-    b.entity(b.set(w - 2, 1, d - 2, B.CHEST), lootChest(rng, LOOT.kitchen));
-    b.set(w - 2, 1, 1, B.CRAFTING_TABLE);
+    b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.kitchen));
+    b.set(w - 2, 1, 1, B.CRAFTING_TABLE, 3);
     b.set(1, 1, 1, B.LANTERN);
     if (rng() < 0.5) b.set(w - 2, 1, 2, B.CHURN);
   },
@@ -418,9 +419,9 @@ const BUILD = {
     roof(b, S, w, d, 4);
     for (let lx = 1; lx < w - 1; lx++) { b.set(lx, 1, d - 2, B.BOOKSHELF); b.set(lx, 2, d - 2, B.BOOKSHELF); }
     b.set(1, 1, 2, B.BOOKSHELF); b.set(w - 2, 1, 2, B.BOOKSHELF);
-    b.entity(b.set(w - 2, 1, 1, B.CHEST), lootChest(rng, LOOT.library));
+    b.entity(b.set(w - 2, 1, 1, B.CHEST, 3), lootChest(rng, LOOT.library));
     b.set(1, 1, 1, B.LANTERN);
-    b.set(w >> 1, 1, 3, B.CRAFTING_TABLE);
+    b.set(w >> 1, 1, 3, B.CRAFTING_TABLE, 0);
   },
   farm(b, S, style, w, d, rng) {
     // a ring of logs, farmland in rows, a channel of water down the middle
@@ -455,7 +456,7 @@ const BUILD = {
     b.set(1, 1, d - 2, S.post); b.set(1, 2, d - 2, S.post); b.set(w - 2, 1, d - 2, S.post); b.set(w - 2, 2, d - 2, S.post);
     b.set(2, 1, d - 2, B.HAY_BALE); b.set(3, 1, d - 2, B.HAY_BALE); b.set(2, 2, d - 2, B.HAY_BALE);
     b.entity(b.set(w - 3, 1, d - 2, B.TROUGH), { kind: 'trough', slots: [makeStack(I.WHEAT, 8 + ((rng() * 16) | 0)), null, null] });
-    b.entity(b.set(w - 2, 1, 1, B.CHEST), lootChest(rng, LOOT.stable));
+    b.entity(b.set(w - 2, 1, 1, B.CHEST, 3), lootChest(rng, LOOT.stable));
   },
 };
 
