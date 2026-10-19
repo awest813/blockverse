@@ -30,7 +30,11 @@ export function tickSaplings(world, dt) {
   // grow after iterating: building a tree rewrites block entities
   for (const [x, y, z, st] of ready) {
     if (st.kind === 'crop') growCrop(world, x, y, z, 1, Math.random);
-    else growTree(world, x, y, z, st);
+    else if (st.boned) {   // (bone meal: you're watching, so it's drawn at once, not after a lazy wait)
+      const lazy = world.deferRemesh;
+      world.deferRemesh = false;
+      try { growTree(world, x, y, z, st); } finally { world.deferRemesh = lazy; }
+    } else growTree(world, x, y, z, st);
   }
 }
 

@@ -64,7 +64,6 @@ const mLayer = new Int16Array(6 * VOLUME).fill(-1);
 const mSky = new Float32Array(6 * VOLUME), mBlk = new Float32Array(6 * VOLUME);
 const mTint = new Int32Array(6 * VOLUME);
 const mergeSlices = new Uint16Array(6 * CHUNK_Y);   // faces waiting per (face, slice along its normal)
-const cellOf = (fi, p) => fi * VOLUME + (p[0] * CHUNK_Z + p[2]) * CHUNK_Y + p[1];
 const sameLook = (i, j) => mLayer[j] === mLayer[i] && mSky[j] === mSky[i] && mBlk[j] === mBlk[i] && mTint[j] === mTint[i];
 
 const AO_LEVELS = [0.45, 0.62, 0.8, 1.0];
@@ -202,7 +201,22 @@ function fillPadded(chunk, chunkAt, baseX, baseZ) {
 }
 
 // Build geometries for one chunk. `world` provides cross-chunk access.
+// (if a build throws partway, faces it set aside mustn't turn up in the next chunk)
+function clearMerge() {
+  for (let i = 0; i < mergeSlices.length; i++) if (mergeSlices[i]) mergeSlices[i] = 0;
+  mLayer.fill(-1);
+}
+
 export function buildChunkGeometry(world, chunk, atlas) {
+  try {
+    return buildChunkGeometryInner(world, chunk, atlas);
+  } catch (err) {
+    clearMerge();
+    throw err;
+  }
+}
+
+function buildChunkGeometryInner(world, chunk, atlas) {
   const opaque = opaqueBuilder.reset();
   const water = waterBuilder.reset();
 
@@ -413,7 +427,9 @@ export function buildChunkGeometry(world, chunk, atlas) {
           if (target === opaque && corners === f.corners && lights[0] === lights[2] && lights[0] === lights[4] && lights[0] === lights[6]
             && lights[1] === lights[3] && lights[1] === lights[5] && lights[1] === lights[7]) {
             const r = Math.round(ft[0] * 128), g = Math.round(ft[1] * 128), bl = Math.round(ft[2] * 128);
-            if (r === Math.round(ft[9] * 128) && g === Math.round(ft[10] * 128) && bl === Math.round(ft[11] * 128) && r === Math.round(ft[3] * 128) && r === Math.round(ft[6] * 128)) {
+            let sameTint = true;   // (every corner's every channel: a grass side's tinted lip differs top to bottom)
+            for (let q = 3; q < 12 && sameTint; q += 3) sameTint = Math.round(ft[q] * 128) === r && Math.round(ft[q + 1] * 128) === g && Math.round(ft[q + 2] * 128) === bl;
+            if (sameTint) {
               const ci = fi * VOLUME + (x * CHUNK_Z + z) * CHUNK_Y + y;
               mLayer[ci] = layer; mSky[ci] = lights[0]; mBlk[ci] = lights[1]; mTint[ci] = (r << 16) | (g << 8) | bl;
               mergeSlices[fi * CHUNK_Y + (f.normalAxis === 0 ? x : f.normalAxis === 1 ? y : z)]++;

@@ -133,8 +133,9 @@ export class World {
 
   // run fn with the changes it makes rebuilt lazily
   deferred(fn) {
+    const was = this.deferRemesh;
     this.deferRemesh = true;
-    try { return fn(); } finally { this.deferRemesh = false; }
+    try { return fn(); } finally { this.deferRemesh = was; }
   }
 
   // something in the chunk changed that setBlock didn't see (a container's

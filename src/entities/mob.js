@@ -28,6 +28,14 @@ const cookedId = (id) => ((itemInfo(id)?.food ?? 0) > 0 ? SMELTING.get(id)?.id ?
 const DEATH_TIME = 0.6;   // seconds of tipping over before a dead mob disappears
 const HURT_RED = new THREE.Color(0xff3333);
 
+// Tint a part toward a colour (a hit's flash, a dying mob's red, a primed
+// fuse's blink): an ordinary part's colour lerps; a merged one (its colours
+// in its vertices, see mergeStatic) takes the tint in its shader instead.
+export function tintPart(e, col, k) {
+  if (e.flash) { e.flash.col.value.copy(col); e.flash.k.value = k; } else e.mat.color.lerp(col, k);
+}
+const _tint = new THREE.Color();
+
 // BoxGeometry with per-face brightness baked into vertex colors, so flat
 // MeshBasicMaterial still reads as 3D.
 const FACE_SHADE = { px: 0.72, nx: 0.72, py: 1.0, ny: 0.45, pz: 0.86, nz: 0.6 };
@@ -382,9 +390,16 @@ export class Mob {
       geo.setIndex(new THREE.BufferAttribute(index, 1));
       geo.computeBoundingSphere();
       const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+      // (a flash colour mixed in after the vertex colours: see tintPart)
+      const flash = { col: { value: new THREE.Color() }, k: { value: 0 } };
+      mat.onBeforeCompile = (sh) => {
+        sh.uniforms.uFlashCol = flash.col; sh.uniforms.uFlashK = flash.k;
+        sh.fragmentShader = 'uniform vec3 uFlashCol;\nuniform float uFlashK;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.rgb = mix(diffuseColor.rgb, uFlashCol, uFlashK);');
+      };
+      mat.customProgramCacheKey = () => 'mob-merged-flash';
       const one = new THREE.Mesh(geo, mat);
       parent.add(one);
-      this.materials.push({ mat, base: new THREE.Color(0xffffff), mesh: one });
+      this.materials.push({ mat, base: new THREE.Color(0xffffff), mesh: one, flash });
     }
     if (merged.size) this.materials = this.materials.filter((e) => !merged.has(e.mesh));
   }
@@ -539,9 +554,10 @@ export class Mob {
 
     // brightness from voxel light + hurt flash
     const light = this.world.lightAt(this.x, this.y + 0.5, this.z);
-    for (const { mat, base, glow } of this.materials) {
-      mat.color.copy(base).multiplyScalar(glow ? Math.max(light, glow) : light);
-      if (this.flashTime > 0) mat.color.lerp(HURT_RED, 0.55);
+    for (const e of this.materials) {
+      e.mat.color.copy(e.base).multiplyScalar(e.glow ? Math.max(light, e.glow) : light);
+      if (e.flash) e.flash.k.value = 0;
+      if (this.flashTime > 0) tintPart(e, HURT_RED, 0.55);
     }
   }
 
@@ -651,7 +667,11 @@ export class Mob {
     this.dying -= dt;
     const k = Math.min(1, 1 - this.dying / DEATH_TIME);
     this.group.rotation.z = Math.min(1, k * 2) * Math.PI / 2;   // tip over
-    for (const { mat, base } of this.materials) mat.color.copy(base).lerp(HURT_RED, 0.5).multiplyScalar((1 - k * 0.6) * this.world.lightAt(this.x, this.y + 0.5, this.z));
+    const dim = (1 - k * 0.6) * this.world.lightAt(this.x, this.y + 0.5, this.z);
+    for (const e of this.materials) {
+      if (e.flash) { e.mat.color.copy(e.base).multiplyScalar(dim); tintPart(e, _tint.copy(HURT_RED).multiplyScalar(dim), 0.5); }
+      else e.mat.color.copy(e.base).lerp(HURT_RED, 0.5).multiplyScalar(dim);
+    }
     if (this.dying <= 0) this.kill();
   }
 

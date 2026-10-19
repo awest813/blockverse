@@ -412,7 +412,7 @@ export class Interaction {
     if (held) {
       const info = itemInfo(held.id);
       // (full up, you'd still take a cure for venom or something hot in the cold)
-      const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth) || (info?.cures && p.poisonTime > 0) || (info?.warms && p.freeze > 0.3);
+      const wantsIt = info?.drink || p.hunger < 20 || (info?.heal && p.health < p.maxHealth) || (info?.cures && p.poisonTime > 0) || (info?.warms && p.freeze > 0.3 && !(p.warmTime > 0));
       const cooking = t && CAMPFIRES.has(t.id) && campfireCookable(held.id);   // raw food goes on the fire
       const planting = (info?.places && t?.id === B.FARMLAND && t.ny === 1)     // a carrot aimed at farmland is planted
         || (held.id === I.BERRIES && t && BUSH_GROUND.has(t.id) && t.ny === 1)   // (and berries on the grass)
@@ -903,8 +903,8 @@ export class Interaction {
         growCrop(this.world, t.x, t.y, t.z, 2, this.dropRng);
       } else if (SAPLINGS.has(t.id)) {
         const st = this.world.blockEntityAt(t.x, t.y, t.z);
-        if (st) st.grow = 0;
-        else this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'sapling', grow: 0 });
+        if (st) { st.grow = 0; st.boned = true; }
+        else this.world.setBlockEntity(t.x, t.y, t.z, { kind: 'sapling', grow: 0, boned: true });
       } else if (t.id === B.GRASS || t.id === B.SNOWY_GRASS) {
         // scatter tall grass and the odd flower on open grass nearby (tundra too)
         let grew = 0;

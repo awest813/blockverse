@@ -3,7 +3,8 @@
 // Original box-model designs built from shaded colored parts.
 
 import * as THREE from 'three';
-import { Mob } from './mob.js';
+import { Mob, tintPart } from './mob.js';
+const WHITE = new THREE.Color(0xffffff);
 import { I } from '../items/itemIds.js';
 import { B, isWater } from '../blocks/blocks.js';
 import { makeStack } from '../items/items.js';
@@ -771,7 +772,7 @@ export class PrimedTnt extends Mob {
   update(dt, player) {
     super.update(dt, player);
     if (!this.dead && Math.floor(this.fuse * 4) % 2 === 0) {
-      for (const { mat } of this.materials) mat.color.lerp(new THREE.Color(0xffffff), 0.6);
+      for (const e of this.materials) tintPart(e, WHITE, 0.6);
     }
   }
 
