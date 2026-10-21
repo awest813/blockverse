@@ -8,13 +8,17 @@
 
 import { CHUNK_X, CHUNK_Y, CHUNK_Z, blockIndex } from '../core/constants.js';
 import { Noise } from '../core/noise.js';
-import { coordRng } from '../core/rng.js';
+import { coordRng, hashCoords } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
 import { I } from '../items/itemIds.js';
 import { makeStack } from '../items/items.js';
 import { WorldGen, BIOME } from './worldgen.js';
 
-export const SCORCH_LATEST = 1;
+// Versions: 1 = the Scorchlands as they first opened; 2 = the seed stirred
+// before it's hashed with a chunk (featureSeed), so castles, trees, stumps,
+// spires and bedrock no longer repeat a few chunks over in worlds whose seeds
+// differ only in their low bits.
+export const SCORCH_LATEST = 2;
 export const LAVA_LEVEL = 38;   // lava lakes fill up to here
 
 // castles: at most one per CELL×CELL chunks, its middle kept well inside
@@ -57,6 +61,11 @@ export class ScorchGen {
     this.seed = (seed ^ 0x5c0c4a11) >>> 0;
     this.version = version;
     const s = this.seed;
+    // what every per-chunk / per-block roll is seeded from: coordRng xors the
+    // seed straight into the first coordinate (and the xor above keeps any
+    // difference between two seeds), so on version 1 seed s ^ d rolled at
+    // x ^ d what seed s rolled at x; version 2 stirs it first
+    this.featureSeed = version >= 2 ? hashCoords(s, 0x3c6ef372, 0xa54ff53a, 0x510e527f) : s;
     this.hills = new Noise(s + 1);
     this.detail = new Noise(s + 2);
     this.wastes = new Noise(s + 3);
@@ -78,7 +87,7 @@ export class ScorchGen {
     if (this.castles.has(key)) return this.castles.get(key);
     if (this.castles.size > 512) this.castles.clear();
     let plan = null;
-    const rng = coordRng(this.seed, gx, gz, 1717);
+    const rng = coordRng(this.featureSeed, gx, gz, 1717);
     if (rng() < 0.6) {
       const ccx = gx * CELL + 1 + ((rng() * (CELL - 2)) | 0), ccz = gz * CELL + 1 + ((rng() * (CELL - 2)) | 0);
       const ox = ccx * CHUNK_X + 8, oz = ccz * CHUNK_Z + 8;
@@ -177,7 +186,7 @@ export class ScorchGen {
     const blocks = new Uint16Array(CHUNK_X * CHUNK_Y * CHUNK_Z);
     const heightMap = new Uint8Array(CHUNK_X * CHUNK_Z);
     const biomeMap = new Uint8Array(CHUNK_X * CHUNK_Z);
-    const rockRng = coordRng(this.seed, cx, cz, 1);
+    const rockRng = coordRng(this.featureSeed, cx, cz, 1);
     for (let x = 0; x < CHUNK_X; x++) {
       for (let z = 0; z < CHUNK_Z; z++) {
         const wx = cx * CHUNK_X + x, wz = cz * CHUNK_Z + z;
@@ -212,7 +221,7 @@ export class ScorchGen {
 
   // the features rooted in one chunk (decided by that chunk alone)
   features(cx, cz) {
-    const rng = coordRng(this.seed, cx, cz, 901);
+    const rng = coordRng(this.featureSeed, cx, cz, 901);
     const out = [];
     const spot = () => {
       const wx = cx * CHUNK_X + ((rng() * 16) | 0), wz = cz * CHUNK_Z + ((rng() * 16) | 0);
@@ -437,7 +446,7 @@ export class ScorchGen {
       blocks[i] = id;
       return i;
     };
-    const rng = coordRng(this.seed, f.wx, f.wz, f.seed ?? 7);
+    const rng = coordRng(this.featureSeed, f.wx, f.wz, f.seed ?? 7);
     const get = (wx, wy, wz) => {
       const x = wx - cx * CHUNK_X, z = wz - cz * CHUNK_Z;
       return x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 0 || wy >= CHUNK_Y ? -1 : blocks[blockIndex(x, wy, z)];

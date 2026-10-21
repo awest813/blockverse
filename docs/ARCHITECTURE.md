@@ -100,8 +100,12 @@ tree computes the exact same blocks for it — no seams, no ordering issues.
 A world has two dimensions, the overworld and **the Scorchlands**
 (`src/world/dimensions.js`); one is open at a time. The Scorchlands have
 their own generator, `src/world/scorchgen.js` (`ScorchGen`), with its own
-version number (`meta.scorchVersion`), so changes there never touch the
-overworld's terrain versions. Its castles and the dragon's roost are larger
+version number (`meta.scorchVersion`, set the first time a world travels
+there), so changes there never touch the overworld's terrain versions.
+Version 2 rolls castles, trees, stumps, spires and bedrock from a stirred
+`featureSeed`, as overworld generator 14 does (its seed is the world's xored
+with a constant, which keeps the low-bit difference between two seeds).
+Its castles and the dragon's roost are larger
 than a chunk but use the same trick as trees: each is rooted in one chunk,
 every chunk in its 3×3 neighbourhood replays the whole build with the same
 random rolls, and a clipping `put` writes only what falls in that chunk.
