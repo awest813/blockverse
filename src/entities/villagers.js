@@ -368,7 +368,7 @@ export class Villager extends Mob {
       case 'shepherd': this.part(0.56, 0.5, 0.36, 0xf4f0e4, 0, 1.2, 0.02); this.part(0.06, 1.7, 0.06, 0x7a5a34, 0.44, 0.9, -0.1); this.part(0.2, 0.06, 0.06, 0x7a5a34, 0.36, 1.76, -0.1); break;   // a fleece cape and a crook
       case 'butcher': this.part(0.44, 0.6, 0.04, 0xf0ece4, 0, 0.98, -0.17); this.part(0.16, 0.12, 0.05, 0xa03030, -0.08, 1.06, -0.19); this.part(0.44, 0.1, 0.44, 0xf0ece4, 0, 1.88, 0); break;   // a stained apron
       case 'beekeeper': this.part(0.8, 0.05, 0.8, 0xf4f2ec, 0, 1.88, 0); this.part(0.44, 0.2, 0.44, 0xf4f2ec, 0, 1.98, 0); this.part(0.5, 0.24, 0.04, 0x2a2a2a, 0, 1.66, -0.25); break;   // a wide hat and a veil
-      case 'fisher': this.part(0.52, 0.16, 0.52, 0xe0c040, 0, 1.9, 0.02); this.part(0.52, 0.04, 0.24, 0xe0c040, 0, 1.84, 0.34); break;   // a sou'wester
+      case 'fisher': this.part(0.52, 0.16, 0.52, 0xe0c040, 0, 1.9, 0.02); this.part(0.52, 0.04, 0.24, 0xe0c040, 0, 1.84, 0.34); this.part(0.04, 0.04, 1.1, 0x7a5a34, 0.36, 0.9, -0.55); break;   // a sou'wester, and a rod
       default: this.part(0.44, 0.12, 0.44, trim, 0, 1.88, 0);   // hair
     }
     this.part(0.14, 0.56, 0.16, coat, -0.32, 1.06, 0);         // arms
@@ -546,8 +546,57 @@ export class Villager extends Mob {
       this.at = to;
       return;
     }
-    if (act === 'work' && this.res.job === 'farmer') this.tend();
     this.targetYaw = this.yaw + (Math.random() - 0.5) * 2.4;
+    if (act === 'work') this.doWork();
+  }
+
+  // a turn at its trade, where it works (the village's own work: nothing in
+  // it drops for you)
+  doWork() {
+    switch (this.res.job) {
+      case 'farmer': this.tend(); break;
+      case 'shepherd': this.shearFlock(); break;
+      case 'beekeeper': this.tendHives(); break;
+      case 'fisher': this.cast(); break;
+    }
+  }
+
+  // a shepherd shears a sheep of the flock near it (it grows its wool back)
+  shearFlock() {
+    const sheep = this.fx.mobs().find((m) => m.flock && !m.dead && m.dying === undefined && !m.sheared && !m.baby && Math.hypot(m.x - this.x, m.z - this.z) < 4);
+    if (!sheep || Math.random() < 0.5) return;
+    sheep.setSheared(true);
+    this.targetYaw = Math.atan2(-(sheep.x - this.x), -(sheep.z - this.z));
+    this.fx.sound?.('shear', { pos: sheep });
+    this.fx.game.sparks?.(sheep.x, sheep.y + 0.8, sheep.z, 0xf4f0e4, 6);
+  }
+
+  // a beekeeper takes a little honey from a hive near it
+  tendHives() {
+    const w = this.world, x0 = Math.floor(this.x), y0 = Math.floor(this.y), z0 = Math.floor(this.z);
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const x = x0 + dx, z = z0 + dz;
+      if (w.getBlockW(x, y0, z) !== B.BEEHIVE) continue;
+      const st = w.blockEntityAt(x, y0, z);
+      if (!(st?.honey > 0)) continue;
+      st.honey--;
+      w.setBlockEntity(x, y0, z, st);
+      this.targetYaw = Math.atan2(-dx, -dz);
+      this.fx.game.sparks?.(x + 0.5, y0 + 0.8, z + 0.5, 0xf0b030, 5);
+      return;
+    }
+  }
+
+  // a fisher casts into the water by it (a splash where the line goes in)
+  cast() {
+    const w = this.world, x0 = Math.floor(this.x), y0 = Math.floor(this.y) - 1, z0 = Math.floor(this.z);
+    const spots = [];
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) if ((dx || dz) && w.getBlockW(x0 + dx, y0, z0 + dz) === B.WATER && !w.getBlockW(x0 + dx, y0 + 1, z0 + dz)) spots.push([dx, dz]);
+    if (!spots.length) return;
+    const [dx, dz] = spots[(Math.random() * spots.length) | 0];
+    this.targetYaw = Math.atan2(-dx, -dz);
+    this.fx.sound?.('splash', { pos: { x: x0 + dx + 0.5, y: y0 + 1, z: z0 + dz + 0.5 }, vol: 0.3 });
+    this.fx.game.sparks?.(x0 + dx + 0.5, y0 + 1, z0 + dz + 0.5, 0x8ab8e8, 6);
   }
 
   // a farmer reaps a ripe crop near it and sows it again (the village's own:
