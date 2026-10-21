@@ -251,6 +251,12 @@ export class Interaction {
     this.world.setBlock(t.x, t.y, t.z, info.waterlogged || melts ? B.WATER : B.AIR);
     this.cb.playSound('break', { block: info.sound });
     this.cb.blockBits?.(t.x, t.y, t.z, t.id, 14);
+    // the bed you'd wake at: say so now, not after you die
+    const bed = p.bedPos;
+    if (t.id === B.BED && bed && bed.x === t.x && bed.y === t.y && bed.z === t.z) {
+      p.bedPos = null;
+      this.cb.notify?.('Your bed is gone: you\u2019ll wake at the world spawn until you sleep in another');
+    }
     // a door's other half goes with it
     if (t.id === B.OAK_DOOR && this.world.getBlockW(t.x, t.y + 1, t.z) === B.OAK_DOOR_TOP) this.world.setBlock(t.x, t.y + 1, t.z, B.AIR);
     if (t.id === B.OAK_DOOR_TOP && this.world.getBlockW(t.x, t.y - 1, t.z) === B.OAK_DOOR) {

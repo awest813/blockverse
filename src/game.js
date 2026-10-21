@@ -42,6 +42,7 @@ import { Chat } from './ui/chat.js';
 import { TouchControls } from './ui/touch.js';
 import { Hints } from './ui/hints.js';
 import { blockInfo } from './blocks/blocks.js';
+import { BED_TOP } from './blocks/shapes.js';
 import { BIOME_NAMES, BIOME } from './world/worldgen.js';
 import { dimensionOf, genVersionOf, arrivalPoint, OVERWORLD, SCORCH } from './world/dimensions.js';
 import { ScorchDragon } from './entities/scorchMobs.js';
@@ -429,7 +430,7 @@ export class Game {
         if (this.dimension === SCORCH) delete this.worldMeta.dragonSlain;   // (come back to the Scorchlands: so has the dragon)
         if (p.dead) p.respawn();
         // home after a death there: by the bed if there is one (finishArrival checks it)
-        const spot = arrive.home ? (p.bedPos ? { x: p.bedPos.x + 0.5, y: p.bedPos.y + 1.05, z: p.bedPos.z + 0.5 } : p.spawnPoint)
+        const spot = arrive.home ? (p.bedPos ? { x: p.bedPos.x + 0.5, y: p.bedPos.y + BED_TOP + 0.05, z: p.bedPos.z + 0.5 } : p.spawnPoint)
           : arrive.exact ? arrive
             : this.arrivalSpot(arrive.x, arrive.z, arrive.portal && this.dimension === SCORCH ? 14 : 40);
         p.x = spot.x; p.y = spot.y; p.z = spot.z;
@@ -1466,15 +1467,31 @@ export class Game {
       this.hud.showLabel('You can\u2019t sleep here \u2014 the night never ends', true);
       return;
     }
+    // (a villager's in it: it's theirs tonight)
+    if (this.entities.mobs.some((m) => m.sleeping && m.bed && m.bed.x === pos.x && m.bed.y === pos.y && m.bed.z === pos.z && !m.dead)) {
+      this.hud.showLabel('Someone\u2019s sleeping in this bed', true);
+      return;
+    }
+    const was = p.bedPos, set = !was || was.x !== pos.x || was.y !== pos.y || was.z !== pos.z;
     p.bedPos = { x: pos.x, y: pos.y, z: pos.z };
+    const spawnNote = set ? 'Respawn point set. ' : '';
     if (!this.isNight()) {
-      this.hud.showLabel('Respawn point set. You can only sleep at night.');
+      this.hud.showLabel(`${spawnNote}You can only sleep at night.`);
+      return;
+    }
+    // close enough to climb in (the reach to set your respawn point is longer)
+    if (Math.hypot(p.x - (pos.x + 0.5), p.z - (pos.z + 0.5)) > 3 || Math.abs(p.y - pos.y) > 2) {
+      this.hud.showLabel(`${spawnNote}You\u2019re too far away to sleep: go closer.`, true);
+      return;
+    }
+    if (p.mount) {
+      this.hud.showLabel(`${spawnNote}Get down from your mount to sleep.`, true);
       return;
     }
     const threat = this.entities.mobs.some((m) => m.hostile && !m.dead
       && Math.abs(m.x - (pos.x + 0.5)) < 8 && Math.abs(m.z - (pos.z + 0.5)) < 8 && Math.abs(m.y - pos.y) < 5);
     if (threat) {
-      this.hud.showLabel('You may not rest now — there are monsters nearby.', true);
+      this.hud.showLabel(`${spawnNote}You may not rest now: there are monsters nearby.`, true);
       return;
     }
     // fade out, skip to morning, fade back in (input frozen, mouse stays captured)
@@ -1491,10 +1508,15 @@ export class Game {
       for (let t = 0; t < skipped; t += 20) tickSaplings(this.world, Math.min(20, skipped - t));
       this.time = 0;
       this.newDay();
+      // up in the morning: standing by the bed (on it, if there's room), and
+      // the night's rain has blown over
+      const spot = this.world.getBlockW(pos.x, pos.y, pos.z) === B.BED ? this.bedSpawnSpot(pos) : null;
+      if (spot) { p.x = spot.x; p.y = spot.y; p.z = spot.z; p.vx = p.vy = p.vz = 0; p.fallStart = null; }
+      if (this.weather.kind === 'rain') { this.setWeather('clear'); this.rainAmt = 0; }
       this.sleeping = false;
       this.input.captured = this.uiOpen;
       this.hud.sleepFade(false);
-      this.hud.showLabel('Respawn point set.');
+      this.hud.showLabel(set ? 'Respawn point set.' : 'Good morning!');
     }, 1800);
   }
 
@@ -1517,11 +1539,11 @@ export class Game {
   // 2-high room used to put your head in the ceiling and pop you onto the roof.)
   bedSpawnSpot(bed) {
     const w = this.world;
-    if (!w.isLoaded(bed.x, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    if (!w.isLoaded(bed.x, bed.z)) return { x: bed.x + 0.5, y: bed.y + BED_TOP + 0.05, z: bed.z + 0.5 };
     // room to stand: not solid, and not water or lava either
     const free = (id) => !isSolid(id) && id !== B.WATER && id !== B.LAVA;
     const clear = (x, y, z) => free(w.getBlockW(x, y, z)) && free(w.getBlockW(x, y + 1, z));
-    if (clear(bed.x, bed.y + 1, bed.z)) return { x: bed.x + 0.5, y: bed.y + 1.05, z: bed.z + 0.5 };
+    if (clear(bed.x, bed.y + 1, bed.z)) return { x: bed.x + 0.5, y: bed.y + BED_TOP + 0.05, z: bed.z + 0.5 };
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
       const x = bed.x + dx, z = bed.z + dz;
       for (const y of [bed.y, bed.y + 1, bed.y - 1]) {

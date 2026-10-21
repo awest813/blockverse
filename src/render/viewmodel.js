@@ -187,7 +187,7 @@ export class ViewModel {
       // BoxGeometry face order: +x, -x, +y, -y, +z, -z
       const mats = ['side', 'side', 'top', 'bottom', 'side', 'side'].map((sel, i) =>
         overlayMaterial({ map: tileTexture(face(sel) ?? face('top')) }, FACE_SHADE[i]));
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.17), mats);
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.17, b.shape === 'slab' || b.shape === 'bed' ? 0.095 : 0.17, 0.17), mats);   // (a slab or a bed: as low as it is)
       mesh.rotation.set(0.1, 0.75, 0);
       mesh.position.set(0, 0.03, 0);
     } else {

@@ -21,6 +21,7 @@ import { worldClock } from '../core/clock.js';
 import { isRipe, cropFamily, cropTime } from '../world/saplings.js';
 import { TRADES } from '../world/villageTrade.js';
 import { Sheep } from './mobs.js';
+import { BED_TOP } from '../blocks/shapes.js';
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // (as villages.js: a plot's rot indexes these)
 const NEAR = 40;          // blocks outside a village's bounds where its people appear...
@@ -572,11 +573,12 @@ export class Villager extends Mob {
     this.moving = false;
     this.vx = this.vy = this.vz = 0;
     this.h = 0.5 * this.size;   // (lying down: no tall box over the bed to get in your way)
-    // on its back, its head on the pillow (a bed's pillow is always at its
-    // +z end), a little shrunk to fit; its feet over the bed's foot
+    // on its back, its head on the pillow (the bed's foot is toward its
+    // meta's edge), a little shrunk to fit; its feet over the bed's foot
     const s = this.size * 0.7, len = 1.9 * s;
-    this.yaw = 0;
-    this.x = b.x + 0.5; this.z = b.z + 0.97 - len; this.y = b.y + 1.02;
+    const [fx, fz] = DIRS[this.world.getMetaW(b.x, b.y, b.z) & 3], hx = -fx, hz = -fz;
+    this.yaw = Math.atan2(hx, hz);
+    this.x = b.x + 0.5 + hx * (0.42 - len); this.z = b.z + 0.5 + hz * (0.42 - len); this.y = b.y + BED_TOP + 0.02;
     this.bed = b;
     this.group.scale.setScalar(s);
     this.group.rotation.x = Math.PI / 2;

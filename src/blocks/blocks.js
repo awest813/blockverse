@@ -384,8 +384,10 @@ reg(def(B.CHEST, 'chest', 'Chest', {
   hardness: 2.5, tool: TOOL_AXE, sound: 'wood',
   textures: { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' },
 }));
+// (a low bed on legs, turned to put its foot toward whoever sets it down:
+// its boxes in shapes.js; the tiles here are for its icon)
 reg(def(B.BED, 'bed', 'Bed', {
-  hardness: 0.3, sound: 'cloth',
+  render: R_SHAPE, shape: 'bed', opacity: 0, hardness: 0.3, sound: 'cloth',
   textures: { top: 'bed_top', bottom: 'oak_planks', side: 'bed_side', front: 'bed_foot' },
 }));
 reg(def(B.FARMLAND, 'farmland', 'Farmland', {

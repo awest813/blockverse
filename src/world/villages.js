@@ -421,7 +421,7 @@ const BUILD = {
   house(b, S, style, w, d, rng) {
     shell(b, S, w, d);
     roof(b, S, w, d, 4);
-    b.set(1, 1, d - 2, B.BED);
+    b.set(1, 1, d - 2, B.BED, b.v13 ? 0 : -1);   // (v13: its foot to the room, its head to the back wall)
     b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.house));
     b.set(w - 2, 1, 1, rng() < 0.5 ? B.CRAFTING_TABLE : B.FURNACE, 3);
     b.set(1, 1, 1, B.LANTERN);
@@ -429,7 +429,7 @@ const BUILD = {
   bighouse(b, S, style, w, d, rng) {
     shell(b, S, w, d);
     roof(b, S, w, d, 4);
-    b.set(1, 1, d - 2, B.BED); b.set(2, 1, d - 2, B.BED);
+    b.set(1, 1, d - 2, B.BED, b.v13 ? 0 : -1); b.set(2, 1, d - 2, B.BED, b.v13 ? 0 : -1);
     b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.house));
     b.set(w - 2, 1, 1, B.CRAFTING_TABLE, 3);
     b.set(w - 2, 1, 2, B.FURNACE, 3);

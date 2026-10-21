@@ -320,6 +320,7 @@ const USES = new Map([
   [I.BERRIES, 'Pick them from berry bushes in the snowy forests (use a ripe bush); set one on grass to grow a bush of your own'],
   [I.RICE, 'Plant it on farmland right next to water. In a pot with an egg, meat or vegetables: fried rice; with raw fish and dried kelp: sushi'],
   [B.CORNFLOWER, 'Makes blue dye'],
+  [B.BED, 'Use it to set where you wake after dying; at night, close by and with no monsters about, sleep till morning. Breaks a fall'],
   [B.GLOWCAP, 'Grows deep in caves and glows softly; plant it on any block for a dim light. Makes cyan dye'],
   [B.STALACTITE, 'Hangs from the underside of a block'],
   [B.STALAGMITE, 'Stands on any block'],

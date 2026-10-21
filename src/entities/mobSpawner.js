@@ -251,6 +251,8 @@ export class MobSpawner {
       if (y <= 1 || y > 120) continue;
       const ground = this.world.getBlockW(wx, y - 1, wz);
       if (!isSolid(ground) || ground === B.WATER) continue;
+      // not on a bed (in a dark bedroom, say: nobody wakes to a zombie on the blanket)
+      if (ground === B.BED) continue;
       // not on tree canopies
       if (ground === B.OAK_LEAVES || ground === B.BIRCH_LEAVES || ground === B.SPRUCE_LEAVES || ground === B.PALM_LEAVES || ground === B.CHARRED_LEAVES) continue;
       // need 2 blocks of room (a snow layer or tall grass doesn't count against

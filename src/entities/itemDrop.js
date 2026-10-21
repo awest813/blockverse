@@ -28,6 +28,7 @@ export function itemTexture(id) {
 }
 
 const geoCube = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+const LOW = new Set(['slab', 'bed']);
 const geoFlat = new THREE.PlaneGeometry(0.35, 0.35);
 
 export class ItemDrop {
@@ -53,6 +54,7 @@ export class ItemDrop {
       side: isBlock ? THREE.FrontSide : THREE.DoubleSide,
     });
     this.mesh = new THREE.Mesh(isBlock ? geoCube : geoFlat, mat);
+    if (isBlock && LOW.has(blockInfo(id).shape)) this.mesh.scale.y = 0.56;   // (a slab or a bed: as low as it is)
     this.spin = Math.random() * Math.PI * 2;
     scene.add(this.mesh);
     this.scene = scene;

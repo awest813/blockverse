@@ -116,6 +116,12 @@ mechanics, swimming and the in-game + launcher UI. `[x]` = done,
 - [x] Slabs, stairs and other shaped blocks get smooth per-corner light from the cells around them
 - [x] Water drifts gently (animated texture)
 
+## Beds
+- [x] A low bed on legs (frame, blanket, sheet, pillow, head and foot boards), its foot toward whoever sets it down: the old full-block bed drew its pillow at the +z end whichever way it faced, with the foot texture on the pillow end three times in four; held and dropped beds are low too, and it has a tooltip
+- [x] Sleeping: close by (within 3 blocks: setting the respawn point still works from further), not mounted, not in a bed a villager's in; "Respawn point set" only when it changes; you wake standing at the bed, and a rainy night clears by morning
+- [x] Breaking your own bed says at once that you'll wake at the world spawn (it used to tell you after you died); no monsters spawn on beds
+- [x] Village beds (generator 13) face into the room, heads to the back wall; villagers lie on them the way the bed lies, head on the pillow, feet over the foot
+
 ## Saving & stability
 - [x] Furnace, chest and campfire changes mark their chunk for saving (taking items out could duplicate them after a reload)
 - [x] Chunks and the world entry save in one transaction; a failed save is retried and reported

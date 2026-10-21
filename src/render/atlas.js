@@ -16,6 +16,7 @@ const ICON_BOXES = {
   layer: [[0, 0, 0, 16, 3, 16]],
   carpet: [[0, 0, 0, 16, 2, 16]],
   stairs: [[0, 0, 0, 16, 8, 16], [0, 8, 0, 8, 16, 16]],
+  bed: [[0, 0, 0, 16, 9, 16]],
 };
 
 export class Atlas {

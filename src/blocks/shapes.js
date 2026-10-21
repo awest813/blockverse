@@ -192,7 +192,36 @@ export function shapeBoxes(id, meta, nb, collision = false) {
       });
       return boxes;
     }
+    case 'bed': {
+      // a low bed on legs, its foot toward edge (meta & 3) (toward whoever
+      // set it down), its head (headboard and pillow) at the far edge
+      if (collision) return [[0, 0, 0, 1, BED_TOP, 1]];
+      return BED_BOXES.map((b) => turnBox(b, meta & 3));
+    }
     default: return [[0, 0, 0, 1, 1, 1]];
+  }
+}
+
+// a bed's boxes drawn with its foot at -z (edge 0) and its head at +z
+export const BED_TOP = 9 * P;   // (the mattress's top: what you stand and land on)
+const BED_BOXES = [
+  [P, 0, P, 3 * P, 3 * P, 3 * P, 'oak_planks'], [13 * P, 0, P, 15 * P, 3 * P, 3 * P, 'oak_planks'],   // legs
+  [P, 0, 13 * P, 3 * P, 3 * P, 15 * P, 'oak_planks'], [13 * P, 0, 13 * P, 15 * P, 3 * P, 15 * P, 'oak_planks'],
+  [0, 3 * P, 0, 1, 6 * P, 1, 'oak_planks'],                    // the frame
+  [0, 3 * P, 0, 1, BED_TOP, P, 'oak_planks'],                  // footboard (flush with the mattress: a sleeper's feet go over it)
+  [0, 3 * P, 15 * P, 1, 13 * P, 1, 'oak_planks'],              // headboard
+  [0, 6 * P, P, 1, BED_TOP, 11 * P, 'red_wool'],               // the blanket
+  [0, 6 * P, 11 * P, 1, BED_TOP, 15 * P, 'wool'],              // the sheet at the head
+  [2 * P, BED_TOP, 11.5 * P, 14 * P, 11 * P, 14.5 * P, 'wool'], // the pillow
+];
+// turn a box drawn foot-to--z so its foot is toward edge e (0 -z, 1 +x, 2 +z, 3 -x)
+function turnBox(b, e) {
+  const [x0, y0, z0, x1, y1, z1, t] = b;
+  switch (e) {
+    case 1: return [1 - z1, y0, x0, 1 - z0, y1, x1, t];
+    case 2: return [1 - x1, y0, 1 - z1, 1 - x0, y1, 1 - z0, t];
+    case 3: return [z0, y0, 1 - x1, z1, y1, 1 - x0, t];
+    default: return [x0, y0, z0, x1, y1, z1, t];
   }
 }
 
