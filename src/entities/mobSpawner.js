@@ -265,7 +265,7 @@ export class MobSpawner {
         const light = Math.max((sky / 15) * dayFactor * 15, bl);
         if (light > 7) continue;
         // nor in a village (on its roofs, in its gardens): its lamps keep the night off
-        if (this.dimension !== 'scorch' && inVillage(this.world.gen, wx, wz, 2)) continue;
+        if (this.dimension !== 'scorch' && inVillage(this.world.gen, wx, wz, 4)) continue;   // (4: across its roads too)
         // deserts breed husks instead of zombies
         let Cls = pickHostile(this.hostileTable());
         if (Cls === Zombie && this.world.biomeAt(wx, wz) === BIOME.DESERT && Math.random() < 0.8) Cls = Husk;

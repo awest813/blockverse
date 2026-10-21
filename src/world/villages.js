@@ -113,6 +113,7 @@ export function inVillage(gen, wx, wz, margin = 0) {
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
 
 function planVillage(gen, rx, rz) {
+  const v13 = gen.version >= 13;   // (generator 13's fixes: see below)
   const rng = coordRng(gen.seed, rx, rz, 7171);
   if (rng() > CHANCE) return null;
   const ccx = rx * REGION + 6 + Math.floor(rng() * (REGION - 12));
@@ -166,7 +167,11 @@ function planVillage(gen, rx, rz) {
         row.push([x, z, g.h]);
       }
       if (!row.length) break;
-      const ry = Math.max(prev - 1, Math.min(prev + 1, median(row.map((c) => c[2]))));
+      const med = median(row.map((c) => c[2]));
+      // (v13: a road stops at a drop or a rise it can't follow, instead of
+      // running on out over it, a block a step, and ending in mid-air)
+      if (v13 && Math.abs(med - prev) > 2) break;
+      const ry = Math.max(prev - 1, Math.min(prev + 1, med));
       for (const c of row) cells.push([c[0], c[1], ry]);
       prev = ry;
       len = s;
@@ -192,12 +197,17 @@ function planVillage(gen, rx, rz) {
       const corners = [at(along0, 3), at(along1, 3), at(along0, 2 + depth), at(along1, 2 + depth)];
       const box = { x0: Math.min(...corners.map((c) => c[0])), x1: Math.max(...corners.map((c) => c[0])), z0: Math.min(...corners.map((c) => c[1])), z1: Math.max(...corners.map((c) => c[1])) };
       const hs = [...corners, at(s + (w >> 1), 3 + (depth >> 1))].map(([x, z]) => ground(x, z).h);
-      const fits = hs.every((h) => h > SEA_LEVEL) && Math.max(...hs) - Math.min(...hs) <= 3 && !overlaps(box);
+      // (v13: the road cell the door's step comes out onto, by the side the
+      // plot is on; a plot whose door would be past the road's end won't do)
+      const cell = v13 ? road.cells[(s + (w >> 1) - SQUARE - 1) * 3 + (side > 0 ? 2 : 0)] : null;
+      const door = at(s + (w >> 1), 2);   // the step between the road and the door
+      // the floor at the step's ground if that's higher (within reason), so
+      // the step out to the road is level with the door, not a trench
+      const floor = Math.min(Math.max(...hs) + 1, Math.max(median(hs), ground(door[0], door[1]).h));
+      const fits = hs.every((h) => h > SEA_LEVEL) && Math.max(...hs) - Math.min(...hs) <= 3 && !overlaps(box) &&
+        // (v13: and the step is one you can climb: within a block of the road)
+        (!v13 || (!!cell && Math.abs(floor - cell[2]) <= 1));
       if (fits) {
-        const door = at(s + (w >> 1), 2);   // the step between the road and the door
-        // the floor at the step's ground if that's higher (within reason), so
-        // the step out to the road is level with the door, not a trench
-        const floor = Math.min(Math.max(...hs) + 1, Math.max(median(hs), ground(door[0], door[1]).h));
         const plot = { kind: 'plot', name, ...box, y: floor, w, depth, rot: (n + 2) % 4, door, seed: (rng() * 2 ** 31) | 0 };
         pieces.push(plot); boxes.push(plot, { x0: door[0], x1: door[0], z0: door[1], z1: door[1] });
         s += w + 2 + Math.floor(rng() * 3);
@@ -215,7 +225,7 @@ function planVillage(gen, rx, rz) {
   const [a, b] = NAME_PARTS[styleKey];
   const name = a[(rng() * a.length) | 0] + b[(rng() * b.length) | 0];
   const bounds = { x0: Math.min(...boxes.map((p) => p.x0)) - 1, x1: Math.max(...boxes.map((p) => p.x1)) + 1, z0: Math.min(...boxes.map((p) => p.z0)) - 1, z1: Math.max(...boxes.map((p) => p.z1)) + 1 };   // (1: eaves)
-  return { id: `${rx},${rz}`, name, style: styleKey, x: X, z: Z, y, bounds, pieces, boxes };
+  return { id: `${rx},${rz}`, name, style: styleKey, x: X, z: Z, y, bounds, pieces, boxes, v13 };
 }
 
 // ---- building a chunk's slice ----
@@ -264,7 +274,7 @@ export function buildVillageSlice(gen, blocks, cx, cz, holder) {
     } else if (p.kind === 'square' && touches(p)) {
       buildSquare(v, S, p, set, column, earth);
     } else if (p.kind === 'plot' && (touches(p, 1) || inside(p.door[0], p.door[1]))) {   // (1: the roof's eaves overhang the plot)
-      buildPlot(p, S, v.style, set, get, column, earth, out);
+      buildPlot(p, S, v.style, set, get, column, earth, out, v.v13);
     }
   }
   return out;
@@ -279,6 +289,8 @@ function buildSquare(v, S, p, set, column, earth) {
       const ring = Math.max(Math.abs(dx), Math.abs(dz));
       if (ring <= 1) { for (let dy = 0; dy >= -3; dy--) set(X + dx, y + dy, Z + dz, B.WATER); set(X + dx, y - 4, Z + dz, S.base); }
       else {
+        // (v13: the shaft lined down to its foot, so it never opens on a cave)
+        if (v.v13) for (let dy = 0; dy >= -4; dy--) set(X + dx, y + dy, Z + dz, S.base);
         set(X + dx, y + 1, Z + dz, S.base);
         if (Math.abs(dx) === 2 && Math.abs(dz) === 2) for (let dy = 2; dy <= 3; dy++) set(X + dx, y + dy, Z + dz, v.style === 'sand' ? B.SANDSTONE : B.OAK_FENCE);
       }
@@ -296,7 +308,7 @@ function buildSquare(v, S, p, set, column, earth) {
 }
 
 // One plot: its building, turned to face the road, and the step to its door.
-function buildPlot(p, S, style, set, get, column, earth, out) {
+function buildPlot(p, S, style, set, get, column, earth, out, v13) {
   const rng = coordRng(p.seed, 0, 0, 1);
   const { w, depth: d, rot, y } = p;
   // local (lx, lz) -> world: lx along the front, lz back from it; the front
@@ -318,6 +330,7 @@ function buildPlot(p, S, style, set, get, column, earth, out) {
     set(lx, ly, lz, id, dir = -1) { const [x, z] = W(lx, lz); return set(x, y + ly, z, id, dir >= 0 ? turn(dir) : 0); },
     gate(lx, ly, lz) { const [x, z] = W(lx, lz); return set(x, y + ly, z, B.OAK_FENCE_GATE, rot & 1); },   // (a gate's meta is its axis)
     entity(idx, data) { if (idx >= 0 && data) out.push([idx, data]); },
+    v13,
   };
   // the ground: the footprint levelled at the floor, cleared above
   const clear = p.name === 'farm' ? 4 : 12;
@@ -346,7 +359,9 @@ function shell(b, S, w, d, h = 3, opts = {}) {
   const wz = d >> 1;
   b.set(0, 2, wz, B.GLASS_PANE); b.set(w - 1, 2, wz, B.GLASS_PANE);
   b.set(mid, 2, d - 1, B.GLASS_PANE);
-  if (w >= 7) { b.set(mid - 2, 2, 0, B.GLASS_PANE); b.set(mid + 2, 2, 0, B.GLASS_PANE); }
+  // (an open front has no wall to hold them: generator 12 left two panes
+  // hanging in a smithy's)
+  if (w >= 7 && !(opts.open && b.v13)) { b.set(mid - 2, 2, 0, B.GLASS_PANE); b.set(mid + 2, 2, 0, B.GLASS_PANE); }
 }
 
 // a gable roof over (0..w-1, 0..d-1) from ly, running across the front: or a

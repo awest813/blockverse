@@ -125,6 +125,7 @@ shapeless(I.PINK_DYE, 2, [[I.RED_DYE], [I.BONE_MEAL]]);
 shapeless(I.GREY_DYE, 2, [[I.BLACK_DYE], [I.BONE_MEAL]]);
 shapeless(I.BLUE_DYE, 2, [[B.CORNFLOWER]]);
 shapeless(I.CYAN_DYE, 2, [[I.BLUE_DYE], [I.GREEN_DYE]]);
+shapeless(I.CYAN_DYE, 1, [[B.GLOWCAP]]);
 shapeless(I.PURPLE_DYE, 2, [[I.RED_DYE], [I.BLUE_DYE]]);
 // wool of one colour dyed another, and carpets of each
 for (const c of COLOURS) {

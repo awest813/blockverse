@@ -61,6 +61,19 @@ level.
 two 3D noise bands, i.e. `|n1| < ε && |n2| < ε`) and cheese caverns below
 y≈34. Depths below y=9 flood with water.
 
+Generator 13 works out each column's caves once (`caveColumn`): a 2D
+"thickness" noise scales the tunnel band ε, a "big" noise lowers the cavern
+threshold and raises its ceiling (and leaves pillars where a fast 2D noise is
+high), and ravines run along the zero line of a 2D noise wherever a slower
+mask allows, their floor deepest in the middle (a 3D noise wobbles the walls)
+and never below the waterline near open water. An aquifer noise floods some
+caves: cave cells under a water table that's level for hundreds of blocks hold
+water instead of air or lava, and a thin band at the aquifer's edge stays rock,
+so lava and water never touch and no water stands beside a dry tunnel.
+`decorateCaves13` then dresses each column's cave floors and ceilings
+(stalactites, stalagmites, glowcaps, moss/ice/sand floors by biome, clay and
+gravel lake beds) without reaching into neighbouring columns.
+
 **Ores** are random-walk blobs seeded per chunk `(seed, cx, cz, oreIndex)` so
 they are deterministic.
 

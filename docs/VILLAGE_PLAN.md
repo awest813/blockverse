@@ -174,6 +174,16 @@ Also done:
 - the spawn nudge: a new world with a village within 300 blocks starts about 30 blocks outside it;
 - no surface monster spawns inside a village's footprint, a little earlier than Phase 5.
 
+Fixed in generator 13 (generator 12 villages are left as they were, so
+existing worlds don't grow seams): a road stops at a drop or rise of more
+than two blocks instead of running out over it; a plot is only built where
+its door step is within a block of the road and beside it (some doors were
+two blocks up, and a few past the road's end); the well shaft is lined down
+to its foot, so it never opens on a cave; smithies' open fronts no longer
+hold two hanging window panes. The "Entering …" banner follows the roads and
+buildings rather than the box round them, and night spawns are kept off the
+far side of the roads too.
+
 Still to come from Phase 1: the bell, lectern, barrel and oven blocks, `/locate village`, and village-owned animals in the pens.
 
 ### Step 1 was shippable on its own

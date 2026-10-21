@@ -25,7 +25,7 @@ const BUSH_GROUND = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS]);   // where a berr
 const BOW_DRAW_TIME = 1;     // seconds to full draw
 const CROPS = new Set(CROP_FAMILIES.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
 // Cross plants require solid ground below.
-const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CANDLE, B.CORNFLOWER, B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
+const NEEDS_GROUND = new Set([...COLOURS.map((c) => c.carpet), B.CANDLE, B.CORNFLOWER, B.CAKE, B.FIRE, B.KELP, B.SEAGRASS, B.LILY_PAD, B.SNOW_LAYER, B.TALL_GRASS, B.DANDELION, B.POPPY, B.SUGAR_CANE, B.DEAD_BUSH, B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.GLOWCAP, B.STALAGMITE, B.CACTUS, B.TORCH, ...SAPLINGS, ...CROPS, B.CAMPFIRE, B.CAMPFIRE_OFF]);
 // the four horizontal edges, as in shapes.js: 0 = -z, 1 = +x, 2 = +z, 3 = -x
 const EDGE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const STACKING = new Set([B.KELP, B.SUGAR_CANE, B.CACTUS]);
@@ -297,6 +297,10 @@ export class Interaction {
       w.setBlock(x, y - 1, z, B.AIR);
       if (drops) this.spawnBlockDrops(x, y - 1, z, blockInfo(B.LANTERN), true);
     }
+    if (w.getBlockW(x, y - 1, z) === B.STALACTITE) {   // (and one hung from it)
+      w.setBlock(x, y - 1, z, B.AIR);
+      if (drops) this.spawnBlockDrops(x, y - 1, z, blockInfo(B.STALACTITE), true);
+    }
     for (let e = 0; e < 4; e++) {
       const [dx, dz] = EDGE_DIRS[e];
       const nx = x - dx, nz = z - dz;   // a neighbour hanging on its edge e would face us
@@ -471,6 +475,9 @@ export class Interaction {
       hang = t.ny === -1 && isSolid(this.world.getBlockW(px, py + 1, pz));
       if (!hang && !this.supportsTop(px, py - 1, pz)) return;
     }
+
+    // a stalactite hangs from the underside of a block
+    if (info.id === B.STALACTITE && !isSolid(this.world.getBlockW(px, py + 1, pz))) return;
 
     // support requirement for plants/torches
     if (NEEDS_GROUND.has(info.id)) {

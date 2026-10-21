@@ -161,6 +161,9 @@ export const B = {
   SHEARER: 176,          // shears full fleeces nearby into a chest beside it. {kind: 'shearer', dur}
   MILKER: 177,           // fills empty buckets from a chest beside it with milk from cows and goats nearby. {kind: 'milker'}
   DIRT_PATH: 178,        // trodden earth: village roads (a shovel makes it from grass)
+  STALACTITE: 179,       // (generator 13) a spike of stone hanging from a cave's ceiling
+  STALAGMITE: 180,       // ... and one rising from its floor
+  GLOWCAP: 181,          // (generator 13) a pale mushroom that glows, deep in caves
 };
 
 // Tool classes
@@ -368,6 +371,10 @@ reg(def(B.PUMPKIN, 'pumpkin', 'Pumpkin', {
 }));
 reg(def(B.MUSHROOM_BROWN, 'mushroom_brown', 'Brown Mushroom', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
 reg(def(B.MUSHROOM_RED, 'mushroom_red', 'Red Mushroom', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' }));
+reg(def(B.GLOWCAP, 'glowcap', 'Glowcap', { solid: false, render: R_CROSS, opacity: 0, lightEmit: 9, hardness: 0.05, sound: 'leaf' }));
+// cave spikes: a stalactite hangs from a block, a stalagmite stands on one
+reg(def(B.STALACTITE, 'stalactite', 'Stalactite', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.6, tool: TOOL_PICKAXE }));
+reg(def(B.STALAGMITE, 'stalagmite', 'Stalagmite', { solid: false, render: R_CROSS, opacity: 0, hardness: 0.6, tool: TOOL_PICKAXE }));
 const plant = { solid: false, render: R_CROSS, opacity: 0, hardness: 0.05, sound: 'leaf' };
 reg(def(B.OAK_SAPLING, 'oak_sapling', 'Oak Sapling', plant));
 reg(def(B.BIRCH_SAPLING, 'birch_sapling', 'Birch Sapling', plant));

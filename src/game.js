@@ -1443,7 +1443,10 @@ export class Game {
     if (this._villageT > 0 || this.dimension !== 'overworld') return;
     this._villageT = 1;
     const p = this.player, v = villageAt(this.world.gen, Math.floor(p.x), Math.floor(p.z));
-    const inside = v && p.x >= v.bounds.x0 - 2 && p.x <= v.bounds.x1 + 3 && p.z >= v.bounds.z0 - 2 && p.z <= v.bounds.z1 + 3;
+    // (near its roads and buildings, not just inside the box round them: the
+    // corners between the roads are open country; a wider margin to leave
+    // than to enter, so walking along the edge doesn't keep announcing it)
+    const inside = v && inVillage(this.world.gen, Math.floor(p.x), Math.floor(p.z), this._village === v.id ? 10 : 4);
     if (inside && this._village !== v.id) this.hud.showLabel(`Entering ${v.name}`, true);
     this._village = inside ? v.id : null;
   }

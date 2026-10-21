@@ -24,6 +24,11 @@ export const BIOME_NAMES = [
 export const FROZEN = 0.28; // below this temperature water freezes and snow falls
 const RIVER_WIDTH = 0.03;   // river noise band half-width (channel)
 const BANK_WIDTH = 0.065;   // ... and the gently sloping banks around it
+const RAVINE_MASK = 0.3;    // (generator 13) where the ravine mask noise passes this, ravines can run
+// (generator 13) natural rock a cave can be dressed on, and the floor each
+// biome gives the caves under it
+const CAVE_ROCK = new Set([B.STONE, B.DIRT, B.GRAVEL, B.SANDSTONE, B.CLAY, B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.REDSTONE_ORE, B.DIAMOND_ORE]);
+const CAVE_FLOORS = { [BIOME.FOREST]: B.MOSSY_COBBLE, [BIOME.BIRCH_FOREST]: B.MOSSY_COBBLE, [BIOME.SWAMP]: B.MOSSY_COBBLE, [BIOME.SNOWY]: B.ICE, [BIOME.SNOWY_FOREST]: B.ICE, [BIOME.DESERT]: B.SAND };
 
 function smoothstep(a, b, x) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -51,7 +56,12 @@ function smoothstep(a, b, x) {
 //  11 - cornflowers, berry bushes and wild rice.
 //  12 - villages (world/villages.js): a square and well, roads, houses, a
 //     smithy, a kitchen, a library, fields and stables, styled by biome.
-export const LATEST_GEN = 12;
+//  13 - caves: tunnels that widen and narrow, big caverns held up by
+//     pillars, ravines open to the sky, flooded caves (underground lakes
+//     in place of lava in places), and cave floors and ceilings dressed by
+//     depth and the biome above (stalactites and stalagmites, glowcaps,
+//     moss, ice, sand, clay and gravel under the lakes).
+export const LATEST_GEN = 13;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -89,6 +99,12 @@ export class WorldGen {
     const off = () => (v10 ? 0.25 + orng() * 0.5 : 0);
     this.off = {};
     for (const k of ['c', 'e', 'm', 'p', 'd', 't', 'w', 'r', 'k1', 'k2', 'kc']) this.off[k] = [off(), off()];
+    // generator 13's cave channels (drawn after the others, so their offsets stay put)
+    for (const k of ['rv', 'rm', 'aq', 'th', 'bg']) this.off[k] = [off(), off()];
+    this.ravine = new Noise(seed + 12);
+    this.ravineMask = new Noise(seed + 13);
+    this.aquifer = new Noise(seed + 14);
+    this.caveShape = new Noise(seed + 15);
   }
 
   // Everything about a column that depends only on (x, z), computed once:
@@ -205,23 +221,75 @@ export class WorldGen {
     return BIOME.PLAINS;
   }
 
-  isCave(wx, wy, wz, surface) {
+  // (generator 13 passes the column's caveColumn; anything else that asks
+  // works it out)
+  isCave(wx, wy, wz, surface, cc) {
     if (wy < 6 || wy > surface + 1) return false;
     // never breach a seabed, river bed or shoreline: water can't flow into the hole
     if (this.version >= 2 && surface < SEA_LEVEL + 2 && wy > surface - 4) return false;
+    const O = this.off, v13 = this.version >= 13;
+    if (v13) {
+      cc ??= this.caveColumn(wx, wz, surface);
+      if (wy >= cc.ravine && wy >= this.ravineFloor(cc, surface, cc.rt + this.caveShape.noise3(wx / 6 + O.rv[1], wy / 5, wz / 6 + O.rm[1]) * 0.2)) return true;
+    }
     // Spaghetti tunnels: intersection of two noise bands.
     // (the second band is only worth sampling where the first is near zero)
-    const O = this.off;
     const n1 = this.cave1.fbm3(wx / 26 + O.k1[0], wy / 20, wz / 26 + O.k1[1], 2);
     // v2: tunnels pinch in near the surface so hillsides aren't riddled with holes
-    const w = this.version >= 2 && wy > surface - 6 ? 0.055 : 0.09;
+    // (v13: and swell and narrow as they go)
+    const w = (this.version >= 2 && wy > surface - 6 ? 0.055 : 0.09) * (v13 ? cc.thick : 1);
     if (Math.abs(n1) < w && Math.abs(this.cave2.fbm3(wx / 26 + O.k2[0], wy / 20, wz / 26 + O.k2[1], 2)) < w) return true;
-    // Cheese caverns deep down.
-    if (wy < 34) {
+    // Cheese caverns deep down (v13: some far bigger, reaching higher, with
+    // pillars of rock left standing in them)
+    const top = v13 ? 34 + cc.big * 8 : 34;
+    if (wy < top) {
       const c = this.cavern.fbm3(wx / 46 + O.kc[0], wy / 30, wz / 46 + O.kc[1], 2);
-      if (c > 0.44 + (wy / 34) * 0.18) return true;
+      if (c > (v13 ? 0.44 - cc.big * 0.12 + (wy / top) * 0.2 : 0.44 + (wy / 34) * 0.18)) return !(v13 && cc.pillar);
     }
     return false;
+  }
+
+  // Generator 13: the caves of one column, worked out once for all its
+  // cells: where a ravine's floor is (CHUNK_Y: no ravine), how wide its
+  // tunnels run, whether its caverns are big ones (and a pillar stands
+  // here), and how high the water stands in flooded caves (wet: 0 dry,
+  // up to 1 well flooded; the band at its edge is walled off).
+  caveColumn(wx, wz, h) {
+    const O = this.off;
+    const cc = { ravine: CHUNK_Y, rt: 2, rdepth: 0, rlow: 0, thick: 1, big: 0, pillar: false, wet: 0, water: 0 };
+    cc.thick = 0.8 + 0.55 * smoothstep(-0.3, 0.5, this.caveShape.noise2(wx / 90 + O.th[0], wz / 90 + O.th[1]));
+    cc.big = smoothstep(0.25, 0.55, this.caveShape.noise2(wx / 160 + O.bg[0], wz / 160 + O.bg[1]));
+    if (cc.big > 0) cc.pillar = this.caveShape.noise2(wx / 5 + O.bg[1], wz / 5 + O.bg[0]) > 0.42 - cc.big * 0.08;
+    cc.wet = smoothstep(0.2, 0.42, this.aquifer.noise2(wx / 190 + O.aq[0], wz / 190 + O.aq[1]));
+    // (a water table that's level for a hundred blocks and more: a lake's
+    // surface is flat)
+    if (cc.wet > 0) cc.water = Math.floor(18 + 8 * this.aquifer.noise2(wx / 1100 + O.aq[1], wz / 1100 + O.aq[0]));
+    // Ravines: long cracks open to the sky, along the zero line of one noise
+    // where a slower one allows, deepest down their middle
+    const m = this.ravineMask.noise2(wx / 340 + O.rm[0], wz / 340 + O.rm[1]);
+    if (m > RAVINE_MASK && h > SEA_LEVEL + 3) {
+      const half = 0.038 * smoothstep(RAVINE_MASK, RAVINE_MASK + 0.15, m);
+      const a = Math.abs(this.ravine.noise2(wx / 120 + O.rv[0], wz / 120 + O.rv[1]) + this.detail.noise2(wx / 7 + O.d[1], wz / 7 + O.d[0]) * 0.004);
+      // (out to 1.2 of the way: the walls bulge and recede as they go down)
+      if (a < half * 1.2 && !nearStructure(this, wx, wz, 4)) {
+        cc.rt = a / half;
+        cc.rdepth = 12 + 32 * smoothstep(RAVINE_MASK, RAVINE_MASK + 0.3, m);
+        // never down past the waterline near open water (a hole below it
+        // beside a lake, river or the sea would hold up a wall of water);
+        // ground that high is a few blocks from any
+        cc.rlow = Math.max(SEA_LEVEL + 1 - Math.max(0, h - SEA_LEVEL - 6) * 6, 7);
+        cc.ravine = this.ravineFloor(cc, h, cc.rt - 0.2);   // (no cell below this can be in it)
+      }
+    }
+    return cc;
+  }
+
+  // the floor of a ravine where the column is t of the way out from its
+  // middle to its rim (CHUNK_Y: past the rim)
+  ravineFloor(cc, h, t) {
+    if (t >= 1) return CHUNK_Y;
+    const floor = Math.max(h - cc.rdepth * Math.sqrt(1 - Math.max(0, t)), cc.rlow);
+    return floor < h - 1 ? Math.floor(floor) : CHUNK_Y;
   }
 
   generateChunk(cx, cz) {
@@ -230,6 +298,7 @@ export class WorldGen {
     const biomeMap = new Uint8Array(CHUNK_X * CHUNK_Z);
     const bedrockRng = coordRng(this.seed, cx, cz, 1);
     const v5 = this.version >= 5;
+    const v13 = this.version >= 13;
 
     for (let x = 0; x < CHUNK_X; x++) {
       for (let z = 0; z < CHUNK_Z; z++) {
@@ -247,6 +316,7 @@ export class WorldGen {
             (this.version >= 2 && frozen)));                                  // cold ranges snow all over
         const sandy = biome === BIOME.DESERT || biome === BIOME.BEACH || biome === BIOME.RIVER ||
           (biome === BIOME.OCEAN && h > SEA_LEVEL - 8);
+        const cc = v13 ? this.caveColumn(wx, wz, h) : null;
 
         for (let y = 0; y <= Math.max(h, SEA_LEVEL); y++) {
           const idx = blockIndex(x, y, z);
@@ -259,9 +329,15 @@ export class WorldGen {
             if (id === B.WATER && y === SEA_LEVEL && (this.version >= 2 ? frozen : snowy && biome !== BIOME.MOUNTAINS)) id = B.ICE;
           } else if (y === 0 || (y === 1 && bedrockRng() < 0.5)) {
             id = B.BEDROCK;
-          } else if (this.isCave(wx, y, wz, h)) {
+          } else if (this.isCave(wx, y, wz, h, cc)) {
             // the deepest caves flood: lava from generator 5, water before
-            id = y <= 9 ? (v5 ? B.LAVA : B.WATER) : B.AIR;
+            // (generator 13: where the caves are wet, water stands in them
+            // instead, up to its level; rock walls off the edge of the wet,
+            // so lava and water never meet and no wall of water stands in
+            // a dry tunnel)
+            if (!v13 || cc.wet === 0) id = y <= 9 ? (v5 ? B.LAVA : B.WATER) : B.AIR;
+            else if (y > cc.water) id = B.AIR;
+            else id = cc.wet < 0.12 ? B.STONE : B.WATER;
           } else if (y === h) {
             // surface block
             if (col.pool) id = B.DIRT;   // swamp pool beds
@@ -292,7 +368,8 @@ export class WorldGen {
     }
 
     this.placeOres(blocks, cx, cz, heightMap);
-    if (this.version >= 2) this.decorateCaves(blocks, cx, cz, heightMap);
+    if (v13) this.decorateCaves13(blocks, cx, cz, heightMap, biomeMap);
+    else if (this.version >= 2) this.decorateCaves(blocks, cx, cz, heightMap);
     placeFossil(this, blocks, cx, cz, heightMap, biomeMap[8 * CHUNK_Z + 8]);
     const plan = structurePlan(this, cx, cz);
     const entities = plan || this.version < 2 ? [] : placeDungeon(this, blocks, cx, cz, heightMap);
@@ -354,6 +431,46 @@ export class WorldGen {
           if (px < 0 || px >= CHUNK_X || pz < 0 || pz >= CHUNK_Z) continue;
           const idx = blockIndex(px, y - 1, pz);
           if (blocks[idx] === B.STONE && blocks[blockIndex(px, y, pz)] === B.AIR) blocks[idx] = B.MOSSY_COBBLE;
+        }
+      }
+    }
+  }
+
+  // Generator 13: cave floors and ceilings dressed, column by column (so
+  // nothing reaches over a chunk edge): stalactites and stalagmites,
+  // mushrooms, glowcaps deep down, and floors to suit the land above (moss
+  // under the woods and swamps, ice under the snow, sand under the desert);
+  // the lakes get beds of clay and gravel.
+  decorateCaves13(blocks, cx, cz, heightMap, biomeMap) {
+    for (let x = 0; x < CHUNK_X; x++) {
+      for (let z = 0; z < CHUNK_Z; z++) {
+        const wx = cx * CHUNK_X + x, wz = cz * CHUNK_Z + z;
+        const biome = biomeMap[x * CHUNK_Z + z];
+        const floorOf = CAVE_FLOORS[biome] ?? 0;
+        const base = blockIndex(x, 0, z);   // (a column's cells run on up from here)
+        const top = heightMap[x * CHUNK_Z + z] - 3;
+        // floors change in patches, not speckles; and the spikes crowd
+        // together in some caves
+        const patch = floorOf && this.caveShape.noise2(wx / 7 + 0.37, wz / 7 + 0.61) > -0.05;
+        const spikes = this.caveShape.noise2(wx / 40 + 0.71, wz / 40 + 0.13) > 0.25 ? 4 : 1;
+        for (let y = 7; y < top; y++) {
+          const id = blocks[base + y];
+          if (id !== B.AIR && id !== B.WATER) continue;
+          const below = blocks[base + y - 1], above = blocks[base + y + 1];
+          const r = colHash(wx * 31 + y * 7, wz * 17 - y * 13);
+          if (id === B.WATER) {
+            if (CAVE_ROCK.has(below) && y < SEA_LEVEL - 8) blocks[base + y - 1] = r < 0.3 ? B.CLAY : r < 0.65 ? B.GRAVEL : below;
+            continue;
+          }
+          if (CAVE_ROCK.has(below)) {
+            if (patch && below !== B.GRAVEL) blocks[base + y - 1] = floorOf;
+            if (above !== B.AIR) continue;
+            if (y < 30 && r < 0.03) blocks[base + y] = B.GLOWCAP;
+            else if (r < 0.02) { if (floorOf !== B.ICE && y >= 30) blocks[base + y] = r < 0.01 ? B.MUSHROOM_BROWN : B.MUSHROOM_RED; }
+            else if (r < 0.02 + 0.025 * spikes) blocks[base + y] = B.STALAGMITE;
+          } else if (CAVE_ROCK.has(above) && blocks[base + y - 1] === B.AIR && r < 0.04 * spikes) {
+            blocks[base + y] = B.STALACTITE;
+          }
         }
       }
     }
@@ -705,22 +822,29 @@ export class WorldGen {
 
   applyFeature(blocks, cx, cz, f) {
     if (nearStructure(this, f.wx, f.wz, f.type === 'tree' || f.type === 'boulder' || f.type === 'bush' ? 3 : 0)) return;
+    // (returns false if the cell was taken; generator 13 lets nothing
+    // overwrite cane or cactus, which would leave the rest of a stalk hanging)
+    const v13 = this.version >= 13;
     const put = (wx, wy, wz, id, onlyAir = true) => {
       const x = wx - cx * CHUNK_X;
       const z = wz - cz * CHUNK_Z;
-      if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 0 || wy >= CHUNK_Y) return;
+      if (x < 0 || x >= CHUNK_X || z < 0 || z >= CHUNK_Z || wy < 0 || wy >= CHUNK_Y) return true;
       const idx = blockIndex(x, wy, z);
-      if (onlyAir && blocks[idx] !== B.AIR) return;
+      if (onlyAir && blocks[idx] !== B.AIR) return false;
+      if (v13 && (blocks[idx] === B.SUGAR_CANE || blocks[idx] === B.CACTUS)) return false;
       blocks[idx] = id;
+      return true;
     };
 
     switch (f.type) {
       case 'tree': this.buildTree(put, f); break;
+      // (a stalk stops where something's in the way: generator 13; older
+      // ones stacked the rest on over a snow layer)
       case 'cactus':
-        for (let i = 0; i < f.size; i++) put(f.wx, f.wy + i, f.wz, B.CACTUS);
+        for (let i = 0; i < f.size; i++) if (!put(f.wx, f.wy + i, f.wz, B.CACTUS) && v13) break;
         break;
       case 'cane':
-        for (let i = 0; i < f.size; i++) put(f.wx, f.wy + i, f.wz, B.SUGAR_CANE);
+        for (let i = 0; i < f.size; i++) if (!put(f.wx, f.wy + i, f.wz, B.SUGAR_CANE) && v13) break;
         break;
       case 'plant':
         put(f.wx, f.wy, f.wz, f.block);

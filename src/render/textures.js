@@ -934,6 +934,33 @@ function mushroom(ctx, rng, cap, capD) {
 }
 
 tile('mushroom_brown', (ctx, rng) => mushroom(ctx, rng, [150, 112, 82], [124, 90, 64]));
+tile('glowcap', (ctx, rng) => {
+  // a cluster of thin pale stems under glowing blue-green caps
+  for (const [x, top, h] of [[4, 7, 8], [9, 4, 11], [12, 9, 6]]) {
+    rect(ctx, x, top + 2, 1, h - 2, [206, 214, 200]);
+    rect(ctx, x - 1, top, 3, 2, [120, 236, 220]);
+    px(ctx, x, top, [210, 255, 246]);
+    px(ctx, x - 1, top + 1, [70, 186, 178]); px(ctx, x + 1, top + 1, [70, 186, 178]);
+  }
+});
+
+// a tapering spike of stone, point down (hanging) or up (standing)
+function spike(ctx, rng, down) {
+  for (let r = 0; r < TILE; r++) {
+    const y = down ? r : TILE - 1 - r;
+    const half = Math.max(0.5, 5.6 * (1 - r / TILE) + (r % 5 === 2 ? 0.7 : 0));
+    for (let x = 0; x < TILE; x++) {
+      const d = Math.abs(x + 0.5 - 8);
+      if (d > half) continue;
+      const edge = d > half - 1;
+      // (a little warmer than stone, so they stand out against the walls)
+      const c = rng() < 0.25 ? [168, 150, 128] : rng() < 0.5 ? [146, 130, 112] : [122, 108, 94];
+      px(ctx, x, y, edge ? shade(c, 0.82) : c);
+    }
+  }
+}
+tile('stalactite', (ctx, rng) => spike(ctx, rng, true));
+tile('stalagmite', (ctx, rng) => spike(ctx, rng, false));
 tile('mushroom_red', (ctx, rng) => {
   mushroom(ctx, rng, [200, 46, 40], [160, 34, 30]);
   px(ctx, 6, 5, [240, 236, 228]); px(ctx, 9, 6, [240, 236, 228]);
