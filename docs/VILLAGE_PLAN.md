@@ -184,6 +184,10 @@ hold two hanging window panes. The "Entering …" banner follows the roads and
 buildings rather than the box round them, and night spawns are kept off the
 far side of the roads too.
 
+From Phase 3, early: the travelling trader comes to the stall on the square
+of a village you're in or near (within about 96 blocks of its centre) when
+there's no stall of your own close by.
+
 Still to come from Phase 1: the bell, lectern, barrel and oven blocks, `/locate village`, and village-owned animals in the pens.
 
 ### Step 1 was shippable on its own

@@ -92,6 +92,20 @@ export function sellValue(meta, id, n, premium = 1) {
   return total;
 }
 
+// What selling n of id would pay now, in whole coins (with what's on
+// account from earlier sales), and what would be left on account: nothing
+// changes.
+export function quote(meta, id, n) {
+  const m = market(meta);
+  const copy = { market: { glut: { ...m.glut }, at: m.at, credit: m.credit } };
+  const total = m.credit + sellValue(copy, id, n);
+  const coins = Math.floor(total + 1e-9);
+  return { coins, left: total - coins };
+}
+
+// what's on account: the odd part of a coin from earlier sales
+export const onAccount = (meta) => market(meta).credit;
+
 // ---- the ranch's tally ----
 
 let stats = null;

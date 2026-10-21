@@ -9,7 +9,7 @@
 // offers: [[id, price]], wants: [[id, price, left]], judged: [animal ids]}
 
 import { Mob } from './mob.js';
-import { B } from '../blocks/blocks.js';
+import { B, blockInfo, isSolid } from '../blocks/blocks.js';
 import { I } from '../items/itemIds.js';
 import { worldClock } from '../core/clock.js';
 import { DAY_LENGTH_SECONDS } from '../core/constants.js';
@@ -19,9 +19,11 @@ import { traitScore } from './traits.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { forEachBlockEntity } from '../items/campfire.js';
 import { startSpot } from './customers.js';
+import { villageAt } from '../world/villages.js';
 
 const STAY = 600;                        // seconds a visit lasts
 const EVERY = 2 * DAY_LENGTH_SECONDS;    // between visits
+const LATEST_START = 0.51 - (STAY / DAY_LENGTH_SECONDS) * 0.6;   // time of day: most of a visit before dark
 
 // what it might bring (four a visit): [item, price]
 const RARE = [
@@ -111,24 +113,51 @@ function stock(T) {
 }
 
 // a spot for the trader to stand: by your market stall if there's one near
-// (one you've used within 64 blocks, or any within 24), else near you
+// (one you've used within 64 blocks, or any within 24), else by the stall
+// on the square of a village you're in or near, else near you
 function arrivalSpot(world, p) {
   const px = Math.floor(p.x), py = Math.floor(p.y), pz = Math.floor(p.z);
   let at = null, best = 64;
   forEachBlockEntity(world, 'stall', (x, y, z) => {
     const d = Math.hypot(x - p.x, z - p.z);
-    if (d < best && world.getBlockW(x, y, z) === B.MARKET_STALL) { best = d; at = { x, z: z + 2, sy: y, stall: true }; }
+    if (d < best && world.getBlockW(x, y, z) === B.MARKET_STALL) { best = d; at = { x, y, z }; }
   });
   for (let dx = -24; dx <= 24 && !at; dx++) for (let dz = -24; dz <= 24 && !at; dz++) for (let dy = -4; dy <= 4; dy++) {
-    if (world.getBlockW(px + dx, py + dy, pz + dz) === B.MARKET_STALL) { at = { x: px + dx, z: pz + dz + 2, sy: py + dy, stall: true }; break; }
+    if (world.getBlockW(px + dx, py + dy, pz + dz) === B.MARKET_STALL) { at = { x: px + dx, y: py + dy, z: pz + dz }; break; }
   }
-  if (!at) { const a = Math.random() * Math.PI * 2; at = { x: Math.floor(p.x + Math.cos(a) * 9), z: Math.floor(p.z + Math.sin(a) * 9) }; }
-  // the ground there
-  const by = at.sy ?? py;
-  let y = by + 6;
-  while (y > by - 8 && !world.getBlockW(at.x, y - 1, at.z)) y--;
-  if (world.getBlockW(at.x, y, at.z) || world.getBlockW(at.x, y + 1, at.z)) return null;   // (no room: try again later)
-  return { x: at.x + 0.5, y, z: at.z + 0.5, stall: at.stall };
+  let village = null;
+  if (!at && world.gen) {
+    const v = villageAt(world.gen, px, pz), sq = v?.pieces.find((q) => q.kind === 'square');
+    if (sq && Math.hypot(v.x - p.x, v.z - p.z) < 96) {
+      const s = { x: sq.x0 + 2, y: sq.y + 1, z: sq.z0 + 1 };   // (where villages.js sets it)
+      if (world.isLoaded(s.x, s.z) && world.getBlockW(s.x, s.y, s.z) === B.MARKET_STALL) { at = s; village = v.name; }
+    }
+  }
+  // the ground beside the stall: in front first, then the other sides and
+  // corners (one blocked spot, a tree or a wall, used to keep it away for good)
+  if (at) {
+    for (const [dx, dz] of [[0, 2], [0, -2], [2, 0], [-2, 0], [2, 2], [-2, 2], [2, -2], [-2, -2], [0, 3], [3, 0]]) {
+      const spot = standAt(world, at.x + dx, at.y, at.z + dz);
+      if (spot) return { ...spot, stall: true, village };
+    }
+  }
+  for (let tries = 0; tries < 8; tries++) {
+    const a = Math.random() * Math.PI * 2;
+    const spot = standAt(world, Math.floor(p.x + Math.cos(a) * 9), py, Math.floor(p.z + Math.sin(a) * 9));
+    if (spot) return spot;
+  }
+  return null;   // (no room: try again later)
+}
+
+// somewhere to stand in column (x, z) near height y: loaded, solid and dry
+// underfoot, room for its head
+function standAt(world, x, y, z) {
+  if (!world.isLoaded(x, z)) return null;
+  let yy = y + 6;
+  while (yy > y - 8 && !isSolid(world.getBlockW(x, yy - 1, z))) yy--;
+  const clear = (id) => !isSolid(id) && !blockInfo(id).fluid;   // (grass and flowers don't get in the way)
+  if (!isSolid(world.getBlockW(x, yy - 1, z)) || !clear(world.getBlockW(x, yy, z)) || !clear(world.getBlockW(x, yy + 1, z))) return null;
+  return { x: x + 0.5, y: yy, z: z + 0.5 };
 }
 
 // A visit from a save, checked once a session (an imported file may say
@@ -173,7 +202,9 @@ export function tickTrader(game, dt) {
     game.hud.showLabel('The travelling trader packs up and moves on');
     return;
   }
-  if (!(now >= T.next) || night || p.dead) return;
+  // (only in the morning, so a visit has its day: one that came at teatime
+  // was cut short by nightfall, and so was every one after it)
+  if (!(now >= T.next) || night || p.dead || (game.time > LATEST_START && game.time < 0.9)) return;
   const at = arrivalSpot(game.world, p);
   if (!at) return;
   T.visit = (Number.isInteger(T.visit) ? T.visit : 0) + 1;
@@ -187,7 +218,8 @@ export function tickTrader(game, dt) {
   t.arrived = !from;
   game.entities.addMob(t);
   game.sfx?.play('pickup', { pitch: 0.8 });
-  game.hud.showLabel(at.stall ? (from ? 'A travelling trader is on its way to your market stall' : 'A travelling trader has come by your market stall') : 'A travelling trader has come by — and holds a fair: lead an animal to it', true);
+  const where = at.village ? `the market in ${at.village}` : 'your market stall';
+  game.hud.showLabel(at.stall ? (from ? `A travelling trader is on its way to ${where}` : `A travelling trader has come by ${where}`) : 'A travelling trader has come by — and holds a fair: lead an animal to it', true);
 }
 
 // ---- the fair ----
@@ -219,8 +251,8 @@ export function judge(game, led) {
     if (p.mode !== GAMEMODE_CREATIVE) {
       const left = p.give(I.COIN, prize);
       if (left > 0) game.entities.spawnDrops(p.x, p.y + 1, p.z, [{ id: I.COIN, count: left }]);
+      bump(game.worldMeta, 'coins', prize);   // (the ledger counts coins you were paid)
     }
-    bump(game.worldMeta, 'coins', prize);
     said.push(`${m.name ?? 'Your ' + (m.label ?? m.kind)}: ${RIBBONS[place]} ribbon, ${prize} coins`);
     game.sparks?.(m.x, m.y + m.h + 0.3, m.z, place === 2 ? 0x4060e0 : place === 1 ? 0xd04040 : 0xe0c040, 12);
   }

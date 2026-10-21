@@ -340,7 +340,9 @@ export class Interaction {
     if (held?.id === I.WHISTLE) { this.cb.whistle?.(p.sneaking); this.useCooldown = 1.5; return; }
     // the ranch's ledger, and the market stall
     if (held?.id === I.LEDGER) { this.cb.openLedger?.(); this.useCooldown = 0.5; return; }
-    if (t && t.id === B.MARKET_STALL && !p.sneaking && !(held && isBlockItem(held.id))) { this.cb.openMarket?.(t); this.useCooldown = 0.5; return; }
+    // (whatever's in your hand, as a chest opens: it's often the very thing
+    // you came to sell; sneak to set a block on it)
+    if (t && t.id === B.MARKET_STALL && !p.sneaking) { this.cb.openMarket?.(t); this.useCooldown = 0.5; return; }
     if (t && t.id === B.TROUGH && !p.sneaking && useTrough(this, t, held)) { this.useCooldown = 0.25; return; }
     // a ripe berry bush: pick it (it grows them again)
     if (t && t.id === B.BERRY_BUSH_3 && !p.sneaking && !(held && isBlockItem(held.id)) && held?.id !== I.BONE_MEAL) { this.pickBerries(t); this.useCooldown = 0.3; return; }

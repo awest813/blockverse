@@ -5,7 +5,7 @@
 import { I } from '../items/itemIds.js';
 import { itemInfo } from '../items/items.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
-import { SELLS, RETURNS, BUYS, priceOf, sell, bump } from '../world/market.js';
+import { SELLS, RETURNS, BUYS, priceOf, sell, bump, quote, onAccount } from '../world/market.js';
 import { describeAnimal } from '../entities/inspect.js';
 import { B } from '../blocks/blocks.js';
 import { stallState, shelve, unshelve, shelfCount, shelfPrice, catchUp } from '../world/stall.js';
@@ -27,6 +27,8 @@ const KIND_PLURALS = { sheep: 'sheep', fish: 'fish', fox: 'foxes', wolf: 'wolves
 const kindName = (k) => KIND_NAMES[k] ?? k;
 const kindPlural = (k, n) => (n === 1 ? kindName(k) : KIND_PLURALS[k] ?? `${kindName(k)}s`);
 const coinsText = (v) => (v >= 10 ? `${Math.round(v)}` : v.toFixed(1).replace(/\.0$/, ''));
+// '2 coins', '1 coin', '0.5 coins' (by what's shown: 0.99 shows as 1)
+const coinsOf = (v) => { const t = coinsText(v); return `${t} coin${t === '1' ? '' : 's'}`; };
 
 export class RanchPanel {
   constructor(game) {
@@ -47,7 +49,15 @@ export class RanchPanel {
 
   // the window's frame; fill(win) adds the rest
   frame(title, fill) {
-    const fresh = !this.root.querySelector('.ranch-panel');   // (not a redraw after a sale)
+    const old = this.root.querySelector('.ranch-panel');
+    const fresh = !old;   // (not a redraw after a sale)
+    // a redraw keeps your place: the button you were on (or the one that
+    // takes its place, if its row has gone) and how far down you'd scrolled
+    const was = document.activeElement, focusKey = was?.dataset?.act;
+    const kin = (root, key) => [...root.querySelectorAll('section, .ranch-list')].map((sec) => [...sec.querySelectorAll('button[data-act]')].filter((b) => b.dataset.act.split('|')[0] === key.split('|')[0]));
+    const oldKin = old && focusKey ? kin(old, focusKey) : [];
+    const sec = oldKin.findIndex((list) => list.includes(was)), focusAt = sec < 0 ? -1 : oldKin[sec].indexOf(was);
+    const scrolls = old ? [...old.querySelectorAll('.ranch-cols, .ranch-list'), old].map((e) => e.scrollTop) : [];
     this.root.innerHTML = '';
     const screen = document.createElement('div');
     screen.className = 'screen dim container-screen';
@@ -66,7 +76,14 @@ export class RanchPanel {
     screen.appendChild(win);
     screen.addEventListener('mousedown', (e) => { if (e.target === screen) this.close(); });
     this.root.appendChild(screen);
-    if (fresh) x.focus({ preventScroll: true });   // (keys and a gamepad start inside the window)
+    if (fresh) { x.focus({ preventScroll: true }); return; }   // (keys and a gamepad start inside the window)
+    [...win.querySelectorAll('.ranch-cols, .ranch-list'), win].forEach((e, i) => { if (scrolls[i]) e.scrollTop = scrolls[i]; });
+    if (focusAt < 0) return;
+    // the same button, or the same action on the row that's taken its place
+    // in that column (the next one down, or the last), or the close button
+    const same = [...win.querySelectorAll('button[data-act]')].find((b) => b.dataset.act === focusKey && !b.disabled);
+    const list = (kin(win, focusKey)[sec] ?? []).filter((b) => !b.disabled);
+    (same ?? list[Math.min(focusAt, list.length - 1)] ?? x).focus({ preventScroll: true });
   }
 
   row(icon, text, sub, buttons) {
@@ -83,6 +100,9 @@ export class RanchPanel {
     for (const [label, fn, disabled] of buttons) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'btn small'; b.textContent = label; b.disabled = !!disabled;
+      // (which thing it's for, to a screen reader; and a key to find it again after a redraw)
+      b.setAttribute('aria-label', `${label}: ${text}`);
+      b.dataset.act = `${label.replace(/ \(.*\)$/, '')}|${icon ?? text}`;
       b.addEventListener('click', fn);
       r.appendChild(b);
     }
@@ -123,7 +143,7 @@ export class RanchPanel {
     if (!on.length) box.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Put things out (Shelve) and customers come by day to buy them, paying a quarter more than the market does on the spot. They come while you\u2019re away too.' }));
     for (const id of on) {
       const n = shelfCount(st, id), price = shelfPrice(meta, id);
-      box.appendChild(this.row(id, `${name(id)} ×${n}`, `customers pay ${coinsText(price)} coin${price === 1 ? '' : 's'} each`, [['Take back', () => this.takeBack(id)]]));
+      box.appendChild(this.row(id, `${name(id)} ×${n}`, `customers pay ${coinsOf(price)} each`, [['Take back', () => this.takeBack(id)]]));
     }
     win.appendChild(box);
   }
@@ -171,7 +191,10 @@ export class RanchPanel {
     this.frame('Market Stall', (win) => {
       const purse = document.createElement('p');
       purse.className = 'ranch-purse';
-      purse.textContent = `Your coins: ${p.countOf(I.COIN)}`;
+      // (and the odd part of a coin, kept on account from earlier sales)
+      const odd = onAccount(meta);
+      purse.textContent = `Your coins: ${p.countOf(I.COIN)}${odd >= 0.05 ? ` (and ${coinsText(odd)} on account, paid with your next sale)` : ''}`;
+      purse.setAttribute('aria-live', 'polite');
       win.appendChild(purse);
       const st = this.stall();
       if (st) this.renderShelf(win, st);
@@ -185,8 +208,10 @@ export class RanchPanel {
       if (!have.length) sellCol.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Nothing the market buys: eggs, milk, butter, cheese, wool, honey, meat, crops and good food sell here.' }));
       for (const id of have) {
         const n = p.countOf(id), price = priceOf(meta, id);
-        const each = `${coinsText(price)} coin${price === 1 ? '' : 's'} each${price < SELLS.get(id) * 0.8 ? ' (plenty sold lately)' : ''}`;
-        const buttons = [['Sell 1', () => this.sell(id, 1)], ['Sell all', () => this.sell(id, n)]];
+        const each = `${coinsOf(price)} each${price < SELLS.get(id) * 0.8 ? ' (plenty sold lately)' : ''}`;
+        // (selling a lot sags the price as it goes: say what the lot fetches)
+        const all = n > 1 ? quote(meta, id, n).coins : null;
+        const buttons = [['Sell 1', () => this.sell(id, 1)], [all === null ? 'Sell all' : `Sell all (${all})`, () => this.sell(id, n)]];
         if (st) buttons.push(['Shelve', () => this.shelveAll(id), full && !shelfCount(st, id)]);
         sellCol.appendChild(this.row(id, `${name(id)} ×${n}`, each, buttons));
       }
@@ -195,7 +220,7 @@ export class RanchPanel {
       buyCol.innerHTML = '<h4>Buy</h4>';
       const coins = p.countOf(I.COIN);
       for (const [id, cost] of BUYS) {
-        buyCol.appendChild(this.row(id, name(id), `${cost} coin${cost === 1 ? '' : 's'}`, [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
+        buyCol.appendChild(this.row(id, name(id), coinsOf(cost), [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
       }
       cols.append(sellCol, buyCol);
       win.appendChild(cols);
@@ -245,13 +270,14 @@ export class RanchPanel {
       const purse = document.createElement('p');
       purse.className = 'ranch-purse';
       purse.textContent = `Your coins: ${p.countOf(I.COIN)} \u00b7 Lead an animal up to enter it in the fair`;
+      purse.setAttribute('aria-live', 'polite');
       win.appendChild(purse);
       const cols = document.createElement('div');
       cols.className = 'ranch-cols';
       const buyCol = document.createElement('section');
       buyCol.innerHTML = '<h4>For sale this visit</h4>';
       const coins = p.countOf(I.COIN);
-      for (const [id, cost] of offers) buyCol.appendChild(this.row(id, name(id), `${cost} coin${cost === 1 ? '' : 's'}`, [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
+      for (const [id, cost] of offers) buyCol.appendChild(this.row(id, name(id), coinsOf(cost), [['Buy', () => this.buy(id, cost), !creative && coins < cost]]));
       if (!offers.length) buyCol.append(Object.assign(document.createElement('p'), { className: 'ranch-empty', textContent: 'Sold out this visit.' }));
       const wantCol = document.createElement('section');
       wantCol.innerHTML = '<h4>Wanted</h4>';
