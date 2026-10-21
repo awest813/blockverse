@@ -16,7 +16,7 @@ export function describeAnimal(m) {
   const species = cap(m.petName ?? m.label ?? m.kind);
   const title = m.name ? `${m.name} (${species.toLowerCase()})` : species;
   const lines = [];
-  lines.push(m.tamed ? 'Your pet' + (m.sitting ? ' — sitting' : '') : m.owned ? 'Your ' + (m.label ?? m.kind) : m.persistent ? 'Yours' : 'Wild');
+  lines.push(m.tamed ? 'Your pet' + (m.sitting ? ' — sitting' : '') : m.owned ? 'Your ' + (m.label ?? m.kind) : m.persistent ? 'Yours' : m.flock ? `Belongs to ${m.flockOf.name}` : 'Wild');
   // age
   if (m.baby) lines.push(`Young — grows up in ${secs(m.grow ?? 0)}`);
   else if (Number.isFinite(m.born)) {

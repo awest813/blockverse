@@ -20,6 +20,7 @@ import { coordRng } from '../core/rng.js';
 import { worldClock } from '../core/clock.js';
 import { isRipe, cropFamily, cropTime } from '../world/saplings.js';
 import { TRADES } from '../world/villageTrade.js';
+import { Sheep } from './mobs.js';
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // (as villages.js: a plot's rot indexes these)
 const NEAR = 40;          // blocks outside a village's bounds where its people appear...
@@ -30,25 +31,35 @@ const MAX_RESIDENTS = 16;
 const MOURN = 2 * DAY_LENGTH_SECONDS;     // a loss is spoken of for two days
 
 // workplaces and the jobs they make
-const WORKPLACE = { smithy: 'smith', kitchen: 'cook', library: 'librarian', farm: 'farmer', stable: 'stablehand' };
-export const JOB_LABEL = { smith: 'smith', cook: 'cook', librarian: 'librarian', farmer: 'farmer', stablehand: 'stable hand', none: 'villager' };
+const WORKPLACE = { smithy: 'smith', kitchen: 'cook', library: 'librarian', farm: 'farmer', stable: 'stablehand', pasture: 'shepherd', smokehouse: 'butcher', apiary: 'beekeeper', fishery: 'fisher' };
+export const JOB_LABEL = { smith: 'smith', cook: 'cook', librarian: 'librarian', farmer: 'farmer', stablehand: 'stable hand', shepherd: 'shepherd', butcher: 'butcher', beekeeper: 'beekeeper', fisher: 'fisher', none: 'villager' };
+// jobs done under a roof, that the rain doesn't stop
+const INDOORS = new Set(['smith', 'cook', 'librarian', 'butcher']);
+const FLOCK = 3;   // sheep a pasture keeps (a lamb a day makes up a loss)
 
 const FIRST = ['Tam', 'Wren', 'Ash', 'Bram', 'Elin', 'Hob', 'Ivy', 'Jory', 'Kit', 'Lark', 'Mabe', 'Ned', 'Orrin', 'Pell', 'Rue', 'Sal', 'Tobin', 'Una', 'Vey', 'Wil', 'Ada', 'Bex', 'Cole', 'Dell', 'Effie', 'Finch', 'Gil', 'Hale', 'Isla', 'Jem', 'Lorn', 'Moss', 'Nell', 'Oak', 'Pip', 'Quill', 'Ros', 'Sorrel', 'Teague', 'Yarrow'];
 
 // ---- the plan, as the villagers see it ----
 
 // Where people stand in each building (local cells: lx along the front, lz
-// back from it) and whether it has a door or a gate in the middle of its front.
+// back from it): beds, by the beds, at work, and out of the rain (under its
+// roof: the open smithy, the stable's and pasture's lean-tos, the fisher's
+// shed); and whether it has a door or a gate in the middle of its front.
 function spots(p) {
   const { w, depth: d } = p, mid = w >> 1;
   switch (p.name) {
-    case 'house': return { beds: [[1, d - 2]], stand: [[1, d - 3]], door: 'door' };
-    case 'bighouse': return { beds: [[1, d - 2], [2, d - 2]], stand: [[1, d - 3], [2, d - 3]], door: 'door' };
-    case 'smithy': return { work: [[2, d - 3], [3, d - 3]], door: null };
-    case 'kitchen': return { work: [[2, d - 3], [3, d - 3]], door: 'door' };
-    case 'library': return { work: [[2, 3], [mid, 2]], door: 'door' };
+    case 'house': return { beds: [[1, d - 2]], stand: [[1, d - 3]], shelter: [[mid, 2]], door: 'door' };
+    case 'bighouse': return { beds: [[1, d - 2], [2, d - 2]], stand: [[1, d - 3], [2, d - 3]], shelter: [[3, 2], [3, 3]], door: 'door' };
+    case 'smithy': return { work: [[2, d - 3], [3, d - 3]], shelter: [[mid, 1], [mid + 1, 1], [mid - 1, 2]], door: null };
+    case 'kitchen': return { work: [[2, d - 3], [3, d - 3]], shelter: [[3, 2], [4, 2]], door: 'door' };
+    case 'library': return { work: [[2, 3], [mid, 2]], shelter: [[2, 1], [3, 1]], door: 'door' };
     case 'farm': return { work: [[1, 0], [mid - 1, 0], [mid + 1, 0], [w - 2, 0]], door: null, outside: true };   // (the log rim along its front)
-    case 'stable': return { work: [[mid, 2], [mid - 1, 3]], door: 'gate' };
+    case 'stable': return { work: [[mid, 2], [mid - 1, 3]], shelter: [[2, d - 3], [3, d - 3], [w - 3, d - 3]], door: 'gate' };
+    // (generator 13)
+    case 'pasture': return { work: [[mid, 2], [2, 4], [w - 3, 3]], shelter: [[2, d - 3], [3, d - 3], [w - 3, d - 3]], door: 'gate' };
+    case 'smokehouse': return { work: [[2, d - 3], [3, d - 3]], shelter: [[3, 2], [4, 2]], door: 'door' };
+    case 'apiary': return { work: [[mid, 2], [mid, d - 3]], door: 'gate' };
+    case 'fishery': return { work: [[mid, 2], [mid, 3]], shelter: [[mid - 1, d - 2], [mid, d - 2], [mid + 1, d - 2]], door: null };   // (out on the jetty; the shed)
     default: return { door: null };
   }
 }
@@ -205,9 +216,18 @@ function checkRecord(rec, v) {
       job: kid ? 'child' : work === null ? 'none' : WORKPLACE[v.pieces[work].name],
       kid, born: Number.isFinite(r.born) ? r.born : 0, alive: r.alive !== false,
       lag: Number.isFinite(r.lag) ? Math.max(0, Math.min(0.03, r.lag)) : 0,
+      // trading (villageTrade.js checks these as it reads them)
+      xp: Number.isFinite(r.xp) ? r.xp : 0, stock: r.stock && typeof r.stock === 'object' && !Array.isArray(r.stock) ? r.stock : {}, stockAt: Number.isFinite(r.stockAt) ? r.stockAt : undefined,
     });
   }
   const out = { name: v.name, residents, created: Number.isFinite(rec.created) ? rec.created : 0 };
+  if (rec.flocks && typeof rec.flocks === 'object') {
+    out.flocks = {};
+    for (const [i, f] of Object.entries(rec.flocks)) {
+      if (v.pieces[i]?.name === 'pasture' && Number.isFinite(f?.n) && Number.isFinite(f?.at)) out.flocks[i] = { n: Math.max(0, Math.min(FLOCK, Math.floor(f.n))), at: f.at };
+    }
+  }
+  if (rec.market && typeof rec.market === 'object') out.market = rec.market;   // (villageTrade.js checks it)
   if (rec.lost && typeof rec.lost.name === 'string' && Number.isFinite(rec.lost.at)) out.lost = { name: rec.lost.name.slice(0, 24), at: rec.lost.at };
   return out;
 }
@@ -231,19 +251,36 @@ export function villageRecord(game, v) {
 
 // ---- the day ----
 
+// Is it raining (or snowing) on village v? (the shower's the world's; none
+// falls on a desert)
+const wet = (game, v) => game.rainAmt > 0.5 && game.weather?.kind === 'rain' && v.style !== 'sand';
+
 // What resident r is doing at time of day t (0..1, noon 0.25).
 export function activity(r, t, raining) {
   const u = (t - r.lag + 1) % 1;
   if (u >= 0.53 && u < 0.98) return 'sleep';
   if (u >= 0.45 || u < 0.03) return 'home';   // dusk, and up at dawn
-  if (raining) return 'home';
-  if (u >= 0.2 && u < 0.29) return 'square';   // noon on the square
-  return r.kid ? 'play' : Number.isInteger(r.work) ? 'work' : 'square';
+  const act = u >= 0.2 && u < 0.29 ? 'square' : r.kid ? 'play' : Number.isInteger(r.work) ? 'work' : 'square';   // (noon on the square)
+  // in the rain, everyone out of doors takes shelter under the nearest roof
+  return raining && !(act === 'work' && INDOORS.has(r.job)) ? 'shelter' : act;
 }
 
 // where an activity puts r (a place), `k` picking among the spots there
-export function placeFor(v, r, act, k = 0) {
+// (`near`: where it is now, for the nearest shelter)
+export function placeFor(v, r, act, k = 0, near = null) {
   if (act === 'square' || act === 'play') return { plot: -1, ring: k % 8 };
+  if (act === 'shelter') {
+    let best = null, bd = Infinity;
+    const at = near ?? placeCell(v, placeFor(v, r, 'home'));
+    v.pieces.forEach((q, i) => {
+      const S = isPlot(q) && spots(q).shelter;
+      if (!S) return;
+      const c = inPlot(q, ...S[0]), d = Math.hypot(c.x - at.x, c.z - at.z);
+      if (d < bd) { bd = d; best = { plot: i, spot: S[k % S.length] }; }
+    });
+    if (best) return best;
+    act = 'home';
+  }
   if (act === 'work' && Number.isInteger(r.work)) {
     const S = spots(v.pieces[r.work]);
     return { plot: r.work, spot: S.work[k % S.work.length] };
@@ -260,10 +297,14 @@ const LINES = {
   cook: ['Something’s always on the boil.', 'A stew’s only as good as its mushrooms.', 'Eggs, milk and a bit of patience.', 'Hungry? You look hungry.'],
   librarian: ['Quiet, please.', 'Every book here’s been read twice.', 'Paper’s dear these days.', 'I keep the village’s records. Such as they are.'],
   stablehand: ['The horses are in a fine mood.', 'Hay, water and a kind word.', 'A good saddle’s worth its weight.', 'Mind the hooves.'],
+  shepherd: ['Three sheep and not one of them listens.', 'Wool’s thick this year.', 'Shut the gate behind you, would you?', 'A good fleece keeps a village warm.'],
+  butcher: ['Smoke it slow and it keeps all winter.', 'Bring me a good side of beef.', 'Nothing wasted: the hide goes to the tanner.', 'Mind the fire.'],
+  beekeeper: ['Move slowly. They don’t mind you if you move slowly.', 'The poppies make the best honey.', 'Plant flowers and the bees will come.', 'Not a single sting today!'],
+  fisher: ['They’re biting today.', 'Patience. That’s all fishing is.', 'Bring me string and I’ll mend the nets.', 'You should have seen the one that got away.'],
   none: ['Lovely day.', 'Not much doing today.', 'Come far, have you?', 'Welcome to {village}.'],
   child: ['Tag! You’re it!', 'Are you a traveller?', 'I’m going to be a smith when I grow up.', 'Can you catch me?'],
   night: ['It’s late. Off to bed with you.', 'Shouldn’t you be indoors?', 'Mind the dark out there.'],
-  rain: ['Wet enough for you?', 'Best get out of the rain.'],
+  rain: ['Wet enough for you?', 'Best get out of the rain.', 'Come in under here, it’s dry.', 'Good for the fields, at least.'],
   hurt: ['Ow! What was that for?', 'Hey! Stop that!', 'Help! Help!'],
 };
 
@@ -271,7 +312,7 @@ export function lineFor(game, v, rec, r) {
   const t = game.time, pick = (list) => list[(Math.random() * list.length) | 0].replace('{village}', v.name);
   if (rec.lost && worldClock.now - rec.lost.at < MOURN && Math.random() < 0.4) return `We lost ${rec.lost.name}. It’s not the same without them.`;
   if (game.isNight()) return pick(LINES.night);
-  if (game.world.raining && Math.random() < 0.5) return pick(LINES.rain);
+  if (wet(game, v) && Math.random() < 0.5) return pick(LINES.rain);
   if (Math.random() < 0.25) return `Welcome to ${v.name}.`;
   return pick(LINES[r.kid ? 'child' : r.job] ?? LINES.none) + (t > 0.2 && t < 0.29 && !r.kid && Math.random() < 0.3 ? ' Lunch soon, I hope.' : '');
 }
@@ -282,6 +323,7 @@ export function lineFor(game, v, rec, r) {
 const DRESS = {
   farmer: [0x6a8a3a, 0xd8c060], smith: [0x4a4a52, 0x2a2a2a], cook: [0xe8e4dc, 0xb04030], librarian: [0x5a3a7a, 0xd8b048],
   stablehand: [0x8a5a34, 0x4a3420], none: [0x5a7aa8, 0x3a4a68], child: [0xd87a4a, 0x4a6aa8],
+  shepherd: [0xe8e2d0, 0x6a5a3a], butcher: [0x7a2a2a, 0xe8e4dc], beekeeper: [0xe8d070, 0x4a3a1a], fisher: [0x2a5a8a, 0xe0c040],
 };
 const SKIN = [0xd8a880, 0xc08a60, 0xe8c09a, 0x8a5a3a, 0xa87048];
 
@@ -323,6 +365,10 @@ export class Villager extends Mob {
       case 'cook': this.part(0.36, 0.3, 0.36, 0xf4f2ec, 0, 2.0, 0); this.part(0.44, 0.5, 0.04, 0xf4f2ec, 0, 0.98, -0.17); break;   // a tall cap, an apron
       case 'librarian': this.part(0.12, 0.08, 0.02, 0x2a2a2a, -0.1, 1.71, -0.235); this.part(0.12, 0.08, 0.02, 0x2a2a2a, 0.1, 1.71, -0.235); this.part(0.44, 0.1, 0.44, 0x5a3a7a, 0, 1.88, 0); break;   // spectacles
       case 'stablehand': this.part(0.46, 0.12, 0.46, 0x4a3420, 0, 1.9, 0); this.part(0.46, 0.04, 0.2, 0x4a3420, 0, 1.86, -0.3); break;   // a cap with a peak
+      case 'shepherd': this.part(0.56, 0.5, 0.36, 0xf4f0e4, 0, 1.2, 0.02); this.part(0.06, 1.7, 0.06, 0x7a5a34, 0.44, 0.9, -0.1); this.part(0.2, 0.06, 0.06, 0x7a5a34, 0.36, 1.76, -0.1); break;   // a fleece cape and a crook
+      case 'butcher': this.part(0.44, 0.6, 0.04, 0xf0ece4, 0, 0.98, -0.17); this.part(0.16, 0.12, 0.05, 0xa03030, -0.08, 1.06, -0.19); this.part(0.44, 0.1, 0.44, 0xf0ece4, 0, 1.88, 0); break;   // a stained apron
+      case 'beekeeper': this.part(0.8, 0.05, 0.8, 0xf4f2ec, 0, 1.88, 0); this.part(0.44, 0.2, 0.44, 0xf4f2ec, 0, 1.98, 0); this.part(0.5, 0.24, 0.04, 0x2a2a2a, 0, 1.66, -0.25); break;   // a wide hat and a veil
+      case 'fisher': this.part(0.52, 0.16, 0.52, 0xe0c040, 0, 1.9, 0.02); this.part(0.52, 0.04, 0.24, 0xe0c040, 0, 1.84, 0.34); break;   // a sou'wester
       default: this.part(0.44, 0.12, 0.44, trim, 0, 1.88, 0);   // hair
     }
     this.part(0.14, 0.56, 0.16, coat, -0.32, 1.06, 0);         // arms
@@ -370,7 +416,7 @@ export class Villager extends Mob {
     this.checkT = (this.checkT ?? 0) - dt;
     if (this.checkT <= 0) {
       this.checkT = 1 + Math.random();
-      const act = activity(r, g.time, g.world.raining);
+      const act = activity(r, g.time, wet(g, this.village));
       if (act !== this.act) this.setAct(act);
     }
     if (this.route) { this.walk(dt, player); return; }
@@ -384,7 +430,7 @@ export class Villager extends Mob {
     if (this.route?.open) this.door(this.route.open, false);   // (a change of plan in a doorway)
     // a new spot among the place's spots now and then: people spread out
     if (act === 'square' || act === 'play') this.k = (Math.random() * 8) | 0;
-    const to = placeFor(v, this.res, act, this.k);
+    const to = placeFor(v, this.res, act, this.k, { x: this.x, z: this.z });
     const from = this.at ?? this.nearestPlace();
     this.route = { pts: route(v, from, to), i: 0, t: 0, best: Infinity, open: null };
     this.at = to;
@@ -522,7 +568,7 @@ export class Villager extends Mob {
   // the inspect card (sneak and look)
   describe() {
     const r = this.res, v = this.village;
-    const doing = { sleep: 'Asleep', home: 'At home', work: 'At work', square: 'On the square', play: 'Playing' }[this.act] ?? 'About the village';
+    const doing = { sleep: 'Asleep', home: 'At home', work: 'At work', square: 'On the square', play: 'Playing', shelter: 'Sheltering from the rain' }[this.act] ?? 'About the village';
     const lines = [r.kid ? `A child of ${v.name}: grows up in ${Math.max(1, Math.ceil((GROW_UP - (worldClock.now - r.born)) / DAY_LENGTH_SECONDS))} day(s)` : `The ${this.label} of ${v.name}`];
     lines.push(this.route ? `On the way: ${doing.toLowerCase()}` : doing);
     lines.push(`Health ${Math.ceil(this.health)}/${this.maxHealth}`);
@@ -659,9 +705,15 @@ export function tickVillagers(game, dt) {
   timer = 1;
   const gen = game.world.gen, p = game.player, mobs = game.entities.mobs;
   const live = mobs.filter((m) => m.kind === 'villager' && !m.dead);
-  if (game.dimension !== 'overworld' || !gen || gen.version < 12) { for (const m of live) m.kill(); return; }
+  const sheep = mobs.filter((m) => m.flock && !m.dead);
+  if (game.dimension !== 'overworld' || !gen || gen.version < 12) { for (const m of [...live, ...sheep]) m.kill(); return; }
   // gone from villages left behind
   for (const m of live) if (outside(m.village, p.x, p.z) > FAR) m.kill();
+  for (const m of sheep) {
+    // fed or led off, a village sheep is yours now (and the flock one short)
+    if (m.persistent) { loseSheep(m); m.resident = false; continue; }
+    if (outside(m.flockOf, p.x, p.z) > FAR) m.kill();
+  }
   for (const v of villagesNear(gen, p.x, p.z)) {
     if (outside(v, p.x, p.z) > NEAR) continue;
     const rec = villageRecord(game, v);
@@ -673,8 +725,9 @@ export function tickVillagers(game, dt) {
     for (const r of rec.residents) {
       if (!r.alive || here.has(r.id)) continue;
       // where the day says it is (in bed, at work, on the square, at home)
-      const act = activity(r, game.time, game.world.raining);
-      const place = placeFor(v, r, act, r.id);
+      const act = activity(r, game.time, wet(game, v));
+      const dry = placeCell(v, placeFor(v, r, activity(r, game.time, false), r.id));   // (in the rain: the shelter nearest where it'd be)
+      const place = placeFor(v, r, act, r.id, dry);
       const c = placeCell(v, place);
       if (!game.world.isLoaded(c.x, c.z)) continue;
       const m = new Villager(game.scene, game.world, c.x + 0.5, c.y + 0.05, c.z + 0.5, v, r);
@@ -682,5 +735,46 @@ export function tickVillagers(game, dt) {
       game.entities.addMob(m);
       if (act === 'sleep') m.lieDown();
     }
+    tendFlocks(game, v, rec, sheep);
   }
+}
+
+// a sheep gone from its flock: the flock's a sheep short, and a lamb's due
+// in a day
+function loseSheep(m) {
+  const f = m.flock;
+  if (!f) return;
+  if (f.n >= FLOCK) f.at = worldClock.now;
+  f.n = Math.max(0, f.n - 1);
+  m.flock = null;
+}
+
+// The village's sheep in each pasture (generator 13): kept like its people,
+// a record while you're away, put back in the pen as you come near. One
+// killed or taken leaves the flock short until a lamb a day makes it up.
+function tendFlocks(game, v, rec, sheep) {
+  if (!rec.flocks || typeof rec.flocks !== 'object' || Array.isArray(rec.flocks)) rec.flocks = {};
+  v.pieces.forEach((p, i) => {
+    if (!isPlot(p) || p.name !== 'pasture') return;
+    let f = rec.flocks[i];
+    if (!f || typeof f !== 'object' || !Number.isFinite(f.n) || !Number.isFinite(f.at)) f = rec.flocks[i] = { n: FLOCK, at: worldClock.now };
+    f.n = Math.max(0, Math.min(FLOCK, Math.floor(f.n)));
+    if (f.n >= FLOCK) f.at = worldClock.now;
+    else if (worldClock.now - f.at >= DAY_LENGTH_SECONDS) { f.n++; f.at += DAY_LENGTH_SECONDS; }
+    const key = `${v.id}:${i}`;
+    let have = sheep.filter((m) => m.flockKey === key && m.flock).length;
+    for (let k = 0; have < f.n && k < 6; k++) {
+      const rng = Math.random, lx = 1 + ((rng() * (p.w - 2)) | 0), lz = 1 + ((rng() * (p.depth - 4)) | 0);
+      const c = inPlot(p, lx, lz);
+      if (!game.world.isLoaded(c.x, c.z)) break;
+      const m = new Sheep(game.scene, game.world, c.x + 0.5, c.y + 0.05, c.z + 0.5);
+      m.resident = true;   // (not despawned when far off: the village puts it away)
+      m.flock = f; m.flockKey = key; m.flockOf = v;
+      // lost to the flock if it dies (a hit, a fall)
+      const die = m.die.bind(m);
+      m.die = () => { if (m.dying === undefined) loseSheep(m); die(); };
+      game.entities.addMob(m);
+      have++;
+    }
+  });
 }

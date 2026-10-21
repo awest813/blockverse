@@ -216,7 +216,7 @@ export function tickRanch(game, dt) {
     m.pen = p;
     if (!p) { m.moodWhy = null; continue; }
     census(p, mobs, now);
-    m.persistent = true;   // a penned animal is someone's
+    if (!m.flock) m.persistent = true;   // a penned animal is someone's (a village's own flock stays the village's: entities/villagers.js)
     m.home = { x, y, z };
     const [target, why] = judge(m, p, game);
     // moods change gradually (a cloud passing doesn't break its heart)

@@ -234,10 +234,24 @@ fields to harvest). They let the generator settle and be tested on its own:
 - A farmer reaps and replants ripe crops by it. A villager hit runs off;
   one killed is gone, and mourned for two days.
 
-Not yet: shepherds, butchers, beekeepers and fishers (no buildings for
-them), kids following you about, rain shelter under the nearest roof
-(they go home), the market stall per village, the trader's visits moving
-to the square for good, and standing (Phase 4).
+Then (generator 13, which was only ever on the development branch, so no
+saved world has its villages yet): four more buildings and their jobs, a
+shepherd's **pasture** (fenced, a gate, a lean-to over hay), a butcher's
+**smokehouse** (a fire and racks), a beekeeper's **apiary** (flowers round
+three hives with bees) and a fisher's **fishery** (a pond with a jetty out
+over it, a shed behind), each with a trade table. A pasture keeps three
+sheep of the village's own: bodies while you're near, like its people;
+penned, they stay the village's (the ranch doesn't count them as yours);
+fed, led off or killed, the flock is a sheep short until a lamb a day
+makes it up. In the rain (or snow; never in the desert), everyone out of
+doors goes to the nearest roof (a house, the open smithy, the stable's or
+pasture's lean-to, the fisher's shed); the smith, cook, librarian and
+butcher work on. A record loaded from a save keeps its trade levels,
+stock, prices and flocks (the first version dropped them).
+
+Not yet: kids following you about, the market stall per village, the
+trader's visits moving to the square for good, horses in the stables, and
+standing (Phase 4: taking the village's sheep isn't theft yet).
 
 
 1. **`Villager` mob** (`entities/villager.js`):

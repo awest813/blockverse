@@ -36,6 +36,22 @@ export const TRADES = {
     buys: [[I.PAPER, 0.5], [I.FEATHER], [I.BOOK, 3, 2], [B.CANDLE, null, 3]],
     sells: [[I.BOOK, 4, 3], [I.NAME_TAG, 6, 2], [I.LEDGER, 6, 1, 2], [B.BOOKSHELF, 8, 2, 2], [B.LANTERN, 4, 4, 3], [I.GOLDEN_APPLE, 24, 1, 4]],
   },
+  shepherd: {
+    buys: [[B.WOOL], [I.MUTTON_RAW], [I.STRING, 0.5], [I.WHEAT, null, 2], [B.HAY_BALE, null, 3]],
+    sells: [[I.SHEARS, 5, 2], [B.RED_WOOL, 5, 4], [B.BLUE_WOOL, 5, 4, 2], [B.YELLOW_WOOL, 5, 4, 2], [B.WHITE_CARPET, 3, 6, 2], [B.BED, 10, 1, 3], [B.BLACK_WOOL, 6, 4, 4]],
+  },
+  butcher: {
+    buys: [[I.BEEF_RAW], [I.PORKCHOP_RAW], [I.MUTTON_RAW], [I.CHICKEN_RAW], [I.COAL, 1], [I.DUCK_RAW, null, 2]],
+    sells: [[I.PORKCHOP_COOKED, 5, 4], [I.BEEF_COOKED, 5, 4], [I.CHICKEN_COOKED, 4, 4, 2], [I.LEATHER, 6, 3, 2], [I.LEAD, 4, 2, 3], [I.BEEF_STEW, 9, 2, 3], [I.HEARTY_STEW, 10, 2, 4]],
+  },
+  beekeeper: {
+    buys: [[B.DANDELION, 0.5], [B.POPPY, 0.5], [B.CORNFLOWER, 0.5], [I.SUGAR, 1, 2], [I.HONEYCOMB, null, 2], [I.BOWL, 0.5, 3]],
+    sells: [[I.HONEYCOMB, 5, 4], [B.CANDLE, 6, 4], [I.HONEY_BOWL, 11, 2, 2], [I.HONEY_BREAD, 9, 2, 3], [B.BEEHIVE, 12, 1, 3], [I.TOFFEE_APPLE, 9, 2, 4]],
+  },
+  fisher: {
+    buys: [[I.STRING, 0.5], [I.STICK, 0.25], [I.FEATHER, null, 2], [I.BREAD, null, 3]],
+    sells: [[I.FISH_RAW, 3, 6], [I.FISH_COOKED, 4, 6], [I.FISHING_ROD, 6, 1, 2], [I.DRIED_KELP, 1, 8, 2], [I.SUSHI, 8, 2, 3], [I.FISH_CHOWDER, 9, 2, 4]],
+  },
   stablehand: {
     buys: [[I.WHEAT], [B.HAY_BALE], [I.APPLE, 1], [I.CARROT, null, 2], [I.LEATHER, null, 2]],
     sells: [[I.LEAD, 4, 3], [I.SADDLE, 15, 1, 2], [I.LEATHER_HORSE_ARMOR, 8, 1, 2], [I.WHISTLE, 9, 1, 3], [I.IRON_HORSE_ARMOR, 26, 1, 3], [I.GOLD_HORSE_ARMOR, 30, 1, 4], [I.GOLDEN_CARROT, 7, 2, 4]],

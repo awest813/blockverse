@@ -54,6 +54,11 @@ const LOOT = {
   kitchen: [[I.BREAD, 2, 5, 0.6], [I.BOWL, 2, 4, 0.5], [I.BAKED_POTATO, 1, 4, 0.4], [I.EGG, 1, 4, 0.4], [I.SUGAR, 1, 3, 0.3], [I.CHEESE, 1, 2, 0.2], [I.BUTTER, 1, 2, 0.2], [I.COOKIE, 2, 6, 0.3], [I.HONEY_BOWL, 1, 1, 0.1]],
   library: [[I.BOOK, 1, 3, 0.6], [I.PAPER, 2, 8, 0.6], [I.FEATHER, 1, 4, 0.4], [I.NAME_TAG, 1, 1, 0.2], [I.LEDGER, 1, 1, 0.1], [B.CANDLE, 1, 3, 0.3]],
   stable: [[I.WHEAT, 3, 9, 0.6], [I.LEAD, 1, 2, 0.4], [I.SADDLE, 1, 1, 0.2], [I.APPLE, 1, 3, 0.3], [I.LEATHER_HORSE_ARMOR, 1, 1, 0.1], [I.GOLDEN_CARROT, 1, 1, 0.06]],
+  // (generator 13)
+  pasture: [[B.WOOL, 2, 6, 0.7], [I.STRING, 1, 4, 0.4], [I.MUTTON_RAW, 1, 3, 0.4], [I.WHEAT, 2, 6, 0.4], [I.SHEARS, 1, 1, 0.15], [I.LEAD, 1, 1, 0.2]],
+  smokehouse: [[I.BEEF_COOKED, 1, 4, 0.5], [I.PORKCHOP_COOKED, 1, 4, 0.5], [I.MUTTON_RAW, 1, 3, 0.4], [I.LEATHER, 1, 4, 0.5], [I.COAL, 2, 6, 0.4], [I.LEAD, 1, 1, 0.15]],
+  apiary: [[I.HONEYCOMB, 1, 4, 0.6], [I.HONEY_BOWL, 1, 2, 0.3], [B.CANDLE, 1, 3, 0.4], [I.BOWL, 1, 3, 0.4], [I.SUGAR, 1, 3, 0.3], [I.HONEY_BREAD, 1, 2, 0.15]],
+  fishery: [[I.FISH_RAW, 2, 6, 0.6], [I.FISH_COOKED, 1, 4, 0.4], [I.STRING, 1, 4, 0.4], [I.DRIED_KELP, 2, 6, 0.3], [I.FISHING_ROD, 1, 1, 0.2], [I.STICK, 2, 5, 0.3]],
 };
 function lootChest(rng, table) {
   const slots = new Array(27).fill(null);
@@ -74,11 +79,14 @@ const BUILDINGS = [
   ['house', 5, 6, 5], ['bighouse', 7, 7, 3], ['smithy', 7, 6, 1.4], ['kitchen', 7, 6, 1.2],   // (odd widths: the door's in the middle)
   ['library', 7, 6, 0.9], ['farm', 9, 7, 2.6], ['stable', 9, 8, 1],
 ];
-const pickBuilding = (rng) => {
-  const total = BUILDINGS.reduce((a, b) => a + b[3], 0);
+// generator 13 adds a shepherd's pasture, a butcher's smokehouse, a
+// beekeeper's apiary and a fisher's pond and shed
+const BUILDINGS13 = [...BUILDINGS, ['pasture', 9, 8, 0.9], ['smokehouse', 7, 6, 0.8], ['apiary', 9, 7, 0.8], ['fishery', 9, 7, 0.8]];
+const pickBuilding = (rng, list = BUILDINGS) => {
+  const total = list.reduce((a, b) => a + b[3], 0);
   let r = rng() * total;
-  for (const b of BUILDINGS) if ((r -= b[3]) < 0) return b;
-  return BUILDINGS[0];
+  for (const b of list) if ((r -= b[3]) < 0) return b;
+  return list[0];
 };
 
 // ---- the plan ----
@@ -189,7 +197,7 @@ function planVillage(gen, rx, rz) {
     const d = road.d, [dx, dz] = DIRS[d];
     let side = rng() < 0.5 ? 1 : -1;
     for (let s = SQUARE + 4; s < road.len - 2;) {
-      const [name, w, depth] = pickBuilding(rng);
+      const [name, w, depth] = pickBuilding(rng, v13 ? BUILDINGS13 : BUILDINGS);
       const n = side > 0 ? (d + 1) % 4 : (d + 3) % 4;   // out from the road, toward the plot
       const [nx, nz] = DIRS[n];
       const along0 = s, along1 = s + w - 1;
@@ -461,6 +469,70 @@ const BUILD = {
       }
     }
     b.set(0, 1, 0, B.COMPOSTER);
+  },
+  // (generator 13) a fenced pasture for the village's flock, a gate to the
+  // road, and a lean-to over hay at the back (its sheep come with the people)
+  pasture(b, S, style, w, d, rng) {
+    const fence = style === 'sand' ? B.SANDSTONE : B.OAK_FENCE, mid = w >> 1;
+    for (let lx = 0; lx < w; lx++) {
+      for (let lz = 0; lz < d; lz++) {
+        b.set(lx, 0, lz, style === 'sand' ? B.SAND : B.GRASS);
+        if (lx > 0 && lz > 0 && lx < w - 1 && lz < d - 1) continue;
+        if (lz === 0 && lx === mid) { b.gate(lx, 1, lz); continue; }
+        b.set(lx, 1, lz, fence);
+      }
+    }
+    for (let lx = 1; lx < w - 1; lx++) { b.set(lx, 3, d - 2, S.ridge); b.set(lx, 3, d - 3, S.ridge); }
+    b.set(1, 1, d - 2, S.post); b.set(1, 2, d - 2, S.post); b.set(w - 2, 1, d - 2, S.post); b.set(w - 2, 2, d - 2, S.post);
+    b.set(2, 1, d - 2, B.HAY_BALE); b.set(3, 1, d - 2, B.HAY_BALE);
+    b.set(w - 3, 1, d - 2, B.WOOL);
+    b.entity(b.set(w - 4, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.pasture));
+  },
+  // (generator 13) the butcher's: a fire in the corner for smoking meat, racks
+  smokehouse(b, S, style, w, d, rng) {
+    shell(b, S, w, d);
+    roof(b, S, w, d, 4);
+    for (let lx = 1; lx < 4; lx++) for (let lz = d - 3; lz < d - 1; lz++) b.set(lx, 0, lz, B.COBBLESTONE);
+    b.set(1, 1, d - 2, B.CAMPFIRE);
+    b.set(2, 1, d - 2, style === 'sand' ? B.SANDSTONE : B.OAK_FENCE); b.set(3, 1, d - 2, style === 'sand' ? B.SANDSTONE : B.OAK_FENCE);   // (the racks)
+    b.entity(b.set(w - 2, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.smokehouse));
+    b.set(w - 2, 1, 1, B.CRAFTING_TABLE, 3);
+    b.set(1, 1, 1, B.LANTERN);
+  },
+  // (generator 13) a flower garden round a row of beehives, a path up the middle
+  apiary(b, S, style, w, d, rng) {
+    const fence = style === 'sand' ? B.SANDSTONE : B.OAK_FENCE, mid = w >> 1;
+    const flowers = [B.DANDELION, B.POPPY, B.CORNFLOWER];
+    for (let lx = 0; lx < w; lx++) {
+      for (let lz = 0; lz < d; lz++) {
+        const edge = lx === 0 || lz === 0 || lx === w - 1 || lz === d - 1;
+        b.set(lx, 0, lz, lx === mid && !edge ? B.DIRT_PATH : B.GRASS);
+        if (edge) { if (lz === 0 && lx === mid) b.gate(lx, 1, lz); else b.set(lx, 1, lz, fence); continue; }
+        if (lx !== mid && lz < d - 2 && rng() < 0.7) b.set(lx, 1, lz, flowers[(rng() * flowers.length) | 0]);
+      }
+    }
+    for (const lx of [2, mid, w - 3]) b.entity(b.set(lx, 1, d - 2, B.BEEHIVE), { kind: 'hive', bees: 2 + ((rng() * 2) | 0), honey: 0 });
+    b.entity(b.set(1, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.apiary));
+  },
+  // (generator 13) a pond at the front with a jetty out over it, and an
+  // open shed behind for the gear
+  fishery(b, S, style, w, d, rng) {
+    const mid = w >> 1;
+    for (let lx = 0; lx < w; lx++) {
+      for (let lz = 0; lz < d; lz++) {
+        const pond = lz >= 1 && lz <= 3 && lx >= 1 && lx <= w - 2 && lx !== mid;
+        if (pond) { b.set(lx, 0, lz, B.WATER); b.set(lx, -1, lz, B.WATER); b.set(lx, -2, lz, S.base); }
+        else b.set(lx, 0, lz, lz <= 3 ? (lx === mid ? S.floor : S.base) : S.floor);
+      }
+    }
+    // the shed: posts, a back wall, low sides and a flat roof
+    for (const [lx, lz] of [[1, 4], [w - 2, 4], [1, d - 1], [w - 2, d - 1]]) for (let ly = 1; ly <= 3; ly++) b.set(lx, ly, lz, S.post);
+    for (let lx = 2; lx < w - 2; lx++) for (let ly = 1; ly <= 3; ly++) b.set(lx, ly, d - 1, S.wall);
+    for (let lz = 5; lz < d - 1; lz++) { b.set(1, 1, lz, S.wall); b.set(w - 2, 1, lz, S.wall); }
+    for (let lx = 1; lx < w - 1; lx++) for (let lz = 4; lz < d; lz++) b.set(lx, 4, lz, S.ridge);
+    b.entity(b.set(w - 3, 1, d - 2, B.CHEST, 0), lootChest(rng, LOOT.fishery));
+    b.set(2, 1, d - 2, B.CRAFTING_TABLE, 0);
+    b.set(2, 1, 4, B.LANTERN);
   },
   stable(b, S, style, w, d, rng) {
     // a fenced paddock with a gate to the road, hay, a trough and a lean-to
