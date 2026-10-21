@@ -4,7 +4,7 @@
 import { buildVillageSlice } from './villages.js';
 import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/constants.js';
 import { Noise } from '../core/noise.js';
-import { coordRng, mulberry32 } from '../core/rng.js';
+import { coordRng, hashCoords, mulberry32 } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
 import { placeDungeon, structurePlan, nearStructure, buildStructure, placeFossil } from './structures.js';
 
@@ -61,7 +61,11 @@ function smoothstep(a, b, x) {
 //     in place of lava in places), and cave floors and ceilings dressed by
 //     depth and the biome above (stalactites and stalagmites, glowcaps,
 //     moss, ice, sand, clay and gravel under the lakes).
-export const LATEST_GEN = 13;
+//  14 - the seed stirred before it's hashed with a chunk (featureSeed):
+//     trees, plants, ores, bedrock, dungeons, structures, fossils and cave
+//     dressing no longer repeat, a few chunks over, in worlds whose seeds
+//     differ only in their low bits (seeds 1 and 3 were two chunks apart).
+export const LATEST_GEN = 14;
 
 // climate noise only spans ~0.36..0.64; stretch it to use the whole 0..1 range
 const stretch = (v) => Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 3.2));
@@ -76,6 +80,13 @@ export class WorldGen {
   constructor(seed, version = LATEST_GEN) {
     this.seed = seed >>> 0;
     this.version = version;
+    // what every per-chunk / per-block roll is seeded from. coordRng xors the
+    // seed straight into the first coordinate, so on older generators seed
+    // s ^ d rolled at x ^ d what seed s rolled at x (seeds 1 and 3: two chunks
+    // apart); generator 14 stirs it first (its own stir, not villages.js's
+    // mixedSeed, so a chunk's rolls don't echo the village of the region with
+    // the same number)
+    this.featureSeed = version >= 14 ? hashCoords(this.seed, 0x68e31da4, 0xb5297a4d, 0x1b56c4e9) : this.seed;
     this.continent = new Noise(seed + 1);
     this.erosion = new Noise(seed + 2);
     this.peaks = new Noise(seed + 3);
@@ -296,7 +307,7 @@ export class WorldGen {
     const blocks = new Uint16Array(CHUNK_X * CHUNK_Y * CHUNK_Z);
     const heightMap = new Uint8Array(CHUNK_X * CHUNK_Z);
     const biomeMap = new Uint8Array(CHUNK_X * CHUNK_Z);
-    const bedrockRng = coordRng(this.seed, cx, cz, 1);
+    const bedrockRng = coordRng(this.featureSeed, cx, cz, 1);
     const v5 = this.version >= 5;
     const v13 = this.version >= 13;
 
@@ -360,7 +371,7 @@ export class WorldGen {
 
         // occasional clay pockets under water
         if (biome === BIOME.OCEAN || biome === BIOME.SWAMP || biome === BIOME.RIVER) {
-          const r = coordRng(this.seed, wx, wz, 33)();
+          const r = coordRng(this.featureSeed, wx, wz, 33)();
           if (r < 0.06 && h > 4 && (this.version < 9 || h < SEA_LEVEL)) blocks[blockIndex(x, h, z)] = B.CLAY;   // (v9: only under water)
         }
         if (v5) this.columnLife(blocks, x, z, wx, wz, h, biome, col, snowy);
@@ -414,7 +425,7 @@ export class WorldGen {
 
   // Mushrooms and mossy patches on cave floors (within this chunk only).
   decorateCaves(blocks, cx, cz, heightMap) {
-    const rng = coordRng(this.seed, cx, cz, 900);
+    const rng = coordRng(this.featureSeed, cx, cz, 900);
     for (let i = 0; i < 40; i++) {
       const x = (rng() * CHUNK_X) | 0, z = (rng() * CHUNK_Z) | 0;
       const top = heightMap[x * CHUNK_Z + z] - 6;
@@ -503,7 +514,7 @@ export class WorldGen {
     if (this.version >= 10) { this.placeOresV10(blocks, cx, cz, ORES); return; }
     for (let o = 0; o < ORES.length; o++) {
       const [id, attempts, size, minY, maxY] = ORES[o];
-      const rng = coordRng(this.seed, cx, cz, 100 + o);
+      const rng = coordRng(this.featureSeed, cx, cz, 100 + o);
       for (let a = 0; a < attempts; a++) {
         let x = (rng() * CHUNK_X) | 0;
         let y, z;
@@ -541,7 +552,7 @@ export class WorldGen {
       const [id, attempts, size, minY, maxY] = ORES[o];
       for (let ncx = cx - 1; ncx <= cx + 1; ncx++) {
         for (let ncz = cz - 1; ncz <= cz + 1; ncz++) {
-          const rng = coordRng(this.seed, ncx, ncz, 100 + o);
+          const rng = coordRng(this.featureSeed, ncx, ncz, 100 + o);
           for (let a = 0; a < attempts; a++) {
             let x = ((rng() * CHUNK_X) | 0) + (ncx - cx) * CHUNK_X;
             let z = ((rng() * CHUNK_Z) | 0) + (ncz - cz) * CHUNK_Z;
@@ -585,7 +596,7 @@ export class WorldGen {
   // biome) and every feature checks the biome under it, so river banks get
   // trees and grass, and beaches/rivers don't sprout flowers.
   chunkFeaturesV4(cx, cz) {
-    const rng = coordRng(this.seed, cx, cz, 778);
+    const rng = coordRng(this.featureSeed, cx, cz, 778);
     const features = [];
     const LUSH = new Set([BIOME.PLAINS, BIOME.FOREST, BIOME.BIRCH_FOREST, BIOME.SWAMP, BIOME.MOUNTAINS, BIOME.SNOWY, BIOME.SNOWY_FOREST]);
     const count = (n) => Math.floor(n / 4 + rng());   // a quarter of a chunk's worth, stochastically rounded
@@ -619,14 +630,14 @@ export class WorldGen {
       if (this.version >= 9 && biome === BIOME.BEACH && this.climateAt(qx + 4, qz + 4).t > 0.5) {
         for (let i = count(4); i > 0; i--) {
           const s = spot((b) => b === BIOME.BEACH, SEA_LEVEL);   // beach sand lies level with the sea
-          if (s) features.push({ type: 'tree', kind: 'palm', wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.seed, s.wx, s.wz, 556) });
+          if (s) features.push({ type: 'tree', kind: 'palm', wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.featureSeed, s.wx, s.wz, 556) });
         }
       }
       for (let i = 0; i < trees; i++) {
         const s = spot((b) => LUSH.has(b));
         if (!s) continue;
         const kind = treeKind === 'oak' && rng() < 0.12 ? 'birch' : treeKind;
-        features.push({ type: 'tree', kind, wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.seed, s.wx, s.wz, 555) });
+        features.push({ type: 'tree', kind, wx: s.wx, wy: s.h + 1, wz: s.wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.featureSeed, s.wx, s.wz, 555) });
       }
 
       if (biome === BIOME.DESERT) {
@@ -663,7 +674,7 @@ export class WorldGen {
       const boulders = { [BIOME.MOUNTAINS]: 0.5, [BIOME.SNOWY]: 0.35, [BIOME.PLAINS]: 0.05, [BIOME.SNOWY_FOREST]: 0.15 }[biome] ?? 0;
       if (rng() < boulders) {
         const s = spot((b) => b !== BIOME.RIVER && b !== BIOME.BEACH && b !== BIOME.OCEAN);
-        if (s) features.push({ type: 'boulder', wx: s.wx, wy: s.h, wz: s.wz, size: rng() < 0.3 ? 2 : 1, rng: coordRng(this.seed, s.wx, s.wz, 556) });
+        if (s) features.push({ type: 'boulder', wx: s.wx, wy: s.h, wz: s.wz, size: rng() < 0.3 ? 2 : 1, rng: coordRng(this.featureSeed, s.wx, s.wz, 556) });
       }
       // sugar cane wherever low ground touches water: rivers, swamps, beaches, lakes
       for (let i = count(biome === BIOME.RIVER || biome === BIOME.SWAMP ? 24 : biome === BIOME.BEACH || biome === BIOME.PLAINS ? 10 : 0); i > 0; i--) {
@@ -687,7 +698,7 @@ export class WorldGen {
         const bushes = { [BIOME.FOREST]: 3, [BIOME.BIRCH_FOREST]: 2, [BIOME.PLAINS]: 0.8, [BIOME.SWAMP]: 1.5 }[biome] ?? 0;
         for (let i = count(bushes); i > 0; i--) {
           const s = spot((b) => LUSH.has(b));
-          if (s) features.push({ type: 'bush', wx: s.wx, wy: s.h + 1, wz: s.wz, rng: coordRng(this.seed, s.wx, s.wz, 557) });
+          if (s) features.push({ type: 'bush', wx: s.wx, wy: s.h + 1, wz: s.wz, rng: coordRng(this.featureSeed, s.wx, s.wz, 557) });
         }
       }
     }
@@ -700,7 +711,7 @@ export class WorldGen {
   // and river banks. Drawn from a stream of their own after everything
   // else, so the rest of the land is just as generator 10 made it.
   featuresV11(cx, cz, features) {
-    const rng = coordRng(this.seed, cx, cz, 1111);
+    const rng = coordRng(this.featureSeed, cx, cz, 1111);
     const count = (n) => Math.floor(n / 4 + rng());
     for (let q = 0; q < 4; q++) {
       const qx = cx * CHUNK_X + (q & 1) * 8, qz = cz * CHUNK_Z + (q >> 1) * 8;
@@ -734,7 +745,7 @@ export class WorldGen {
   }
 
   chunkFeaturesV1(cx, cz) {
-    const rng = coordRng(this.seed, cx, cz, 777);
+    const rng = coordRng(this.featureSeed, cx, cz, 777);
     const features = [];
     const baseX = cx * CHUNK_X;
     const baseZ = cz * CHUNK_Z;
@@ -759,7 +770,7 @@ export class WorldGen {
       const h = Math.floor(this.heightAt(wx, wz));
       if (h <= SEA_LEVEL || !this.groundOk(wx, h, wz)) continue;
       const kind = treeKind === 'oak' && rng() < 0.12 ? 'birch' : treeKind;
-      features.push({ type: 'tree', kind, wx, wy: h + 1, wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.seed, wx, wz, 555) });
+      features.push({ type: 'tree', kind, wx, wy: h + 1, wz, size: 4 + ((rng() * 3) | 0), rng: coordRng(this.featureSeed, wx, wz, 555) });
     }
 
     if (biome === BIOME.DESERT) {
@@ -880,7 +891,7 @@ export class WorldGen {
 
   buildTree(put, f) {
     const { kind, wx, wy, wz } = f;
-    const rng = f.rng ?? coordRng(this.seed, wx, wz, 555);
+    const rng = f.rng ?? coordRng(this.featureSeed, wx, wz, 555);
     if (kind === 'palm') {
       // a ringed trunk leaning gently one way, a star of drooping fronds,
       // and a few coconuts tucked under them

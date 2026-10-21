@@ -84,7 +84,7 @@ function spawnerMob(rng) {
 export function placeDungeon(gen, blocks, cx, cz, heightMap) {
   lootVersion = gen.version;
   if (gen.version < 3) return placeDungeonV2(gen, blocks, cx, cz, heightMap);
-  const rng = coordRng(gen.seed, cx, cz, 4242);
+  const rng = coordRng(gen.featureSeed, cx, cz, 4242);
   if (rng() > 0.05) return [];
   const W = rng() < 0.5 ? 7 : 9, D = rng() < 0.5 ? 7 : 9, H = 5;
   const x0 = 2 + ((rng() * (CHUNK_X - W - 3)) | 0);
@@ -178,7 +178,7 @@ function dungeonLootV2(rng) {
 }
 
 function placeDungeonV2(gen, blocks, cx, cz, heightMap) {
-  const rng = coordRng(gen.seed, cx, cz, 4242);
+  const rng = coordRng(gen.featureSeed, cx, cz, 4242);
   if (rng() > 0.045) return [];
   let minTop = CHUNK_Y;
   for (let x = 3; x <= 12; x++) for (let z = 3; z <= 12; z++) minTop = Math.min(minTop, heightMap[x * CHUNK_Z + z]);
@@ -288,7 +288,7 @@ function makePlan(gen, cx, cz) {
     const v = villageAt(gen, cx * CHUNK_X + 8, cz * CHUNK_Z + 8), m = 8;
     if (v && v.bounds.x0 - m <= cx * CHUNK_X + 15 && v.bounds.x1 + m >= cx * CHUNK_X && v.bounds.z0 - m <= cz * CHUNK_Z + 15 && v.bounds.z1 + m >= cz * CHUNK_Z) return null;
   }
-  const rng = coordRng(gen.seed, cx, cz, 6161);
+  const rng = coordRng(gen.featureSeed, cx, cz, 6161);
   const roll = rng();
   const biome = gen.biomeOf(gen.columnAt(cx * CHUNK_X + 8, cz * CHUNK_Z + 8));
   let type = null;
@@ -347,7 +347,7 @@ export function buildStructure(gen, blocks, cx, cz) {
   lootVersion = gen.version;
   const plan = structurePlan(gen, cx, cz);
   if (!plan) return [];
-  const rng = coordRng(gen.seed, cx, cz, 6262);
+  const rng = coordRng(gen.featureSeed, cx, cz, 6262);
   const { x0, z0, size: S, rot } = plan;
   // designs are written with the entrance on the dz = 0 side; rotate into place
   const local = (dx, dz) => {
@@ -614,7 +614,7 @@ function oceanRuin(b, { y }, rng) {
 // Buried bones: a fossil spine with arched ribs, deep under deserts and swamps.
 export function placeFossil(gen, blocks, cx, cz, heightMap, biome) {
   if (gen.version < 7 || (biome !== 5 && biome !== 8)) return;   // generator 7
-  const rng = coordRng(gen.seed, cx, cz, 7171);
+  const rng = coordRng(gen.featureSeed, cx, cz, 7171);
   if (rng() > 0.12) return;
   let minTop = CHUNK_Y;
   for (let x = 2; x < 14; x++) for (let z = 2; z < 14; z++) minTop = Math.min(minTop, heightMap[x * CHUNK_Z + z]);

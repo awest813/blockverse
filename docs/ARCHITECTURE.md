@@ -74,14 +74,25 @@ so lava and water never touch and no water stands beside a dry tunnel.
 (stalactites, stalagmites, glowcaps, moss/ice/sand floors by biome, clay and
 gravel lake beds) without reaching into neighbouring columns.
 
-**Ores** are random-walk blobs seeded per chunk `(seed, cx, cz, oreIndex)` so
-they are deterministic.
+**Ores** are random-walk blobs seeded per chunk `(featureSeed, cx, cz, oreIndex)`
+so they are deterministic.
+
+Every per-chunk or per-block roll (bedrock, ores, trees and plants, cave
+dressing, dungeons, structures, fossils) is a `coordRng(gen.featureSeed, a, b,
+salt)`. `hashCoords` starts by xoring the seed into the first coordinate, so
+with the raw seed, seeds `s1` and `s2` roll the same at `a` and `a ^ s1 ^ s2`:
+on generators 1–13 `featureSeed` is the seed itself, and worlds 1 and 3 share
+their bedrock, ore and dungeon layout two chunks apart. Generator 14 sets
+`featureSeed` to the seed hashed with constants of its own (not the villages'
+`mixedSeed`, which already stirs village plans and villagers on generator 13,
+so a chunk's rolls never replay those of the village region with the same
+number). Terrain noise (`new Noise(seed + k)`) never went through this.
 
 ### Cross-chunk features
 
 Trees and plants may straddle chunk borders. Instead of a post-pass, every
 chunk applies the feature lists of its **3×3 chunk neighborhood**. Feature
-lists are derived only from `(seed, cx, cz)`, so every chunk that overlaps a
+lists are derived only from `(featureSeed, cx, cz)`, so every chunk that overlaps a
 tree computes the exact same blocks for it — no seams, no ordering issues.
 
 ### Dimensions
