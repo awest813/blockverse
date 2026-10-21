@@ -44,6 +44,7 @@ export class RanchPanel {
   close() {
     if (!this.kind) return;
     this.kind = null;
+    this.villager = null;
     this.root.innerHTML = '';
     this.game.setUiOpen(false);
     this.game.input.requestLock();
@@ -323,7 +324,9 @@ export class RanchPanel {
   }
 
   renderVillager() {
-    const g = this.game, p = g.player, m = this.villager, r = m.res;
+    const g = this.game, p = g.player, m = this.villagerHere();
+    if (!m) return;
+    const r = m.res;
     const rec = villageRecord(g, m.village), o = offers(rec, r);
     if (!o) { this.close(); return; }
     const creative = p.mode === GAMEMODE_CREATIVE;
@@ -359,8 +362,24 @@ export class RanchPanel {
     });
   }
 
+  // (the villager still there to deal with: not burnt, struck down or put away)
+  villagerHere() {
+    const m = this.villager;
+    if (m && !m.dead && m.dying === undefined && m.res.alive) return m;
+    this.close();
+    return null;
+  }
+
+  // a villager's level after a deal: a word if it's gone up
+  levelUp(m, before) {
+    const after = offers(villageRecord(this.game, m.village), m.res)?.level ?? before;
+    if (after > before) { this.game.hud.showLabel(`${m.res.name} is now a ${LEVEL_NAMES[after]} ${JOB_LABEL[m.res.job] ?? 'villager'}, with more to trade`); this.game.sfx?.play('pickup', { pitch: 1.8 }); }
+  }
+
   sellToVillager(id, n) {
-    const g = this.game, p = g.player, m = this.villager, rec = villageRecord(g, m.village);
+    const g = this.game, p = g.player, m = this.villagerHere();
+    if (!m) return;
+    const rec = villageRecord(g, m.village), before = m.res.level ?? 1;
     n = Math.min(n, p.countOf(id));
     if (n <= 0) return;
     const { sold, coins } = sellTo(rec, m.res, id, n);
@@ -373,20 +392,24 @@ export class RanchPanel {
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup', { pitch: 1.4 });
     m.nod?.();
+    this.levelUp(m, before);
     this.renderVillager();
   }
 
   buyFromVillager(id) {
-    const g = this.game, p = g.player, m = this.villager, rec = villageRecord(g, m.village);
+    const g = this.game, p = g.player, m = this.villagerHere();
+    if (!m) return;
+    const rec = villageRecord(g, m.village), before = m.res.level ?? 1;
     const price = offers(rec, m.res)?.sells.find((s) => s.id === id)?.price ?? 0;
     const creative = p.mode === GAMEMODE_CREATIVE;
     if (!price || (!creative && p.countOf(I.COIN) < price)) return;
-    if (!buyFrom(rec, m.res, id)) return;
+    if (!buyFrom(rec, m.res, id, creative)) return;
     if (!creative) p.take(I.COIN, price);
     giveOrDrop(g, id, 1);
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup');
     m.nod?.();
+    this.levelUp(m, before);
     this.renderVillager();
   }
 

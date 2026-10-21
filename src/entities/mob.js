@@ -165,6 +165,7 @@ export class Mob {
   // right-click with its food: fall in love (or help a baby grow)
   interact(player, held) {
     if (!this.likes(held?.id)) return false;
+    if (this.flock && !this.baby) { this.fx?.notify?.(`A sheep of ${this.flockOf.name}’s: they breed their own`); return true; }   // (entities/villagers.js)
     if (this.feed(held.id)) { if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1); }
     // not hungry: say why (rather than swallowing the click)
     else if (this.love > 0) this.fx?.notify?.('It\u2019s ready to breed: bring it another of its kind');

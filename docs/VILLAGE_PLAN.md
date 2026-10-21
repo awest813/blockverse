@@ -214,10 +214,11 @@ fields to harvest). They let the generator settle and be tested on its own:
 - **Present or away:** bodies within 40 blocks of a village's bounds, gone
   past 56; they come back where the schedule says (in bed, at work, on the
   square, at home), not where they were.
-- **The day:** asleep 0.53–0.98, home at dusk and dawn and in the rain,
-  work in the morning and afternoon, the square at noon; each resident a
-  little early or late. Children play on the square and grow up after
-  three days into a free job.
+- **The day:** asleep 0.53–0.98, home at dusk and dawn, work in the
+  morning and afternoon, the square at noon; each resident a little early
+  or late; under the nearest roof in the rain (below). Children play on the
+  square, run up to a visitor out of doors, and grow up after three days
+  into a free job (out of your sight).
 - **Getting around:** routes come from the plan, not a search: out of the
   building (doors and the stable's gate opened and shut behind), along
   the roads, round the well on a ring three blocks out, in at the next
@@ -226,13 +227,14 @@ fields to harvest). They let the generator settle and be tested on its own:
   routes) found every waypoint standable and no leg too long or steep.
 - **Talk and trade:** use one for a speech bubble by job, time, weather
   and recent losses, and (a grown-up with a trade, by day; sneak to just
-  talk) its trades: five job tables, offers with uses that refill over a
+  talk) its trades: nine job tables, offers with uses that refill over a
   day, levels at 20/60/150 coins traded (Novice to Master) adding offers,
   buying at a fifth over the market with a per-village glut. No sale price
   is under what the thing fetches anywhere (stall customers, the trader's
   wants, another village).
-- A farmer reaps and replants ripe crops by it. A villager hit runs off;
-  one killed is gone, and mourned for two days.
+- At work a farmer reaps and replants ripe crops, a shepherd shears the
+  flock, a beekeeper takes a little honey, a fisher casts into the pond.
+  A villager hit runs off; one killed is gone, and mourned for two days.
 
 Then (generator 13, which was only ever on the development branch, so no
 saved world has its villages yet): four more buildings and their jobs, a
@@ -240,16 +242,31 @@ shepherd's **pasture** (fenced, a gate, a lean-to over hay), a butcher's
 **smokehouse** (a fire and racks), a beekeeper's **apiary** (flowers round
 three hives with bees) and a fisher's **fishery** (a pond with a jetty out
 over it, a shed behind), each with a trade table. A pasture keeps three
-sheep of the village's own: bodies while you're near, like its people;
-penned, they stay the village's (the ranch doesn't count them as yours);
-fed, led off or killed, the flock is a sheep short until a lamb a day
-makes it up. In the rain (or snow; never in the desert), everyone out of
+sheep of the village's own: bodies while you're near, like its people. In
+their pasture they stay the village's, whatever's done to them (fed,
+shorn, dyed: the ranch doesn't count them as yours, and they don't breed
+for you); led out on a lead or after your wheat, or killed, the flock is
+a sheep short until a lamb a day makes it up (a lamb, if you're there to
+see it). In the rain (or snow; never in the desert), everyone out of
 doors goes to the nearest roof (a house, the open smithy, the stable's or
 pasture's lean-to, the fisher's shed); the smith, cook, librarian and
 butcher work on. A record loaded from a save keeps its trade levels,
 stock, prices and flocks (the first version dropped them).
 
-Not yet: kids following you about, the market stall per village, the
+An audit (a Node harness running real villages through whole days with
+the rain coming and going, and a scripted playthrough) found and fixed:
+villagers shutting a door on themselves and standing stuck in the doorway
+(it now shuts once everyone's clear of it, and is kept open while it's
+the way on); doors and gates left open for good (when the player stood in
+one, when a villager was hit or put away mid-doorway: sheep walked out of
+the pasture); plans changed mid-walk starting from where the villager was
+going rather than where it was (some cut across the well); first jobs
+ignoring their shuffle (the last workplaces in a plan never staffed); a
+level bought for a few coins by buying a book and selling it straight
+back; village sheep counted against the wild-animal cap; villagers
+clipping a gatepost or turning off the fisher's jetty into the pond.
+
+Not yet: the market stall per village, the
 trader's visits moving to the square for good, horses in the stables, and
 standing (Phase 4: taking the village's sheep isn't theft yet).
 

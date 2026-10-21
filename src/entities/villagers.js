@@ -53,13 +53,13 @@ function spots(p) {
     case 'smithy': return { work: [[2, d - 3], [3, d - 3]], shelter: [[mid, 1], [mid + 1, 1], [mid - 1, 2]], door: null };
     case 'kitchen': return { work: [[2, d - 3], [3, d - 3]], shelter: [[3, 2], [4, 2]], door: 'door' };
     case 'library': return { work: [[2, 3], [mid, 2]], shelter: [[2, 1], [3, 1]], door: 'door' };
-    case 'farm': return { work: [[1, 0], [mid - 1, 0], [mid + 1, 0], [w - 2, 0]], door: null, outside: true };   // (the log rim along its front)
+    case 'farm': return { work: [[1, 0], [mid - 1, 0], [mid + 1, 0], [w - 2, 0]], door: null, outside: true, hub: [mid, 0] };   // (the log rim along its front)
     case 'stable': return { work: [[mid, 2], [mid - 1, 3]], shelter: [[2, d - 3], [3, d - 3], [w - 3, d - 3]], door: 'gate' };
     // (generator 13)
     case 'pasture': return { work: [[mid, 2], [2, 4], [w - 3, 3]], shelter: [[2, d - 3], [3, d - 3], [w - 3, d - 3]], door: 'gate' };
     case 'smokehouse': return { work: [[2, d - 3], [3, d - 3]], shelter: [[3, 2], [4, 2]], door: 'door' };
     case 'apiary': return { work: [[mid, 2], [mid, d - 3]], door: 'gate' };
-    case 'fishery': return { work: [[mid, 2], [mid, 3]], shelter: [[mid - 1, d - 2], [mid, d - 2], [mid + 1, d - 2]], door: null };   // (out on the jetty; the shed)
+    case 'fishery': return { work: [[mid, 2], [mid, 3]], shelter: [[mid - 1, d - 2], [mid, d - 2], [mid + 1, d - 2]], door: null, hub: [mid, 4] };   // (out on the jetty; the shed, by the jetty's end)
     default: return { door: null };
   }
 }
@@ -126,30 +126,37 @@ function alongRoad(v, road, from, to) {
   return out.filter(Boolean);
 }
 
-// The cells to walk from one place to another.
+// The cells to walk from one place to another. A place is in a plot
+// ({plot, spot}), on the square ({plot: -1, ring}) or partway along a road
+// ({plot: -2, road, along}: where a villager stood when its plans changed).
 export function route(v, from, to) {
   const roads = v.pieces.filter((q) => q.kind === 'road');
   const P1 = from.plot >= 0 ? v.pieces[from.plot] : null, P2 = to.plot >= 0 ? v.pieces[to.plot] : null;
-  if (P1 && P2 && from.plot === to.plot) return [placeCell(v, to)];
-  if (!P1 && !P2) return aroundWell(v, from.ring, to.ring);
+  // about the one plot: by its hub (the cell inside its door, or the end of
+  // the fisher's jetty), so a leg never cuts across a pond or a bench
+  if (P1 && P2 && from.plot === to.plot) {
+    const S = spots(P1), hub = S.hub ?? [P1.w >> 1, 1];
+    return [inPlot(P1, ...hub), placeCell(v, to)];
+  }
+  if (!P1 && !P2 && from.plot === -1) return aroundWell(v, from.ring, to.ring);
   const out = [];
-  // out of the first place: to its road, then toward the square (unless the
-  // second is on the same road)
+  // out of the first place onto its road (or from where it is on one), then
+  // toward the square, unless the second is on the same road
+  const r1 = P1 ? P1.road : from.plot === -2 ? from.road : -1, a1 = P1 ? P1.along : from.along;
   let ring = from.ring ?? 0;
-  if (P1) {
-    out.push(...wayOut(v, P1));
-    const road = roads[P1.road];
-    if (P2 && P2.road === P1.road) {
-      out.push(...alongRoad(v, road, P1.along, P2.along));
-    } else {
-      out.push(...alongRoad(v, road, P1.along, SQUARE + 1));
+  if (r1 >= 0) {
+    const road = roads[r1];
+    if (P1) out.push(...wayOut(v, P1));
+    if (P2 && P2.road === r1) out.push(...alongRoad(v, road, a1, P2.along));
+    else {
+      out.push(...alongRoad(v, road, a1, SQUARE + 1));
       ring = road.d * 2;
       out.push(ringCell(v, ring));
     }
   }
   if (!P2) { out.push(...aroundWell(v, ring, to.ring)); return out; }
   // into the second: from the square up its road, then in at its door
-  if (!(P1 && P2.road === P1.road)) {
+  if (P2.road !== r1) {
     const road = roads[P2.road];
     out.push(...aroundWell(v, ring, road.d * 2));
     out.push(...alongRoad(v, road, SQUARE + 1, P2.along));
@@ -183,14 +190,15 @@ function rollResidents(gen, v, rx, rz, now) {
     const r = { id: out.length, name, home: [plot, bed], work: null, job: kid ? 'child' : 'none', kid, born: now - (kid ? rng() * 2.5 : 20 + rng() * 40) * DAY_LENGTH_SECONDS, alive: true, lag: rng() * 0.03 };
     out.push(r);
   }
-  for (const r of out) if (!r.kid) giveJob(v, out, r);
+  for (const r of out) if (!r.kid) giveJob(v, out, r, works);
   return out;
 }
 
-// a free workplace (one no living grown-up works at), else the fields, else none
-function giveJob(v, people, r) {
+// a free workplace (one no living grown-up works at), else the fields, else
+// none (`order`: the workplaces to try, in turn; the plan's order otherwise)
+function giveJob(v, people, r, order = null) {
   const taken = new Set(people.filter((o) => o !== r && o.alive && !o.kid && Number.isInteger(o.work)).map((o) => o.work));
-  const plots = v.pieces.map((q, i) => (isPlot(q) && WORKPLACE[q.name] ? i : -1)).filter((i) => i >= 0);
+  const plots = order ?? v.pieces.map((q, i) => (isPlot(q) && WORKPLACE[q.name] ? i : -1)).filter((i) => i >= 0);
   const free = plots.find((i) => !taken.has(i)) ?? plots.find((i) => v.pieces[i].name === 'farm');
   r.work = free ?? null;
   r.job = free === undefined ? 'none' : WORKPLACE[v.pieces[free].name];
@@ -220,7 +228,7 @@ function checkRecord(rec, v) {
       xp: Number.isFinite(r.xp) ? r.xp : 0, stock: r.stock && typeof r.stock === 'object' && !Array.isArray(r.stock) ? r.stock : {}, stockAt: Number.isFinite(r.stockAt) ? r.stockAt : undefined,
     });
   }
-  const out = { name: v.name, residents, created: Number.isFinite(rec.created) ? rec.created : 0 };
+  const out = { name: v.name, residents, created: Number.isFinite(rec.created) ? rec.created : 0, seen: Number.isFinite(rec.seen) ? rec.seen : 0 };
   if (rec.flocks && typeof rec.flocks === 'object') {
     out.flocks = {};
     for (const [i, f] of Object.entries(rec.flocks)) {
@@ -240,11 +248,15 @@ export function villageRecord(game, v) {
   if (rec && !checked.has(rec)) { rec = meta.villages[v.id] = checkRecord(rec, v); if (rec) checked.add(rec); }
   if (!rec) {
     const [rx, rz] = v.id.split(',').map(Number);
-    rec = meta.villages[v.id] = { name: v.name, created: worldClock.now, residents: rollResidents(game.world.gen, v, rx, rz, worldClock.now) };
+    rec = meta.villages[v.id] = { name: v.name, created: worldClock.now, seen: worldClock.now, residents: rollResidents(game.world.gen, v, rx, rz, worldClock.now) };
     checked.add(rec);
-    // (a cap on the villages kept: the oldest go first; they'd be rolled again)
+    // (a cap on the villages kept: the ones longest unvisited go first;
+    // they'd be rolled again)
     const ids = Object.keys(meta.villages);
-    if (ids.length > 64) for (const id of ids.slice(0, ids.length - 64)) delete meta.villages[id];
+    if (ids.length > 64) {
+      const seen = (id) => (Number.isFinite(meta.villages[id]?.seen) ? meta.villages[id].seen : -Infinity);
+      for (const id of ids.filter((id) => id !== v.id).sort((a, b) => seen(a) - seen(b)).slice(0, ids.length - 64)) delete meta.villages[id];
+    }
   }
   return rec;
 }
@@ -401,6 +413,7 @@ export class Villager extends Mob {
     const r = this.res, g = this.fx?.game;
     if (!g) return;
     this.stateTime -= dt;
+    this.shutBehind();
     if (this.state === 'flee') {   // (hurt: away for a moment, then back to the day)
       this.moving = true;
       if (this.stateTime <= 0) { this.state = 'idle'; this.route = null; this.act = null; }
@@ -427,11 +440,12 @@ export class Villager extends Mob {
   setAct(act) {
     const v = this.village;
     if (this.sleeping) this.wake();
-    if (this.route?.open) this.door(this.route.open, false);   // (a change of plan in a doorway)
+    this.leaveRoute();   // (a change of plan in a doorway: shut once clear)
     // a new spot among the place's spots now and then: people spread out
     if (act === 'square' || act === 'play') this.k = (Math.random() * 8) | 0;
     const to = placeFor(v, this.res, act, this.k, { x: this.x, z: this.z });
-    const from = this.at ?? this.nearestPlace();
+    // (from where it is, if it was on its way somewhere: not from where it was going)
+    const from = this.route ? this.nearestPlace() : this.at ?? this.nearestPlace();
     this.route = { pts: route(v, from, to), i: 0, t: 0, best: Infinity, open: null };
     this.at = to;
     this.act = act;
@@ -447,6 +461,13 @@ export class Villager extends Mob {
         return { plot: i, spot: (S.stand ?? S.work ?? [[p.w >> 1, 1]])[0] };
       }
     }
+    // on a road: how far out along it
+    const roads = v.pieces.filter((q) => q.kind === 'road');
+    for (let i = 0; i < roads.length; i++) {
+      const [dx, dz] = DIRS[roads[i].d], [px, pz] = DIRS[(roads[i].d + 1) % 4];
+      const along = Math.round((this.x - 0.5 - v.x) * dx + (this.z - 0.5 - v.z) * dz), across = (this.x - 0.5 - v.x) * px + (this.z - 0.5 - v.z) * pz;
+      if (along > SQUARE && along <= roads[i].len && Math.abs(across) <= 2.5) return { plot: -2, road: i, along };
+    }
     // the square's nearest ring point (also the way onto it from a road)
     let best = 0, bd = Infinity;
     RING.forEach(([dx, dz], i) => { const d = Math.hypot(v.x + dx - this.x, v.z + dz - this.z); if (d < bd) { bd = d; best = i; } });
@@ -457,12 +478,18 @@ export class Villager extends Mob {
   walk(dt, player) {
     const R = this.route, wp = R.pts[R.i];
     if (!wp) { this.arrive(); return; }
-    if (wp.door && !R.open) this.door(wp, true) && (R.open = wp);
+    // a door or gate on the way: open it (or find it open), and it's this
+    // villager's to shut behind it
+    // (kept open while it's the way on: a neighbour through it first may have shut it)
+    if (wp.door) { if (R.open !== wp) { this.leaveRoute(); R.open = wp; } this.door(wp, true); }
     const last = R.i === R.pts.length - 1;
-    if (this.goTo(dt, wp.x + 0.5, wp.y, wp.z + 0.5, last ? 0.45 : 0.8)) {
+    // (through a doorway or gateway by its middle, not clipping the post
+    // beside it; and turning on the spot rather than in an arc off a jetty)
+    const reached = this.goTo(dt, wp.x + 0.5, wp.y, wp.z + 0.5, wp.door || R.pts[R.i - 1]?.door ? 0.35 : last ? 0.45 : 0.8);
+    if (!reached && Math.abs(((this.targetYaw - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > 0.7) this.moving = false;
+    if (reached) {
       R.i++; R.t = 0; R.best = Infinity;
-      // through a door and a step past it: shut it behind
-      if (R.open && R.pts[R.i - 2] === R.open) { this.door(R.open, false); R.open = null; }
+      if (R.open && R.pts.indexOf(R.open) < R.i - 1) { this.shutting = R.open; R.open = null; }   // (through it: shut once clear)
       return;
     }
     // no closer for a while (a block in the way, a crowd): a hop to the
@@ -470,29 +497,46 @@ export class Villager extends Mob {
     const d = Math.hypot(wp.x + 0.5 - this.x, wp.z + 0.5 - this.z);
     R.t += dt;
     if (d < R.best - 0.3) { R.best = d; R.t = 0; }
+    if (R.t > 8 && R.noHop) { this.route = null; return; }   // (a child after you: it gives up)
     if (R.t > 8 && (Math.hypot(player.x - this.x, player.z - this.z) > 14 || !this.canSee(player))) {
       this.x = wp.x + 0.5; this.y = wp.y + 0.05; this.z = wp.z + 0.5; this.vx = this.vz = this.vy = 0;
       R.t = 0;
     }
   }
 
+  // done with the route: a door it opened is still its to shut
+  leaveRoute() {
+    if (this.route?.open) { if (this.shutting && this.shutting !== this.route.open) this.door(this.shutting, false, true); this.shutting = this.route.open; this.route.open = null; }
+  }
+
+  // shut the door it came through once it (and everyone else) is clear of it
+  shutBehind(force = false) {
+    const c = this.shutting;
+    if (!c) return;
+    const clear = force || Math.abs(this.x - (c.x + 0.5)) > 0.55 + this.w / 2 || Math.abs(this.z - (c.z + 0.5)) > 0.55 + this.w / 2;
+    if (clear && this.door(c, false, force)) this.shutting = null;
+  }
+
   arrive() {
-    if (this.route?.open) this.door(this.route.open, false);
+    this.leaveRoute();
     this.route = null;
     this.moving = false;
     this.stateTime = 1 + Math.random() * 3;
     if (this.act === 'sleep') this.lieDown();
   }
 
-  // open or shut the door (or gate) at cell c: true if it did
-  door(c, open) {
+  // open or shut the door (or gate) at cell c: true once it's as asked (or
+  // there's no door there now); false while someone's in the way of
+  // shutting it (the player, a sheep, a neighbour)
+  door(c, open, force = false) {
     const w = this.world, id = w.getBlockW(c.x, c.y, c.z);
-    if (id !== B.OAK_DOOR && id !== B.OAK_FENCE_GATE) return false;
+    if (id !== B.OAK_DOOR && id !== B.OAK_FENCE_GATE) return true;
     const meta = w.getMetaW(c.x, c.y, c.z);
-    if (!!(meta & 4) === open) return false;
-    // (never shut on the player standing in the doorway)
+    if (!!(meta & 4) === open) return true;
+    const inWay = (x, y, z, hw, h) => Math.abs(x - (c.x + 0.5)) < 0.5 + hw && Math.abs(z - (c.z + 0.5)) < 0.5 + hw && y < c.y + 2 && y + h > c.y;
     const p = this.fx.game.player;
-    if (!open && Math.abs(p.x - (c.x + 0.5)) < 0.9 && Math.abs(p.z - (c.z + 0.5)) < 0.9 && p.y < c.y + 2 && p.y > c.y - 1.8) return false;
+    if (!open && inWay(p.x, p.y, p.z, 0.3, 1.8)) return false;
+    if (!open && this.fx.mobs().some((m) => (m !== this || !force) && !m.dead && inWay(m.x, m.y, m.z, m.w / 2, m.h))) return false;
     w.setBlock(c.x, c.y, c.z, id, meta ^ 4);
     if (id === B.OAK_DOOR && w.getBlockW(c.x, c.y + 1, c.z) === B.OAK_DOOR_TOP) w.setBlock(c.x, c.y + 1, c.z, B.OAK_DOOR_TOP, meta ^ 4);
     this.fx.sound?.('door', { open, pos: this, vol: 0.6 });
@@ -508,6 +552,7 @@ export class Villager extends Mob {
     this.sleeping = true;
     this.moving = false;
     this.vx = this.vy = this.vz = 0;
+    this.h = 0.5 * this.size;   // (lying down: no tall box over the bed to get in your way)
     // on its back, head to the back wall, small enough to fit the bed (its
     // feet half a block toward the door from the bed's middle)
     const [bx, bz] = DIRS[(p.rot + 2) % 4];
@@ -521,6 +566,7 @@ export class Villager extends Mob {
   wake() {
     if (!this.sleeping) return;
     this.sleeping = false;
+    this.h = this.res.kid ? 1.05 : 1.9;
     this.group.rotation.x = 0;
     this.group.scale.setScalar(this.size);
     const s = placeCell(this.village, { plot: this.at.plot, spot: this.at.spot });
@@ -536,7 +582,8 @@ export class Villager extends Mob {
     const act = this.act;
     if (act === 'sleep') { if (!this.sleeping) this.lieDown(); return; }
     // kids at play dash about the square, and come to see a visitor
-    if (act === 'play' && playerDist < 10 && Math.random() < 0.5) { this.route = { pts: [cell(Math.floor(player.x), Math.floor(player.y), Math.floor(player.z))], i: 0, t: 0, best: Infinity }; this.stateTime = 1; return; }
+    // (out of doors only: not after you into a house; and never a hop to you)
+    if (act === 'play' && playerDist < 10 && Math.random() < 0.5 && this.world.getSkyW(Math.floor(player.x), Math.floor(player.y + 1), Math.floor(player.z)) >= 15) { this.route = { pts: [cell(Math.floor(player.x), Math.floor(player.y), Math.floor(player.z))], i: 0, t: 0, best: Infinity, noHop: true }; this.stateTime = 1; return; }
     // move on to another spot of the place now and then
     if ((act === 'work' || act === 'square' || act === 'play') && Math.random() < (act === 'play' ? 0.8 : 0.35)) {
       const from = this.at;
@@ -700,6 +747,7 @@ export class Villager extends Mob {
     const hit = super.damage(amount, source);
     if (hit && !this.dead && this.dying === undefined) {
       this.say(LINES.hurt[(Math.random() * LINES.hurt.length) | 0]);
+      this.leaveRoute();
       this.route = null; this.act = null; this.at = null;
       this.state = 'flee'; this.stateTime = 4;
     }
@@ -722,6 +770,9 @@ export class Villager extends Mob {
   }
 
   kill() {
+    // (put away, or dead: the door it was holding is shut)
+    this.leaveRoute();
+    if (this.shutting && this.fx) this.shutBehind(true);
     this.unsay();
     super.kill();
   }
@@ -759,16 +810,26 @@ export function tickVillagers(game, dt) {
   // gone from villages left behind
   for (const m of live) if (outside(m.village, p.x, p.z) > FAR) m.kill();
   for (const m of sheep) {
-    // fed or led off, a village sheep is yours now (and the flock one short)
-    if (m.persistent) { loseSheep(m); m.resident = false; continue; }
+    // taken out of its pasture (on a lead, or after your wheat), a village
+    // sheep is yours now, and the flock's one short; in the pasture it stays
+    // the village's, whatever's been done to it (fed, shorn, dyed)
+    const P = m.flockPlot, out = m.x < P.x0 - 0.2 || m.x > P.x1 + 1.2 || m.z < P.z0 - 0.2 || m.z > P.z1 + 1.2;
+    if (m.leash?.player || m.tamed || out) { loseSheep(m); m.resident = false; m.persistent = true; continue; }
+    m.persistent = false;
     if (outside(m.flockOf, p.x, p.z) > FAR) m.kill();
   }
   for (const v of villagesNear(gen, p.x, p.z)) {
     if (outside(v, p.x, p.z) > NEAR) continue;
     const rec = villageRecord(game, v);
     // children grow up, into a free job
+    rec.seen = worldClock.now;
+    // children grow up, into a free job (out of your sight: not before your eyes)
     for (const r of rec.residents) {
-      if (r.kid && r.alive && worldClock.now - r.born > GROW_UP) { r.kid = false; giveJob(v, rec.residents, r); for (const m of live) if (m.res === r) m.kill(); }
+      if (!r.kid || !r.alive || worldClock.now - r.born <= GROW_UP) continue;
+      const body = live.find((m) => m.res === r && !m.dead);
+      if (body && Math.hypot(body.x - p.x, body.z - p.z) < 24 && body.canSee(p)) continue;
+      r.kid = false; giveJob(v, rec.residents, r);
+      body?.kill();
     }
     const here = new Set(live.filter((m) => m.village.id === v.id && !m.dead).map((m) => m.res.id));
     for (const r of rec.residents) {
@@ -809,7 +870,7 @@ function tendFlocks(game, v, rec, sheep) {
     if (!f || typeof f !== 'object' || !Number.isFinite(f.n) || !Number.isFinite(f.at)) f = rec.flocks[i] = { n: FLOCK, at: worldClock.now };
     f.n = Math.max(0, Math.min(FLOCK, Math.floor(f.n)));
     if (f.n >= FLOCK) f.at = worldClock.now;
-    else if (worldClock.now - f.at >= DAY_LENGTH_SECONDS) { f.n++; f.at += DAY_LENGTH_SECONDS; }
+    else if (worldClock.now - f.at >= DAY_LENGTH_SECONDS) { f.n++; f.at += DAY_LENGTH_SECONDS; f.lamb = true; }
     const key = `${v.id}:${i}`;
     let have = sheep.filter((m) => m.flockKey === key && m.flock).length;
     for (let k = 0; have < f.n && k < 6; k++) {
@@ -818,12 +879,17 @@ function tendFlocks(game, v, rec, sheep) {
       if (!game.world.isLoaded(c.x, c.z)) break;
       const m = new Sheep(game.scene, game.world, c.x + 0.5, c.y + 0.05, c.z + 0.5);
       m.resident = true;   // (not despawned when far off: the village puts it away)
-      m.flock = f; m.flockKey = key; m.flockOf = v;
+      m.countsForCap = false;   // (nor counted against the wild animals)
+      m.breedCooldown = Infinity;   // (the village's flock grows by its own lambs, not yours)
+      m.flock = f; m.flockKey = key; m.flockOf = v; m.flockPlot = p;
+      // a flock come back to while you're near it gets its new lamb as a lamb
+      if (have > 0 && f.lamb) m.setBaby(true, 300);
       // lost to the flock if it dies (a hit, a fall)
       const die = m.die.bind(m);
       m.die = () => { if (m.dying === undefined) loseSheep(m); die(); };
       game.entities.addMob(m);
       have++;
+      f.lamb = false;
     }
   });
 }

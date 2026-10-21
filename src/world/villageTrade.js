@@ -141,16 +141,19 @@ export function sellTo(rec, r, id, n) {
   m.credit += total;
   const coins = Math.floor(m.credit + 1e-9);
   m.credit -= coins;
-  r.xp += total;
+  // (selling them back what they sell you is no dealing: buying a book and
+  // selling it straight back over and over made a Master for a few coins)
+  if (!T.sells.some(([s]) => s === id)) r.xp += total;
   return { sold: n, coins };
 }
 
-// Buy one id from r: its price, or 0 if r hasn't one to sell
-export function buyFrom(rec, r, id) {
+// Buy one id from r: its price, or 0 if r hasn't one to sell (`free`: in
+// creative, which takes the thing but teaches the villager nothing)
+export function buyFrom(rec, r, id, free = false) {
   const T = stock(r), at = T?.sells.find(([s, , , lvl = 1]) => s === id && r.level >= lvl);
   if (!at || r.stock[`s${id}`] < 1 - 1e-9) return 0;
   r.stock[`s${id}`] -= 1;
-  r.xp += at[1];
+  if (!free) r.xp += at[1];
   return at[1];
 }
 
