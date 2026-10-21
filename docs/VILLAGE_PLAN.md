@@ -265,6 +265,19 @@ ignoring their shuffle (the last workplaces in a plan never staffed); a
 level bought for a few coins by buying a book and selling it straight
 back; village sheep counted against the wild-animal cap; villagers
 clipping a gatepost or turning off the fisher's jetty into the pond.
+From the playthrough: sleepers lay head to the back wall whatever way the
+bed's pillow was (it's always at a bed's +z end: they follow it now, and
+are less shrunk); breaking a bed left its sleeper lying in the air (it
+gets up); shelter filled one roof's spots twice over (people go on to the
+next roof); a stuck villager hopped on in plain view (only out of your
+sight now); the beekeeper's veil looked like a blindfold, the shepherd's
+fleece didn't show on its coat, nor the smith's apron; a killed villager's
+speech bubble stayed over the body; mourning came up in half of all talk,
+in the same words (now now and then, in a few ways); a neighbour calls out
+when you hit someone; and in generator 13 the strip in front of a raised
+plot is brought level (it was a ditch either side of the step), a desert
+pasture is grass, and the seed is mixed before it picks villages (seeds 1
+and 3 had the same villages two regions apart).
 
 Not yet: the market stall per village, the
 trader's visits moving to the square for good, horses in the stables, and

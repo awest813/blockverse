@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { Mob } from './mob.js';
 import { B } from '../blocks/blocks.js';
-import { villageIn, plotFrame, REGION } from '../world/villages.js';
+import { villageIn, plotFrame, mixedSeed, REGION } from '../world/villages.js';
 import { CHUNK_X, DAY_LENGTH_SECONDS } from '../core/constants.js';
 import { coordRng } from '../core/rng.js';
 import { worldClock } from '../core/clock.js';
@@ -172,7 +172,7 @@ const isPlot = (q) => q?.kind === 'plot';
 // Roll a village's people from its beds and workplaces (from the seed: the
 // same village always starts with the same people).
 function rollResidents(gen, v, rx, rz, now) {
-  const rng = coordRng(gen.seed, rx, rz, 4242);
+  const rng = coordRng(mixedSeed(gen.seed), rx, rz, 4242);
   const homes = [], works = [];
   v.pieces.forEach((q, i) => {
     if (!isPlot(q)) return;
@@ -278,8 +278,10 @@ export function activity(r, t, raining) {
 }
 
 // where an activity puts r (a place), `k` picking among the spots there
-// (`near`: where it is now, for the nearest shelter)
-export function placeFor(v, r, act, k = 0, near = null) {
+// (`near`: where it is now, for the nearest shelter; `crowd(plot)`: how
+// many are sheltering there already, so they fill its spots in turn and go
+// on to the next roof when it's full)
+export function placeFor(v, r, act, k = 0, near = null, crowd = null) {
   if (act === 'square' || act === 'play') return { plot: -1, ring: k % 8 };
   if (act === 'shelter') {
     let best = null, bd = Infinity;
@@ -287,8 +289,10 @@ export function placeFor(v, r, act, k = 0, near = null) {
     v.pieces.forEach((q, i) => {
       const S = isPlot(q) && spots(q).shelter;
       if (!S) return;
+      const n = crowd ? crowd(i) : k;
+      if (crowd && n >= S.length) return;
       const c = inPlot(q, ...S[0]), d = Math.hypot(c.x - at.x, c.z - at.z);
-      if (d < bd) { bd = d; best = { plot: i, spot: S[k % S.length] }; }
+      if (d < bd) { bd = d; best = { plot: i, spot: S[n % S.length] }; }
     });
     if (best) return best;
     act = 'home';
@@ -318,11 +322,14 @@ const LINES = {
   night: ['It’s late. Off to bed with you.', 'Shouldn’t you be indoors?', 'Mind the dark out there.'],
   rain: ['Wet enough for you?', 'Best get out of the rain.', 'Come in under here, it’s dry.', 'Good for the fields, at least.'],
   hurt: ['Ow! What was that for?', 'Hey! Stop that!', 'Help! Help!'],
+  mourn: ['We lost {lost}. It’s not the same without them.', 'I keep looking for {lost} on the square.', 'Poor {lost}. Who’d do such a thing?', '{lost} would have known what to do.'],
+  mournKid: ['Where’s {lost} gone?', 'Is {lost} coming back?'],
+  defend: ['Hey! Leave {name} alone!', 'What are you doing to {name}?', 'Somebody help {name}!'],
 };
 
 export function lineFor(game, v, rec, r) {
   const t = game.time, pick = (list) => list[(Math.random() * list.length) | 0].replace('{village}', v.name);
-  if (rec.lost && worldClock.now - rec.lost.at < MOURN && Math.random() < 0.4) return `We lost ${rec.lost.name}. It’s not the same without them.`;
+  if (rec.lost && rec.lost.name !== r.name && worldClock.now - rec.lost.at < MOURN && Math.random() < 0.2) return pick(LINES[r.kid ? 'mournKid' : 'mourn']).replace('{lost}', rec.lost.name);
   if (game.isNight()) return pick(LINES.night);
   if (wet(game, v) && Math.random() < 0.5) return pick(LINES.rain);
   if (Math.random() < 0.25) return `Welcome to ${v.name}.`;
@@ -335,7 +342,7 @@ export function lineFor(game, v, rec, r) {
 const DRESS = {
   farmer: [0x6a8a3a, 0xd8c060], smith: [0x4a4a52, 0x2a2a2a], cook: [0xe8e4dc, 0xb04030], librarian: [0x5a3a7a, 0xd8b048],
   stablehand: [0x8a5a34, 0x4a3420], none: [0x5a7aa8, 0x3a4a68], child: [0xd87a4a, 0x4a6aa8],
-  shepherd: [0xe8e2d0, 0x6a5a3a], butcher: [0x7a2a2a, 0xe8e4dc], beekeeper: [0xe8d070, 0x4a3a1a], fisher: [0x2a5a8a, 0xe0c040],
+  shepherd: [0x6a7a4a, 0x5a4a2a], butcher: [0x7a2a2a, 0xe8e4dc], beekeeper: [0xe8d070, 0x4a3a1a], fisher: [0x2a5a8a, 0xe0c040],
 };
 const SKIN = [0xd8a880, 0xc08a60, 0xe8c09a, 0x8a5a3a, 0xa87048];
 
@@ -373,13 +380,13 @@ export class Villager extends Mob {
     // what they do, at a glance
     switch (r.kid ? 'child' : r.job) {
       case 'farmer': this.part(0.7, 0.05, 0.7, 0xd8c060, 0, 1.88, 0); this.part(0.42, 0.14, 0.42, 0xd8c060, 0, 1.96, 0); break;   // a straw hat
-      case 'smith': this.part(0.44, 0.6, 0.04, 0x3a2a1a, 0, 0.98, -0.17); this.part(0.44, 0.08, 0.44, 0x2a2a2a, 0, 1.88, 0); break;   // an apron, a cap
+      case 'smith': this.part(0.44, 0.6, 0.04, 0x9a6a3a, 0, 0.98, -0.17); this.part(0.44, 0.08, 0.44, 0x2a2a2a, 0, 1.88, 0); break;   // a leather apron, a cap
       case 'cook': this.part(0.36, 0.3, 0.36, 0xf4f2ec, 0, 2.0, 0); this.part(0.44, 0.5, 0.04, 0xf4f2ec, 0, 0.98, -0.17); break;   // a tall cap, an apron
       case 'librarian': this.part(0.12, 0.08, 0.02, 0x2a2a2a, -0.1, 1.71, -0.235); this.part(0.12, 0.08, 0.02, 0x2a2a2a, 0.1, 1.71, -0.235); this.part(0.44, 0.1, 0.44, 0x5a3a7a, 0, 1.88, 0); break;   // spectacles
       case 'stablehand': this.part(0.46, 0.12, 0.46, 0x4a3420, 0, 1.9, 0); this.part(0.46, 0.04, 0.2, 0x4a3420, 0, 1.86, -0.3); break;   // a cap with a peak
       case 'shepherd': this.part(0.56, 0.5, 0.36, 0xf4f0e4, 0, 1.2, 0.02); this.part(0.06, 1.7, 0.06, 0x7a5a34, 0.44, 0.9, -0.1); this.part(0.2, 0.06, 0.06, 0x7a5a34, 0.36, 1.76, -0.1); break;   // a fleece cape and a crook
       case 'butcher': this.part(0.44, 0.6, 0.04, 0xf0ece4, 0, 0.98, -0.17); this.part(0.16, 0.12, 0.05, 0xa03030, -0.08, 1.06, -0.19); this.part(0.44, 0.1, 0.44, 0xf0ece4, 0, 1.88, 0); break;   // a stained apron
-      case 'beekeeper': this.part(0.8, 0.05, 0.8, 0xf4f2ec, 0, 1.88, 0); this.part(0.44, 0.2, 0.44, 0xf4f2ec, 0, 1.98, 0); this.part(0.5, 0.24, 0.04, 0x2a2a2a, 0, 1.66, -0.25); break;   // a wide hat and a veil
+      case 'beekeeper': this.part(0.8, 0.05, 0.8, 0xf4f2ec, 0, 1.88, 0); this.part(0.44, 0.2, 0.44, 0xf4f2ec, 0, 1.98, 0); this.part(0.04, 0.3, 0.46, 0xc8c8bc, -0.25, 1.68, 0); this.part(0.04, 0.3, 0.46, 0xc8c8bc, 0.25, 1.68, 0); this.part(0.46, 0.3, 0.04, 0xc8c8bc, 0, 1.68, 0.25); break;   // a wide hat, its veil hanging at the sides and back
       case 'fisher': this.part(0.52, 0.16, 0.52, 0xe0c040, 0, 1.9, 0.02); this.part(0.52, 0.04, 0.24, 0xe0c040, 0, 1.84, 0.34); this.part(0.04, 0.04, 1.1, 0x7a5a34, 0.36, 0.9, -0.55); break;   // a sou'wester, and a rod
       default: this.part(0.44, 0.12, 0.44, trim, 0, 1.88, 0);   // hair
     }
@@ -399,6 +406,8 @@ export class Villager extends Mob {
     this.age += dt;
     this.think(dt, player, Math.hypot(this.x - player.x, this.z - player.z));
     if (this.dead || !this.sleeping) return;
+    // the bed broken from under it: up it gets
+    if (this.bed && this.world.getBlockW(this.bed.x, this.bed.y, this.bed.z) !== B.BED) { this.wake(); this.say('Hey! My bed!'); return; }
     this.group.position.set(this.x, this.y, this.z);
     this.group.rotation.y = this.yaw;
     if (this.nameSprite) this.nameSprite.visible = false;
@@ -443,7 +452,8 @@ export class Villager extends Mob {
     this.leaveRoute();   // (a change of plan in a doorway: shut once clear)
     // a new spot among the place's spots now and then: people spread out
     if (act === 'square' || act === 'play') this.k = (Math.random() * 8) | 0;
-    const to = placeFor(v, this.res, act, this.k, { x: this.x, z: this.z });
+    const crowd = (i) => this.fx.mobs().filter((m) => m !== this && m.kind === 'villager' && !m.dead && m.act === 'shelter' && m.at?.plot === i).length;
+    const to = placeFor(v, this.res, act, this.k, { x: this.x, z: this.z }, crowd);
     // (from where it is, if it was on its way somewhere: not from where it was going)
     const from = this.route ? this.nearestPlace() : this.at ?? this.nearestPlace();
     this.route = { pts: route(v, from, to), i: 0, t: 0, best: Infinity, open: null };
@@ -498,10 +508,19 @@ export class Villager extends Mob {
     R.t += dt;
     if (d < R.best - 0.3) { R.best = d; R.t = 0; }
     if (R.t > 8 && R.noHop) { this.route = null; return; }   // (a child after you: it gives up)
-    if (R.t > 8 && (Math.hypot(player.x - this.x, player.z - this.z) > 14 || !this.canSee(player))) {
+    if (R.t > 8 && !this.inView(player)) {
       this.x = wp.x + 0.5; this.y = wp.y + 0.05; this.z = wp.z + 0.5; this.vx = this.vz = this.vy = 0;
       R.t = 0;
     }
+  }
+
+  // could the player see it hop? (near, and in front of them: a closed door
+  // between doesn't hide it if there's a window by it)
+  inView(player) {
+    const dx = this.x - player.x, dz = this.z - player.z, d = Math.hypot(dx, dz);
+    if (d > 40) return false;
+    const look = player.lookDir();
+    return d < 3 || (dx * look.x + dz * look.z) / d > 0.35;
   }
 
   // done with the route: a door it opened is still its to shut
@@ -553,12 +572,13 @@ export class Villager extends Mob {
     this.moving = false;
     this.vx = this.vy = this.vz = 0;
     this.h = 0.5 * this.size;   // (lying down: no tall box over the bed to get in your way)
-    // on its back, head to the back wall, small enough to fit the bed (its
-    // feet half a block toward the door from the bed's middle)
-    const [bx, bz] = DIRS[(p.rot + 2) % 4];
-    this.yaw = Math.atan2(bx, bz);
-    this.x = b.x + 0.5 - bx * 0.5; this.z = b.z + 0.5 - bz * 0.5; this.y = b.y + 1.02;
-    this.group.scale.setScalar(this.size * 0.55);
+    // on its back, its head on the pillow (a bed's pillow is always at its
+    // +z end), a little shrunk to fit; its feet over the bed's foot
+    const s = this.size * 0.7, len = 1.9 * s;
+    this.yaw = 0;
+    this.x = b.x + 0.5; this.z = b.z + 0.97 - len; this.y = b.y + 1.02;
+    this.bed = b;
+    this.group.scale.setScalar(s);
     this.group.rotation.x = Math.PI / 2;
     this.group.position.set(this.x, this.y, this.z);
   }
@@ -566,6 +586,7 @@ export class Villager extends Mob {
   wake() {
     if (!this.sleeping) return;
     this.sleeping = false;
+    this.bed = null;
     this.h = this.res.kid ? 1.05 : 1.9;
     this.group.rotation.x = 0;
     this.group.scale.setScalar(this.size);
@@ -747,6 +768,9 @@ export class Villager extends Mob {
     const hit = super.damage(amount, source);
     if (hit && !this.dead && this.dying === undefined) {
       this.say(LINES.hurt[(Math.random() * LINES.hurt.length) | 0]);
+      // a neighbour near by stops and calls out
+      const other = this.fx.mobs().find((m) => m !== this && m.kind === 'villager' && !m.dead && !m.sleeping && m.dying === undefined && Math.hypot(m.x - this.x, m.z - this.z) < 12);
+      if (other && !other.bubble) { other.say(LINES.defend[(Math.random() * LINES.defend.length) | 0].replace('{name}', this.res.name)); other.talkT = 2.5; }
       this.leaveRoute();
       this.route = null; this.act = null; this.at = null;
       this.state = 'flee'; this.stateTime = 4;
@@ -761,10 +785,11 @@ export class Villager extends Mob {
     if (g) {
       const rec = villageRecord(g, this.village);
       rec.lost = { name: this.res.name, at: worldClock.now };
-      g.hud.showLabel(`${this.res.name} the ${this.label} of ${this.village.name} has died`, true);
+      g.hud.showLabel(`${this.res.name} the ${this.label}, of ${this.village.name}, has died`, true);
     }
     const name = this.name;
     this.name = null;   // (the line above says it: not Mob's "has died" as well)
+    this.unsay();
     super.die();
     this.name = name;
   }
@@ -837,7 +862,8 @@ export function tickVillagers(game, dt) {
       // where the day says it is (in bed, at work, on the square, at home)
       const act = activity(r, game.time, wet(game, v));
       const dry = placeCell(v, placeFor(v, r, activity(r, game.time, false), r.id));   // (in the rain: the shelter nearest where it'd be)
-      const place = placeFor(v, r, act, r.id, dry);
+      const crowd = (i) => mobs.filter((m) => m.kind === 'villager' && !m.dead && m.act === 'shelter' && m.at?.plot === i).length;
+      const place = placeFor(v, r, act, r.id, dry, crowd);
       const c = placeCell(v, place);
       if (!game.world.isLoaded(c.x, c.z)) continue;
       const m = new Villager(game.scene, game.world, c.x + 0.5, c.y + 0.05, c.z + 0.5, v, r);

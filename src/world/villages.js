@@ -13,7 +13,7 @@
 // village, kept well in from the region's edges so two never touch.
 
 import { CHUNK_X, CHUNK_Y, CHUNK_Z, SEA_LEVEL, blockIndex } from '../core/constants.js';
-import { coordRng } from '../core/rng.js';
+import { coordRng, hashCoords } from '../core/rng.js';
 import { B } from '../blocks/blocks.js';
 import { I } from '../items/itemIds.js';
 import { makeStack } from '../items/items.js';
@@ -118,11 +118,16 @@ export function inVillage(gen, wx, wz, margin = 0) {
   return v.boxes.some((b) => wx >= b.x0 - margin && wx <= b.x1 + margin && wz >= b.z0 - margin && wz <= b.z1 + margin);
 }
 
+// a seed stirred well before it's hashed with a position (see planVillage)
+export const mixedSeed = (seed) => hashCoords(seed, 0x2545f491, 0x9e3779b9, 0x6a09e667);
+
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
 
 function planVillage(gen, rx, rz) {
   const v13 = gen.version >= 13;   // (generator 13's fixes: see below)
-  const rng = coordRng(gen.seed, rx, rz, 7171);
+  // (v13: the seed mixed first: coordRng xors it straight into the region,
+  // so seeds 1 and 3 rolled the same villages two regions apart)
+  const rng = coordRng(v13 ? mixedSeed(gen.seed) : gen.seed, rx, rz, 7171);
   if (rng() > CHANCE) return null;
   const ccx = rx * REGION + 6 + Math.floor(rng() * (REGION - 12));
   const ccz = rz * REGION + 6 + Math.floor(rng() * (REGION - 12));
@@ -219,6 +224,8 @@ function planVillage(gen, rx, rz) {
         // (road, along, side: where its step meets the road, for the villagers' way about)
         const plot = { kind: 'plot', name, ...box, y: floor, w, depth, rot: (n + 2) % 4, door, seed: (rng() * 2 ** 31) | 0, road: roads.indexOf(road), along: s + (w >> 1), side };
         pieces.push(plot); boxes.push(plot, { x0: door[0], x1: door[0], z0: door[1], z1: door[1] });
+        // (v13: and the strip it brings level in front, kept clear of trees)
+        if (v13) { const a = at(along0, 2), b = at(along1, 2); boxes.push({ x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), z0: Math.min(a[1], b[1]), z1: Math.max(a[1], b[1]) }); }
         s += w + 2 + Math.floor(rng() * 3);
       } else s += 3;
       side = -side;
@@ -350,6 +357,13 @@ function buildPlot(p, S, style, set, get, column, earth, out, v13) {
   // the ground: the footprint levelled at the floor, cleared above
   const clear = p.name === 'farm' ? 4 : 12;
   for (let lx = 0; lx < w; lx++) for (let lz = 0; lz < d; lz++) { const [x, z] = W(lx, lz); column(x, z, y, p.name === 'farm' ? B.DIRT : S.floor, S.base, clear); }
+  // (v13: the strip between the road and the plot brought up level with
+  // the floor, rather than left at the ground's height: a raised plot stood
+  // over a ditch either side of its step)
+  if (v13) {
+    const top = style === 'sand' ? B.SAND : B.GRASS;
+    for (let lx = 0; lx < w; lx++) { const [x, z] = W(lx, -1); column(x, z, y, top, earth, 3); }
+  }
   // the step out to the road
   column(p.door[0], p.door[1], y, S.road, earth, 4);
   BUILD[p.name](b, S, style, w, d, rng);
@@ -476,7 +490,7 @@ const BUILD = {
     const fence = style === 'sand' ? B.SANDSTONE : B.OAK_FENCE, mid = w >> 1;
     for (let lx = 0; lx < w; lx++) {
       for (let lz = 0; lz < d; lz++) {
-        b.set(lx, 0, lz, style === 'sand' ? B.SAND : B.GRASS);
+        b.set(lx, 0, lz, B.GRASS);   // (grass even in the desert: the sheep graze it)
         if (lx > 0 && lz > 0 && lx < w - 1 && lz < d - 1) continue;
         if (lz === 0 && lx === mid) { b.gate(lx, 1, lz); continue; }
         b.set(lx, 1, lz, fence);
