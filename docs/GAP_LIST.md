@@ -240,7 +240,7 @@ A bot played new worlds from the first tree to the dragon and home (95 runs: 91 
 - [ ] Experience and enchanting-like progression past diamond and dragon gear
 - [x] Villages (generator 12): square, roads, houses, smithy, kitchen, library, fields, stable; no night spawns; a start in sight of one
 - [x] Caves (generator 13): ravines, flooded caves and underground lakes, big pillared caverns, tunnels that swell and narrow, stalactites, stalagmites and glowcaps, cave floors by biome
-- [ ] Villagers and trading with them (planned: docs/VILLAGE_PLAN.md)
+- [x] Villagers and trading with them: residents by job with a daily round, doors, talk, trades that restock and level up (next: standing and requests, docs/VILLAGE_PLAN.md)
 - [x] Trading audit: the market stall opens whatever you're holding (sneak to build on it); the trader tries every side of a stall (a tree in front used to keep it away for good), comes to a village's stall, and only starts a visit in the morning (one that started late was cut short by nightfall, and every one after it); "Sell all" shows what the lot fetches and the purse shows what's on account; the panel keeps your place and focus after a sale; trade buttons name their item for screen readers; "1 coin" / "0.5 coins"; creative fair prizes no longer count toward coins earned
 - [ ] Boats; minecarts and rails
 - [ ] Redstone-lite: levers, buttons, pressure plates, wire, lamps, powered doors (and switching farm machines)

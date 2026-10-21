@@ -30,6 +30,7 @@ import { SignEditor } from './ui/signEditor.js';
 import { RanchPanel } from './ui/ranchPanel.js';
 import { bindStats } from './world/market.js';
 import { tickTrader, judge } from './entities/trader.js';
+import { tickVillagers } from './entities/villagers.js';
 import { tickCustomers, buyAtStall, resetCustomers } from './entities/customers.js';
 import { villageAt, villageIn, inVillage, REGION } from './world/villages.js';
 import { MobSpawner } from './entities/mobSpawner.js';
@@ -202,9 +203,11 @@ export class Game {
     this.entities.fx.spark = (x, y, z, color, n) => this.sparks(x, y, z, color, n);
     this.entities.fx.openBags = (mob) => this.containers.openBags(mob);
     this.entities.fx.openTrader = () => this.ranchPanel.openTrader();
+    this.entities.fx.openVillager = (m, line) => this.ranchPanel.openVillager(m, line);
     this.entities.fx.customerBuys = (c) => buyAtStall(this, c);
     resetCustomers();
     this.entities.fx.say = (text) => this.hud.showLabel(text);
+    this.entities.fx.game = this;   // (villagers keep to the game's day, weather and village records)
     this.entities.fx.judge = (led) => judge(this, led);
     this.entities.fx.flame = (x, y, z, vx, vy, vz) => this.flame(x, y, z, vx, vy, vz);
     this.entities.fx.drop = (x, y, z, stacks) => this.entities.spawnDrops(x, y, z, stacks);
@@ -304,7 +307,7 @@ export class Game {
       if (button === 2 && !this.uiOpen && !this.player.dead) {
         const m = this.mobUnderCrosshair();
         const held = this.player.heldStack();
-        if (m && held?.id === I.NAME_TAG && !m.hostile && m.kind !== 'falling') {
+        if (m && held?.id === I.NAME_TAG && !m.hostile && m.kind !== 'falling' && !m.resident) {
           this.nameAnimal(m);
           this.interaction.placeCooldown = 0.35;
           this.interaction.useCooldown = 0.35;
@@ -882,7 +885,7 @@ export class Game {
     const bags = this.containers.bagsOf;
     if (bags && (bags.dead || bags.dying !== undefined || Math.hypot(bags.x - p.x, bags.z - p.z) > 6)) this.containers.close();
     const m = p.sneaking && !p.dead ? this.mobUnderCrosshair(3) : null;
-    this.hud.setInspect(m && !m.hostile && m.kind !== 'falling' && m.kind !== 'tnt' ? describeAnimal(m) : null);
+    this.hud.setInspect(m && !m.hostile && m.kind !== 'falling' && m.kind !== 'tnt' ? m.describe?.() ?? describeAnimal(m) : null);
   }
 
   // A name tag on an animal: type a name; it's yours from then on.
@@ -1730,6 +1733,7 @@ export class Game {
         tickRanch(this, dt);   // (after the block updates: a fence just knocked down is seen)
         tickTrader(this, dt);
         tickCustomers(this, dt);
+        tickVillagers(this, dt);
         this.villageBanner(dt);
         if (this.dimension === SCORCH) this.updateDragon(dt);
 

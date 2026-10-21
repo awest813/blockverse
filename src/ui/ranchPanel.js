@@ -11,6 +11,8 @@ import { B } from '../blocks/blocks.js';
 import { stallState, shelve, unshelve, shelfCount, shelfPrice, catchUp } from '../world/stall.js';
 import { hurryCustomer } from '../entities/customers.js';
 import { worldClock } from '../core/clock.js';
+import { offers, sellTo, buyFrom, quoteTo, LEVEL_NAMES } from '../world/villageTrade.js';
+import { villageRecord, JOB_LABEL } from '../entities/villagers.js';
 
 const name = (id) => itemInfo(id)?.display ?? '?';
 
@@ -307,6 +309,85 @@ export class RanchPanel {
     p.events.dispatchEvent(new CustomEvent('inventory'));
     g.sfx?.play('pickup', { pitch: 1.4 });
     this.renderTrader();
+  }
+
+  // ---- a villager ----
+
+  // m: the villager; line: what it said as you came up
+  openVillager(m, line = '') {
+    this.kind = 'villager';
+    this.villager = m;
+    this.line = line;
+    this.game.setUiOpen(true);
+    this.renderVillager();
+  }
+
+  renderVillager() {
+    const g = this.game, p = g.player, m = this.villager, r = m.res;
+    const rec = villageRecord(g, m.village), o = offers(rec, r);
+    if (!o) { this.close(); return; }
+    const creative = p.mode === GAMEMODE_CREATIVE;
+    const job = JOB_LABEL[r.job] ?? 'villager';
+    this.frame(`${r.name} the ${job}, of ${m.village.name}`, (win) => {
+      const purse = document.createElement('p');
+      purse.className = 'ranch-purse';
+      const odd = rec.market?.credit ?? 0;
+      purse.textContent = `Your coins: ${p.countOf(I.COIN)}${odd >= 0.05 ? ` (and ${coinsText(odd)} on account here)` : ''} \u00b7 ${LEVEL_NAMES[o.level]} ${job}${o.next ? ': more to trade as you deal with them' : ''}`;
+      purse.setAttribute('aria-live', 'polite');
+      if (this.line) win.appendChild(Object.assign(document.createElement('p'), { className: 'ranch-made', textContent: `\u201c${this.line}\u201d` }));
+      win.appendChild(purse);
+      const cols = document.createElement('div');
+      cols.className = 'ranch-cols';
+      const buyCol = document.createElement('section');
+      buyCol.innerHTML = `<h4>${r.name} buys</h4>`;
+      for (const b of o.buys) {
+        const have = p.countOf(b.id), all = Math.min(have, b.left);
+        const sub = b.left > 0 ? `${coinsOf(b.price)} each \u00b7 wants ${b.left} more today` : 'has all it wants today: more tomorrow';
+        buyCol.appendChild(this.row(b.id, have ? `${name(b.id)} \u00d7${have}` : name(b.id), sub, [
+          ['Sell 1', () => this.sellToVillager(b.id, 1), !have || b.left <= 0],
+          [all > 1 ? `Sell ${all} (${quoteTo(rec, r, b.id, all)})` : 'Sell all', () => this.sellToVillager(b.id, all), !have || b.left <= 0],
+        ]));
+      }
+      const sellCol = document.createElement('section');
+      sellCol.innerHTML = `<h4>${r.name} sells</h4>`;
+      const coins = p.countOf(I.COIN);
+      for (const s of o.sells) {
+        sellCol.appendChild(this.row(s.id, name(s.id), s.left > 0 ? `${coinsOf(s.price)} \u00b7 ${s.left} left today` : 'sold out: more tomorrow', [['Buy', () => this.buyFromVillager(s.id), s.left <= 0 || (!creative && coins < s.price)]]));
+      }
+      cols.append(buyCol, sellCol);
+      win.appendChild(cols);
+    });
+  }
+
+  sellToVillager(id, n) {
+    const g = this.game, p = g.player, m = this.villager, rec = villageRecord(g, m.village);
+    n = Math.min(n, p.countOf(id));
+    if (n <= 0) return;
+    const { sold, coins } = sellTo(rec, m.res, id, n);
+    if (!sold) return;
+    p.take(id, sold);
+    const back = RETURNS.get(id);
+    if (back) giveOrDrop(g, back, sold);
+    giveOrDrop(g, I.COIN, coins);
+    bump(g.worldMeta, 'coins', coins);
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    g.sfx?.play('pickup', { pitch: 1.4 });
+    m.nod?.();
+    this.renderVillager();
+  }
+
+  buyFromVillager(id) {
+    const g = this.game, p = g.player, m = this.villager, rec = villageRecord(g, m.village);
+    const price = offers(rec, m.res)?.sells.find((s) => s.id === id)?.price ?? 0;
+    const creative = p.mode === GAMEMODE_CREATIVE;
+    if (!price || (!creative && p.countOf(I.COIN) < price)) return;
+    if (!buyFrom(rec, m.res, id)) return;
+    if (!creative) p.take(I.COIN, price);
+    giveOrDrop(g, id, 1);
+    p.events.dispatchEvent(new CustomEvent('inventory'));
+    g.sfx?.play('pickup');
+    m.nod?.();
+    this.renderVillager();
   }
 
   // ---- the ledger ----

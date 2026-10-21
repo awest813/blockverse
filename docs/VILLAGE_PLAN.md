@@ -201,6 +201,45 @@ fields to harvest). They let the generator settle and be tested on its own:
 
 ## Phase 2: villagers
 
+### Step 3 and the start of step 4 (done)
+
+`entities/villagers.js` and `world/villageTrade.js`:
+- **The record** (`worldMeta.villages[id]`): made the first time you come
+  within 40 blocks of a village, from its plan: one resident a bed (the
+  second bed of a family house is a child's about half the time), each
+  grown-up given a free workplace (a smithy, kitchen, library, farm or
+  stable), then the fields, else no job. Checked once a session on load
+  (names, beds and workplaces must be real; at most 16 residents and 64
+  villages).
+- **Present or away:** bodies within 40 blocks of a village's bounds, gone
+  past 56; they come back where the schedule says (in bed, at work, on the
+  square, at home), not where they were.
+- **The day:** asleep 0.53–0.98, home at dusk and dawn and in the rain,
+  work in the morning and afternoon, the square at noon; each resident a
+  little early or late. Children play on the square and grow up after
+  three days into a free job.
+- **Getting around:** routes come from the plan, not a search: out of the
+  building (doors and the stable's gate opened and shut behind), along
+  the roads, round the well on a ring three blocks out, in at the next
+  door. The last few cells use the existing A*; a villager stuck for 8 s
+  hops on when you're not watching. A check over 49 villages (16,296
+  routes) found every waypoint standable and no leg too long or steep.
+- **Talk and trade:** use one for a speech bubble by job, time, weather
+  and recent losses, and (a grown-up with a trade, by day; sneak to just
+  talk) its trades: five job tables, offers with uses that refill over a
+  day, levels at 20/60/150 coins traded (Novice to Master) adding offers,
+  buying at a fifth over the market with a per-village glut. No sale price
+  is under what the thing fetches anywhere (stall customers, the trader's
+  wants, another village).
+- A farmer reaps and replants ripe crops by it. A villager hit runs off;
+  one killed is gone, and mourned for two days.
+
+Not yet: shepherds, butchers, beekeepers and fishers (no buildings for
+them), kids following you about, rain shelter under the nearest roof
+(they go home), the market stall per village, the trader's visits moving
+to the square for good, and standing (Phase 4).
+
+
 1. **`Villager` mob** (`entities/villager.js`):
    - **Model:** a humanoid like the trader's, with style-based clothes and
      profession details (smith's apron, farmer's hat, librarian's

@@ -424,7 +424,7 @@ export class Mob {
     const playerDistSq = pdx * pdx + pdz * pdz;
     if (playerDistSq > 80 * 80) {
       // animals the player has fed are kept (stashed) rather than lost
-      if (!this.tamed) {
+      if (!this.tamed && !this.resident) {   // (a village's people are its own to put away: entities/villagers.js)
         // a farm animal penned in (by a fence, a gate or a trough near it) is
         // kept, like one you've fed
         if (!this.persistent && this.breedItem && this.nearPen()) this.persistent = true;

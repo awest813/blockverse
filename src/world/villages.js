@@ -208,7 +208,8 @@ function planVillage(gen, rx, rz) {
         // (v13: and the step is one you can climb: within a block of the road)
         (!v13 || (!!cell && Math.abs(floor - cell[2]) <= 1));
       if (fits) {
-        const plot = { kind: 'plot', name, ...box, y: floor, w, depth, rot: (n + 2) % 4, door, seed: (rng() * 2 ** 31) | 0 };
+        // (road, along, side: where its step meets the road, for the villagers' way about)
+        const plot = { kind: 'plot', name, ...box, y: floor, w, depth, rot: (n + 2) % 4, door, seed: (rng() * 2 ** 31) | 0, road: roads.indexOf(road), along: s + (w >> 1), side };
         pieces.push(plot); boxes.push(plot, { x0: door[0], x1: door[0], z0: door[1], z1: door[1] });
         s += w + 2 + Math.floor(rng() * 3);
       } else s += 3;
@@ -307,16 +308,15 @@ function buildSquare(v, S, p, set, column, earth) {
   set(p.x1 - 1, y + 1, p.z1 - 2, S.roof === B.OAK_STAIRS ? B.OAK_STAIRS : S.wall, 3);
 }
 
-// One plot: its building, turned to face the road, and the step to its door.
-function buildPlot(p, S, style, set, get, column, earth, out, v13) {
-  const rng = coordRng(p.seed, 0, 0, 1);
-  const { w, depth: d, rot, y } = p;
-  // local (lx, lz) -> world: lx along the front, lz back from it; the front
-  // row (lz = 0) faces the road
+// A plot's local frame: W(lx, lz) -> [x, z] in the world, lx along its
+// front, lz back from it (the front row, lz = 0, faces the road); turn(dir)
+// is a local facing (0 = toward the road) in the world.
+export function plotFrame(p) {
+  const { w, depth: d, rot } = p;
   const right = DIRS[(rot + 1) % 4], back = DIRS[(rot + 2) % 4];
-  // the front row runs along `right` from the corner nearest the road
+  // the front row runs along `right` from the corner nearest the road:
+  // the corner of the box whose local frame (right, back) covers it
   const origin = (() => {
-    // pick the corner of the box whose local frame (right, back) covers it
     const xs = [p.x0, p.x1], zs = [p.z0, p.z1];
     for (const x of xs) for (const z of zs) {
       const far = [x + right[0] * (w - 1) + back[0] * (d - 1), z + right[1] * (w - 1) + back[1] * (d - 1)];
@@ -325,7 +325,14 @@ function buildPlot(p, S, style, set, get, column, earth, out, v13) {
     return [p.x0, p.z0];
   })();
   const W = (lx, lz) => [origin[0] + right[0] * lx + back[0] * lz, origin[1] + right[1] * lx + back[1] * lz];
-  const turn = (dir) => (dir + rot) % 4;   // a local facing (0 = toward the road) in the world
+  return { W, turn: (dir) => (dir + rot) % 4 };
+}
+
+// One plot: its building, turned to face the road, and the step to its door.
+function buildPlot(p, S, style, set, get, column, earth, out, v13) {
+  const rng = coordRng(p.seed, 0, 0, 1);
+  const { w, depth: d, rot, y } = p;
+  const { W, turn } = plotFrame(p);
   const b = {
     set(lx, ly, lz, id, dir = -1) { const [x, z] = W(lx, lz); return set(x, y + ly, z, id, dir >= 0 ? turn(dir) : 0); },
     gate(lx, ly, lz) { const [x, z] = W(lx, lz); return set(x, y + ly, z, B.OAK_FENCE_GATE, rot & 1); },   // (a gate's meta is its axis)
