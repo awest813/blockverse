@@ -322,7 +322,7 @@ export class Game {
           // the wrong food: say what it does eat
           const foods = (m.diet ?? [m.breedItem, ...(m.breedAlso ?? [])]).map((id) => itemInfo(id)?.display.toLowerCase()).filter(Boolean);
           const list = foods.length > 1 ? `${foods.slice(0, -1).join(', ')} or ${foods.at(-1)}` : foods[0];
-          const who = m.kind === 'sheep' ? 'Sheep' : `${m.kind[0].toUpperCase()}${m.kind.slice(1)}s`;
+          const name = m.label ?? m.kind, who = m.kind === 'sheep' ? 'Sheep' : `${name[0].toUpperCase()}${name.slice(1)}s`;
           this.hud.showLabel(`${who} eat ${list}`);
         }
         return;
@@ -949,7 +949,7 @@ export class Game {
     this.sfx?.play('horn');
     const called = [];
     for (const m of this.entities.mobs) {
-      if (!m.rideable || !m.owned || m.rider || m.dead || m.dying !== undefined) continue;   // your horses and camels come
+      if (!m.rideable || !m.owned || m.rider || m.leash || m.dead || m.dying !== undefined) continue;   // your horses and camels come (not ones tied up)
       if (Math.hypot(m.x - p.x, m.z - p.z) > 64) continue;
       m.called = 25;
       called.push(m);
@@ -963,7 +963,7 @@ export class Game {
   whistle(home) {
     const p = this.player, mobs = this.entities.mobs;
     this.sfx?.play('whistle');
-    const dog = home ? null : mobs.find((m) => m.kind === 'dog' && m.tamed && !m.sitting && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 20);
+    const dog = home ? null : mobs.find((m) => m.herd && m.tamed && !m.sitting && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 20);
     const reach = dog ? 48 : 32;
     let n = 0, homeless = 0;
     for (const m of mobs) {
@@ -977,7 +977,7 @@ export class Game {
     if (dog && n) { dog.herding = 25; dog.herded = null; dog.herdTarget = null; }
     const one = n === 1 ? 'animal' : 'animals';
     if (home) this.hud.showLabel(n ? `${n} ${one} head home (leave the gate open)` : homeless ? 'None of them has a pen to go home to' : 'No animal of yours is in earshot');
-    else this.hud.showLabel(n ? `${n} ${one} coming${dog ? ' — your dog rounds them up' : ''}` : 'No animal of yours is in earshot');
+    else this.hud.showLabel(n ? `${n} ${one} coming${dog ? ` — your ${dog.petName ?? 'dog'} rounds them up` : ''}` : 'No animal of yours is in earshot');
   }
 
   mobUnderCrosshair(extraReach = 0) {

@@ -246,13 +246,16 @@ export function restoreAnimal(scene, world, a) {
   if (traits) mob.traits = traits;
   if (['blue', 'red', 'yellow'].includes(a.ribbon)) mob.ribbon = a.ribbon;
   if (Array.isArray(a.parentNames)) mob.parentNames = a.parentNames.slice(0, 2).map((n) => (typeof n === 'string' ? n.slice(0, 24) : null));
-  mob.breedCooldown = Math.max(0, (a.breedCooldown ?? 0) - away);
+  // (a flock sheep's Infinity, saved before it was taken, comes back as 0)
+  mob.breedCooldown = Number.isFinite(a.breedCooldown) ? Math.max(0, a.breedCooldown - away) : 0;
   if (a.baby) {
     const grow = (a.grow || 300) - away;
     if (grow > 0) mob.setBaby(true, grow);
   }
   if (a.sheared) mob.setSheared?.(true);
   if (a.extra) mob.loadExtra?.(a.extra);
+  // a shorn sheep's wool grows back while it's away too
+  if (mob.sheared && Number.isFinite(mob.regrow) && (mob.regrow -= away) <= 0) mob.setSheared(false);
   if (a.leash?.knot) mob.leashTo({ knot: a.leash.knot });
   else if (a.leash === 'player') mob.pendingLeash = true;   // picked up again once the player's about
   return mob;
@@ -262,6 +265,6 @@ export const KEPT_KINDS = new Set(Object.keys(KEPT));
 
 // every kept animal, live or stashed, for the save file
 EntityManager.prototype.keptAnimals = function keptAnimals() {
-  const live = this.mobs.filter((m) => m.persistent && !m.tamed && !m.dead && m.dying === undefined && KEPT[m.kind]).map(serializeAnimal);
+  const live = this.mobs.filter((m) => m.persistent && !m.tamed && !m.flock && !m.resident && !m.dead && m.dying === undefined && KEPT[m.kind]).map(serializeAnimal);
   return [...live, ...this.stash];
 };

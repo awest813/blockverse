@@ -476,7 +476,7 @@ export class Player {
   }
 
   respawn() {
-    if (this.mount) { this.mount.rider = null; this.mount = null; }
+    if (this.mount) { if (this.mount.dismount) this.mount.dismount(); else this.mount.rider = null; this.mount = null; }   // (its own height and pace back)
     this.x = this.spawnPoint.x;
     this.y = this.spawnPoint.y;
     this.z = this.spawnPoint.z;

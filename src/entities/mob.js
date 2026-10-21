@@ -2,7 +2,7 @@
 // Models are assembled from shaded colored boxes (all original designs).
 
 import * as THREE from 'three';
-import { moveEntity, entityInBlock, entityInWater, nudgeFree } from '../core/physics.js';
+import { moveEntity, entityInBlock, entityInWater, nudgeFree, entityCollides } from '../core/physics.js';
 import { B, isSolid } from '../blocks/blocks.js';
 import { GAMEMODE_CREATIVE } from '../core/constants.js';
 import { I } from '../items/itemIds.js';
@@ -142,6 +142,8 @@ export class Mob {
       if (this.love > 0 || (this.breedCooldown ?? 0) > 0) return false;   // not hungry yet
       if (this.unhappy()) {
         // it eats, but it's in no mood: a miserable pen breeds nothing
+        // (and a golden carrot isn't wasted on it)
+        if (id === I.GOLDEN_CARROT) return false;
         if (worldClock.now - (this.fedAt ?? -1e9) < 30) return false;
         this.fedAt = worldClock.now;
         this.fx?.notify?.(`Too unhappy to breed: ${this.moodWhy.filter((w) => BAD.has(w)).join(', ') || 'its pen'}`);
@@ -169,7 +171,7 @@ export class Mob {
     if (this.feed(held.id)) { if (player.mode !== GAMEMODE_CREATIVE) player.consumeHeld(1); }
     // not hungry: say why (rather than swallowing the click)
     else if (this.love > 0) this.fx?.notify?.('It\u2019s ready to breed: bring it another of its kind');
-    else if (this.unhappy()) this.fx?.notify?.('It\u2019s just eaten, and it\u2019s too unhappy to breed');
+    else if (this.unhappy()) this.fx?.notify?.(held.id === I.GOLDEN_CARROT ? `Too unhappy to breed, even for a golden carrot: ${this.moodWhy.filter((w) => BAD.has(w)).join(', ') || 'its pen'}` : 'It\u2019s just eaten, and it\u2019s too unhappy to breed');
     else this.fx?.notify?.(`It can breed again in ${Math.ceil(this.breedCooldown ?? 0)}s`);
     return true;
   }
@@ -437,13 +439,19 @@ export class Mob {
     }
     // pets left far behind catch up by appearing next to the player
     // (only once the player is on the ground, so pets aren't dropped from the sky)
+    // (on solid ground with room for it: never off the side of a bridge
+    // over lava or a ravine; with nowhere safe, it tries again next frame)
     if (this.tamed && !this.sitting && playerDistSq > 24 * 24 && !player.dead && player.onGround && !player.flying) {
-      this.x = player.x + (Math.random() - 0.5) * 2;
-      this.y = player.y + 0.1;
-      this.z = player.z + (Math.random() - 0.5) * 2;
-      this.vx = this.vy = this.vz = 0;
-      this.fallStart = undefined;
-      nudgeFree(this.world, this, 1);   // not inside a corridor wall
+      const y = player.y + 0.1, fy = Math.floor(player.y - 0.5);
+      for (let k = 0; k < 6; k++) {
+        const x = player.x + (k ? (Math.random() - 0.5) * 2 : 0), z = player.z + (k ? (Math.random() - 0.5) * 2 : 0);
+        const ground = this.world.getBlockW(Math.floor(x), fy, Math.floor(z));
+        if (!isSolid(ground) || ground === B.LAVA || entityCollides(this.world, { x, y, z, w: this.w, h: this.h })) continue;
+        this.x = x; this.y = y; this.z = z;
+        this.vx = this.vy = this.vz = 0;
+        this.fallStart = undefined;
+        break;
+      }
     }
     // freeze in unloaded chunks
     if (!this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) return;

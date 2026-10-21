@@ -841,7 +841,8 @@ export function tickVillagers(game, dt) {
     // sheep is yours now, and the flock's one short; in the pasture it stays
     // the village's, whatever's been done to it (fed, shorn, dyed)
     const P = m.flockPlot, out = m.x < P.x0 - 0.2 || m.x > P.x1 + 1.2 || m.z < P.z0 - 0.2 || m.z > P.z1 + 1.2;
-    if (m.leash?.player || m.tamed || out) { loseSheep(m); m.resident = false; m.persistent = true; continue; }
+    // (a name tag makes it yours too)
+    if (m.leash?.player || m.tamed || out || m.name) { loseSheep(m); m.resident = false; m.persistent = true; continue; }
     m.persistent = false;
     if (outside(m.flockOf, p.x, p.z) > FAR) m.kill();
   }
@@ -885,6 +886,7 @@ function loseSheep(m) {
   if (f.n >= FLOCK) f.at = worldClock.now;
   f.n = Math.max(0, f.n - 1);
   m.flock = null;
+  m.breedCooldown = 0;   // (yours to breed now)
 }
 
 // The village's sheep in each pasture (generator 13): kept like its people,

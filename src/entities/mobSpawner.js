@@ -108,7 +108,7 @@ export class MobSpawner {
       }
       return;
     }
-    if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor);
+    if (passives < PASSIVE_CAP) this.trySpawn(player, false, dayFactor, PASSIVE_CAP - passives);
     // the surface spawns monsters at night; caves are dark at any hour
     if (this.difficulty > 0 && hostiles < cap) this.trySpawn(player, true, dayFactor);
     const gulls = count(mobs, Seagull);
@@ -224,7 +224,7 @@ export class MobSpawner {
     return null;
   }
 
-  trySpawn(player, hostile, dayFactor) {
+  trySpawn(player, hostile, dayFactor, room = 1) {
     if (hostile && (dayFactor >= 0.4 || Math.random() < 0.5)) {
       // underground first (always allowed); the surface only at night
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -283,13 +283,15 @@ export class MobSpawner {
       const table = LAND_TABLE[landBiome];
       if (!table) continue;
       const Cls = weighted(table);
-      if (KIND_CAP.has(Cls) && count(this.entities.mobs, Cls) >= KIND_CAP.get(Cls)) continue;
+      // (wild ones: your own camels don't keep the desert's away)
+      const kindRoom = KIND_CAP.has(Cls) ? KIND_CAP.get(Cls) - this.entities.mobs.filter((m) => m instanceof Cls && !m.persistent && !m.tamed).length : Infinity;
+      if (kindRoom <= 0) continue;
       // bare rock is for goats only, sand for camels
       if (SAND_DWELLERS.has(Cls) ? ground !== B.SAND && ground !== B.GRASS
         : ground !== B.GRASS && ground !== B.SNOWY_GRASS && ground !== B.DIRT && ground !== B.SNOW_BLOCK && !(Cls === Goat && ground === B.STONE)) continue;
       if (Cls === Goat && ground !== B.STONE && ground !== B.SNOW_BLOCK && ground !== B.SNOWY_GRASS && y < 80 && Math.random() < 0.6) continue;   // goats like it high and rocky
       // herds and flocks: horses, goats and ducks come in twos and threes
-      const n = GROUP.get(Cls)?.() ?? 1;
+      const n = Math.min(GROUP.get(Cls)?.() ?? 1, room, kindRoom);   // (a herd doesn't overrun the caps)
       for (let k = 0; k < n; k++) {
         const ox = k ? Math.round((Math.random() - 0.5) * 4) : 0, oz = k ? Math.round((Math.random() - 0.5) * 4) : 0;
         const gy = this.world.surfaceHeight(wx + ox, wz + oz) + 1;

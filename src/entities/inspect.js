@@ -43,6 +43,7 @@ export function describeAnimal(m) {
   if (m.breedItem && !m.tamed) {
     if (m.baby) { /* (too young) */ }
     else if (m.unhappy?.()) lines.push('Too unhappy to breed');
+    else if (m.flock) lines.push('Breeds with its flock');
     else if (m.love > 0) lines.push('In love: bring it another of its kind');
     else if ((m.breedCooldown ?? 0) > 0) lines.push(`Can breed again in ${secs(m.breedCooldown)}`);
     else lines.push(`Ready to breed — eats ${itemInfo(m.breedItem)?.display.toLowerCase() ?? 'its food'}`);

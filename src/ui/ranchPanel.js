@@ -424,7 +424,8 @@ export class RanchPanel {
     // every animal of yours: about you, stashed far off here, and in the other world
     const rows = [];
     const live = g.entities.mobs.filter((m) => (m.tamed || (m.persistent && m.breedItem)) && !m.dead && m.dying === undefined);
-    for (const m of live) rows.push({ kind: m.label ?? m.petName ?? m.kind, name: m.name, x: m.x, z: m.z, dim: here, card: describeAnimal(m) });
+    for (const m of live) rows.push({ kind: KIND_NAMES[m.kind] ? m.kind : m.label ?? m.petName ?? m.kind,   // (one key per kind, live or stashed)
+      name: m.name, x: m.x, z: m.z, dim: here, card: describeAnimal(m) });
     for (const a of g.entities.stash) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: here });
     for (const a of meta.dims?.[other]?.animals ?? []) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: other });
     for (const a of meta.dims?.[other]?.pets ?? []) rows.push({ kind: a.kind, name: a.name, x: a.x, z: a.z, dim: other, pet: true });

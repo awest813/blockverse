@@ -381,8 +381,9 @@ export class Duck extends Animal {
     this.wings[1].rotation.z = -flap;
     // paddling: the legs swing slower, the body rocks gently
     this.group.rotation.z = this.inWater ? Math.sin(this.age * 2) * 0.06 : 0;
-    // a duck that's yours lays a duck egg now and then (on land: in a nest if there's one close)
-    if (this.persistent && !this.drake && !this.baby && this.onGround && this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) {
+    // a duck that's yours lays a duck egg now and then (on land: in a nest if there's one close;
+    // not a pelican, which has no hens)
+    if (this.kind === 'duck' && this.persistent && !this.drake && !this.baby && this.onGround && this.world.isLoaded(Math.floor(this.x), Math.floor(this.z))) {
       this.eggTimer = (this.eggTimer ?? 300 + Math.random() * 300) - dt * moodRate(this);
       if (this.eggTimer <= 0) {
         this.eggTimer = 480 + Math.random() * 420;
@@ -509,9 +510,11 @@ export class Horse extends Animal {
       baby.setCoat(coat);
     }
     const mix = (a, b, spread) => (a + b) / 2 + (Math.random() - 0.5) * spread;
-    baby.gallop = Math.max(7.5, Math.min(11.5, mix(this.gallop, mate.gallop, 1.2)));
+    // (within its own kind's gifts: a camel lopes, it never gallops like a horse)
+    const camel = this.kind === 'camel';
+    baby.gallop = camel ? Math.max(6.2, Math.min(7.6, mix(this.gallop, mate.gallop, 0.6))) : Math.max(7.5, Math.min(11.5, mix(this.gallop, mate.gallop, 1.2)));
     baby.jumpV = this.kind === 'horse' ? Math.max(10.4, Math.min(12.6, mix(this.jumpV, mate.jumpV, 0.6))) : mix(this.jumpV, mate.jumpV, 0.3);
-    baby.maxHealth = Math.round(Math.max(15, Math.min(32, mix(this.maxHealth, mate.maxHealth, 4))));
+    baby.maxHealth = Math.round(camel ? Math.max(28, Math.min(36, mix(this.maxHealth, mate.maxHealth, 3))) : Math.max(15, Math.min(32, mix(this.maxHealth, mate.maxHealth, 4))));
     baby.health = baby.maxHealth;
     if (this.owned || mate.owned) baby.temper = 60;
   }
@@ -636,7 +639,8 @@ export class Horse extends Animal {
     if (held && !(this.owned && this.saddled) || (held && itemInfo(held.id)?.food)) return false;
     if (this.baby) return true;
     if (player.sneaking) {
-      // sneak-use opens the saddlebags, or takes off the armour, then the saddle
+      // sneak-use (empty-handed) opens the saddlebags, or takes off the armour, then the saddle
+      if (held) return false;   // (whatever's in hand does its own thing)
       if (this.owned) this.ungear(player);
       return true;
     }
@@ -649,7 +653,7 @@ export class Horse extends Animal {
   mountBy(player) {
     if (player.mount) return;
     // the rider's head needs room
-    this.h = this.standH + 1;
+    this.h = this.riddenH;
     const cramped = entityCollides(this.world, this);
     this.h = this.standH;
     if (cramped) { this.fx?.notify?.('Not enough headroom to climb on here'); return; }
@@ -658,7 +662,10 @@ export class Horse extends Animal {
     this.rider = player;
     player.mount = this;
     player._sneakHeld = !!player.sneaking;
-    this.h = this.standH + 1;   // the rider's head: no squeezing under a low roof
+    this.h = this.riddenH;   // the rider's head: no squeezing under a low roof
+    // whatever it was doing (coming to a horn, heading home to a whistle, pulling on a lead) stops
+    this.called = 0; this.waiting = 0; this.whistled = null; this.path = null;
+    this.hurry = false; this.leashSpeed = 0;
     player.flying = false;
     player.vx = player.vy = player.vz = 0;
     this.persistent = true;
@@ -669,6 +676,10 @@ export class Horse extends Animal {
     }
     this.fx?.sound(this.ambientSound, { pos: this });
   }
+
+  // its height with you on it (a camel's capped so it still fits a 3-high
+  // doorway or portal: the rider's head just brushes the top)
+  get riddenH() { return Math.min(this.standH + 1, 2.95); }
 
   // the rider gets off beside the horse
   dismount() {
@@ -692,9 +703,12 @@ export class Horse extends Animal {
   }
 
   think(dt, player, playerDist) {
+    // (its own flight speed back once a call's over)
+    if (!(this.called > 0) && this.baseFlee != null) { this.fleeSpeed = this.baseFlee; this.baseFlee = null; }
     // called by a goat horn: come at a gallop
     if (this.called > 0 && !this.rider && !this.leash) {
       this.called -= dt;
+      this.baseFlee ??= this.fleeSpeed;
       if (playerDist < 3 || player.dead) { this.called = 0; this.waiting = 20; this.moving = false; return; }
       this.state = 'called';
       this.goTo(dt, player.x, player.y, player.z, 3);   // (round a fence, through a gate)
@@ -715,6 +729,7 @@ export class Horse extends Animal {
     const r = this.rider;
     this.detour = null;
     this.state = 'ridden';
+    this.hurry = false; this.leashSpeed = 0;   // (your pace, not a canter left over from a call)
     if (r.dead || r.mount !== this) { this.rider = null; this.h = this.standH; this.speed = this.walkSpeed ?? this.speed; if (r.mount === this) r.mount = null; this.state = 'idle'; return; }
     // a wild horse bucks: it won't go where you want, and then it decides
     if (this.buck > 0) {
@@ -810,7 +825,8 @@ export class Fox extends Animal {
       return;
     }
     // hunt chickens
-    const prey = this.nearest((m) => m.kind === 'chicken', 12);
+    // (on its own level: not through a floor or a ceiling)
+    const prey = this.nearest((m) => m.kind === 'chicken' && Math.abs(m.y - this.y) < 1.5, 12);
     if (prey) {
       this.state = 'chase';
       this.moving = true;
@@ -1574,7 +1590,7 @@ export class Capybara extends Animal {
 export class PolarBear extends Animal {
   constructor(scene, world, x, y, z) {
     super(scene, world, x, y, z);
-    this.w = 1.3; this.h = 1.4; this.health = 30; this.speed = 1.2; this.fleeSpeed = 3.6; this.kind = 'polarbear';
+    this.w = 1.3; this.h = 1.4; this.health = 30; this.speed = 1.2; this.fleeSpeed = 3.6; this.kind = 'polarbear'; this.label = 'polar bear';
     this.ambientSound = 'polarbear';
     this.breedItem = I.FISH_RAW;
     this.likesWater = true;
@@ -1627,7 +1643,9 @@ export class PolarBear extends Animal {
     this.swipeCooldown = Math.max(0, this.swipeCooldown - dt);
     const fair = !this.baby && !player.dead && player.mode !== GAMEMODE_CREATIVE && (player.mobDamageScale ?? 1) > 0;
     // a mother with her cub close by warns you off, then charges
-    if (fair && !this.anger && playerDist < 6 && !this.tamed) {
+    // (not one on your lead, or one of yours)
+    if (this.leash) this.anger = 0;
+    if (fair && !this.anger && playerDist < 6 && !this.tamed && !this.leash && !this.persistent) {
       const cub = this.nearest((m) => m.kind === 'polarbear' && m.baby, 10);
       if (cub && this.canSee(player)) {
         this.anger = 12;
@@ -1649,6 +1667,7 @@ export class PolarBear extends Animal {
     }
     if (this.anger > 0 && fair && playerDist < 24) {
       this.state = 'chase';
+      this.leashSpeed = 0; this.hurry = false;   // (its own charge, not a lead's pull)
       this.steer(player, 1);
       this.moving = playerDist > 1.8;
       if (playerDist < 2.3 && this.swipeCooldown <= 0 && this.canSee(player)) {
